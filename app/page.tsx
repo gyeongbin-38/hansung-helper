@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { SignIn, Onboarding, type Account } from './account-flow';
 import {
   GraduationCap,
   Home,
@@ -16,8 +17,6 @@ import {
   ArrowUpRight,
   ArrowRight,
   Bookmark,
-  ChevronLeft,
-  ChevronRight,
   Menu,
   X,
   Check,
@@ -120,7 +119,7 @@ type Data = {
 };
 const empty: Data = {
   name: '한성인',
-  year: '2024',
+  year: '',
   dept: '소속 미입력',
   credits: '',
   points: '',
@@ -156,7 +155,6 @@ export default function App() {
     [ready, setReady] = useState(false),
     [route, setRoute] = useState('home'),
     [drawer, setDrawer] = useState(false),
-    [slide, setSlide] = useState(0),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
     [toast, setToast] = useState(''),
@@ -164,31 +162,41 @@ export default function App() {
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]),
     [answer, setAnswer] = useState('');
+  const [account, setAccount] = useState<Account | null>(null);
+  const [demo, setDemo] = useState(false);
+  const [accountError, setAccountError] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
   // Browser storage is read after hydration to keep the initial server render stable.
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('hansung-demo-v1');
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (
-          Array.isArray(d.saved) &&
-          Array.isArray(d.planned) &&
-          Array.isArray(d.events)
-        ) {
-          setData({ ...empty, ...d });
-          setDraft(d.prefs || []);
-        }
-      }
-    } catch {
-      setToast('저장 정보를 읽지 못해 새 체험으로 시작합니다.');
-    }
-    setReady(true);
+    let active = true;
+    fetch('/api/account', { cache: 'no-store' })
+      .then(async (response) => {
+        if (response.ok) {
+          const result: Account = await response.json();
+          if (active) {
+            setAccount(result);
+            setData({ ...empty, ...result.profile });
+            setDraft(result.profile.prefs || []);
+          }
+        } else if (response.status !== 401 && active)
+          setAccountError(
+            '계정 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          );
+      })
+      .catch(() => {
+        if (active) setAccountError('계정 서버에 연결하지 못했습니다.');
+      })
+      .finally(() => {
+        if (active) setReady(true);
+      });
     const sync = () => setRoute(location.hash.slice(1) || 'home');
     sync();
     addEventListener('hashchange', sync);
-    return () => removeEventListener('hashchange', sync);
+    return () => {
+      active = false;
+      removeEventListener('hashchange', sync);
+    };
   }, []);
   useEffect(() => {
     if (toast) {
@@ -200,15 +208,55 @@ export default function App() {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
   }, [survey]);
-  function persist(next: Data, msg = '이 브라우저에 저장했습니다.') {
+  async function persist(
+    next: Data,
+    msg = '저장했습니다.',
+    complete?: boolean,
+  ) {
     try {
-      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+      if (account) {
+        const response = await fetch('/api/account/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...next,
+            onboarded: complete ?? account.onboarded,
+          }),
+        });
+        if (!response.ok) {
+          const result = (await response.json()) as { error?: string };
+          setToast(result.error || '저장하지 못했습니다.');
+          return false;
+        }
+        setAccount({
+          ...account,
+          profile: next,
+          onboarded: complete ?? account.onboarded,
+        });
+      } else localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
     } catch {
-      setToast('저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인하세요.');
+      setToast('저장하지 못했습니다. 입력 내용은 유지됩니다.');
       return false;
+    }
+  }
+  async function logout() {
+    try {
+      const response = await fetch('/api/account/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!response.ok) throw new Error();
+      setAccount(null);
+      setDemo(false);
+      setData(empty);
+      setDraft([]);
+      go('home');
+    } catch {
+      setToast('로그아웃하지 못했습니다. 다시 시도해 주세요.');
     }
   }
   function go(r: string) {
@@ -218,7 +266,7 @@ export default function App() {
     scrollTo(0, 0);
   }
   function save(id: string) {
-    persist(
+    void persist(
       {
         ...data,
         saved: data.saved.includes(id)
@@ -231,7 +279,7 @@ export default function App() {
     );
   }
   function plan(id: string) {
-    persist(
+    void persist(
       {
         ...data,
         planned: data.planned.includes(id)
@@ -243,7 +291,6 @@ export default function App() {
   }
   const section = route.split('/')[0],
     detail = route.split('/')[1],
-    active = acts[slide],
     planned = courses.filter((c) => data.planned.includes(c.id));
   const label =
     menus.find((m) => m[0] === section)?.[1] ||
@@ -298,6 +345,59 @@ export default function App() {
       ))}
     </div>
   );
+  if (!ready)
+    return (
+      <div className="auth-page">
+        <div className="auth-brand">
+          <GraduationCap />
+          한성 학사 도우미
+        </div>
+        <p>내 정보를 확인하고 있어요…</p>
+      </div>
+    );
+  if (!account && !demo)
+    return (
+      <>
+        {accountError && (
+          <p className="auth-error" role="alert">
+            {accountError}
+          </p>
+        )}
+        <SignIn
+          onAuthenticated={(result) => {
+            setAccount(result);
+            setData({ ...empty, ...result.profile });
+            setDraft(result.profile.prefs || []);
+            go('home');
+          }}
+          onDemo={() => {
+            setDemo(true);
+            try {
+              const raw = localStorage.getItem('hansung-demo-v1');
+              if (raw) {
+                const d = JSON.parse(raw);
+                if (
+                  Array.isArray(d.saved) &&
+                  Array.isArray(d.planned) &&
+                  Array.isArray(d.events)
+                )
+                  setData({ ...empty, ...d });
+              }
+            } catch {
+              setData(empty);
+            }
+            go('home');
+          }}
+        />
+      </>
+    );
+  if (account && !account.onboarded)
+    return (
+      <Onboarding
+        profile={data}
+        onSave={(next, complete) => persist(next, '', complete)}
+      />
+    );
   return (
     <div className="shell">
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
@@ -328,7 +428,11 @@ export default function App() {
             <span className="avatar">{data.name.slice(0, 1)}</span>
             <div>
               <b>{data.name}</b>
-              <small>체험 프로필 · 학교 인증 미완료</small>
+              <small>
+                {account
+                  ? '학교 계정 확인 · ' + account.studentMask
+                  : '체험 프로필'}
+              </small>
             </div>
           </div>
           <button onClick={() => go('profile')}>
@@ -337,6 +441,18 @@ export default function App() {
           <button onClick={() => go('settings')}>
             <Settings size={19} />
             설정
+          </button>
+          <button
+            onClick={() => {
+              if (account) void logout();
+              else {
+                setDemo(false);
+                setData(empty);
+              }
+            }}
+          >
+            <User size={19} />
+            {account ? '로그아웃' : '학교 계정으로 시작'}
           </button>
           <small className="footnote">한성대학교 비공식 학사 계획 도구</small>
         </div>
@@ -360,7 +476,7 @@ export default function App() {
           <span className="top-label">나의 대학 생활, 한곳에서</span>
           <form
             className="global-search"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               go('activities');
             }}
@@ -398,129 +514,104 @@ export default function App() {
               </div>
               <h1>
                 {section === 'home' ? `${data.name}님, 반가워요.` : label}
-                {section === 'home' && <span className="greeting">✳</span>}
               </h1>
               <p>
                 {section === 'home'
-                  ? '이번 주의 작은 선택이, 다음 학기를 만들어가요.'
+                  ? '오늘 필요한 수업과 다음 계획을 확인하세요.'
                   : '필요한 정보를 확인하고 다음 계획으로 연결하세요.'}
               </p>
             </div>
             <span className="date-label">
-              2026학년도 2학기 <span className="badge">체험용</span>
+              2026학년도 2학기{' '}
+              <span className="badge">{account ? '내 학사 홈' : '체험용'}</span>
             </span>
           </div>
-          <div className="demo-note">
-            <span>
-              <b>공개 체험 사이트</b> · 활동·과목은 예시이며 저장 내용은 이
-              브라우저에만 남습니다. 실제 학사자료는 입력하지 마세요.
-            </span>
-            <button onClick={() => go('settings/connections')}>
-              연결 상태 <ArrowRight size={15} />
-            </button>
-          </div>
+          {account ? (
+            <div className="account-bar">
+              <div>
+                <b>학교 계정 연결됨</b>
+                <small>
+                  코스모스{' '}
+                  {account.snapshot.lms === 'connected'
+                    ? '조회 완료'
+                    : '조회 실패 · 재로그인으로 다시 연결'}{' '}
+                  ·{' '}
+                  {new Date(account.snapshot.checkedAt).toLocaleString('ko-KR')}
+                </small>
+              </div>
+              <button
+                className="link"
+                onClick={() => go('settings/connections')}
+              >
+                연결 관리 <ArrowRight size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="demo-note">
+              <span>체험용 예시 · 저장 내용은 이 브라우저에만 남습니다.</span>
+              <button
+                onClick={() => {
+                  setDemo(false);
+                  setData(empty);
+                }}
+              >
+                학교 계정 연결 <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
           {!ready ? (
             <div className="card pad">체험 정보를 불러오고 있습니다…</div>
           ) : section === 'home' ? (
             <>
-              <div className="hero-grid">
-                <section className="hero card">
-                  <div className="hero-copy">
-                    <span className="badge blue">
-                      {active.type} · 체험 프로그램
-                    </span>
-                    <h2>{active.title}</h2>
-                    <p>{active.desc}</p>
-                    <div className="hero-meta">
-                      <span>
-                        모집 마감 <b>{active.date.replaceAll('-', '. ')}</b>
-                      </span>
-                      <span>
-                        추천 키워드 <b>{active.tag}</b>
-                      </span>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="primary"
-                        onClick={() => go('activities/' + active.id)}
-                      >
-                        자세히 보기 <ArrowUpRight size={17} />
-                      </button>
-                      <button
-                        className="secondary"
-                        onClick={() => save(active.id)}
-                      >
-                        <Bookmark size={17} />
-                        {data.saved.includes(active.id) ? '저장됨' : '저장'}
-                      </button>
-                    </div>
+              <section className="home-summary">
+                <div className="between">
+                  <div>
+                    <h2>
+                      {account
+                        ? '내 수업부터 확인해요'
+                        : '내 학사 정보를 한곳에서'}
+                    </h2>
+                    <p>
+                      {account
+                        ? '코스모스에서 확인한 강의와 개인 계획을 구분해 관리해요.'
+                        : '학교 계정을 연결하면 실제 코스모스 강의 목록을 볼 수 있어요.'}
+                    </p>
                   </div>
-                  <div className="hero-art">
-                    <span>{active.en}</span>
-                    <div className="orb">
-                      <div className="orbit" />
-                      <span>✳</span>
-                    </div>
-                    <strong>
-                      {active.art}
-                      <br />
-                      <em>YOUR WAY.</em>
-                    </strong>
-                    <small>새로운 가능성을 만나는 캠퍼스</small>
+                  <BookOpen size={28} />
+                </div>
+              </section>
+              {account && (
+                <section>
+                  <div className="section-heading">
+                    <h2>코스모스 강의</h2>
+                    <a
+                      className="link"
+                      href="https://learn.hansung.ac.kr/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      코스모스 열기 <ArrowUpRight size={16} />
+                    </a>
                   </div>
-                  <div className="carousel">
-                    <span>
-                      추천 활동 <b>0{slide + 1}</b> / 03
-                    </span>
-                    <div>
-                      <button
-                        className="icon"
-                        aria-label="이전 활동"
-                        onClick={() => setSlide((slide + 2) % 3)}
-                      >
-                        <ChevronLeft size={18} />
-                      </button>
-                      <button
-                        className="icon"
-                        aria-label="다음 활동"
-                        onClick={() => setSlide((slide + 1) % 3)}
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                    </div>
+                  <div className="live-courses">
+                    {account.snapshot.courses.slice(0, 4).map((c) => (
+                      <article className="live-course" key={c.id}>
+                        <span className="badge blue">코스모스 조회</span>
+                        <h3>{c.name}</h3>
+                        <a href={c.url} target="_blank" rel="noreferrer">
+                          강의실 열기 <ArrowUpRight size={16} />
+                        </a>
+                      </article>
+                    ))}
                   </div>
+                  {!account.snapshot.courses.length && (
+                    <p>
+                      확인된 강의가 없습니다. 코스모스에서 직접 확인해 주세요.
+                    </p>
+                  )}
+                  <p className="meta">{account.snapshot.courseScope}</p>
                 </section>
-                <section className="card next-card">
-                  <div className="between">
-                    <h3>나의 다음 한 걸음</h3>
-                    <Compass size={21} />
-                  </div>
-                  <div className="next-symbol">↗</div>
-                  <h2>
-                    어떤 학기를
-                    <br />
-                    만들고 싶나요?
-                  </h2>
-                  <p>
-                    수업 선호를 알려주면
-                    <br />
-                    나에게 맞는 선택을 시작할 수 있어요.
-                  </p>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setStep(0);
-                      setSurvey(true);
-                    }}
-                  >
-                    {data.prefs.length
-                      ? '수업 선호 수정하기'
-                      : '맞춤 추천 설정하기'}{' '}
-                    <ArrowRight size={17} />
-                  </button>
-                  <small>6문항 · 선택 입력</small>
-                </section>
-              </div>
+              )}
               <section>
                 <div className="section-heading">
                   <h2>
@@ -634,8 +725,8 @@ export default function App() {
                   <span className="badge">학습 일정</span>
                   <h2>수업의 흐름도 놓치지 않도록</h2>
                   <p>
-                    코스모스에 연결된 과제·출석 정보는 아직 없습니다. 학교 학습
-                    시스템에서 확인해 주세요.
+                    강의 목록과 별개로 과제·출석 정보는 아직 수집하지 않습니다.
+                    학교 학습 시스템에서 확인해 주세요.
                   </p>
                   <a
                     className="link"
@@ -779,18 +870,21 @@ export default function App() {
                 <span className="avatar large">{data.name.slice(0, 1)}</span>
                 <div>
                   <h2>{data.name}님의 프로필</h2>
-                  <span className="badge">학교 인증 미완료</span>
+                  <span className="badge">
+                    {account ? '학교 계정 확인됨' : '학교 인증 미완료'}
+                  </span>
                 </div>
               </div>
               <p>
-                체험용 별칭과 예시 수치를 입력하세요. 이 브라우저에만
-                저장됩니다.
+                {account
+                  ? '프로필과 계획은 내 계정에 저장됩니다. 직접 입력한 학점·포인트는 학교 검증 자료와 구분됩니다.'
+                  : '체험 정보는 이 브라우저에만 저장됩니다.'}
               </p>
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   const d = new FormData(e.currentTarget);
-                  persist({
+                  await persist({
                     ...data,
                     name: d.get('name') as string,
                     year: d.get('year') as string,
@@ -1009,12 +1103,12 @@ export default function App() {
               </div>
               <form
                 className="event-form"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   const form = e.currentTarget,
                     d = new FormData(form);
                   if (
-                    persist(
+                    await persist(
                       {
                         ...data,
                         events: [
@@ -1059,8 +1153,8 @@ export default function App() {
                     <button
                       className="icon"
                       aria-label="일정 삭제"
-                      onClick={() =>
-                        persist(
+                      onClick={async () =>
+                        await persist(
                           {
                             ...data,
                             events: data.events.filter((_, j) => j !== i),
@@ -1135,8 +1229,8 @@ export default function App() {
                 <h2>알림함</h2>
                 <button
                   className="secondary"
-                  onClick={() =>
-                    persist(
+                  onClick={async () =>
+                    await persist(
                       { ...data, read: true },
                       '알림을 읽음으로 표시했습니다.',
                     )
@@ -1148,9 +1242,14 @@ export default function App() {
               <div className="event-line">
                 <Bell />
                 <div>
-                  <b>학교 데이터 연결 전입니다.</b>
+                  <b>
+                    {account
+                      ? '학교 계정이 연결되어 있습니다.'
+                      : '학교 데이터 연결 전입니다.'}
+                  </b>
                   <small>
-                    학교 인증·학습 일정·이수 내역 연결은 준비 중입니다.
+                    강의 목록 외 학습 일정·전체 이수 내역은 아직 확인되지
+                    않았습니다.
                   </small>
                 </div>
                 <button
@@ -1175,31 +1274,80 @@ export default function App() {
                   <div>
                     <b>{n}</b>
                     <small>
-                      연동 승인과 데이터 접근 방식 확인이 필요합니다.
+                      {account
+                        ? '로그인 시 확인한 상태입니다. 전체 이수 내역과 성적은 수집하지 않습니다.'
+                        : '학교 계정을 연결하면 조회 가능한 정보를 확인합니다.'}
                     </small>
                   </div>
-                  <span className="badge">준비 중 · 미연결</span>
+                  <span className="badge">
+                    {account && n === '한성대학교 종합정보시스템'
+                      ? '인증 확인'
+                      : account &&
+                          n === '코스모스 / e-Class' &&
+                          account.snapshot.lms === 'connected'
+                        ? '강의 조회 완료'
+                        : '미연결'}
+                  </span>
                 </div>
               ))}
               <p>
-                학교 비밀번호를 수집하지 않습니다. 계정 가입과 기기 간 동기화는
-                아직 제공하지 않습니다.
+                학교 비밀번호는 로그인 확인에만 사용하며 저장하지 않습니다.
+                로그인한 계정의 프로필과 계획은 기기 간 유지됩니다. 학교 정보는
+                로그인 시 조회하며 상시 자동 수집하지 않습니다.
               </p>
               <button className="secondary" onClick={() => go('profile')}>
-                체험 프로필 직접 입력
+                {account ? '내 프로필 수정' : '체험 프로필 직접 입력'}
               </button>
               <div className="divider" />
-              <h3>이 브라우저의 저장 공간</h3>
+              <h3>{account ? '내 계정의 정보' : '이 브라우저의 저장 공간'}</h3>
               <p>
-                프로필, 수업 선호, 저장한 활동과 개인 계획만 브라우저에
-                저장합니다. 분석 쿠키는 사용하지 않습니다.
+                {account
+                  ? '프로필, 선호, 계획과 강의 조회 결과를 내 계정에 보관합니다.'
+                  : '체험 정보는 이 브라우저에만 저장합니다.'}{' '}
+                분석 쿠키는 사용하지 않습니다.
               </p>
-              <button
-                className="secondary"
-                onClick={() => persist({ ...data, consent: false }, '')}
-              >
-                저장 안내 다시 보기
-              </button>
+              {account ? (
+                <>
+                  <p>
+                    계정 자료를 삭제하면 프로필·설문·계획·강의 조회 결과와 모든
+                    로그인 세션이 삭제됩니다.
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          '학사 도우미에 저장한 내 계정 자료를 모두 삭제할까요? 학교 원본 정보는 변경되지 않습니다.',
+                        )
+                      )
+                        return;
+                      try {
+                        const response = await fetch('/api/account', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: '{}',
+                        });
+                        if (!response.ok) throw new Error();
+                        setAccount(null);
+                        setData(empty);
+                        setDraft([]);
+                        go('home');
+                      } catch {
+                        setToast('삭제하지 못했습니다. 다시 시도해 주세요.');
+                      }
+                    }}
+                  >
+                    내 계정 자료 삭제
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="secondary"
+                  onClick={() => persist({ ...data, consent: false }, '')}
+                >
+                  저장 안내 다시 보기
+                </button>
+              )}
             </section>
           ) : (
             <section className="card pad">
@@ -1212,7 +1360,7 @@ export default function App() {
           <footer>
             <span>한성 학사 도우미</span>
             <span>나만의 속도로, 다음 학기를 향해.</span>
-            <span>비공식 공개 체험 · 학교 연동 전</span>
+            <span>한성대학교 비공식 서비스</span>
           </footer>
         </main>
       </div>
@@ -1229,7 +1377,7 @@ export default function App() {
           </button>
         </output>
       )}
-      {ready && !data.consent && (
+      {ready && !account && !data.consent && (
         <div className="cookie">
           <div>
             <b>이 브라우저에서 계획을 이어가세요.</b>
@@ -1269,7 +1417,10 @@ export default function App() {
               className={draft[step] === v ? 'chosen' : ''}
               key={v}
               onClick={() => {
-                const next = [...draft];
+                const next = Array.from(
+                  { length: 6 },
+                  (_, i) => draft[i] || '',
+                );
                 next[step] = v;
                 setDraft(next);
               }}
@@ -1291,10 +1442,10 @@ export default function App() {
             )}
             <button
               className="primary"
-              onClick={() => {
+              onClick={async () => {
                 if (step < 5) setStep(step + 1);
                 else if (
-                  persist(
+                  await persist(
                     { ...data, prefs: draft },
                     '수업 선호를 저장했습니다.',
                   )
