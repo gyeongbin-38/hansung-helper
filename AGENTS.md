@@ -25,6 +25,8 @@
 
 ## 데이터
 - 강의 카탈로그: `scripts/import-courses.py` → `lib/data/catalog-2026-2.json` → `GET /api/courses` (로컬 데이터만, 학교 사이트 실시간 요청 없음)
-- 비교과 목록: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록 수집, 이상 감지 시 기존 스냅샷 유지)
+- 비교과: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록)
+- 학사일정: `node --experimental-strip-types scripts/crawl-schedule.mts` → `lib/data/schedule.json` → `GET /api/schedule` (hansung.ac.kr 공식 학사일정, month/year2 POST)
+- 크롤러 공통: 이상 감지(급감) 시 기존 스냅샷 유지, 사용자 요청 경로에서 라이브 수집 없음
 - 원본 xlsx: `data/source/` (재임포트용)
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요

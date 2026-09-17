@@ -8,6 +8,7 @@ import {
   type CourseSection,
 } from '@/lib/data/catalog';
 import type { ActivitySnapshot } from '@/lib/data/activities';
+import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import type { Data } from './data';
 
 let cache: Promise<Catalog> | null = null;
@@ -57,6 +58,34 @@ export function useActivities() {
   useEffect(() => {
     let on = true;
     loadActivities()
+      .then((s) => on && setSnap(s))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, []);
+  return { snap, failed };
+}
+
+let schCache: Promise<ScheduleSnapshot> | null = null;
+function loadSchedule() {
+  schCache ??= fetch('/api/schedule')
+    .then((r) => {
+      if (!r.ok) throw new Error('schedule');
+      return r.json() as Promise<ScheduleSnapshot>;
+    })
+    .catch((e) => {
+      schCache = null;
+      throw e;
+    });
+  return schCache;
+}
+export function useSchedule() {
+  const [snap, setSnap] = useState<ScheduleSnapshot | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let on = true;
+    loadSchedule()
       .then((s) => on && setSnap(s))
       .catch(() => on && setFailed(true));
     return () => {
