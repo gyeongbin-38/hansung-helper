@@ -246,7 +246,15 @@ blocking regressions.
 
 ## ISSUE-12 — 학사일정 실데이터 수집 (공식 학사일정 → snapshot → 캘린더)
 
-- **Status**: backlog — agent-ready
+- **Status**: implemented — needs-verification (2026-09-17)
+- **Done**: `lib/data/schedule.ts` (parseScheduleMonth 라벨 무관 행 파싱:
+  첫 셀 날짜/범위 + 마지막 셀 일정명, fnv 해시 id, isScheduleAnomalous),
+  `scripts/crawl-schedule.mts` (month/year2 POST로 학년도 3월~익년 2월
+  12개월 순차 수집, dedupe, 이상 시 기존 유지), `lib/data/schedule.json`
+  (73건), `GET /api/schedule`, `useSchedule` hook, calendar.tsx에 공식
+  일정 블록 추가(공식 학사일정 provenance·수집일 표기·원본 링크),
+  fixture `tests/fixtures/hs-schedule-m3.html` + `tests/schedule.test.mjs`
+  4건.
 - **Labels**: agent-ready, priority:p1, area:crawler, area:frontend
 - **Objective**: 학사일정 섹션은 개인 일정 수동 입력뿐이고 학교 일정은
   외부 링크뿐. `www.hansung.ac.kr/hansung/6096/subview.do`(학부 학사일정)
