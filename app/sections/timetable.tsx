@@ -669,6 +669,10 @@ export function Timetable({
                 </h3>
                 <p className="meta">
                   학과·학년·설문 선호·시간 충돌을 반영한 규칙 기반 추천입니다.
+                  {data.prefs.some((p) =>
+                    ['이론', '실습', '프로젝트', '시험', '개인 과제', '팀 프로젝트'].includes(p),
+                  ) &&
+                    ' 수업방식·평가방식 선호는 과목별 평가 정보가 없어 아직 반영하지 않습니다.'}
                 </p>
                 {recs.map((r) => (
                   <div className="rec" key={r.section.id}>

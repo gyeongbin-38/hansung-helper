@@ -102,3 +102,62 @@ rendered, UTF-8 — plain HTTP POST suffices for month navigation.
 
 VERIFICATION STATUS: ISSUE-2 fix + ISSUE-12 await independent
 verification.
+
+---
+
+## 2026-09-18 — loop iteration 3 (ISSUE-6 partial + 13 + 15 + 16)
+
+DONE:
+- Recon'd spec gaps vs implementation (courses/graduation/calendar
+  detail routes absent, hero carousel absent, topbar search = activities
+  only, 4/6 survey answers unused, no max-credit constraint) and
+  confirmed ISSUE-6 is partially unblocked — the school publishes the
+  2016학번~ global baseline publicly (교과 130학점 + 비교과 800P,
+  학기/프로그램당 200P 상한 at hansung.ac.kr/hansung/6220/subview.do).
+- ISSUE-6 partial: GLOBAL_RULE_SOURCE provenance constant; DEFAULT_RULES
+  now carry the official global baseline (130 credits + 800P, unit/
+  source fields added). evaluate() takes {admitYear, points} — baseline
+  applies only for 2016+, pre-2016 and missing points stay UNKNOWN,
+  dept-specific rules stay "확인 필요", user overrides still win.
+  graduation.tsx renders unit-aware rows + official source link.
+  tests 6/6.
+- ISSUE-15 implemented: recommend() now scores 우선목표 (졸업요건 충족
+  →필수 카테고리, 전공 심화→전필/전선, 진로 탐색→교양/타학과 개방) and
+  학기구성 (일정 여유→온라인/무시간대, 공강일 확보→기존 요일 보존,
+  고른 배치→요일 균형). 수업방식/평가방식 stay unscored — catalog has no
+  such metadata — and timetable rec panel now says so explicitly.
+- ISSUE-16 implemented: semester-plan warns (not blocks) when planned
+  credits >21, labeled as a conservative threshold, not an official cap.
+- ISSUE-13 implemented: notifications derived from real state (planned
+  conflicts, activity applyEnd within 7d, official schedule within 7d,
+  incomplete profile, account disconnected) + category count badges;
+  home tasks derived from actual state instead of hardcoded 3, official
+  schedule merged into "다가오는 일정" with provenance labels; empty-
+  state shown when nothing outstanding. React Compiler purity:
+  Date.now() moved to useState lazy init (mount-time, once).
+- Both repos synced + built; commit pending this entry.
+
+IN PROGRESS: nothing — gates all green.
+
+NEXT:
+1. Fresh-session verification: ISSUE-2 fix, ISSUE-12, ISSUE-6 partial,
+   ISSUE-13, ISSUE-15, ISSUE-16.
+2. ISSUE-17 (hero carousel), ISSUE-18 (detail routes), ISSUE-19
+   (global search), ISSUE-14 (sync --check).
+3. ISSUE-6 remainder: dept×year rulesets need per-dept official rule
+   pages collected/validated; 수강중 state still absent.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy) and ISSUE-9 need
+human/accounts. Public deployment still predates all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, build (both repos),
+http-check PASS, account-db PASS.
+
+REPO SCOUT: none adopted this run (node-html-parser stays a candidate
+for crawler parsing — recorded earlier; Date.now purity forced a
+useState pattern, no dep needed).
+
+VERIFICATION STATUS: ISSUE-2 fix, ISSUE-12, ISSUE-6 partial, ISSUE-13,
+ISSUE-15, ISSUE-16 await independent verification.
+  

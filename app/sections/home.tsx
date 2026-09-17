@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
-import type { CourseSection } from '@/lib/data/catalog';
+import { conflicts, type CourseSection } from '@/lib/data/catalog';
+import { useSchedule } from './catalog';
 
 type Planned = CourseSection[];
 
@@ -24,6 +25,49 @@ export function Home({
   go: (route: string) => void;
   planned: Planned;
 }) {
+  const { snap: sched } = useSchedule();
+  const today = new Date().toISOString().slice(0, 10);
+  const schoolNext = (sched?.items ?? [])
+    .filter((e) => (e.end ?? e.start) >= today)
+    .slice(0, 3);
+  const hasConflict = planned.some((s) => conflicts(s, planned).length);
+  const tasks: [string, string, string, string][] = [];
+  if (!data.dept || data.dept === '소속 미입력' || !data.year)
+    tasks.push([
+      '01',
+      '나의 학적 정보 채우기',
+      '학과·입학연도가 비어 있어요.',
+      'profile',
+    ]);
+  if (hasConflict)
+    tasks.push([
+      '02',
+      '시간표 충돌 조정하기',
+      '계획한 과목의 시간이 겹쳐요.',
+      'timetable',
+    ]);
+  if (!(data.completed ?? []).length)
+    tasks.push([
+      '03',
+      '이수 내역 입력하기',
+      '이수한 과목이 없어 졸업 계산이 대기 중이에요.',
+      'graduation',
+    ]);
+  if (!planned.length)
+    tasks.push([
+      '04',
+      '다음 학기 그려보기',
+      '관심 과목을 계획에 담아보세요.',
+      'courses',
+    ]);
+  if (!data.prefs.length)
+    tasks.push([
+      '05',
+      '수업 성향 설문하기',
+      '맞춤 추천에 선호가 반영돼요.',
+      'profile',
+    ]);
+  const shownTasks = tasks.slice(0, 3);
   return (
     <>
       <section className="home-summary">
@@ -88,41 +132,28 @@ export function Home({
       <section>
         <div className="section-heading">
           <h2>
-            지금 할 일 <span className="count">3</span>
+            지금 할 일 <span className="count">{shownTasks.length}</span>
           </h2>
           <span>하나씩, 차근차근</span>
         </div>
-        <div className="tasks">
-          {[
-            [
-              '01',
-              '나의 학적 정보 채우기',
-              '기본 프로필을 설정하세요.',
-              'profile',
-            ],
-            [
-              '02',
-              '졸업 준비 현황 확인하기',
-              '적용 규정과 이수 정보를 확인하세요.',
-              'graduation',
-            ],
-            [
-              '03',
-              '다음 학기 그려보기',
-              '관심 과목을 계획에 담아보세요.',
-              'courses',
-            ],
-          ].map(([n, t, d, r]) => (
-            <button className="task card" key={n} onClick={() => go(r)}>
-              <span className="task-num">{n}</span>
-              <span>
-                <b>{t}</b>
-                <small>{d}</small>
-              </span>
-              <ArrowUpRight size={19} />
-            </button>
-          ))}
-        </div>
+        {shownTasks.length ? (
+          <div className="tasks">
+            {shownTasks.map(([n, t, d, r]) => (
+              <button className="task card" key={t} onClick={() => go(r)}>
+                <span className="task-num">{n}</span>
+                <span>
+                  <b>{t}</b>
+                  <small>{d}</small>
+                </span>
+                <ArrowUpRight size={19} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-small card">
+            <p>지금 처리할 일이 없어요. 잘 준비되고 있습니다.</p>
+          </div>
+        )}
       </section>
       <section>
         <div className="section-heading">
@@ -178,6 +209,15 @@ export function Home({
               일정 보기 <ArrowRight size={16} />
             </button>
           </div>
+          {schoolNext.map((e) => (
+            <div className="event-line" key={e.id}>
+              <span className="event-date">{e.start.slice(5)}</span>
+              <div>
+                <b>{e.title}</b>
+                <small>공식 학사일정 · hansung.ac.kr</small>
+              </div>
+            </div>
+          ))}
           {data.events.length ? (
             data.events.slice(0, 3).map((e, i) => (
               <div className="event-line" key={i}>
@@ -191,7 +231,11 @@ export function Home({
           ) : (
             <div className="empty-small">
               <CalendarDays />
-              <p>아직 등록한 일정이 없어요.</p>
+              <p>
+                {schoolNext.length
+                  ? '개인 일정은 아직 없어요.'
+                  : '아직 등록한 일정이 없어요.'}
+              </p>
               <button className="link" onClick={() => go('calendar')}>
                 첫 일정 추가하기 +
               </button>

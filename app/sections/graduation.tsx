@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
-import { evaluate } from '@/lib/data/graduation';
+import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
 import type { Completed, Data } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
@@ -23,10 +23,14 @@ export function Graduation({
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
-  const results = useMemo(
-    () => evaluate(data.completed, planned, data.ruleOverrides),
-    [data.completed, planned, data.ruleOverrides],
-  );
+  const results = useMemo(() => {
+    const year = parseInt(data.year, 10);
+    const pts = parseInt(data.points, 10);
+    return evaluate(data.completed, planned, data.ruleOverrides, {
+      admitYear: Number.isInteger(year) ? year : undefined,
+      points: Number.isInteger(pts) ? pts : undefined,
+    });
+  }, [data.completed, planned, data.ruleOverrides, data.year, data.points]);
   const total = results[0];
   const matches = useMemo(() => {
     if (!catalog || q.length < 2) return [];
@@ -83,7 +87,7 @@ export function Graduation({
   function setRequired(id: string, value: string) {
     const n = parseInt(value, 10);
     const next = { ...data.ruleOverrides };
-    if (Number.isInteger(n) && n > 0 && n <= 300) next[id] = n;
+    if (Number.isInteger(n) && n > 0 && n <= 2000) next[id] = n;
     else delete next[id];
     void persist(
       { ...data, ruleOverrides: next },
@@ -99,13 +103,22 @@ export function Graduation({
   return (
     <>
       <div className="card pad grad-intro">
-        <span className="badge orange">확인 필요</span>
+        <span className="badge green">공식 전역 기준 적용</span>
         <span className="badge">사용자 입력 기반</span>
         <h2>졸업 준비는 정확한 기준부터.</h2>
         <p>
-          입력한 이수 과목으로 이수구분별 충족률을 계산합니다. 기준값은 참고용
-          기본값 또는 직접 입력한 값이며, 학교의 공식 졸업 사정을 대체하지
-          않습니다.
+          입력한 이수 과목으로 이수구분별 충족률을 계산합니다. 총 이수학점·
+          비교과 포인트는 학교 공식 전역 기준(2016학번 이후)을 적용하고,
+          학과별 세부 요건은 확인이 필요합니다. 학교의 공식 졸업 사정을
+          대체하지 않습니다.
+        </p>
+        <p className="meta">
+          기준 출처:{' '}
+          <a href={GLOBAL_RULE_SOURCE.url} target="_blank" rel="noreferrer">
+            {GLOBAL_RULE_SOURCE.label}
+          </a>{' '}
+          · 확인일 {GLOBAL_RULE_SOURCE.asOf}
+          {!data.year && ' · 입학연도 미입력 — 2016학번 이후 기준을 참고값으로 표시 중'}
         </p>
         <progress
           className="progress-track"
@@ -151,7 +164,9 @@ export function Graduation({
             </div>
             <strong>
               {shown(r)}
-              {r.required === null ? ' 이수' : ` / ${r.required}`}
+              {r.required === null
+                ? ` ${r.rule.unit ?? '학점'}`
+                : ` / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             <progress
               className="progress-track"
@@ -165,12 +180,17 @@ export function Graduation({
             {r.planned > 0 && !withPlan && (
               <p className="meta">+{r.planned}학점 계획 중</p>
             )}
+            {r.rule.source === 'points' && !(data.points ?? '').trim() && (
+              <p className="meta">
+                누적 포인트 미입력 — 내 정보에서 입력하면 계산됩니다.
+              </p>
+            )}
             <label className="rule-target">
-              필요 학점
+              필요 {r.rule.unit ?? '학점'}
               <input
                 type="number"
                 min={1}
-                max={300}
+                max={2000}
                 defaultValue={r.required ?? ''}
                 placeholder="미확정"
                 aria-label={r.rule.label + ' 필요 학점'}

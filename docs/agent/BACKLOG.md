@@ -139,14 +139,23 @@ blocking regressions.
 
 ## ISSUE-6 — 졸업 규칙 버전·학과별 확장 + 수강중 상태
 
-- **Status**: backlog
+- **Status**: partially implemented — needs-verification (전역 기준만,
+  2026-09-18). 잔여: 학과별 ruleset, 수강중 상태.
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
   provenance per rule; add distinct 수강중(in-progress) state between
   완료 and 계획.
-- **Dependencies**: official Hansung 졸업 규정 데이터 소스 필요
-  (없으면 dept rules stay "확인 필요" placeholders).
+- **Dependencies**: ~~official Hansung 졸업 규정 데이터 소스 필요~~
+  부분 해제 — `hansung.ac.kr/hansung/6220/subview.do` (공식) 확인:
+  2016학번~ 교과 130학점 + 비교과 800P, 학기당/프로그램당 200P 상한.
+  학과별 규정은 학과 페이지별 상이 — 미수집분은 unknown 유지.
+- **Done (전역 기준)**: `GLOBAL_RULE_SOURCE` 상수(url/label/asOf),
+  `DEFAULT_RULES`에 공식 전역 규칙(교과 130학점 + 비교과 800P,
+  `unit`/`source` 필드 추가), `evaluate(rules, completed, planned, opts)`
+  에 `opts:{admitYear?, points?}` — 2016학번~만 기준 적용, 이전 학번은
+  미적용(unknown), points 미입력 시 unknown, UI는 학점/P 단위 구분 +
+  공식 출처 링크 + 학과별 요건 "확인 필요" 유지. tests 6/6.
 - **Acceptance Criteria**: ruleset selected by dept+입학연도; missing
   ruleset → UNKNOWN, never guessed; 수강중 counts shown separately from
   완료; `source`/`asOf` rendered on rule cards.
@@ -270,12 +279,66 @@ blocking regressions.
 
 ## ISSUE-13 — 알림함·홈 위젯 실데이터 도출
 
-- **Status**: backlog — agent-ready
+- **Status**: implemented — needs-verification (2026-09-18)
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: 알림함은 고정 1건(연결 안내)뿐이고 홈 "지금 할 일"은
   완료 여부와 무관하게 카운트 `3` 고정. 실제 상태에서 알림을 도출:
   계획 과목 시간충돌, 활동 신청마감 임박(applyEnd D-7 이내),
   프로필/졸업 입력 미완성. 홈 할일 카운트도 완료 상태 반영.
+- **Done**: notifications.tsx — `planned` prop + useActivities/useSchedule로
+  충돌·신청마감 임박·공식일정 7일 이내·프로필 미완성·계정 미연결 알림 도출,
+  카테고리 카운트 배지, 푸시 미지원 명시 유지, 읽음 영속화 유지.
+  home.tsx — useSchedule로 공식 일정 표시(개인 일정과 출처 구분),
+  "지금 할 일"을 실제 상태에서 도출(프로필 미완성·충돌·완료과목 없음·
+  계획 없음·설문 미작성), 완료 시 빈 상태 문구, 카운트는 shownTasks.length.
+  page.tsx — Notifications에 planned 전달. React Compiler 순수성 규칙상
+  `Date.now()`는 useState lazy init으로 마운트 시점 1회 평가.
+
+## ISSUE-15 — 설문 선호 추천 반영 + 미반영 항목 명시
+
+- **Status**: implemented — needs-verification (2026-09-18)
+- **Labels**: agent-ready, priority:p2, area:frontend, area:data
+- **Objective**: 설문 6문항 중 4개(우선목표·수업방식·평가방식·학기구성)
+  가 추천 점수에 미반영이었다. 점수화 가능한 것은 반영하고, 카탈로그에
+  메타데이터가 없어 점수화 불가한 것은 명시적으로 고지.
+- **Done**: `recommend()` — 우선목표(졸업요건 충족→필수 카테고리 부족분,
+  전공 심화→전필/전선 가점, 진로 탐색→교양/타학과 개방 가점),
+  학기구성(일정 여유→온라인/무시간대 가점, 공강일 확보→기존 계획 요일
+  보존, 고른 배치→요일별 균형) 점수 반영. 수업방식·평가방식은 카탈로그에
+  해당 메타데이터가 없어 timetable 추천 패널에 "아직 반영되지 않음"
+  고지 추가.
+
+## ISSUE-16 — 과도 학점 soft warning
+
+- **Status**: implemented — needs-verification (2026-09-18)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: spec §9 요구 최대학점 제약 부재. 공식 한성대 학점 상한
+  데이터 미수집 — 임의 숫자를 공식처럼 주장하지 않고, 21학점 초과 시
+  "수강신청 학점 상한을 초과할 수 있음, 공식 수강신청 안내 확인 필요"
+  soft warning(차단 아님).
+- **Done**: semester-plan.tsx — planned 학점 >21 시 경고 배너.
+  21은 공식 한도가 아니라 보수적 임계값으로 표기.
+
+## ISSUE-17 — 홈 Hero 캐러셀 (spec §5.3/§12.10)
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: spec이 요구하는 홈 중심 Hero 캐러셀 부재. 실데이터 있음:
+  활동 스냅샷(커버이미지·D-day·포인트·상태). 수동 넘김 + 위치 표시,
+  항목 0개 시 정적 안내 폴백.
+
+## ISSUE-18 — 상세 라우트 부재 (spec §6)
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p3, area:frontend
+- **Objective**: `/courses/:id`, `/graduation/:id`, `/calendar/:id` 상세
+  라우트 없음(activities/:id만 존재). 브레드크럼 포함.
+
+## ISSUE-19 — 전체 검색 범위 확대
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p3, area:frontend
+- **Objective**: Topbar 검색이 활동만 검색 → 과목·공식일정 포함.
 
 ## ISSUE-14 — `_sync.py` parity check 모드
 

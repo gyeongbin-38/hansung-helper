@@ -183,6 +183,11 @@ export function recommend(
       score += 2;
       reasons.push(`${grade}학년 과목`);
     }
+    const plannedDays = new Set(planned.flatMap((p) => p.slots.map((sl) => sl.d)));
+    const dayLoad = new Map<number, number>();
+    for (const p of planned)
+      for (const sl of p.slots)
+        dayLoad.set(sl.d, (dayLoad.get(sl.d) ?? 0) + 1);
     for (const p of data.prefs) {
       if (p === '오전' && s.slots.length && s.slots.every((sl) => sl.s < 720)) {
         score += 1;
@@ -198,6 +203,41 @@ export function recommend(
       }
       if (p === '금요일' && s.slots.some((sl) => sl.d === 4)) score -= 2;
       if (p === '월요일' && s.slots.some((sl) => sl.d === 0)) score -= 2;
+      // 우선 목표
+      if (p === '졸업요건 충족' && (s.category === '전필' || s.category === '교필')) {
+        score += 2;
+        reasons.push('필수 영역 우선');
+      }
+      if (p === '전공 심화' && sameDept && (s.category === '전필' || s.category === '전선')) {
+        score += 2;
+        reasons.push('전공 심화');
+      }
+      if (p === '진로 탐색' && catGroup(s) === '교양·일반') {
+        score += 1;
+        reasons.push('진로 탐색');
+      }
+      if (p === '일정 여유' && (s.online || s.untimed || !s.slots.length)) {
+        score += 1;
+        reasons.push('일정 여유');
+      }
+      // 학기 구성 선호 — 계획된 요일과의 관계로 점수화
+      if (
+        p === '공강일 확보' &&
+        plannedDays.size &&
+        s.slots.length &&
+        s.slots.every((sl) => plannedDays.has(sl.d))
+      ) {
+        score += 1;
+        reasons.push('기존 등교일 유지');
+      }
+      if (
+        p === '고른 배치' &&
+        s.slots.length &&
+        s.slots.every((sl) => (dayLoad.get(sl.d) ?? 0) <= 1)
+      ) {
+        score += 1;
+        reasons.push('요일 균형');
+      }
     }
     if (!reasons.length) reasons.push('시간 겹침 없음');
     recs.push({ section: s, score, reasons });

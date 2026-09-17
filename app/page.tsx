@@ -365,6 +365,7 @@ export default function App() {
             <Notifications
               account={account}
               data={data}
+              planned={planned}
               persist={persist}
               go={go}
             />

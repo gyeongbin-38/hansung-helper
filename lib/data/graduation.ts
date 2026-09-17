@@ -13,23 +13,43 @@ export type GradRequirement = {
   label: string;
   /** 포함할 이수구분 그룹 (gradGroup 결과) */
   groups: string[];
-  /** 필요 학점. null이면 공식 기준 미확정 → UNKNOWN */
+  /** 필요 수량. null이면 공식 기준 미확정 → UNKNOWN */
   required: number | null;
+  /** 표시 단위 — 기본 '학점', 비교과는 'P' */
+  unit?: string;
+  /** earned의 출처 — 이수 과목 합산 또는 사용자 입력 포인트 */
+  source?: 'completed' | 'points';
   note?: string;
 };
 
+/** 전역 졸업 기준의 공식 출처 — hansung.ac.kr 비교과 포인트 안내 */
+export const GLOBAL_RULE_SOURCE = {
+  url: 'https://www.hansung.ac.kr/hansung/6220/subview.do',
+  label: '한성대학교 비교과 포인트 안내 (공식 페이지)',
+  asOf: '2026-09-17',
+};
+
 /**
- * 참고용 기본 규칙 — 공식 졸업 규정이 아님.
- * required: null은 '기준 미확정'으로 표시되며 사용자가 직접 입력해 확정한다.
- * 총 이수학점 130은 일반적인 졸업학점 참고 기본값 — 학과 공식 기준으로 수정 필요.
+ * 2016학년도 이후 입학자 공식 전역 기준 — hansung.ac.kr/hansung/6220:
+ * 교과 130학점 + 비교과(High-Success Point) 800P.
+ * 학과별 세부 기준·2015학번 이전 기준은 미수집 → required:null(UNKNOWN).
  */
 export const DEFAULT_RULES: GradRequirement[] = [
   {
     id: 'total',
-    label: '총 이수학점',
+    label: '총 이수학점 (교과)',
     groups: ['전공필수', '전공선택', '교양', '일반선택', '기타'],
     required: 130,
-    note: '참고 기본값 — 학과 공식 기준 확인 필요',
+    note: '공식 기준(2016학번 이후) — 학과별 세부 요건은 별도 확인 필요',
+  },
+  {
+    id: 'points',
+    label: '비교과 포인트',
+    groups: [],
+    required: 800,
+    unit: 'P',
+    source: 'points',
+    note: '공식 기준(2016학번 이후) — 실제 누적 포인트는 hsportal 마이페이지에서 확인',
   },
   { id: 'majorReq', label: '전공필수', groups: ['전공필수'], required: null },
   {
@@ -78,18 +98,26 @@ export function evaluate(
   completed: CompletedCourse[],
   planned: CourseSection[],
   overrides: Record<string, number> = {},
+  opts: { admitYear?: number; points?: number } = {},
 ): RuleResult[] {
+  // 입학연도 미입력 → null(참고 기본값 적용), 2016+ → true, 이전 → false(미수집)
+  const post16 =
+    opts.admitYear === undefined ? null : opts.admitYear >= 2016;
   const plannedItems = planned.map((s) => ({
     category: s.category,
     credits: s.credits,
   }));
   return DEFAULT_RULES.map((rule) => {
-    const required =
+    let required =
       overrides[rule.id] !== undefined ? overrides[rule.id] : rule.required;
-    const earned = sumByGroups(completed, rule.groups);
-    const plan = sumByGroups(plannedItems, rule.groups);
+    // 2015학번 이전의 전역 기준은 수집하지 않았다 — 추측하지 않는다.
+    if (post16 === false && overrides[rule.id] === undefined) required = null;
+    const isPoints = rule.source === 'points';
+    const earned = isPoints ? (opts.points ?? 0) : sumByGroups(completed, rule.groups);
+    const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
+    const missingInput = isPoints && opts.points === undefined;
     const status: RuleStatus =
-      required === null
+      required === null || missingInput
         ? 'unknown'
         : earned >= required
           ? 'met'
