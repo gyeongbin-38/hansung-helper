@@ -38,10 +38,18 @@ const DEPTS = [
   '한국무용전공',
 ];
 t('별칭 컴공', resolveDept('컴공', DEPTS).dept === 'IT응용시스템공학과');
-t('별칭 AI융합→모호 아님(부분매칭 1건 이상)', true); // 후보 여러 개면 candidates
 {
   const r = resolveDept('AI융합', DEPTS);
-  t('AI융합은 후보군', !r.dept || r.dept.length > 0); // dept 혹은 candidates 둘 중 하나
+  t('AI융합 미해석 — 추측하지 않음', !r.dept && !r.candidates);
+}
+{
+  const r = resolveDept('융합', DEPTS);
+  t(
+    '융합 → 모호 후보 2개',
+    !r.dept &&
+      r.candidates?.length === 2 &&
+      r.candidates.includes('융합보안학과'),
+  );
 }
 t('정확 일치', resolveDept('AI응용학과', DEPTS).dept === 'AI응용학과');
 t('공백·특수문자 정규화', resolveDept('ai 소프트웨어', DEPTS).dept === 'AI·소프트웨어학과');

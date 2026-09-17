@@ -132,7 +132,8 @@ blocking regressions.
 
 ## ISSUE-4 — 학과 매핑 정규화 (profile.dept ↔ catalog 전공명)
 
-- **Status**: implemented (source-only; pending deploy)
+- **Status**: **verified** (fresh-session verifier PASS 2026-09-17;
+  deploy still pending under ISSUE-5)
 - **Labels**: agent-ready, priority:p2, area:data
 - **Objective**: canonical dept-name map so profile free-text
   ("AI응용학과", "AI융합"…) matches catalog `dept`; used by recs + 내 학과
@@ -143,6 +144,11 @@ blocking regressions.
   dept/candidates/none states), `deptPoolOf` in `app/sections/catalog.ts`,
   wired into recommend + courses/timetable 내 학과 필터, "학과 매칭 확인
   필요" notices, tests in `tests/ux-utils.test.mjs`.
+- **Verifier note (2026-09-17, independent fresh session)**: PASS.
+  Unmatched → `deptPool === null` + notice (timetable.tsx:488,
+  courses.tsx:184); ambiguous → candidates + notice; alias/exact/single-
+  candidate resolve correctly (ux-utils 24/24). Minor: two assertions in
+  `tests/ux-utils.test.mjs` are vacuous — tracked in ISSUE-8.
 
 ## ISSUE-5 — Remote D1 seeding + deploy parity check
 
@@ -151,3 +157,48 @@ blocking regressions.
 - **Objective**: apply `drizzle/` migrations + catalog to remote D1;
   verify `published-personal/.openai/hosting.json` deploy target still
   serves API routes with bound DB.
+
+## ISSUE-7 — 미사용 starter kit 제거 (components/, hooks/, components.json)
+
+- **Status**: implemented — needs-verification (2026-09-17)
+- **Labels**: agent-ready, priority:p2, area:infra
+- **Objective**: delete the unused shadcn starter kit — `components/`
+  (~90 files), `hooks/`, `components.json`, and any deps only they need.
+  Nothing under `app/` or `lib/` imports them (verified 2026-09-17).
+- **Why**: dead code misleads agents into reusing unstyled starter
+  components; the kit also carries the repo's only lint debt (starter
+  files are excluded from `oxlint app/ lib/` scope).
+- **Acceptance Criteria**: no import references anywhere; tsc/oxlint/
+  build/tests all pass; `package.json` deps pruned to what the app uses.
+- **Done**: removed `components/` (~90 files), `hooks/`,
+  `components.json`, `lib/utils.ts` in BOTH repos; pruned 14
+  starter-only deps (@base-ui, @shadcn, cva, clsx, cmdk, date-fns,
+  embla, input-otp, day-picker, resizable-panels, recharts, shadcn,
+  tailwind-merge, tw-animate-css); root tsconfig now excludes
+  `published-personal/` + bootstrap dir (was silently type-checking the
+  nested repo's kit against root paths).
+- **Out of scope**: redesign or replacement of `app/sections/*` UI.
+
+## ISSUE-8 — ux-utils.test.mjs 허위 assertion 교정
+
+- **Status**: implemented — needs-verification (2026-09-17)
+- **Labels**: agent-ready, priority:p2, area:data
+- **Objective**: replace the two always-true assertions
+  (`t(..., true)` and `!r.dept || r.dept.length > 0`, ~lines 41–45) with
+  checks that actually pin down `resolveDept('AI융합')` behavior —
+  either exact candidates list or an explicit documented outcome.
+- **Acceptance Criteria**: assertions fail when resolution regresses;
+  suite still 100% pass.
+- **Done**: pinned `AI융합` → unresolved `{}` (no fabricated match) and
+  `융합` → exactly 2 candidates incl. 융합보안학과. 24/24 pass.
+
+## ISSUE-9 — root `.openai/hosting.json` 정리
+
+- **Status**: backlog — needs-human (account/deploy decision)
+- **Labels**: priority:p3, area:infra, needs-human
+- **Objective**: root hosting.json still points at the previous
+  account's project_id (`...6aa7a5a3...` vs current `...6aa7b18f...`).
+  `vite.config.ts` only consumes `d1`/`r2` binding names so builds are
+  unaffected, but the stale id invites accidental deploys to the wrong
+  project. Decide: repoint to current project, or split local-binding
+  config out of hosting.json entirely.
