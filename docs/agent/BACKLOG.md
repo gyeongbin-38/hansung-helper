@@ -78,7 +78,15 @@ blocking regressions.
 
 ## ISSUE-2 — 크롤러 파이프라인 (비교과 공개 목록 → normalized DB → /api/activities)
 
-- **Status**: implemented — needs-verification (2026-09-17)
+- **Status**: implemented — needs-verification (fix 재검증 필요, 2026-09-17)
+- **Verifier note (2026-09-17, fresh session)**: **FAIL → fixed.**
+  카드에는 `date_layer` 밖에 `<time>`이 더 있음(헤더 운영시각 쌍 +
+  content 중복 쌍). 위치 기반 `times[0..3]` 추출은 신청↔운영을 뒤바꿔
+  저장함 — 스냅샷 39건 중 26건 applyEnd > runStart로 이상 확인.
+  테스트마저 뒤바뀐 값(14107 applyStart=9.30)을 pin하고 있었다.
+  수정: `date_layer` 블록을 `date_title` 라벨(신청/운영)로 매핑하도록
+  파서 변경 + 테스트 정정 + 신청 레이어 없는 카드 회귀 테스트 추가.
+  재수집 37건 모두 정상. 잔여 과제: fix 자체의 독립 재검증.
 - **Labels**: agent-ready, priority:p1, area:crawler, area:backend
 - **Objective**: public 비교과 목록 ingestion (fetch → raw → parse →
   validate → upsert with source_system/source_key + last-known-good)
@@ -173,7 +181,9 @@ blocking regressions.
 
 ## ISSUE-7 — 미사용 starter kit 제거 (components/, hooks/, components.json)
 
-- **Status**: implemented — needs-verification (2026-09-17)
+- **Status**: **verified** (fresh-session verifier PASS 2026-09-17 —
+  components/hooks/lib/utils/components.json 삭제 확인, import 참조 0건,
+  deps 14개 정리 후 tsc/oxlint/tests 통과)
 - **Labels**: agent-ready, priority:p2, area:infra
 - **Objective**: delete the unused shadcn starter kit — `components/`
   (~90 files), `hooks/`, `components.json`, and any deps only they need.
@@ -194,7 +204,8 @@ blocking regressions.
 
 ## ISSUE-8 — ux-utils.test.mjs 허위 assertion 교정
 
-- **Status**: implemented — needs-verification (2026-09-17)
+- **Status**: **verified** (fresh-session verifier PASS 2026-09-17 —
+  AI융합→미해석, 융합→후보 2개 pin 확인, 회귀 시 실패하는 assertion)
 - **Labels**: agent-ready, priority:p2, area:data
 - **Objective**: replace the two always-true assertions
   (`t(..., true)` and `!r.dept || r.dept.length > 0`, ~lines 41–45) with
@@ -218,7 +229,10 @@ blocking regressions.
 
 ## ISSUE-11 — AI 상담: 고정 응답 → 실데이터 기반 규칙 응답
 
-- **Status**: implemented — needs-verification (2026-09-17)
+- **Status**: **verified** (fresh-session verifier PASS 2026-09-17 —
+  계획/학점/충돌/활동 수 실데이터 반영, 자유질문 매칭 링크, 비AI 명시,
+  졸업 판정 주장 없음 확인. minor nit 수정: 활동 fetch 실패 시
+  '불러오는 중' 무한 표시 → 실패 메시지로 구분)
 - **Labels**: agent-ready, priority:p2, area:ai, area:frontend
 - **Objective**: advisor는 현재 고정 안내 문자열 3개뿐. 이미 있는
   데이터(카탈로그·비교과 스냅샷·계획/충돌/완료 목록)로 개인화된
@@ -229,6 +243,39 @@ blocking regressions.
   수·학점·충돌, 신청 가능 활동 수, 졸업 입력 완결성)를 반영; 자유 질문은
   매칭된 과목/활동 링크 또는 정직한 "찾지 못함" 응답; 프로필 없으면
   안내형 폴백.
+
+## ISSUE-12 — 학사일정 실데이터 수집 (공식 학사일정 → snapshot → 캘린더)
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p1, area:crawler, area:frontend
+- **Objective**: 학사일정 섹션은 개인 일정 수동 입력뿐이고 학교 일정은
+  외부 링크뿐. `www.hansung.ac.kr/hansung/6096/subview.do`(학부 학사일정)
+  는 공개·서버렌더링·UTF-8이며 `날짜범위 | 설명` 행 구조 —
+  activities와 같은 snapshot 파이프라인으로 수집해 캘린더에 병합 표시
+  (개인 일정과 공식 일정 출처 구분 유지).
+- **Repo Scout**: plain HTTP sufficient — 페이지가 서버렌더링된
+  table 행 (`2026.08.31(월) ~ 2026.09.04(금)` + 일정명). 월별 보기
+  구조이므로 학기 범위 월들을 순차 수집. Playwright 불필요.
+- **Acceptance Criteria**: 공식 일정에 `공식 학사일정` provenance,
+  개인 일정과 시각 구분, 수집 실패 시 last-known-good 유지,
+  사용자 요청 경로에서 라이브 fetch 없음.
+
+## ISSUE-13 — 알림함·홈 위젯 실데이터 도출
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: 알림함은 고정 1건(연결 안내)뿐이고 홈 "지금 할 일"은
+  완료 여부와 무관하게 카운트 `3` 고정. 실제 상태에서 알림을 도출:
+  계획 과목 시간충돌, 활동 신청마감 임박(applyEnd D-7 이내),
+  프로필/졸업 입력 미완성. 홈 할일 카운트도 완료 상태 반영.
+
+## ISSUE-14 — `_sync.py` parity check 모드
+
+- **Status**: backlog — agent-ready
+- **Labels**: agent-ready, priority:p2, area:infra
+- **Objective**: 이번에 발견된 stale-sync 버그(/XO /XN /XC 조합으로
+  수정 파일 미복사) 재발 방지. `--check` 모드로 루트↔published-personal
+  간 동기화 대상 파일 diff를 출력하고 불일치 시 non-zero exit.
 
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 

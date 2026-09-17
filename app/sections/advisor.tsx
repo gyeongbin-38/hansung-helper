@@ -39,7 +39,9 @@ function gradAnswer(data: Data) {
   return '입력된 이수 정보를 바탕으로 졸업요건 화면에서 진행률을 계산 중입니다. 적용 규정은 학과·입학연도별로 달라질 수 있으니 공식 규정도 함께 확인하세요.';
 }
 
-function actAnswer(items: Activity[] | null) {
+function actAnswer(items: Activity[] | null, failed: boolean) {
+  if (failed)
+    return '비교과 목록을 불러오지 못했습니다. 잠시 후 다시 시도하거나 hsportal 공식 목록에서 직접 확인하세요.';
   if (!items)
     return '비교과 목록을 불러오는 중입니다. 잠시 후 다시 확인해 주세요.';
   const open = items.filter(
@@ -87,7 +89,7 @@ export function Advisor({
   catalog: Catalog | null;
   go: (route: string) => void;
 }) {
-  const { snap } = useActivities();
+  const { snap, failed: actsFailed } = useActivities();
   const [answer, setAnswer] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
   const [q, setQ] = useState('');
@@ -99,7 +101,7 @@ export function Advisor({
         ? gradAnswer(data)
         : kind === 'plan'
           ? planAnswer(data, planned)
-          : actAnswer(snap?.items ?? null),
+          : actAnswer(snap?.items ?? null, actsFailed),
     );
   };
 

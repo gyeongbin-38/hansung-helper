@@ -27,7 +27,11 @@ test('parser extracts card fields from real hsportal markup', () => {
   assert.equal(one.team, '개인');
   assert.equal(one.applicants, 11);
   assert.equal(one.certified, true);
-  assert.match(one.applyStart ?? '', /^2026-09-30/);
+  assert.match(one.applyStart ?? '', /^2026-09-15/);
+  assert.match(one.applyEnd ?? '', /^2026-09-18/);
+  // date_layer 라벨 기준 매핑 — 카드 헤더의 운영 시각이 신청으로 들어오면 안 됨
+  assert.match(one.runStart ?? '', /^2026-09-30T06:30/);
+  assert.match(one.runEnd ?? '', /^2026-09-30T18:00/);
   assert.match(one.cover ?? '', /attachment\/view\/88716/);
   assert.equal(
     one.url,
@@ -42,6 +46,20 @@ test('parser maps status classes and dedupes nothing fabricated', () => {
     assert.ok(i.title && i.key);
     assert.ok(!i.url.includes('undefined'));
   }
+});
+
+test('card without 신청 layer leaves apply fields null', () => {
+  // 신청 date_layer를 제거해도 운영 시각이 apply로 새지 않아야 한다.
+  const stripped = fixture.replace(
+    /<small class="date_layer">\s*<i class="xi xi-calendar"><\/i>\s*<span class="date_title">신청:<\/span>[\s\S]*?<\/small>/g,
+    '',
+  );
+  const { items } = parseProgramList(stripped);
+  const one = items.find((i) => i.key === '14107');
+  assert.ok(one, 'card still parses');
+  assert.equal(one.applyStart, null);
+  assert.equal(one.applyEnd, null);
+  assert.match(one.runStart ?? '', /^2026-09-30/);
 });
 
 test('anomaly check keeps last-known-good on empty/dropped collection', () => {

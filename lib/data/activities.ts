@@ -99,16 +99,21 @@ export function parseProgramList(html: string): {
     ];
     const key = head[3];
 
-    const times = [...block.matchAll(/<time datetime="([^"]+)"/g)].map(
-      (m) => m[1],
-    );
-    // date_layer 순서: 신청(2개) → 운영(2개). 없으면 길이가 짧다.
-    const [applyStart, applyEnd, runStart, runEnd] = [
-      times[0] ?? null,
-      times[1] ?? null,
-      times[2] ?? null,
-      times[3] ?? null,
-    ];
+    // 카드에는 date_layer 밖에도 <time>이 있다(헤더 운영시각·content 중복).
+    // 라벨로만 구분한다 — 순서/개수를 가정하면 신청↔운영이 뒤바뀐다.
+    let applyStart: string | null = null,
+      applyEnd: string | null = null,
+      runStart: string | null = null,
+      runEnd: string | null = null;
+    for (const layer of block.matchAll(
+      /<small class="date_layer">[\s\S]*?<span class="date_title">([\s\S]*?)<\/span>([\s\S]*?)<\/small>/g,
+    )) {
+      const times = [...layer[2].matchAll(/<time datetime="([^"]+)"/g)].map(
+        (m) => m[1],
+      );
+      if (layer[1].includes('신청')) [applyStart, applyEnd] = [times[0] ?? null, times[1] ?? null];
+      else if (layer[1].includes('운영')) [runStart, runEnd] = [times[0] ?? null, times[1] ?? null];
+    }
 
     const title = block.match(/<b class="title">([\s\S]*?)<\/b>/);
     const dept = block.match(
