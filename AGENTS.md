@@ -13,6 +13,7 @@
 ## 검증 명령
 - `npx tsc --noEmit` / `npx oxlint app/ lib/` / `npm run build`
 - `node --experimental-strip-types tests/catalog.test.mjs`
+- `node --experimental-strip-types tests/activities.test.mjs`
 - `node --experimental-transform-types tests/school.test.mjs` (parameter property 사용 — strip-types로는 실패)
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
 
@@ -24,5 +25,6 @@
 
 ## 데이터
 - 강의 카탈로그: `scripts/import-courses.py` → `lib/data/catalog-2026-2.json` → `GET /api/courses` (로컬 데이터만, 학교 사이트 실시간 요청 없음)
+- 비교과 목록: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록 수집, 이상 감지 시 기존 스냅샷 유지)
 - 원본 xlsx: `data/source/` (재임포트용)
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요

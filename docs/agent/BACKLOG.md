@@ -78,7 +78,7 @@ blocking regressions.
 
 ## ISSUE-2 — 크롤러 파이프라인 (비교과 공개 목록 → normalized DB → /api/activities)
 
-- **Status**: backlog
+- **Status**: implemented — needs-verification (2026-09-17)
 - **Labels**: agent-ready, priority:p1, area:crawler, area:backend
 - **Objective**: public 비교과 목록 ingestion (fetch → raw → parse →
   validate → upsert with source_system/source_key + last-known-good)
@@ -94,9 +94,22 @@ blocking regressions.
   detection; fixture-based parser test; provenance `공식 출처` /
   `업데이트 지연` states; no live fetch during user requests.
 - **Tests Required**: parser fixtures + route test.
-- **Repo Scout**: yes — evaluate fetcher vs Playwright need based on
-  target pages' rendering (only adopt Playwright if server-rendered HTML
-  is insufficient).
+- **Repo Scout result**: plain HTTP sufficient — hsportal list is
+  server-rendered (`data-role="item"` cards, ISO `<time>` values, page
+  count in `data-total`). Playwright rejected.
+- **Shipped (snapshot variant)**: source is
+  `hsportal.hansung.ac.kr/ko/program/all/list/all/1[/page]` (public,
+  ~4 pages). `lib/data/activities.ts` (types + `parseProgramList` +
+  `isAnomalous`), `scripts/crawl-activities.mts` (sequential polite
+  fetch, dedupe by key, anomaly→keep-old, writes
+  `lib/data/activities.json`), `GET /api/activities`, `useActivities`
+  hook, `activities.tsx` rewired to real data (status tabs, cover
+  images, 신청/운영 기간, points, 인증, 저장 유지, 출처 표기), demo
+  `acts` fixture removed, `tests/activities.test.mjs` + real-HTML
+  fixture `tests/fixtures/hsportal-list.html`. 39 items on first run.
+- **Deferred (needs deploy access, ISSUE-5)**: D1 `activities` table +
+  scheduled worker trigger; snapshot JSON is the interim per the
+  catalog pattern.
 
 ## ISSUE-3 — 졸업요건 룰엔진 v0 (deterministic, UNKNOWN-safe)
 

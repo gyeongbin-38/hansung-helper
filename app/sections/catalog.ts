@@ -7,6 +7,7 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
+import type { ActivitySnapshot } from '@/lib/data/activities';
 import type { Data } from './data';
 
 let cache: Promise<Catalog> | null = null;
@@ -35,6 +36,34 @@ export function useCatalog() {
     };
   }, []);
   return { catalog, failed };
+}
+
+let actCache: Promise<ActivitySnapshot> | null = null;
+function loadActivities() {
+  actCache ??= fetch('/api/activities')
+    .then((r) => {
+      if (!r.ok) throw new Error('activities');
+      return r.json() as Promise<ActivitySnapshot>;
+    })
+    .catch((e) => {
+      actCache = null;
+      throw e;
+    });
+  return actCache;
+}
+export function useActivities() {
+  const [snap, setSnap] = useState<ActivitySnapshot | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let on = true;
+    loadActivities()
+      .then((s) => on && setSnap(s))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, []);
+  return { snap, failed };
 }
 
 /** 넓은 카테고리 그룹 (표시는 원본 이수구분 유지). */

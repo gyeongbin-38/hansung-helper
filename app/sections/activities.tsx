@@ -1,6 +1,27 @@
 'use client';
-import { Bookmark, ArrowUpRight, Search } from 'lucide-react';
-import { acts, type Data } from './data';
+import { Bookmark, ArrowUpRight, Search, CalendarDays } from 'lucide-react';
+import type { Data } from './data';
+import { useActivities } from './catalog';
+import { koreanMatch } from '@/lib/data/hangul';
+import {
+  activityMatch,
+  type Activity,
+} from '@/lib/data/activities';
+
+const TABS = ['전체', '신청 가능', '접수예정', '운영·마감', '저장한 활동'];
+
+const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
+const period = (a: string | null, b: string | null) =>
+  a || b ? `${fmt(a)} ~ ${fmt(b)}` : '기간 미정';
+
+function inTab(a: Activity, tab: string, saved: string[]) {
+  if (tab === '신청 가능') return a.status === 'open' || a.status === 'closing';
+  if (tab === '접수예정') return a.status === 'upcoming';
+  if (tab === '운영·마감')
+    return a.status === 'running' || a.status === 'closed';
+  if (tab === '저장한 활동') return saved.includes(a.id);
+  return true;
+}
 
 export function Activities({
   detail,
@@ -21,7 +42,10 @@ export function Activities({
   go: (route: string) => void;
   save: (id: string) => void;
 }) {
-  const a = acts.find((x) => x.id === detail);
+  const { snap, failed } = useActivities();
+  const items = snap?.items ?? [];
+  const a = items.find((x) => x.id === detail);
+
   if (detail)
     return a ? (
       <>
@@ -29,18 +53,34 @@ export function Activities({
           className="link breadcrumb"
           onClick={() => go('activities')}
         >
-          홈 / 비교과·대외활동 / {a.name}
+          홈 / 비교과·대외활동 / {a.title}
         </button>
         <section className="card detail">
-          <span className="badge">{a.type} · 체험용 데이터</span>
-          <h2>{a.name}</h2>
-          <p>{a.desc}</p>
+          <span className="badge blue">
+            {a.statusLabel}
+            {a.dday ? ' · ' + a.dday : ''}
+          </span>
+          <h2>{a.title}</h2>
+          <p>{a.dept}에서 운영하는 비교과 프로그램입니다.</p>
           <div className="detail-grid">
             {[
-              ['모집 마감', a.date],
-              ['운영 기간', a.period],
-              ['대상', '대학생 · 예시'],
-              ['비교과 인정', '인정 여부 확인 필요'],
+              ['신청 기간', period(a.applyStart, a.applyEnd)],
+              ['운영 기간', period(a.runStart, a.runEnd)],
+              [
+                '참여 방식',
+                (a.team ?? '확인 필요') +
+                  (a.capacity
+                    ? ` · 정원 ${a.capacity}명(신청 ${a.applicants ?? 0}명)`
+                    : a.applicants != null
+                      ? ` · 신청 ${a.applicants}명`
+                      : ''),
+              ],
+              [
+                '비교과 포인트',
+                a.points != null
+                  ? `${a.points} P${a.certified ? ' · 인재인증' : ''}`
+                  : '공고에서 확인 필요',
+              ],
             ].map(([l, v]) => (
               <div key={l}>
                 <small>{l}</small>
@@ -48,31 +88,26 @@ export function Activities({
               </div>
             ))}
           </div>
-          <h3>어떤 활동인가요?</h3>
-          <p>
-            관심 분야를 직접 경험하고 결과물을 정리하는 프로그램의 체험
-            예시입니다. 실제 모집 공고가 아니며 신청할 수 없습니다.
-          </p>
-          <h3>이런 관심사와 연결돼요</h3>
-          <p>{a.tag}. 개인 학사정보에 근거한 확정 추천은 아닙니다.</p>
           <div className="actions">
             <button className="primary" onClick={() => save(a.id)}>
               <Bookmark size={18} />
               {data.saved.includes(a.id) ? '저장 해제' : '활동 저장'}
             </button>
-            <button className="secondary" onClick={() => go('calendar')}>
-              개인 일정 추가
-            </button>
+            <a
+              className="secondary"
+              href={a.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              공고 보기 · 신청은 학교 시스템에서{' '}
+              <ArrowUpRight size={16} />
+            </a>
           </div>
-          <p className="meta">출처: 체험용 예시 · 실제 모집 일정 확인 안 됨</p>
-          <a
-            className="link"
-            href="https://hsportal.hansung.ac.kr/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            학교 스마트자기관리시스템 열기 <ArrowUpRight size={16} />
-          </a>
+          <p className="meta">
+            출처: hsportal.hansung.ac.kr 공개 목록 ·{' '}
+            {snap ? snap.fetchedAt.slice(0, 10) : ''} 수집 · 신청·승인은
+            학교 시스템이 결정합니다
+          </p>
         </section>
       </>
     ) : (
@@ -85,18 +120,15 @@ export function Activities({
         </div>
       </div>
     );
-  const items = acts.filter(
-    (x) =>
-      (filter === '전체' ||
-        filter === x.type ||
-        (filter === '저장한 활동' && data.saved.includes(x.id))) &&
-      (x.name + x.desc + x.tag).includes(query),
+
+  const shown = items.filter(
+    (x) => inTab(x, filter, data.saved) && activityMatch(x, query, koreanMatch),
   );
   return (
     <>
       <div className="toolbar">
         <div className="tabs">
-          {['전체', '교내 비교과', '대외활동', '저장한 활동'].map((f) => (
+          {TABS.map((f) => (
             <button
               className={filter === f ? 'active' : ''}
               key={f}
@@ -104,20 +136,50 @@ export function Activities({
               onClick={() => setFilter(f)}
             >
               {f}
-              {f === '저장한 활동' ? ' ' + data.saved.length : ''}
+              {f === '저장한 활동'
+                ? ' ' +
+                  data.saved.filter((id) =>
+                    items.some((x) => x.id === id),
+                  ).length
+                : ''}
             </button>
           ))}
         </div>
         <input
           className="field"
           aria-label="활동명 검색"
-          placeholder="활동명, 관심 키워드 검색"
+          placeholder="활동명, 운영기관 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      {items.length ? (
-        <ActivityCards items={items} data={data} go={go} save={save} />
+      {failed ? (
+        <div className="card empty-small">
+          <Search />
+          <h3>활동 목록을 불러오지 못했어요.</h3>
+          <p>학교 스마트자기관리시스템에서 최신 공고를 확인할 수 있어요.</p>
+          <a
+            className="link"
+            href="https://hsportal.hansung.ac.kr/ko/program/all"
+            target="_blank"
+            rel="noreferrer"
+          >
+            hsportal에서 직접 보기 <ArrowUpRight size={16} />
+          </a>
+        </div>
+      ) : !snap ? (
+        <div className="card empty-small">
+          <CalendarDays />
+          <h3>활동 목록을 불러오는 중입니다…</h3>
+        </div>
+      ) : shown.length ? (
+        <>
+          <ActivityCards items={shown} data={data} go={go} save={save} />
+          <p className="meta">
+            공식 출처 hsportal · {snap.fetchedAt.slice(0, 10)} 수집{' '}
+            {snap.itemCount}건 · 신청·승인은 학교 시스템에서 진행
+          </p>
+        </>
       ) : (
         <div className="card empty-small">
           <Search />
@@ -143,7 +205,7 @@ function ActivityCards({
   go,
   save,
 }: {
-  items: typeof acts;
+  items: Activity[];
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
@@ -152,17 +214,32 @@ function ActivityCards({
     <div className="cards">
       {items.map((a, i) => (
         <article className="card activity" key={a.id}>
-          <div className={'mini-art art' + (i % 6)}>
-            <span>{a.en}</span>
+          <div
+            className={'mini-art art' + (i % 6)}
+            style={
+              a.cover
+                ? {
+                    backgroundImage: `url(${a.cover})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }
+                : undefined
+            }
+          >
+            <span>{a.statusLabel}</span>
             <strong>
-              {String(i + 1).padStart(2, '0')}
+              {a.dday ?? (i + 1).toString().padStart(2, '0')}
               <ArrowUpRight size={34} strokeWidth={1.2} />
             </strong>
-            <small>HANSUNG · {a.art}</small>
+            <small>HANSUNG · {a.dept.slice(0, 12)}</small>
           </div>
           <div className="pad">
             <div className="between">
-              <span className="badge">{a.type}</span>
+              <span className="badge">
+                {a.statusLabel}
+                {a.points != null ? ` · ${a.points}P` : ''}
+                {a.certified ? ' · 인증' : ''}
+              </span>
               <button
                 className={'icon ' + (data.saved.includes(a.id) ? 'saved' : '')}
                 aria-label="활동 저장 전환"
@@ -176,11 +253,13 @@ function ActivityCards({
                 className="text-title"
                 onClick={() => go('activities/' + a.id)}
               >
-                {a.name}
+                {a.title}
               </button>
             </h3>
-            <p>{a.desc}</p>
-            <small>모집 마감 {a.date} · 체험용</small>
+            <p>{a.dept}</p>
+            <small>
+              신청 {period(a.applyStart, a.applyEnd)} · {a.statusLabel}
+            </small>
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

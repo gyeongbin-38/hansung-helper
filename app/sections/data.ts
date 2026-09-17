@@ -18,44 +18,6 @@ export const menus = [
   ['semester-plan', '학기별 계획', Layers],
   ['courses', '과목 추천', BookOpen],
 ] as const;
-export const acts = [
-  {
-    id: 'creative',
-    type: '교내 비교과',
-    title: '아이디어가 프로젝트가 되는 순간',
-    name: '창의융합 프로젝트 워크숍',
-    desc: '관심 있는 문제를 발견하고, 팀과 함께 나만의 해결책을 만들어 보세요.',
-    date: '2026-09-25',
-    period: '10. 5. — 10. 23.',
-    tag: '프로젝트 · 진로 탐색',
-    art: 'CREATE',
-    en: 'DESIGN YOUR NEXT STEP',
-  },
-  {
-    id: 'career',
-    type: '교내 비교과',
-    title: '나의 다음 커리어를 발견하세요',
-    name: '직무 탐색 & 포트폴리오 클래스',
-    desc: '실무자의 이야기에서 하고 싶은 일을 발견하고, 나만의 포트폴리오를 구상해 보세요.',
-    date: '2026-09-28',
-    period: '10. 6. — 10. 8.',
-    tag: '커리어 · 포트폴리오',
-    art: 'NEXT',
-    en: 'FIND YOUR DIRECTION',
-  },
-  {
-    id: 'outside',
-    type: '대외활동',
-    title: '캠퍼스 밖으로, 한 걸음 더',
-    name: '대학생 지역문제 해결 챌린지',
-    desc: '작은 관찰에서 시작하는 새로운 도전. 다양한 전공의 학생들과 협업을 경험하세요.',
-    date: '2026-10-02',
-    period: '10. 12. — 11. 6.',
-    tag: '협업 · 사회문제 해결',
-    art: 'GROW',
-    en: 'BEYOND THE CAMPUS',
-  },
-];
 export type Completed = {
   code: string;
   name: string;
