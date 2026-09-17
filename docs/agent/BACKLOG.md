@@ -202,3 +202,15 @@ blocking regressions.
   unaffected, but the stale id invites accidental deploys to the wrong
   project. Decide: repoint to current project, or split local-binding
   config out of hosting.json entirely.
+
+## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
+
+- **Status**: backlog
+- **Labels**: agent-ready, priority:p3, area:infra
+- **Objective**: `npm audit` (2026-09-17) reports 8 high items, all in
+  build tooling — vinext, vite, wrangler, @cloudflare/vite-plugin,
+  react-server-dom-webpack (RSC DoS), miniflare, sharp, undici, ws,
+  image-size. None reach shipped app code (app deps are only
+  react/react-dom/@dnd-kit/lucide), but bump toolchain versions
+  periodically and re-audit. Do not `audit fix --force` blindly —
+  verify vinext/vite compatibility per bump.

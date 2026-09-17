@@ -27,6 +27,8 @@ for d in DIRS:
             '/XC',
             '/XF',
             '_*',
+            'cloudflared.exe',
+            '_tunnel.log',
             '/NFL',
             '/NDL',
             '/NJH',
