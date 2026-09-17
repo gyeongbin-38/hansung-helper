@@ -216,6 +216,20 @@ blocking regressions.
   project. Decide: repoint to current project, or split local-binding
   config out of hosting.json entirely.
 
+## ISSUE-11 — AI 상담: 고정 응답 → 실데이터 기반 규칙 응답
+
+- **Status**: implemented — needs-verification (2026-09-17)
+- **Labels**: agent-ready, priority:p2, area:ai, area:frontend
+- **Objective**: advisor는 현재 고정 안내 문자열 3개뿐. 이미 있는
+  데이터(카탈로그·비교과 스냅샷·계획/충돌/완료 목록)로 개인화된
+  규칙 기반 답변을 만들고, 자유 질문은 키워드 매칭으로 카탈로그·활동을
+  찾아 보여준다. AI 생성을 사칭하지 않고 "사이트 데이터 기반 안내"로
+  명시.
+- **Acceptance Criteria**: 각 고정 질문이 실제 사용자 상태(계획 과목
+  수·학점·충돌, 신청 가능 활동 수, 졸업 입력 완결성)를 반영; 자유 질문은
+  매칭된 과목/활동 링크 또는 정직한 "찾지 못함" 응답; 프로필 없으면
+  안내형 폴백.
+
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 
 - **Status**: backlog

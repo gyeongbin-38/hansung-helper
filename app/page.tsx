@@ -34,8 +34,7 @@ export default function App() {
     [toast, setToast] = useState(''),
     [survey, setSurvey] = useState(false),
     [step, setStep] = useState(0),
-    [draft, setDraft] = useState<string[]>([]),
-    [answer, setAnswer] = useState('');
+    [draft, setDraft] = useState<string[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
   const [demo, setDemo] = useState(false);
   const [accountError, setAccountError] = useState('');
@@ -356,7 +355,12 @@ export default function App() {
           ) : section === 'calendar' ? (
             <CalendarSection data={data} persist={persist} />
           ) : section === 'advisor' ? (
-            <Advisor answer={answer} setAnswer={setAnswer} go={go} />
+            <Advisor
+              data={data}
+              planned={planned}
+              catalog={catalog}
+              go={go}
+            />
           ) : section === 'notifications' ? (
             <Notifications
               account={account}
