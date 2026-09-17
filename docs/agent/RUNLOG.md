@@ -160,4 +160,64 @@ useState pattern, no dep needed).
 
 VERIFICATION STATUS: ISSUE-2 fix, ISSUE-12, ISSUE-6 partial, ISSUE-13,
 ISSUE-15, ISSUE-16 await independent verification.
+
+---
+
+## 2026-09-18 — loop iteration 4 (verification + 14 + 17 + 19)
+
+DONE:
+- Verified ISSUE-2 date-label fix → PASS (label-based date_layer mapping,
+  regression test for missing 신청 layer, re-crawled snapshot sane).
+- Verified ISSUE-12 schedule pipeline → PASS (row parser, fnv ids,
+  anomaly guard, API + calendar UI provenance).
+- Verified ISSUE-6 partial → PASS (2016+ baseline applies, pre-2016 →
+  UNKNOWN, missing points → UNKNOWN, profile year/points inputs exist,
+  official source link rendered).
+- Verified ISSUE-15 → PASS (우선목표/학기구성 scored; 수업방식·평가방식
+  explicitly disclosed as unscored).
+- Verified ISSUE-16 → PASS (21-credit soft warning, no fake official cap).
+- Verified ISSUE-13 → PASS **with two verifier-found bugs fixed**:
+  1. `read: boolean` made "모두 읽음" permanently mark all future
+     notifications read — now `readIds: string[]`; derivation extracted
+     to `deriveNotifs()` shared by the section and the Topbar bell dot
+     (now shows real unread count). Profile schema + API validation +
+     demo shape-check updated.
+  2. profile route rejected ruleOverrides >300 while the UI allows ≤2000
+     and 800P is the official target — cap raised to 2000.
+- ISSUE-14 implemented: `_sync.py --check` — robocopy /L list-only drift
+  detection, DRIFT report + exit 1 on mismatch. Detected the real
+  6-file drift, then parity OK post-sync.
+- ISSUE-17 implemented: home hero carousel — top 5 actionable activities
+  (closing→open→upcoming, soonest deadline), manual prev/next +
+  position dots, cover/D-day/points/deadline, provenance line, hidden
+  when snapshot empty. CSS .hero-carousel in home.css.
+- ISSUE-19 implemented: 통합 검색 — new `search` route, grouped results
+  (courses/activities/schedule, koreanMatch, cap 8 each), course rows
+  have "담기" buttons, activity → detail route, topbar placeholder
+  updated.
+- Both repos synced + built; commits pending this entry.
+
+IN PROGRESS: nothing — gates all green.
+
+NEXT:
+1. Fresh-session verification: ISSUE-13 readIds fix + override cap,
+   ISSUE-14, ISSUE-17, ISSUE-19.
+2. ISSUE-18 (detail routes /courses/:id, /graduation/:id,
+   /calendar/:id), ISSUE-10 (toolchain audit bumps).
+3. ISSUE-6 remainder: dept×year rulesets (per-dept official pages
+   exist, e.g. CSE/1564 — needs per-dept collection+validation),
+   수강중 state.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+hosting.json) need human/accounts. Public deployment still predates
+all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, build (both repos),
+http-check PASS, account-db PASS, sync --check parity OK.
+
+REPO SCOUT: none needed — carousel/search built from existing deps.
+
+VERIFICATION STATUS: ISSUE-13 fixes, ISSUE-14, ISSUE-17, ISSUE-19
+await independent verification.
   

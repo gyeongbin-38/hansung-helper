@@ -15,7 +15,7 @@ export type Profile = {
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
-  read: boolean;
+  readIds: string[];
   consent: boolean;
   semester?: string;
   graduationTarget?: string;

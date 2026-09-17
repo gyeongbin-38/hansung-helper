@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import {
   BookOpen,
   CalendarDays,
@@ -6,11 +7,13 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { conflicts, type CourseSection } from '@/lib/data/catalog';
-import { useSchedule } from './catalog';
+import { useActivities, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
 
@@ -26,7 +29,21 @@ export function Home({
   planned: Planned;
 }) {
   const { snap: sched } = useSchedule();
+  const { snap: acts } = useActivities();
+  const [slide, setSlide] = useState(0);
   const today = new Date().toISOString().slice(0, 10);
+  // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
+  const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
+  const slides = (acts?.items ?? [])
+    .filter((a) => rank[a.status] !== undefined)
+    .sort(
+      (a, b) =>
+        rank[a.status] - rank[b.status] ||
+        (a.applyEnd ?? '9999').localeCompare(b.applyEnd ?? '9999'),
+    )
+    .slice(0, 5);
+  const idx = Math.min(slide, Math.max(slides.length - 1, 0));
+  const cur = slides[idx];
   const schoolNext = (sched?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 3);
@@ -99,6 +116,76 @@ export function Home({
           </div>
         </div>
       </section>
+      {acts && slides.length > 0 && cur && (
+        <section
+          className="hero-carousel"
+          aria-roledescription="carousel"
+          aria-label="지금 신청할 수 있는 비교과 프로그램"
+        >
+          <div className="hc-slide" key={cur.id}>
+            {cur.cover && (
+              <span
+                className="hc-cover"
+                style={{ backgroundImage: `url(${cur.cover})` }}
+                aria-hidden="true"
+              />
+            )}
+            <div className="hc-body">
+              <span className="badge blue">
+                {cur.statusLabel}
+                {cur.dday ? ' · ' + cur.dday : ''}
+                {cur.points != null ? ` · ${cur.points}P` : ''}
+              </span>
+              <h3>{cur.title}</h3>
+              <p>
+                {cur.dept}
+                {cur.applyEnd
+                  ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
+                  : ''}
+              </p>
+              <button
+                className="link"
+                onClick={() => go('activities/' + cur.id)}
+              >
+                자세히 보기 <ArrowUpRight size={15} />
+              </button>
+            </div>
+          </div>
+          {slides.length > 1 && (
+            <div className="hc-nav">
+              <button
+                className="hc-arrow"
+                aria-label="이전 프로그램"
+                onClick={() =>
+                  setSlide((idx - 1 + slides.length) % slides.length)
+                }
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <div className="hc-dots">
+                {slides.map((s, j) => (
+                  <button
+                    key={s.id}
+                    aria-label={`${j + 1}번째: ${s.title}`}
+                    aria-current={j === idx}
+                    onClick={() => setSlide(j)}
+                  />
+                ))}
+              </div>
+              <button
+                className="hc-arrow"
+                aria-label="다음 프로그램"
+                onClick={() => setSlide((idx + 1) % slides.length)}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+          <p className="hc-src">
+            hsportal 공개 목록 · {acts.fetchedAt.slice(0, 10)} 수집
+          </p>
+        </section>
+      )}
       {account && (
         <section>
           <div className="section-heading">

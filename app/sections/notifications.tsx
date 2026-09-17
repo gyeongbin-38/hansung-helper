@@ -5,6 +5,8 @@ import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { useActivities, useSchedule } from './catalog';
 import { conflicts, type CourseSection } from '@/lib/data/catalog';
+import type { ActivitySnapshot } from '@/lib/data/activities';
+import type { ScheduleSnapshot } from '@/lib/data/schedule';
 
 type Item = {
   id: string;
@@ -18,25 +20,26 @@ type Item = {
 
 const DAY = 86400000;
 
-export function Notifications({
+/**
+ * 실제 상태에서 도출되는 알림 목록 — Topbar 벨 배지와 알림함이 공유한다.
+ * now는 호출자가 주입한다(render 순수성).
+ */
+export function deriveNotifs({
   account,
   data,
   planned,
-  persist,
-  go,
+  acts,
+  sched,
+  now,
 }: {
   account: Account | null;
   data: Data;
   planned: CourseSection[];
-  persist: (next: Data, msg?: string) => Promise<boolean>;
-  go: (route: string) => void;
-}) {
-  const { snap: acts } = useActivities();
-  const { snap: sched } = useSchedule();
-  // 마운트 시점 기준으로 도출 — 알림 신선도는 세션 단위면 충분
-  const [now] = useState(() => Date.now());
+  acts: ActivitySnapshot | null;
+  sched: ScheduleSnapshot | null;
+  now: number;
+}): Item[] {
   const in7 = now + 7 * DAY;
-
   const items: Item[] = [
     {
       id: 'connection',
@@ -110,6 +113,29 @@ export function Notifications({
       route: 'profile',
     });
 
+  return items;
+}
+
+export function Notifications({
+  account,
+  data,
+  planned,
+  persist,
+  go,
+}: {
+  account: Account | null;
+  data: Data;
+  planned: CourseSection[];
+  persist: (next: Data, msg?: string) => Promise<boolean>;
+  go: (route: string) => void;
+}) {
+  const { snap: acts } = useActivities();
+  const { snap: sched } = useSchedule();
+  // 마운트 시점 기준으로 도출 — 알림 신선도는 세션 단위면 충분
+  const [now] = useState(() => Date.now());
+  const items = deriveNotifs({ account, data, planned, acts, sched, now });
+  const readIds = data.readIds ?? [];
+
   const cats = ['전체', ...new Set(items.map((i) => i.cat))];
 
   return (
@@ -125,7 +151,10 @@ export function Notifications({
         <button
           className="secondary"
           onClick={async () =>
-            await persist({ ...data, read: true }, '알림을 읽음으로 표시했습니다.')
+            await persist(
+              { ...data, readIds: items.map((i) => i.id) },
+              '알림을 읽음으로 표시했습니다.',
+            )
           }
         >
           모두 읽음
@@ -143,7 +172,9 @@ export function Notifications({
           {items.map((n) => (
             <li
               key={n.id}
-              className={'notif-item' + (data.read ? '' : ' unread')}
+              className={
+                'notif-item' + (readIds.includes(n.id) ? '' : ' unread')
+              }
             >
               <span className="notif-ico" aria-hidden="true">
                 <Bell size={16} />

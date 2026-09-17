@@ -36,7 +36,8 @@ export type Data = {
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
-  read: boolean;
+  /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
+  readIds: string[];
   consent: boolean;
 };
 export const empty: Data = {
@@ -51,7 +52,7 @@ export const empty: Data = {
   ruleOverrides: {},
   events: [],
   prefs: [],
-  read: false,
+  readIds: [],
   consent: false,
 };
 export const questions = [

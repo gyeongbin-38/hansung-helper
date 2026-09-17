@@ -100,7 +100,7 @@ export async function PUT(request: Request) {
           typeof v !== 'number' ||
           !Number.isInteger(v) ||
           v < 1 ||
-          v > 300
+          v > 2000
         )
           return json({ error: '졸업 기준 형식을 확인해 주세요.' }, 400);
         overrides[k] = v;
@@ -113,7 +113,14 @@ export async function PUT(request: Request) {
       input.onboardingStep <= 7
         ? input.onboardingStep
         : 0;
-    profile.read = input.read === true;
+    profile.readIds =
+      Array.isArray(input.readIds) &&
+      input.readIds.length <= 500 &&
+      input.readIds.every(
+        (v: unknown) => typeof v === 'string' && v.length <= 80,
+      )
+        ? input.readIds
+        : [];
     profile.consent = input.consent === true;
     await database()
       .prepare(

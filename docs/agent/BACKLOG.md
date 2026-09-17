@@ -78,7 +78,8 @@ blocking regressions.
 
 ## ISSUE-2 — 크롤러 파이프라인 (비교과 공개 목록 → normalized DB → /api/activities)
 
-- **Status**: implemented — needs-verification (fix 재검증 필요, 2026-09-17)
+- **Status**: **verified** (fix 재검증 PASS 2026-09-18 — 라벨 기반
+  date_layer 매핑 확인, 회귀 테스트 존재, 재수집 스냅샷 날짜 정상)
 - **Verifier note (2026-09-17, fresh session)**: **FAIL → fixed.**
   카드에는 `date_layer` 밖에 `<time>`이 더 있음(헤더 운영시각 쌍 +
   content 중복 쌍). 위치 기반 `times[0..3]` 추출은 신청↔운영을 뒤바꿔
@@ -139,8 +140,10 @@ blocking regressions.
 
 ## ISSUE-6 — 졸업 규칙 버전·학과별 확장 + 수강중 상태
 
-- **Status**: partially implemented — needs-verification (전역 기준만,
-  2026-09-18). 잔여: 학과별 ruleset, 수강중 상태.
+- **Status**: partially implemented — 전역 기준 부분 **verified**
+  (2026-09-18: 2016+ 적용·pre-2016 unknown·포인트 미입력 unknown·
+  프로필 year/points 입력 경로·출처 링크 확인). 잔여(학과별 ruleset,
+  수강중 상태)는 backlog 유지.
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
@@ -255,7 +258,8 @@ blocking regressions.
 
 ## ISSUE-12 — 학사일정 실데이터 수집 (공식 학사일정 → snapshot → 캘린더)
 
-- **Status**: implemented — needs-verification (2026-09-17)
+- **Status**: **verified** (fresh verifier PASS 2026-09-18 —
+  라벨 무관 행 파싱·fnv id·이상감지·API·UI provenance 확인)
 - **Done**: `lib/data/schedule.ts` (parseScheduleMonth 라벨 무관 행 파싱:
   첫 셀 날짜/범위 + 마지막 셀 일정명, fnv 해시 id, isScheduleAnomalous),
   `scripts/crawl-schedule.mts` (month/year2 POST로 학년도 3월~익년 2월
@@ -279,7 +283,13 @@ blocking regressions.
 
 ## ISSUE-13 — 알림함·홈 위젯 실데이터 도출
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified with fix** (2026-09-18) — 검증 중 버그 발견·수정:
+  `read: boolean` 단일 플래그는 "모두 읽음" 후 신규 알림도 영구히 읽음
+  처리됨 → `readIds: string[]`로 변경(프로필 스키마+API 검증 갱신,
+  데모 shape-check 추가), 도출 로직을 `deriveNotifs()`로 추출해 Topbar
+  벨 점이 실제 unread 수를 반영. 수정분 자체는 재검증 대상.
+  추가 수정: profile route의 ruleOverrides 상한 300→2000 (UI는 2000까지
+  허용하고 800P가 공식 목표라 불일치였음).
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: 알림함은 고정 1건(연결 안내)뿐이고 홈 "지금 할 일"은
   완료 여부와 무관하게 카운트 `3` 고정. 실제 상태에서 알림을 도출:
@@ -296,7 +306,8 @@ blocking regressions.
 
 ## ISSUE-15 — 설문 선호 추천 반영 + 미반영 항목 명시
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified** (2026-09-18 — 우선목표/학기구성 점수화 확인,
+  수업방식·평가방식 미반영 고지 timetable.tsx:675 확인)
 - **Labels**: agent-ready, priority:p2, area:frontend, area:data
 - **Objective**: 설문 6문항 중 4개(우선목표·수업방식·평가방식·학기구성)
   가 추천 점수에 미반영이었다. 점수화 가능한 것은 반영하고, 카탈로그에
@@ -310,7 +321,8 @@ blocking regressions.
 
 ## ISSUE-16 — 과도 학점 soft warning
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified** (2026-09-18 — semester-plan.tsx:46 21학점 초과
+  soft 경고, 공식 한도 사칭 없음 확인)
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: spec §9 요구 최대학점 제약 부재. 공식 한성대 학점 상한
   데이터 미수집 — 임의 숫자를 공식처럼 주장하지 않고, 21학점 초과 시
@@ -321,11 +333,15 @@ blocking regressions.
 
 ## ISSUE-17 — 홈 Hero 캐러셀 (spec §5.3/§12.10)
 
-- **Status**: backlog — agent-ready
+- **Status**: implemented — needs-verification (2026-09-18)
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: spec이 요구하는 홈 중심 Hero 캐러셀 부재. 실데이터 있음:
   활동 스냅샷(커버이미지·D-day·포인트·상태). 수동 넘김 + 위치 표시,
   항목 0개 시 정적 안내 폴백.
+- **Done**: home.tsx — 마감임박→접수중→접수예정 순(마감 빠른 순) 상위 5개
+  슬라이드, 수동 prev/next + 위치 dots(aria-current), 커버 이미지·D-day·
+  포인트·신청마감 표시, 상세 라우트 이동, 수집 출처 표기, 0개 또는 스냅샷
+  미로드 시 섹션 미렌더. CSS: home.css .hero-carousel 계열.
 
 ## ISSUE-18 — 상세 라우트 부재 (spec §6)
 
@@ -336,13 +352,20 @@ blocking regressions.
 
 ## ISSUE-19 — 전체 검색 범위 확대
 
-- **Status**: backlog — agent-ready
+- **Status**: implemented — needs-verification (2026-09-18)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: Topbar 검색이 활동만 검색 → 과목·공식일정 포함.
+- **Done**: `app/sections/search.tsx` — 통합 검색 라우트(과목 cap 8·
+  활동 cap 8·학사일정 cap 8, koreanMatch 기반, 그룹별 섹션, 과목 행에
+  "담기" 버튼, 활동→상세 라우트, 일정→캘린더). page.tsx에 search 라우트
+  추가, Topbar onSearch → 'search', placeholder/aria-label 통합 검색으로.
 
 ## ISSUE-14 — `_sync.py` parity check 모드
 
-- **Status**: backlog — agent-ready
+- **Status**: implemented — needs-verification (2026-09-18)
+- **Done**: `--check` 플래그 — robocopy /L(list-only)로 드리프트 감지,
+  파일 목록 행만 추려 DRIFT 리포트, 불일치 시 exit 1. 실제 미동기
+  상태에서 6개 파일 정확히 감지 + 동기화 후 parity OK 확인.
 - **Labels**: agent-ready, priority:p2, area:infra
 - **Objective**: 이번에 발견된 stale-sync 버그(/XO /XN /XC 조합으로
   수정 파일 미복사) 재발 방지. `--check` 모드로 루트↔published-personal

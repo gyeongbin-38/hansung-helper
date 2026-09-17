@@ -140,6 +140,105 @@
   }
 }
 
+/* ---------- hero activity carousel ---------- */
+.hero-carousel {
+  position: relative;
+  margin-bottom: 26px;
+  padding: 22px 24px 16px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-canvas);
+}
+.hc-slide {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+  min-height: 128px;
+}
+.hc-cover {
+  flex-shrink: 0;
+  width: 150px;
+  border-radius: var(--nt-r-md);
+  background-size: cover;
+  background-position: center;
+  background-color: color-mix(in srgb, var(--nt-ink) 6%, transparent);
+}
+.hc-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.hc-body h3 {
+  font-size: 19px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  margin: 12px 0 0;
+}
+.hc-body p {
+  font-size: 14px;
+  margin: 7px 0 0;
+  color: var(--nt-ink-2);
+}
+.hc-body .link {
+  margin-top: auto;
+  padding-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.hc-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+.hc-arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--nt-r-pill);
+  border: 1px solid var(--nt-hairline);
+  color: var(--nt-ink-2);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.hc-arrow:hover {
+  border-color: var(--nt-hairline-strong);
+  color: var(--nt-ink);
+}
+.hc-dots {
+  display: flex;
+  gap: 7px;
+}
+.hc-dots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--nt-ink) 18%, transparent);
+  transition: background 0.15s ease;
+}
+.hc-dots button[aria-current='true'] {
+  background: var(--nt-purple);
+}
+.hc-src {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--nt-ink-3);
+}
+@media (max-width: 640px) {
+  .hc-slide {
+    flex-direction: column;
+  }
+  .hc-cover {
+    width: 100%;
+    height: 120px;
+  }
+}
+
 /* ---------- account connection bar ---------- */
 .account-bar {
   display: flex;

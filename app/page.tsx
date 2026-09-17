@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { SignIn, Onboarding, type Account } from './account-flow';
 import { menus, empty, type Data } from './sections/data';
-import { useCatalog } from './sections/catalog';
+import { useCatalog, useActivities, useSchedule } from './sections/catalog';
 import {
   Sidebar,
   Topbar,
@@ -21,7 +21,8 @@ import { SemesterPlan } from './sections/semester-plan';
 import { Timetable } from './sections/timetable';
 import { CalendarSection } from './sections/calendar';
 import { Advisor } from './sections/advisor';
-import { Notifications } from './sections/notifications';
+import { Notifications, deriveNotifs } from './sections/notifications';
+import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
 export default function App() {
@@ -40,6 +41,9 @@ export default function App() {
   const [accountError, setAccountError] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
   const { catalog, failed: catalogFailed } = useCatalog();
+  const { snap: actsSnap } = useActivities();
+  const { snap: schedSnap } = useSchedule();
+  const [notifNow] = useState(() => Date.now());
   // Browser storage is read after hydration to keep the initial server render stable.
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
@@ -206,6 +210,14 @@ export default function App() {
     planned = (catalog?.sections ?? []).filter((s) =>
       data.planned.includes(s.id),
     );
+  const unread = deriveNotifs({
+    account,
+    data,
+    planned,
+    acts: actsSnap,
+    sched: schedSnap,
+    now: notifNow,
+  }).filter((n) => !(data.readIds ?? []).includes(n.id)).length;
   const label =
     menus.find((m) => m[0] === section)?.[1] ||
     (
@@ -213,6 +225,7 @@ export default function App() {
         profile: '내 정보',
         settings: '설정',
         notifications: '알림함',
+        search: '검색',
       } as Record<string, string>
     )[section] ||
     '상세 정보';
@@ -249,7 +262,8 @@ export default function App() {
                   Array.isArray(d.events) &&
                   (d.completed === undefined || Array.isArray(d.completed)) &&
                   (d.ruleOverrides === undefined ||
-                    (d.ruleOverrides && typeof d.ruleOverrides === 'object'))
+                    (d.ruleOverrides && typeof d.ruleOverrides === 'object')) &&
+                  (d.readIds === undefined || Array.isArray(d.readIds))
                 )
                   setData({ ...empty, ...d });
               }
@@ -288,8 +302,9 @@ export default function App() {
           setQuery={setQuery}
           go={go}
           data={data}
+          unread={unread}
           onMenu={() => setDrawer(true)}
-          onSearch={() => go('activities')}
+          onSearch={() => go('search')}
         />
         <main>
           <PageHeading
@@ -359,6 +374,14 @@ export default function App() {
               data={data}
               planned={planned}
               catalog={catalog}
+              go={go}
+            />
+          ) : section === 'search' ? (
+            <SearchResults
+              query={query}
+              data={data}
+              catalog={catalog}
+              plan={plan}
               go={go}
             />
           ) : section === 'notifications' ? (

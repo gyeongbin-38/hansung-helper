@@ -98,6 +98,7 @@ export function Topbar({
   setQuery,
   go,
   data,
+  unread,
   onMenu,
   onSearch,
 }: {
@@ -105,6 +106,7 @@ export function Topbar({
   setQuery: (value: string) => void;
   go: (route: string) => void;
   data: Data;
+  unread: number;
   onMenu: () => void;
   onSearch: () => void;
 }) {
@@ -127,8 +129,8 @@ export function Topbar({
       >
         <Search size={16} />
         <input
-          placeholder="관심 있는 활동을 찾아보세요"
-          aria-label="활동 검색"
+          placeholder="과목·활동·학사일정 검색"
+          aria-label="통합 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -136,11 +138,13 @@ export function Topbar({
       </form>
       <button
         className="icon notification"
-        aria-label="알림함"
+        aria-label={
+          unread ? `알림함 — 읽지 않은 알림 ${unread}개` : '알림함'
+        }
         onClick={() => go('notifications')}
       >
         <Bell size={20} />
-        {!data.read && <i aria-hidden="true" />}
+        {unread > 0 && <i aria-hidden="true" />}
       </button>
       <button
         className="avatar small"
