@@ -53,6 +53,60 @@ export async function PUT(request: Request) {
     )
       return json({ error: '일정 형식을 확인해 주세요.' }, 400);
     profile.events = input.events;
+    if (
+      !Array.isArray(input.completed) ||
+      input.completed.length > 300 ||
+      input.completed.some(
+        (v: {
+          code?: unknown;
+          name?: unknown;
+          category?: unknown;
+          credits?: unknown;
+        }) =>
+          !v ||
+          typeof v.code !== 'string' ||
+          v.code.length > 30 ||
+          typeof v.name !== 'string' ||
+          v.name.length > 100 ||
+          typeof v.category !== 'string' ||
+          v.category.length > 20 ||
+          typeof v.credits !== 'number' ||
+          !Number.isInteger(v.credits) ||
+          v.credits < 0 ||
+          v.credits > 20,
+      )
+    )
+      return json({ error: '이수 과목 형식을 확인해 주세요.' }, 400);
+    profile.completed = input.completed.map(
+      (v: {
+        code: string;
+        name: string;
+        category: string;
+        credits: number;
+      }) => ({
+        code: v.code,
+        name: v.name,
+        category: v.category,
+        credits: v.credits,
+      }),
+    );
+    const overrides: Record<string, number> = {};
+    if (input.ruleOverrides && typeof input.ruleOverrides === 'object') {
+      for (const [k, v] of Object.entries(
+        input.ruleOverrides as Record<string, unknown>,
+      )) {
+        if (
+          k.length > 30 ||
+          typeof v !== 'number' ||
+          !Number.isInteger(v) ||
+          v < 1 ||
+          v > 300
+        )
+          return json({ error: '졸업 기준 형식을 확인해 주세요.' }, 400);
+        overrides[k] = v;
+      }
+    }
+    profile.ruleOverrides = overrides;
     profile.onboardingStep =
       Number.isInteger(input.onboardingStep) &&
       input.onboardingStep >= 0 &&

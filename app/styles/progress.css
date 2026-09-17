@@ -1,0 +1,331 @@
+/* Graduation, AI advisor, profile, settings, survey dialog.
+   Owner: progress agent. Use var(--nt-*) tokens only.
+   Note: shared primitives in globals.css are appended after this file,
+   so overrides here need higher specificity than the base rules. */
+
+/* ---------- 졸업요건 ---------- */
+.card.pad.grad-intro {
+  background: var(--nt-tint-lavender);
+  border-color: transparent;
+}
+.pad.grad-intro > p {
+  color: var(--nt-charcoal);
+  max-width: 640px;
+}
+.grad-intro .progress-track,
+.grad-intro .progress-track::-webkit-progress-bar {
+  background: var(--nt-canvas);
+}
+.grad-intro .progress-track {
+  max-width: 520px;
+  margin: 28px 0 30px;
+}
+.requirement-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+.requirement-list h3 {
+  font-size: 17px;
+}
+.requirement-list .badge {
+  flex-shrink: 0;
+}
+.requirement-list strong {
+  display: block;
+  margin-top: 22px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--nt-ink);
+}
+.requirement-list .card > p {
+  font-size: 13px;
+  color: var(--nt-stone);
+  margin: 0 0 14px;
+}
+.progress-track {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  display: block;
+  width: 100%;
+  height: 6px;
+  background: var(--nt-hairline);
+  border-radius: var(--nt-r-pill);
+  margin: 16px 0;
+  overflow: hidden;
+}
+.progress-track::-webkit-progress-bar {
+  background: var(--nt-hairline);
+  border-radius: var(--nt-r-pill);
+}
+.progress-track::-webkit-progress-value {
+  background: var(--nt-primary);
+  border-radius: var(--nt-r-pill);
+  transition: width 0.45s var(--nt-ease);
+}
+.progress-track::-moz-progress-bar {
+  background: var(--nt-primary);
+  border-radius: var(--nt-r-pill);
+}
+.grad-intro > strong {
+  display: block;
+  margin: -18px 0 18px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.check-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--nt-charcoal);
+  cursor: pointer;
+}
+.check-line input {
+  accent-color: var(--nt-primary);
+}
+.rule-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--nt-steel);
+}
+.rule-target input {
+  width: 76px;
+  padding: 6px 10px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-sm);
+  font-size: 13px;
+  color: var(--nt-ink);
+  background: var(--nt-canvas);
+}
+.rule-target input:focus {
+  outline: 2px solid color-mix(in srgb, var(--nt-primary) 35%, transparent);
+  border-color: var(--nt-primary);
+}
+.manual-add {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 18px;
+}
+.manual-add input,
+.manual-add select {
+  padding: 9px 12px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-sm);
+  font-size: 13.5px;
+  color: var(--nt-ink);
+  background: var(--nt-canvas);
+}
+.manual-add input:first-child {
+  flex: 1;
+  min-width: 180px;
+}
+.manual-add input[type='number'] {
+  width: 72px;
+}
+.manual-add .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.grad-intro .meta,
+.requirement-list .meta {
+  color: var(--nt-steel);
+  font-size: 12.5px;
+  margin: 6px 0 0;
+}
+
+/* ---------- AI 상담 ---------- */
+.advisor {
+  padding: 72px 40px 58px;
+  max-width: 860px;
+  margin: 0 auto;
+  text-align: center;
+}
+.advisor h2 {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+.advisor > p {
+  color: var(--nt-steel);
+  max-width: 480px;
+  margin: 14px auto 0;
+}
+.ai-mark {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 26px;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--nt-r-xl);
+  background: var(--nt-tint-lavender);
+  color: var(--nt-primary);
+}
+.chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 36px 0 8px;
+}
+.chips .secondary {
+  min-height: 38px;
+  padding: 8px 18px;
+  border-radius: var(--nt-r-pill);
+  border-color: var(--nt-hairline);
+  color: var(--nt-charcoal);
+}
+.chips .secondary:hover {
+  background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
+}
+.answer {
+  background: var(--nt-surface);
+  border-radius: var(--nt-r-lg);
+  text-align: left;
+  padding: 22px 24px;
+  margin: 28px auto 0;
+  max-width: 640px;
+}
+.answer p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--nt-charcoal);
+}
+.answer small {
+  display: block;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--nt-hairline);
+  color: var(--nt-stone);
+}
+.advisor .actions {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  margin-top: 36px;
+}
+
+/* ---------- 프로필 ---------- */
+.profile .profile-mini {
+  padding: 0 0 20px;
+  gap: 18px;
+}
+.profile .profile-mini h2 {
+  font-size: 24px;
+}
+.profile .profile-mini .badge {
+  margin-top: 9px;
+}
+.profile .form-grid label:nth-of-type(3) {
+  grid-column: 1 / -1;
+}
+
+/* ---------- 설정 ---------- */
+.settings .event-line > svg {
+  color: var(--nt-stone);
+  flex-shrink: 0;
+}
+.settings .between {
+  flex-wrap: wrap;
+  padding: 20px 0;
+}
+.settings .between > p {
+  flex: 1;
+  min-width: 240px;
+  margin: 0;
+  font-size: 14px;
+}
+.settings .between > .secondary {
+  flex-shrink: 0;
+}
+.settings .between + .between {
+  border-top: 1px solid var(--nt-hairline-soft);
+}
+.secondary.danger {
+  color: var(--nt-error);
+}
+.secondary.danger:hover {
+  background: var(--nt-tint-rose);
+}
+
+/* ---------- 설문 다이얼로그 ---------- */
+dialog {
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-xxl);
+  padding: 32px;
+  width: min(560px, calc(100% - 32px));
+  color: var(--nt-ink);
+  margin: auto;
+}
+dialog::backdrop {
+  background: color-mix(in srgb, var(--nt-navy) 45%, transparent);
+  backdrop-filter: blur(3px);
+}
+dialog h2 {
+  margin: 25px 0 15px;
+  line-height: 1.4;
+}
+dialog p {
+  font-size: 14px;
+}
+.survey-options {
+  display: grid;
+  gap: 10px;
+  margin: 25px 0 35px;
+}
+.survey-options button {
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.survey-options button:hover {
+  background: var(--nt-surface);
+}
+.survey-options .chosen {
+  border-color: var(--nt-primary);
+  color: var(--nt-ink);
+  background: var(--nt-tint-lavender);
+}
+
+@media (max-width: 1199px) {
+  .advisor {
+    padding: 52px 32px 44px;
+  }
+  .advisor h2 {
+    font-size: 27px;
+  }
+}
+@media (max-width: 767px) {
+  .requirement-list {
+    grid-template-columns: 1fr;
+  }
+  .requirement-list strong {
+    font-size: 23px;
+  }
+  .advisor {
+    padding: 44px 20px 36px;
+  }
+  .advisor h2 {
+    font-size: 24px;
+  }
+  .settings .between > p {
+    min-width: 200px;
+  }
+}

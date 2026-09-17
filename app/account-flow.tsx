@@ -11,6 +11,8 @@ export type Profile = {
   points: string;
   saved: string[];
   planned: string[];
+  completed: { code: string; name: string; category: string; credits: number }[];
+  ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
   read: boolean;
@@ -28,9 +30,11 @@ export type Account = {
 export function SignIn({
   onAuthenticated,
   onDemo,
+  notice,
 }: {
   onAuthenticated: (account: Account) => void;
   onDemo: () => void;
+  notice?: string;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -54,6 +58,11 @@ export function SignIn({
           <br />
           나에게 맞는 다음 학기를 준비하세요.
         </p>
+        {notice && (
+          <p className="auth-error" role="alert">
+            {notice}
+          </p>
+        )}
         <form
           className="auth-form"
           onSubmit={async (e) => {
@@ -153,7 +162,7 @@ export function SignIn({
             {!busy && <ArrowRight size={18} />}
           </button>
         </form>
-        <div className="auth-actions">
+        <div className="auth-actions auth-links">
           <button
             className="link"
             disabled={busy}
@@ -218,11 +227,12 @@ export function Onboarding({
         <GraduationCap /> 한성 학사 도우미
       </div>
       <section className="auth-panel">
-        <div className="auth-progress" aria-label={`초기 설정 ${stage + 1}/7`}>
-          {Array.from({ length: 7 }, (_, i) => (
-            <span key={i} className={i <= stage ? 'active' : ''} />
-          ))}
-        </div>
+        <progress
+          className="auth-progress"
+          aria-label={`초기 설정 ${stage + 1}/7`}
+          value={stage + 1}
+          max={7}
+        />
         <span className="auth-step-label">
           {stage === 0 ? '02 · 기본 정보' : '03 · 수업 성향 ' + stage + '/6'}
         </span>
@@ -345,8 +355,12 @@ export function Onboarding({
                     setDraft({ ...draft, prefs });
                   }}
                 >
-                  {option}
-                  {draft.prefs[stage - 1] === option && <Check size={18} />}
+                  <span className="option-label">{option}</span>
+                  <span className="option-check" aria-hidden="true">
+                    {draft.prefs[stage - 1] === option && (
+                      <Check size={14} strokeWidth={2.5} />
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
