@@ -18,7 +18,7 @@ const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];
 const COL_WEEKLY_ATTENDANCE = ['주차 출석', 'Week attendance'];
 const COL_ATTENDANCE = ['출석', 'Attendance'];
 const COL_REQUIRED_TIME = ['출석인정 요구시간', 'Required'];
-const COLLECT_BUDGET_MS = 24000;
+const COLLECT_BUDGET_MS = 60000;
 
 export interface LmsSession {
   request(url: string, init?: RequestInit): Promise<Response>;
@@ -257,21 +257,44 @@ export async function collectLms(
   courses: { id: string; name: string }[],
 ): Promise<LmsSnapshot> {
   const deadline = Date.now() + COLLECT_BUDGET_MS;
-  const html = async (url: string) => (await session.request(url)).text();
+  // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
+  // 이를 빈 결과로 삼키지 않고 throw해 errors[]에 남긴다.
+  const html = async (url: string) => {
+    const r = await session.request(url);
+    const h = await r.text();
+    if (r.status !== 200 || !/\/login\/logout\.php/.test(h)) {
+      console.log(
+        '[lms] fetch',
+        url.replace(BASE, ''),
+        '→',
+        r.status,
+        'len',
+        h.length,
+        'loginForm',
+        /name="password"|login\/index\.php/.test(h),
+      );
+      throw new Error(`lms:${r.status}`);
+    }
+    return h;
+  };
 
   const fetchVods = async (id: string) => {
     const urls = [
       `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
       `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
     ];
+    let lastErr: unknown;
     for (const u of urls) {
       try {
         const h = await html(u);
         if (h.includes('user_progress_table')) return parseProgress(h);
-      } catch {
-        /* 다음 URL 시도 */
+      } catch (e) {
+        lastErr = e; /* 다음 URL 시도 */
       }
     }
+    // 두 URL 모두 요청 실패(세션/HTTP)면 'vod' 오류로 표면화,
+    // 페이지는 왔지만 표가 없는 경우만 정상 빈 결과.
+    if (lastErr) throw lastErr;
     return [];
   };
   const fetchAssigns = async (id: string) =>
@@ -280,14 +303,14 @@ export async function collectLms(
     const items = parseQuizList(
       await html(`${BASE}/mod/quiz/index.php?id=${id}`),
     );
-    return Promise.all(
-      items.map(async (it) => ({
-        ...it,
-        submitted: await html(it.url!)
-          .then(hasQuizAttempt)
-          .catch(() => false),
-      })),
-    );
+    const out: LmsTask[] = [];
+    for (const it of items) {
+      const submitted = await html(it.url!)
+        .then(hasQuizAttempt)
+        .catch(() => false);
+      out.push({ ...it, submitted });
+    }
+    return out;
   };
   const fetchRanges = async (id: string) =>
     parseVodRanges(await html(`${BASE}/course/view.php?id=${id}`));
@@ -305,12 +328,17 @@ export async function collectLms(
       });
       continue;
     }
-    const [vods, assigns, quizzes, ranges] = await Promise.allSettled([
-      fetchVods(c.id),
-      fetchAssigns(c.id),
-      fetchQuizzes(c.id),
-      fetchRanges(c.id),
-    ]);
+    // Moodle PHP 세션은 요청당 잠금이 걸려 병렬 요청이 서버에서 직렬화된다.
+    // 같은 세션의 동시 요청을 아예 순차로 보내 불필요한 대기·실패를 줄인다.
+    const settle = <T>(p: Promise<T>) =>
+      p.then(
+        (value) => ({ status: 'fulfilled' as const, value }),
+        (reason) => ({ status: 'rejected' as const, reason }),
+      );
+    const vods = await settle(fetchVods(c.id));
+    const assigns = await settle(fetchAssigns(c.id));
+    const quizzes = await settle(fetchQuizzes(c.id));
+    const ranges = await settle(fetchRanges(c.id));
     const rangeMap = ranges.status === 'fulfilled' ? ranges.value : {};
     out.push({
       id: c.id,

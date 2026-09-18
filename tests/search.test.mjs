@@ -105,5 +105,19 @@ hits = searchAll('수강', catalog, acts, sched);
 const firstCalendar = hits.findIndex((h) => h.route.startsWith('calendar/'));
 t('ordering: courses before schedule', firstCalendar === -1 || hits.slice(0, firstCalendar).every((h) => !h.route.startsWith('calendar/')));
 
+// LMS 수강 과목 — lms 라우트 + 출처 부제
+const lmsCourses = [
+  { id: '101', title: '운영체제', prof: '김교수', vods: [], assigns: [], quizzes: [] },
+  { id: '102', title: '자료구조 특강', vods: [], assigns: [], quizzes: [] },
+];
+hits = searchAll('운영체제', catalog, acts, sched, lmsCourses);
+const lmsHit = hits.find((h) => h.route === 'lms');
+t('lms course hit routes to lms section', lmsHit?.label === '운영체제');
+t('lms hit sub has COSMOS provenance', lmsHit?.sub.startsWith('COSMOS 수업 현황'));
+hits = searchAll('자료구조', catalog, acts, sched, lmsCourses);
+t('lms hits come after catalog hits', hits[0].route === 'courses/W002-N' && hits.at(-1).route === 'lms');
+hits = searchAll('운영체제', catalog, acts, sched);
+t('no lms arg → no lms hits', !hits.some((h) => h.route === 'lms'));
+
 console.log(`search: ${pass}/${pass + fail}`);
 process.exit(fail ? 1 : 0);

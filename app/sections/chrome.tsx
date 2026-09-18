@@ -1,6 +1,5 @@
 'use client';
 import {
-  GraduationCap,
   User,
   Settings,
   Bell,
@@ -12,6 +11,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { menus, type Data } from './data';
+import { Logo } from '../logo';
 import type { Account } from '../account-flow';
 
 export function Sidebar({
@@ -36,7 +36,7 @@ export function Sidebar({
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
         <button className="brand" onClick={() => go('home')}>
           <span className="brand-icon">
-            <GraduationCap size={20} />
+            <Logo size={20} />
           </span>
           <span>
             한성 학사 도우미<small>MY ACADEMIC COMPASS</small>

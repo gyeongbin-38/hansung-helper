@@ -10,6 +10,7 @@ import {
   type CourseSection,
 } from '@/lib/data/catalog';
 import { catGroup, deptMatches } from './catalog';
+import { SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
 import type { Data } from './data';
 
@@ -119,7 +120,11 @@ export function Courses({
     if (!catalog)
       return (
         <div className="card pad">
-          <p>{failed ? '개설강의 데이터를 불러오지 못했습니다.' : '불러오는 중…'}</p>
+          {failed ? (
+            <p>개설강의 데이터를 불러오지 못했습니다.</p>
+          ) : (
+            <SkeletonDetail />
+          )}
         </div>
       );
     if (!s)
@@ -324,6 +329,7 @@ export function Courses({
             : `학과 매칭 확인 필요 — '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
         </p>
       )}
+      {!catalog && !failed && <SkeletonCards />}
       <div className="cards">
         {filtered.slice(0, LIMIT).map((s, i) => {
           const added = data.planned.includes(s.id);

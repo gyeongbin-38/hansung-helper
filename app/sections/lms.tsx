@@ -14,6 +14,7 @@ import {
   courseProgress,
   dueSoon,
   pendingTasks,
+  staleDays,
   validateLms,
   type LmsCourse,
   type LmsSnapshot,
@@ -150,16 +151,20 @@ export function LmsSection({
   data,
   persist,
   notify,
+  serverCollecting,
 }: {
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
   notify?: (msg: string) => void;
+  /** 로그인 계정의 서버 측 COSMOS 수집이 백그라운드로 진행 중 */
+  serverCollecting?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
   const [copying, setCopying] = useState(false);
   const [now] = useState(() => Date.now());
   const snap = data.lms;
+  const stale = snap ? staleDays(snap, now) : null;
 
   const importJson = async (raw: string) => {
     try {
@@ -211,6 +216,18 @@ export function LmsSection({
             재수집해야 반영됩니다.
           </p>
         )}
+        {stale !== null && stale >= 7 && (
+          <p className="lms-stale">
+            수집한 지 {stale}일 지났습니다. 최신 상태가 아닐 수 있으니{' '}
+            <button
+              className="link"
+              onClick={() => fileRef.current?.click()}
+            >
+              다시 가져오기
+            </button>
+            를 권장합니다.
+          </p>
+        )}
         <ol className="lms-steps">
           <li>
             <a className="link" href={LMS_BASE} target="_blank" rel="noreferrer">
@@ -256,10 +273,15 @@ export function LmsSection({
         <section className="card pad">
           <div className="empty-small">
             <MonitorPlay size={30} />
-            <h3>아직 수업 데이터가 없습니다.</h3>
+            <h3>
+              {serverCollecting
+                ? '서버에서 수집 중입니다…'
+                : '아직 수업 데이터가 없습니다.'}
+            </h3>
             <p>
-              위 순서대로 수집하면 수강한 강의·남은 강의·미제출 과제·미응시 퀴즈를
-              여기서 확인할 수 있습니다.
+              {serverCollecting
+                ? '학교 계정 연결로 COSMOS 수업 현황을 수집하고 있습니다. 완료되면 이 화면에 자동으로 표시됩니다(보통 1분 이내).'
+                : '위 순서대로 수집하면 수강한 강의·남은 강의·미제출 과제·미응시 퀴즈를 여기서 확인할 수 있습니다.'}
             </p>
           </div>
         </section>

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { GraduationCap } from 'lucide-react';
 import { SignIn, Onboarding, type Account } from './account-flow';
+import { Logo } from './logo';
 import { menus, empty, type Data } from './sections/data';
 import { useCatalog, useActivities, useSchedule } from './sections/catalog';
 import {
@@ -92,6 +92,41 @@ export default function App() {
       removeEventListener('hashchange', sync);
     };
   }, []);
+  // LMS 연결인데 상세 스냅샷이 아직 없으면 서버 백그라운드 수집이
+  // 진행 중인 것 — 도착하면 즉시 반영하도록 짧게 폴링한다.
+  useEffect(() => {
+    if (account?.snapshot.lms !== 'connected' || data.lms) return;
+    let cancelled = false,
+      tries = 0,
+      timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      tries += 1;
+      try {
+        const res = await fetch('/api/account', { cache: 'no-store' });
+        if (res.ok) {
+          const result: Account = await res.json();
+          const serverLms = result.snapshot?.lmsData;
+          if (serverLms) {
+            setAccount(result);
+            setData((prev) =>
+              !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
+                ? { ...prev, lms: serverLms }
+                : prev,
+            );
+            return;
+          }
+        }
+      } catch {
+        /* 다음 주기에 재시도 */
+      }
+      if (!cancelled && tries < 8) timer = setTimeout(poll, 8000);
+    };
+    timer = setTimeout(poll, 6000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [account?.snapshot.lms, data.lms]);
   useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(''), 5000);
@@ -249,7 +284,7 @@ export default function App() {
     return (
       <div className="auth-page">
         <div className="auth-brand">
-          <GraduationCap />
+          <Logo />
           한성 학사 도우미
         </div>
         <p>내 정보를 확인하고 있어요…</p>
@@ -396,7 +431,14 @@ export default function App() {
               go={go}
             />
           ) : section === 'lms' ? (
-            <LmsSection data={data} persist={persist} notify={setToast} />
+            <LmsSection
+              data={data}
+              persist={persist}
+              notify={setToast}
+              serverCollecting={
+                account?.snapshot.lms === 'connected' && !data.lms
+              }
+            />
           ) : section === 'advisor' ? (
             <Advisor
               data={data}

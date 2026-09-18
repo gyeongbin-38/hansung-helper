@@ -86,13 +86,17 @@ t('range: dimmed 제외', !ranges['숨겨진 강의']);
 t('range: assign 타입 제외', !ranges['과제']);
 
 // ── collectLms 통합 (가짜 세션) ───────────────────────────────
+// 실제 Moodle 로그인 페이지에는 /login/logout.php 링크가 항상 있음 — 수집기가
+// 세션 생존 마커로 검사하므로 fixture에도 붙인다
+const ok = (body) =>
+  new Response(body + '<a href="/login/logout.php">x</a>');
 const byUrl = (url) => {
-  if (url.includes('user_progress_a.php')) return new Response(PROGRESS_HTML);
-  if (url.includes('mod/assign/index.php')) return new Response(ASSIGN_HTML);
-  if (url.includes('mod/quiz/index.php')) return new Response(QUIZ_HTML);
+  if (url.includes('user_progress_a.php')) return ok(PROGRESS_HTML);
+  if (url.includes('mod/assign/index.php')) return ok(ASSIGN_HTML);
+  if (url.includes('mod/quiz/index.php')) return ok(QUIZ_HTML);
   if (url.includes('mod/quiz/view.php'))
-    return new Response(`<table class="quizattemptsummary"><tbody><tr><td>x</td></tr></tbody></table>`);
-  if (url.includes('course/view.php')) return new Response(COURSE_HTML);
+    return ok(`<table class="quizattemptsummary"><tbody><tr><td>x</td></tr></tbody></table>`);
+  if (url.includes('course/view.php')) return ok(COURSE_HTML);
   return new Response('not found', { status: 404 });
 };
 const snap = await collectLms(
@@ -119,6 +123,38 @@ const snap2 = await collectLms(
 );
 t('snap2: errors=assign', snap2.courses[0].errors?.includes('assign'));
 t('snap2: vods 유지', snap2.courses[0].vods.length === 3);
+
+// 세션 만료: 로그인 폼만 온 응답 → 빈 결과로 삼키지 않고 errors로 표면화
+const snap3 = await collectLms(
+  {
+    request: async () =>
+      new Response('<form action="/login/index.php"><input name="password"></form>'),
+  },
+  [{ id: '999', name: '테스트과목' }],
+);
+t('snap3: vod 오류 표면화', snap3.courses[0].errors?.includes('vod'));
+t('snap3: assign 오류 표면화', snap3.courses[0].errors?.includes('assign'));
+t('snap3: quiz 오류 표면화', snap3.courses[0].errors?.includes('quiz'));
+t(
+  'snap3: 빈 결과',
+  snap3.courses[0].vods.length === 0 && snap3.courses[0].assigns.length === 0,
+);
+
+// 표 없는 정상 페이지(마커 있음) → 오류 아닌 빈 결과
+const snap4 = await collectLms(
+  {
+    request: async (url) =>
+      url.includes('user_progress')
+        ? ok('<div>리포트 없음</div>')
+        : byUrl(url),
+  },
+  [{ id: '999', name: '테스트과목' }],
+);
+t(
+  'snap4: 표 없음은 오류 아님',
+  !(snap4.courses[0].errors ?? []).includes('vod') &&
+    snap4.courses[0].vods.length === 0,
+);
 
 console.log(`lms-server.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

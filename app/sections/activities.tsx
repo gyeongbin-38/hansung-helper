@@ -1,7 +1,8 @@
 'use client';
-import { Bookmark, ArrowUpRight, Search, CalendarDays } from 'lucide-react';
+import { Bookmark, ArrowUpRight, Search } from 'lucide-react';
 import type { Data } from './data';
 import { useActivities } from './catalog';
+import { SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
   activityMatch,
@@ -168,10 +169,7 @@ export function Activities({
           </a>
         </div>
       ) : !snap ? (
-        <div className="card empty-small">
-          <CalendarDays />
-          <h3>활동 목록을 불러오는 중입니다…</h3>
-        </div>
+        <SkeletonCards />
       ) : shown.length ? (
         <>
           <ActivityCards items={shown} data={data} go={go} save={save} />

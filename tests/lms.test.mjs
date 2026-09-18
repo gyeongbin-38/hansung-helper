@@ -3,6 +3,7 @@ import {
   courseProgress,
   pendingTasks,
   dueSoon,
+  staleDays,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -102,6 +103,12 @@ t('dueSoon: 마감 미기재 제외', !pendingTasks(snap).some((p) => p.title ==
 t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59')));
 const far = dueSoon(snap, NOW, 2);
 t('dueSoon: 2일 창', far.length === 1 && far[0].title === '퀴즈1');
+
+// ── staleDays ───────────────────────────────────────────────
+t('stale: 수집 당일 0일', staleDays(snap, NOW) === 0); // 14h 경과 → 0일
+t('stale: 8일 경과', staleDays(snap, NOW + 8 * DAY) === 8);
+t('stale: 미래 시각은 0', staleDays(snap, Date.parse(snap.fetchedAt) - DAY) === 0);
+t('stale: 파싱 불가 → null', staleDays({ ...snap, fetchedAt: 'not-a-date' }, NOW) === null);
 
 // ── deriveNotifs 통합 ───────────────────────────────────────
 const notifs = deriveNotifs({

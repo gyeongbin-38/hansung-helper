@@ -1,6 +1,7 @@
 import { courseMatch, type Catalog } from './catalog.ts';
 import { activityMatch, type Activity } from './activities.ts';
 import type { ScheduleEvent } from './schedule.ts';
+import type { LmsCourse } from './lms.ts';
 import { koreanMatch } from './hangul.ts';
 
 export type SearchHit = { label: string; route: string; sub: string };
@@ -30,13 +31,15 @@ function schedMatch(e: ScheduleEvent, q: string): boolean {
 
 /**
  * advisor 자유질문 통합 검색 — 과목(cap 4) → 활동(합산 cap 6) → 공식
- * 학사일정(합산 cap 8) 순. 스냅샷이 없으면 해당 그룹은 건너뛴다.
+ * 학사일정(합산 cap 8) → LMS 수강 과목(합산 cap 10) 순. 스냅샷이 없으면
+ * 해당 그룹은 건너뛴다.
  */
 export function searchAll(
   q: string,
   catalog: Catalog | null,
   acts: Activity[] | null,
   sched: ScheduleEvent[] | null,
+  lms: LmsCourse[] | null = null,
 ): SearchHit[] {
   const hits: SearchHit[] = [];
   for (const s of catalog?.sections ?? []) {
@@ -64,6 +67,15 @@ export function searchAll(
         label: e.title,
         route: 'calendar/' + e.id,
         sub: `공식 학사일정 · ${e.start}${e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}`,
+      });
+  }
+  for (const c of lms ?? []) {
+    if (hits.length >= 10) break;
+    if (koreanMatch(c.title, q))
+      hits.push({
+        label: c.title,
+        route: 'lms',
+        sub: `COSMOS 수업 현황 · 수강 중${c.prof ? ` · ${c.prof}` : ''}`,
       });
   }
   return hits;

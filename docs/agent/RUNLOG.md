@@ -574,3 +574,117 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: BE-1 파서는 fixture 테스트로 검증됐으나 실제
 COSMOS 페이지 대비 검증 미완 — 실계정 확인 전까지 needs-verification.
+
+
+---
+
+## 2026-09-18 — 로그인 지연 비동기화 + 브랜드/로딩/PWA 개선 (user-requested)
+
+DONE:
+- 로그인 지연 해소(BE-2 선행): `connectSchool`에 `deferLms` 옵션 추가 —
+  포털+LMS 인증까지만 동기로 끝내고 상세 수집은 클로저로 이관.
+  `login/route.ts`가 `cloudflare:workers` `waitUntil`로 수집 후
+  `json_patch`로 `snapshot.lmsData` 병합 — `checkedAt` 가드로 지연
+  쓰기가 새 로그인 스냅샷을 덮지 않게 방지. 기존 호출자는 동기 수집 유지.
+  `page.tsx`는 `lms==='connected' && !data.lms`일 때 `/api/account`를
+  6s 후 8s 간격 ×8회 폴링, 최신 `fetchedAt`만 반영. `lms.tsx`에
+  `serverCollecting` "서버에서 수집 중입니다…" 상태.
+- 스켈레톤 로딩: `app/sections/skeleton.tsx` 신규(SkeletonCards/
+  SkeletonRows/SkeletonDetail, `<output>` status role + sr-only +
+  reduced-motion 대응) + globals.css `.sk-*` 프리미티브. 적용:
+  courses 목록/상세, activities, calendar 목록/상세, timetable 과목
+  목록 — 텍스트 "불러오는 중" 대체, 실패·빈 상태는 유지.
+- 브랜드 로고 "학사모×나침반": public/logo.svg(그라디언트 타일),
+  favicon.svg 교체(템플릿 파란 아이콘 제거), logo-mark.svg,
+  `app/logo.tsx`(`currentColor` 공용 컴포넌트) — 사이드바·로그인
+  3곳의 Lucide GraduationCap 대체.
+- PWA/OG: manifest.webmanifest(standalone, theme #5645d4, 192/512/
+  maskable 아이콘), apple-touch-icon.png 180, og.png 1200×630(네이비
+  배경+로고타일+한글 타이포, `scripts/_gen_brand_assets.mjs`로 생성 —
+  sharp는 --no-save 로컬 전용). layout.tsx: metadataBase, icons.apple,
+  manifest, appleWebApp, openGraph + `export const viewport`로
+  theme-color. wrangler dev 실서빙에서 태그 출력 확인(OG/트위터 카드
+  자동 채움 포함).
+- 프린트: globals.css `@media print` — 사이드바/상단바/과목 목록/추천
+  패널/버튼류 숨기고 시간표 그리드만 출력, 블록 색상은
+  print-color-adjust로 보존.
+- ISSUE-23 후속 2건: `staleDays(snap, now)` + 수집 7일 경과 시
+  `.lms-stale` 배너(다시 가져오기 버튼). advisor 자유질문
+  `searchAll`에 LMS 수강 과목 포함(5번째 인자, 합산 cap 10, route
+  'lms', 'COSMOS 수업 현황 · 수강 중' 부제) + 근거 문구에 COSMOS 표기.
+- ISSUE-21/22 구현 리뷰: 코드가 Done 스펙과 일치함 확인(테스트 커버
+  존재) — 독립 검증 라벨은 별 세션 필요로 유지.
+- `published-personal` 동기화 + 독립 빌드 green + 사용자 승인 후
+  `_deploy.py` 재배포 — hansung-helper version 567e6236 라이브,
+  신규 에셋 15개 업로드(로고/favicon/manifest/icons/og.png).
+  `_verify_prod.py` 전체 200 + 라이브 HTML에 OG/theme-color/manifest/
+  apple-touch 태그 출력 확인.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 실계정 end-to-end: cosmos-live.mts 실학번 검증 + 프로덕션
+   가입→재로그인→waitUntil 수집 도착 관찰(needs-human).
+2. 잔여: ISSUE-20 yearTable→졸업엔진 연동, ISSUE-6 ruleset 선택+
+   in-progress, BE-3 공개 스냅샷 D1 이관, 알림 패널/토스트 큐 등
+   디자인 스펙 §13 항목.
+
+BLOCKER: 실계정 검증(credentials)은 사용자 영역.
+
+TESTS: 전체 매트릭스 11파일 OK(_run_tests.py — school deferLms 테스트
+포함 6/6, search 14/14, lms 25/25), tsc clean, oxlint 0 err,
+root+published-personal build green, 로컬 dev 실서빙 메타태그 확인.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: deferLms는 mocked fetch 테스트로 검증 —
+waitUntil 실동작은 프로덕션/실계정에서 미검증. 스켈레톤·PWA·프린트는
+빌드+실서빙 확인. ISSUE-21/22는 구현 리뷰+기존 테스트 확인 수준 —
+independent verification 라벨은 fresh session 필요.
+
+---
+
+## 2026-09-19 — 실계정 프로덕션 검증 + 병렬 수집 버그 수정 (user-requested)
+
+DONE:
+- 실계정(학번 25•••37) end-to-end 검증 완료 — 로컬 Node connectSchool
+  18s 수집 성공(vod 45/55, 과제 7, 퀴즈 4), 프로덕션 waitUntil 경로
+  lmsData 도착 확인(응답 5.1s → 수집 완료 ~31s, 폴링으로 승격).
+- 프로덕션 수집 0건 버그 수정: 같은 Moodle 세션으로의 병렬 요청
+  (Promise.allSettled ×4/과목)이 리다이렉트/빈 페이지를 유발 —
+  PHP 세션 락 직렬화 특성. `collectLms`를 과목 내 완전 직렬화로 변경
+  + 퀴즈 상세도 직렬. 재배포 후 vod 55·과제 7·퀴즈 4로 로컬과 정확히
+  일치(errors 전부 비어있음).
+- `collectLms` `html()` 헬퍼가 응답을 검증: 비-200이거나
+  /login/logout.php 마커 없으면 [lms] fetch 로그+throw → 세션 만료/
+  리다이렉트를 빈 결과로 삼키지 않고 errors[]로 표면화. fetchVods는
+  모든 URL 요청 실패 시 throw(=vod 오류), 표 없는 정상 페이지는
+  빈 결과 유지로 구분.
+- COLLECT_BUDGET_MS 24000→60000 (직렬화로 수집 시간 증가 대응 —
+  waitUntil 내라 응답 지연과 무관).
+- 임시 [lms] 로깅 정리: 로그인 성공 경로 로그 제거, 실패 진단만 유지
+  (connect failed + fetch 비정상 — 상태/호스트만, 개인정보 없음).
+- tests/lms-server.test.mjs +4: fixture에 logout 마커 추가, 세션 만료
+  →errors 표면화, 표 없음→정상 빈 결과 회귀 커버 (40/40).
+- 원격 D1 조회 헬퍼 scripts/_d1q.mjs — wrangler 직접 spawn으로
+  Windows 인용 문제 우회(쿼리 결과 JSON 반환).
+- 재배포: version 27d739a4 라이브.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 잔여: ISSUE-20 yearTable→졸업엔진 연동, ISSUE-6 ruleset 선택+
+   in-progress, BE-3 공개 스냅샷 D1 이관, 알림 패널/토스트 큐 등
+   디자인 스펙 §13 항목.
+2. 다른 계정에서도 동일 수집 경로가 동작하는지 관찰(추가 실계정 발생 시).
+
+BLOCKER: none — 실계정 검증 완료.
+
+TESTS: tsc clean, oxlint 0 err, school 6/6, lms-server 40/40,
+root+published-personal build green, 프로덕션 실계정 e2e PASS
+(45/55 vod = 로컬과 동일).
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: waitUntil 비동기 수집 + 직렬화 수집이 프로덕션
+실계정에서 검증됨. ISSUE-21/22는 여전히 fresh-session 독립 검증 필요.

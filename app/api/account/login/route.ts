@@ -1,3 +1,4 @@
+import { waitUntil } from 'cloudflare:workers';
 import {
   accountView,
   database,
@@ -9,6 +10,7 @@ import {
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
+import type { LmsSnapshot } from '@/lib/data/lms';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   if (Number(request.headers.get('content-length') || 0) > 4096)
@@ -47,7 +49,12 @@ export async function POST(request: Request) {
         { error: '로그인 시도가 많습니다. 15분 후 다시 시도해 주세요.' },
         429,
       );
-    const snapshot = await connectSchool(input.studentId, input.password);
+    let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
+    const snapshot = await connectSchool(input.studentId, input.password, {
+      deferLms: (collect) => {
+        deferredCollect = collect;
+      },
+    });
     input.password = '';
     const studentMask =
       input.studentId.slice(0, 2) +
@@ -76,6 +83,25 @@ export async function POST(request: Request) {
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
       .bind(id)
       .first<AccountRow>();
+    // LMS 상세 수집(과목당 4페이지)은 응답 후에 진행 — 완료되면 스냅샷의
+    // lmsData만 병합. checkedAt 가드로 이전 로그인의 지연 쓰기가 새
+    // 스냅샷을 덮지 않게 한다.
+    if (deferredCollect)
+      waitUntil(
+        (async () => {
+          try {
+            const lmsData = await deferredCollect();
+            await database()
+              .prepare(
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+              )
+              .bind(JSON.stringify({ lmsData }), id, snapshot.checkedAt)
+              .run();
+          } catch {
+            /* 지연 수집 실패는 로그인 성공에 영향을 주지 않는다 */
+          }
+        })(),
+      );
     return json(accountView(row!), 200, { 'Set-Cookie': sessionCookie(token) });
   } catch (error) {
     if (error instanceof SyntaxError)

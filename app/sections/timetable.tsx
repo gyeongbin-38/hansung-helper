@@ -38,6 +38,7 @@ import {
   deptPoolOf,
   recommend,
 } from './catalog';
+import { SkeletonRows } from './skeleton';
 import type { Data } from './data';
 
 const GRID_START = 540; // 09:00
@@ -497,10 +498,9 @@ export function Timetable({
               )}
             </div>
             <div className="cat-rows scrollable">
-              {!catalog && (
-                <div className="empty-small">
-                  {failed ? '불러오기에 실패했습니다.' : '불러오는 중…'}
-                </div>
+              {!catalog && !failed && <SkeletonRows n={8} />}
+              {!catalog && failed && (
+                <div className="empty-small">불러오기에 실패했습니다.</div>
               )}
               {catalog &&
                 filtered.slice(0, 80).map((s) => (

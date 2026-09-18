@@ -498,6 +498,85 @@ input:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--nt-primary);
 }
+/* ---- skeleton loading: placeholder blocks keep layout + reading order ---- */
+.sk-status {
+  display: block;
+}
+.sk {
+  display: block;
+  background: var(--nt-tint-gray);
+  border-radius: var(--nt-r-sm);
+}
+.sk-line {
+  height: 14px;
+  margin: 10px 0;
+}
+.sk-line.lg {
+  height: 20px;
+  width: 65%;
+}
+.sk-line.xl {
+  height: 28px;
+  width: 55%;
+}
+.sk-line.sm {
+  width: 45%;
+}
+.sk-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--nt-r-md);
+  flex-shrink: 0;
+}
+.sk-badge {
+  width: 68px;
+  height: 20px;
+}
+.sk-btn {
+  height: 40px;
+  border-radius: var(--nt-r-md);
+  margin-top: 14px;
+}
+.sk-row {
+  display: flex;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--nt-hairline-soft);
+}
+.sk-row-lines {
+  flex: 1;
+  min-width: 0;
+}
+.sk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  margin: 18px 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sk {
+    animation: nt-sk-pulse 1.6s ease-in-out infinite;
+  }
+}
+@keyframes nt-sk-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (max-width: 767px) {
+  .sk-grid {
+    grid-template-columns: 1fr;
+  }
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -507,5 +586,50 @@ button:disabled {
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+/* ---- print: paper output keeps content, drops app chrome ---- */
+@media print {
+  .sidebar,
+  .topbar,
+  .scrim,
+  .cookie,
+  .toast {
+    display: none !important;
+  }
+  .workspace {
+    margin-left: 0;
+  }
+  main {
+    max-width: none;
+    padding: 0;
+  }
+  .account-bar,
+  .demo-note,
+  .page-heading .date-label,
+  .builder-actions button,
+  .builder-filters,
+  .builder-list,
+  .builder-recs,
+  .tt-trash,
+  .sk-status,
+  .sk {
+    display: none !important;
+  }
+  .builder-cols {
+    display: block;
+  }
+  .builder-grid {
+    min-width: 0;
+    box-shadow: none;
+  }
+  .builder-grid.scrollable {
+    overflow: visible;
+  }
+  .tt-block,
+  .tt-head,
+  .badge {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

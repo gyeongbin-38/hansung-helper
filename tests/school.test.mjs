@@ -55,6 +55,49 @@ test('authentication upgrades legacy redirect and isolates per-host cookies', as
     globalThis.fetch = original;
   }
 });
+test('deferLms holds back detail collection until the closure runs', async () => {
+  const original = globalThis.fetch,
+    requests = [];
+  const responses = [
+    new Response(''),
+    new Response('', {
+      status: 302,
+      headers: { Location: 'https://info.hansung.ac.kr/h_dae/dae_main.html' },
+    }),
+    new Response('infohaksamain_portal.jsp'),
+    new Response('head_bt_logout.gif'),
+    new Response(''),
+    new Response('', {
+      status: 303,
+      headers: { Location: 'https://learn.hansung.ac.kr/' },
+    }),
+    new Response(
+      '<a href="/login/logout.php">나가기</a><a href="/course/view.php?id=5">테스트 수업</a>',
+    ),
+  ];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return responses.shift() ?? new Response('');
+  };
+  let deferred;
+  try {
+    const result = await connectSchool('0000000', 'test-only-password', {
+      deferLms: (collect) => {
+        deferred = collect;
+      },
+    });
+    assert.equal(result.lms, 'connected');
+    assert.equal(result.lmsData, undefined);
+    assert.equal(typeof deferred, 'function');
+    const loginCalls = requests.length;
+    const lmsData = await deferred();
+    assert.equal(lmsData.source, 'cosmos-lms');
+    assert.equal(lmsData.courses.length, 1);
+    assert(requests.length > loginCalls);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 test('failed portal auth never creates a school snapshot or attempts LMS login', async () => {
   const original = globalThis.fetch;
   let calls = 0;

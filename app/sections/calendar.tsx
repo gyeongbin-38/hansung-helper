@@ -2,6 +2,7 @@
 import { CalendarDays, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { Data } from './data';
 import { useSchedule } from './catalog';
+import { SkeletonRows } from './skeleton';
 
 const fmtRange = (start: string, end: string | null) =>
   end && end !== start ? `${start.slice(5)} ~ ${end.slice(5)}` : start.slice(5);
@@ -32,7 +33,7 @@ export function CalendarSection({
         <button className="link" onClick={() => go('calendar')}>
           ← 학사일정
         </button>
-        {!snap && !failed && <p className="meta">불러오는 중…</p>}
+        {!snap && !failed && <SkeletonRows n={3} />}
         {snap && !e && <h2>일정을 찾지 못했습니다.</h2>}
         {e && (
           <>
@@ -90,7 +91,7 @@ export function CalendarSection({
             학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.
           </p>
         )}
-        {!snap && !failed && <p className="meta">불러오는 중…</p>}
+        {!snap && !failed && <SkeletonRows />}
         {snap && !upcoming.length && (
           <p className="meta">앞으로 예정된 공식 일정이 없습니다.</p>
         )}

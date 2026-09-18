@@ -112,6 +112,11 @@ export function parseCourses(html: string): SchoolCourse[] {
 export async function connectSchool(
   studentId: string,
   password: string,
+  opts?: {
+    /** 지정하면 상세 수집을 즉시 실행하지 않고 수집 클로저를 넘긴다
+     * (응답 후 waitUntil에서 실행해 로그인 지연을 줄이는 용도) */
+    deferLms?: (collect: () => Promise<LmsSnapshot>) => void;
+  },
 ): Promise<SchoolSnapshot> {
   const session = new SchoolSession();
   await (await session.request('https://info.hansung.ac.kr/')).arrayBuffer();
@@ -188,13 +193,20 @@ export async function connectSchool(
     if (/\/login\/logout\.php/.test(html)) {
       snapshot.lms = 'connected';
       snapshot.courses = parseCourses(html);
-      try {
-        snapshot.lmsData = await collectLms(session, snapshot.courses);
-      } catch {
-        /* 수집 실패해도 로그인 자체는 유지 */
-      }
+      if (opts?.deferLms)
+        opts.deferLms(() => collectLms(session, snapshot.courses));
+      else
+        try {
+          snapshot.lmsData = await collectLms(session, snapshot.courses);
+        } catch {
+          /* 수집 실패해도 로그인 자체는 유지 */
+        }
     }
-  } catch {
+  } catch (e) {
+    console.log(
+      '[lms] connect failed:',
+      e instanceof Error ? e.message : String(e),
+    );
     /* Portal authentication remains valid when LMS is temporarily unavailable. */
   }
   return snapshot;

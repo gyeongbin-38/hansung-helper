@@ -816,6 +816,17 @@
   color: var(--nt-error);
   font-size: 13px;
 }
+.lms-stale {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--nt-r-md);
+  background: var(--nt-tint-yellow);
+  color: var(--nt-orange-deep);
+  font-size: 13px;
+}
+.lms-stale .link {
+  font-size: inherit;
+}
 .lms-actions {
   display: flex;
   gap: 8px;

@@ -116,6 +116,13 @@ export type LmsPending = {
   due: string | null;
 };
 
+/** 스냅샷 수집 후 경과 일수 — fetchedAt 파싱 불가면 null */
+export function staleDays(snap: LmsSnapshot, now: number): number | null {
+  const t = Date.parse(snap.fetchedAt);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((now - t) / 86400000));
+}
+
 /** 과목별 수강 진행 (온라인 강의 기준) */
 export function courseProgress(c: LmsCourse): { done: number; total: number } {
   return {

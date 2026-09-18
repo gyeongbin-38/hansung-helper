@@ -85,6 +85,7 @@ export function Advisor({
       catalog,
       snap?.items ?? null,
       sched?.items ?? null,
+      data.lms?.courses ?? null,
     );
     setHits(found);
     setAnswer(
@@ -155,8 +156,8 @@ export function Advisor({
             </ul>
           )}
           <small>
-            근거: 내 계획·입력 정보 + 2026-2 개설과목·hsportal 수집 목록 ·
-            AI 생성 답변 아님
+            근거: 내 계획·입력 정보 + 2026-2 개설과목·hsportal 수집 목록
+            {data.lms ? '·COSMOS 수업 현황' : ''} · AI 생성 답변 아님
           </small>
         </div>
       )}

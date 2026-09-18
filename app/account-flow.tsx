@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { GraduationCap, ArrowRight, Check, ArrowLeft } from 'lucide-react';
+import { ArrowRight, Check, ArrowLeft } from 'lucide-react';
+import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
 
 export type Profile = {
@@ -42,7 +43,7 @@ export function SignIn({
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <GraduationCap /> 한성 학사 도우미
+        <Logo /> 한성 학사 도우미
       </div>
       <section className="auth-panel">
         <span className="auth-step-label">
@@ -224,7 +225,7 @@ export function Onboarding({
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <GraduationCap /> 한성 학사 도우미
+        <Logo /> 한성 학사 도우미
       </div>
       <section className="auth-panel">
         <progress
