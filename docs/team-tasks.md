@@ -1,8 +1,9 @@
 # 팀 작업 분배 — 기획팀 / 백엔드팀
 
 개발을 몰라도 이해할 수 있게 적은 작업 카드입니다.
-공유 주소(임시): **https://wages-stereo-stronger-prepare.trycloudflare.com**
+공유 주소(임시): **https://previous-discusses-college-waterproof.trycloudflare.com**
 — 이 주소는 팀 내부 공유만! 공개 게시판에 올리지 마세요.
+— 임시 주소라 서버 재시작 시 바뀝니다. 접속이 안 되면 팀장에게 새 주소를 요청하세요.
 
 ---
 
@@ -16,7 +17,7 @@
 - **하는 법** (5분):
   1. learn.hansung.ac.kr 로그인 → 내 강의실(대시보드)
   2. 키보드 F12 → 맨 위 탭에서 "Console" 클릭
-  3. https://wages-stereo-stronger-prepare.trycloudflare.com/lms-collect.js
+  3. https://previous-discusses-college-waterproof.trycloudflare.com/lms-collect.js
      열기 → 전체 복사 (Ctrl+A, Ctrl+C) → 콘솔에 붙여넣기 (Ctrl+V) → Enter
   4. `lms-data.json` 파일이 다운로드되면 성공
 - **확인할 것**: 내 과목들이 다 나왔나 / 수강한 강의·안 들은 강의 구분이

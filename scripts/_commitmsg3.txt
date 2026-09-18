@@ -1,0 +1,5 @@
+docs: plain-language team task split (기획/백엔드) for non-dev teammates
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

@@ -1,7 +1,7 @@
 import subprocess, sys, os, re, time
 
-exe = os.path.join(os.path.dirname(__file__), '..', 'cloudflared.exe')
-log = os.path.join(os.path.dirname(__file__), '..', '_tunnel.log')
+exe = os.path.join(os.path.dirname(__file__), 'cloudflared.exe')
+log = os.path.join(os.path.dirname(__file__), '_tunnel.log')
 p = subprocess.Popen(
     [exe, 'tunnel', '--url', 'http://127.0.0.1:8787'],
     stderr=subprocess.STDOUT, stdout=open(log, 'w', encoding='utf-8', errors='replace'),
