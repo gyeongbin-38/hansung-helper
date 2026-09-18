@@ -143,6 +143,51 @@
   margin: 6px 0 0;
 }
 
+/* ---------- 학과 공식 졸업요건 ---------- */
+.dept-rules {
+  margin-bottom: 14px;
+}
+.dept-rules .rule-lines {
+  margin: 10px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dept-rules .rule-lines li {
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.dept-rules .meta {
+  color: var(--nt-steel);
+  font-size: 12.5px;
+}
+.dept-rules-index {
+  margin-bottom: 14px;
+}
+.dept-rules-index summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.dept-rules-index .rule-index {
+  margin: 12px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dept-rules-index .rule-index li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+.dept-rules-index .meta {
+  color: var(--nt-steel);
+  font-size: 12.5px;
+}
+
 /* ---------- AI 상담 ---------- */
 .advisor {
   padding: 72px 40px 58px;

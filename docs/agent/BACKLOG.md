@@ -396,7 +396,9 @@ blocking regressions.
 
 ## ISSUE-20 — 학과별 졸업 규정 수집 파이프라인 (ISSUE-6 잔여)
 
-- **Status**: backlog — agent-ready (타당성 확인됨 2026-09-18)
+- **Status**: partially implemented — needs-verification (2026-09-18
+  이터레이션 8 — 수집 파이프라인 + 스냅샷 + UI 원문 표시 구현).
+  잔여: 학번-컬럼 표의 구조화 파싱(CSE형), 수집 공백 학과 보완.
 - **Labels**: agent-ready, priority:p2, area:crawler, area:data
 - **Objective**: 학과별 졸업요건 페이지가 학번-컬럼 표 구조로 공개됨
   (예: hansung.ac.kr/CSE/1564/subview.do — 총학점·캡스톤·트랙수·산학
@@ -422,6 +424,20 @@ blocking regressions.
   futureplus — 학과소개 링크만 확인(졸업요건은 하위 페이지 탐색 필요).
   LibArt는 교양학부(규정 없음). SclScn/cncschool/global은 nav 라벨
   미매칭 — 추가 파싱 필요.
+- **Progress (2026-09-18 이터레이션 8)**: `lib/data/dept-rules.ts`
+  파서 + `scripts/crawl-dept-rules.mts` 크롤러 + `lib/data/
+  dept-rules.json` 스냅샷(19 rulesets) + `/api/dept-rules` +
+  졸업 섹션 "내 학과 공식 졸업요건" 카드(원문 표시) + 전체 수집
+  페이지 인덱스. 발견 경로: `/sitemap/{slug}/view.do` — 학과 블록
+  (학과명 라벨 또는 '학과 소개' URL 첫 라벨) 내 졸업요건 링크 연결.
+  본문은 CMS `contentsEditHtml` 컨테이너에서 **원문 추출** — 수치
+  해석 없음. `tests/dept-rules.test.mjs` 23/23.
+- **수집 현황**: CreCon 4(문콘은 hwp 첨부만), HmnArt 7, futureplus 1
+  (다학과 공통 페이지 → multiDept), CSE 1(컴퓨터공학부 — 카탈로그
+  미연결, 추정: AI·소프트웨어로 개편?), global 6 전원 해석.
+  미수집: Design 3(본문 빈 페이지 — 이미지/JS 렌더?), HmnArt 2
+  (역사문화큐레이션/역사콘텐츠 — 빈 본문), SclScn(사이트에 졸업요건
+  링크 자체 없음). 모두 지어내지 않고 제외.
 - **Next step**: 학과↔졸업요건 페이지 쌍을 nav 순서(학과소개 뒤
   졸업요건)로 연결하는 레지스트리 빌더 → 각 규정 페이지의 학번-컬럼
   표 파서 → ruleset JSON + 엔진 연동. 미수집 학과 unknown 유지.

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
+import { deptPoolOf, useDeptRules } from './catalog';
 import type { Completed, Data } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
@@ -25,6 +26,15 @@ export function Graduation({
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
+  const { snap: deptRules } = useDeptRules();
+  const myRules = useMemo(() => {
+    if (!deptRules || !catalog) return null;
+    const pool = deptPoolOf(data.dept, [
+      ...new Set(catalog.sections.map((s) => s.dept)),
+    ]);
+    if (!pool) return null;
+    return deptRules.items.find((r) => r.dept && pool.includes(r.dept)) ?? null;
+  }, [deptRules, catalog, data.dept]);
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
     const pts = parseInt(data.points, 10);
@@ -274,6 +284,75 @@ export function Graduation({
           프로필에서 소속·입학연도 수정
         </button>
       </div>
+
+      {myRules && (
+        <section className="card pad dept-rules">
+          <div className="between">
+            <h3>내 학과 공식 졸업요건</h3>
+            <span className="badge green">학과 페이지 원문</span>
+          </div>
+          <p className="meta">
+            {myRules.deptLabel || myRules.dept} · 수치 해석 없이 원문 표시 —
+            최종 졸업 사정은 학교 시스템이 확인합니다.
+          </p>
+          {myRules.lines.length > 0 && (
+            <ul className="rule-lines">
+              {myRules.lines.slice(0, 24).map((l, i) => (
+                <li key={i}>{l}</li>
+              ))}
+              {myRules.lines.length > 24 && (
+                <li className="meta">
+                  … 외 {myRules.lines.length - 24}줄 — 원문 링크에서 계속
+                </li>
+              )}
+            </ul>
+          )}
+          {myRules.attachment && (
+            <p className="meta">
+              규정이 첨부 문서({myRules.attachment})로 제공됩니다 — 원문
+              링크에서 확인하세요.
+            </p>
+          )}
+          <a
+            className="link"
+            href={myRules.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            학과 공식 페이지에서 원문 보기 <ArrowUpRight />
+          </a>
+          <p className="meta">
+            수집일 {deptRules?.fetchedAt.slice(0, 10)}
+          </p>
+        </section>
+      )}
+
+      {deptRules && deptRules.items.length > 0 && (
+        <details className="card pad dept-rules-index">
+          <summary>
+            수집된 학과 공식 졸업요건 페이지 {deptRules.items.length}곳
+          </summary>
+          <ul className="rule-index">
+            {deptRules.items.map((r) => (
+              <li key={r.url}>
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  {r.deptLabel || r.dept || '학과 공통 안내'}
+                </a>
+                {r.multiDept && <span className="badge">전체 학과 공통</span>}
+                {r.attachment && <span className="badge">문서 첨부</span>}
+                {!r.dept && !r.multiDept && (
+                  <span className="badge orange">카탈로그 미연결</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="meta">
+            출처: 학교 각 학과 공식 사이트 · 수집일{' '}
+            {deptRules.fetchedAt.slice(0, 10)} · 미수집 학과는 표시되지
+            않습니다.
+          </p>
+        </details>
+      )}
 
       <div className="requirement-list">
         {results.map((r) => (

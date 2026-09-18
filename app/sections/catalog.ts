@@ -7,6 +7,7 @@ import {
   type CourseSection,
 } from '@/lib/data/catalog';
 import type { ActivitySnapshot } from '@/lib/data/activities';
+import type { DeptRulesSnapshot } from '@/lib/data/dept-rules';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import type { Data } from './data';
 
@@ -85,6 +86,34 @@ export function useSchedule() {
   useEffect(() => {
     let on = true;
     loadSchedule()
+      .then((s) => on && setSnap(s))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, []);
+  return { snap, failed };
+}
+
+let deptRulesCache: Promise<DeptRulesSnapshot> | null = null;
+function loadDeptRules() {
+  deptRulesCache ??= fetch('/api/dept-rules')
+    .then((r) => {
+      if (!r.ok) throw new Error('dept-rules');
+      return r.json() as Promise<DeptRulesSnapshot>;
+    })
+    .catch((e) => {
+      deptRulesCache = null;
+      throw e;
+    });
+  return deptRulesCache;
+}
+export function useDeptRules() {
+  const [snap, setSnap] = useState<DeptRulesSnapshot | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let on = true;
+    loadDeptRules()
       .then((s) => on && setSnap(s))
       .catch(() => on && setFailed(true));
     return () => {

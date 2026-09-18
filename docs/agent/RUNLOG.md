@@ -331,4 +331,56 @@ REPO SCOUT: none needed — all changes built from existing deps.
 VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22, and
 the search/notifs extraction + synonym layer await independent
 verification.
+
+## 2026-09-18 — loop iteration 8 (ISSUE-20 pipeline: dept rulesets + UI)
+
+DONE:
+- ISSUE-20 partially implemented — 학과별 공식 졸업요건 수집 파이프라인:
+  - `lib/data/dept-rules.ts` — parseSitemapLinks / pairDeptRules
+    (두 갱신 경로: 학과명 라벨 + '학과 소개' URL 첫 라벨) /
+    extractRulesText (CMS `contentsEditHtml` 본문 격리, 제목-앵커
+    폴백) / extractAttachment / inferDeptLabel / isMultiDeptPage /
+    isRulesetAnomalous. 규정 문구는 **원문 그대로** — 수치 해석 없음.
+  - `scripts/crawl-dept-rules.mts` — 7개 사이트 슬러그 사이트맵 순회,
+    700ms 간격, 본문 없으면 이상감지로 제외, 전체 0건이면 기존 유지.
+  - `lib/data/dept-rules.json` — 19 rulesets (sourceUrl/fetchedAt 보존):
+    CreCon 4 (문콘은 hwp 첨부만), HmnArt 7, futureplus 1(multiDept),
+    CSE 1(컴퓨터공학부 — 카탈로그 미연결), global 6 전원 해석.
+    미수집·제외: Design 3(빈 본문), HmnArt 2(빈 본문),
+    SclScn(졸업요건 링크 자체 없음) — 지어내지 않음.
+  - `/api/dept-rules` 라우트 + `useDeptRules()` 훅 (스냅샷 패턴 동일).
+  - 졸업 섹션 UI: "내 학과 공식 졸업요건" 카드 — data.dept→카탈로그
+    해석→ruleset 매칭 시 원문 24줄+링크+수집일+첨부 안내; 수집 페이지
+    전체 인덱스 `<details>` (전체 학과 공통/문서 첨부/카탈로그 미연결
+    배지). "학교 공식 사정을 대체하지 않음" 문구 유지.
+- tests/dept-rules.test.mjs — 23/23 (사이트맵 파싱, 쌍 연결 양 경로,
+  본문 격리/폴백/빈 본문, 첨부 감지, 학과 추정, multiDept, 이상감지).
+- Gates all green; both repos synced (parity OK) + built.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. Fresh-session verification: ISSUE-18 전 라우트, ISSUE-21/22,
+   추출/동의어 변경분 + ISSUE-20 파이프라인·UI 카드.
+2. ISSUE-20 잔여: CSE형 학번-컬럼 표의 구조화 파싱(신뢰 가능 시에만
+   엔진 연동), Design/HmnArt 빈 본문 페이지 원인(이미지?) 확인,
+   SclScn 등 미수집 사이트 졸업규정 위치 탐색, multiDept 페이지의
+   학과별 분할.
+3. ISSUE-10 toolchain audit bumps.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+hosting.json) need human/accounts. Public deployment still predates
+all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, search 10/10,
+notifs 11/11, dept-rules 23/23, build (both repos), http-check PASS,
+account-db PASS, sync --check parity OK.
+
+REPO SCOUT: none needed — all changes built from existing deps.
+
+VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22,
+search/notifs extraction + synonym layer, and the ISSUE-20 dept-rules
+pipeline (parser, crawler, snapshot, API, UI card) await independent
+verification.
   
