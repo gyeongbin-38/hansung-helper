@@ -1,6 +1,7 @@
 import { conflicts, type CourseSection } from './catalog.ts';
 import type { ActivitySnapshot } from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
+import { dueSoon, type LmsSnapshot } from './lms.ts';
 
 export type NotifItem = {
   id: string;
@@ -16,7 +17,7 @@ export type NotifItem = {
 export type NotifInputs = {
   /** truthy면 '계정 연결됨' 안내로 도출 */
   account: unknown;
-  data: { saved?: string[]; dept?: string; year?: string };
+  data: { saved?: string[]; dept?: string; year?: string; lms?: LmsSnapshot };
   planned: CourseSection[];
   acts: ActivitySnapshot | null;
   sched: ScheduleSnapshot | null;
@@ -94,6 +95,21 @@ export function deriveNotifs({
       route: 'activities/' + a.id,
     });
   }
+
+  // COSMOS LMS 마감 임박 (7일 이내 미완료, 최대 5건)
+  if (data.lms)
+    for (const t of dueSoon(data.lms, now, 7).slice(0, 5)) {
+      const dd = Math.ceil((t.dueTs - now) / DAY);
+      items.push({
+        id: `lms-${t.course}-${t.kind}-${t.title}`.slice(0, 120),
+        tone: 'orange',
+        cat: '수업',
+        label: dd <= 0 ? `${t.kind} 마감` : `${t.kind} D-${dd}`,
+        title: t.title,
+        desc: t.course,
+        route: 'lms',
+      });
+    }
 
   // 다가오는 공식 학사일정 (7일 이내 시작)
   for (const e of sched?.items ?? []) {

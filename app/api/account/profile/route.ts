@@ -4,13 +4,14 @@ import {
   json,
   validOrigin,
 } from '@/lib/server/account';
+import { validateLms } from '@/lib/data/lms';
 export async function PUT(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   try {
     const row = await authenticated(request);
     if (!row) return json({ error: '다시 로그인해 주세요.' }, 401);
     const raw = await request.text();
-    if (raw.length > 30000)
+    if (raw.length > 200000)
       return json({ error: '저장할 내용이 너무 큽니다.' }, 413);
     const input = JSON.parse(raw),
       profile: Record<string, unknown> = {};
@@ -121,6 +122,11 @@ export async function PUT(request: Request) {
       )
         ? input.readIds
         : [];
+    if (input.lms !== undefined) {
+      const lms = validateLms(input.lms);
+      if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);
+      profile.lms = lms;
+    }
     profile.consent = input.consent === true;
     await database()
       .prepare(

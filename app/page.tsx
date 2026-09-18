@@ -20,6 +20,7 @@ import { Courses } from './sections/courses';
 import { SemesterPlan } from './sections/semester-plan';
 import { Timetable } from './sections/timetable';
 import { CalendarSection } from './sections/calendar';
+import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications } from './sections/notifications';
 import { deriveNotifs } from '@/lib/data/notifs';
@@ -264,7 +265,8 @@ export default function App() {
                   (d.completed === undefined || Array.isArray(d.completed)) &&
                   (d.ruleOverrides === undefined ||
                     (d.ruleOverrides && typeof d.ruleOverrides === 'object')) &&
-                  (d.readIds === undefined || Array.isArray(d.readIds))
+                  (d.readIds === undefined || Array.isArray(d.readIds)) &&
+                  (d.lms === undefined || typeof d.lms === 'object')
                 )
                   setData({ ...empty, ...d });
               }
@@ -379,6 +381,8 @@ export default function App() {
               detail={detail}
               go={go}
             />
+          ) : section === 'lms' ? (
+            <LmsSection data={data} persist={persist} notify={setToast} />
           ) : section === 'advisor' ? (
             <Advisor
               data={data}

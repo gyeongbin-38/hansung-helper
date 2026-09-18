@@ -7,12 +7,15 @@ import {
   Sparkles,
   Layers,
   BookOpen,
+  MonitorPlay,
 } from 'lucide-react';
+import type { LmsSnapshot } from '@/lib/data/lms';
 export const menus = [
   ['home', '홈', Home],
   ['timetable', '시간표 짜기', LayoutGrid],
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
+  ['lms', '수업 현황', MonitorPlay],
   ['advisor', 'AI 상담', Sparkles],
   ['graduation', '졸업요건', GraduationCap],
   ['semester-plan', '학기별 계획', Layers],
@@ -38,6 +41,8 @@ export type Data = {
   prefs: string[];
   /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
   readIds: string[];
+  /** COSMOS LMS 수집 스냅샷 (scripts/lms-collect.mjs 결과물) */
+  lms?: LmsSnapshot;
   consent: boolean;
 };
 export const empty: Data = {

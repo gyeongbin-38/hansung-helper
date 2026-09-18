@@ -786,3 +786,124 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---------- COSMOS 수업 현황 ---------- */
+.lms-steps {
+  margin: 14px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--nt-slate);
+}
+.lms-steps li::marker {
+  color: var(--nt-stone);
+}
+.lms-script-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.lms-script-actions .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.lms-error {
+  margin-top: 12px;
+  color: var(--nt-error);
+  font-size: 13px;
+}
+.lms-actions {
+  display: flex;
+  gap: 8px;
+}
+.lms-actions .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.lms-courses {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.lms-course {
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  padding: 12px 14px;
+}
+.lms-course > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.lms-course > summary::-webkit-details-marker {
+  display: none;
+}
+.lms-course-head b {
+  font-size: 15px;
+}
+.lms-course-head small {
+  display: block;
+  color: var(--nt-stone);
+  margin-top: 2px;
+}
+.lms-course-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.lms-course-stat .progress-track {
+  width: 110px;
+  height: 8px;
+}
+.lms-course-stat small {
+  color: var(--nt-slate);
+  white-space: nowrap;
+}
+.lms-course > .link {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lms-course > .meta {
+  margin-top: 10px;
+}
+.lms-tasks {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.lms-task {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.lms-task .badge {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.lms-task b,
+.lms-task a {
+  font-size: 14px;
+}
+.lms-task small {
+  display: block;
+  color: var(--nt-stone);
+  margin-top: 2px;
+}
+@media (max-width: 767px) {
+  .lms-course > summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

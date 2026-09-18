@@ -480,6 +480,43 @@ blocking regressions.
   저장 활동은 purple 톤 + `저장한 활동` 라벨, 비저장은 기존 상태
   라벨 유지. 제한이 아닌 우선순위 — 모든 마감 알림 표시 유지.
 
+## ISSUE-23 — COSMOS LMS 수업 현황 연동 (돋부기 참조)
+
+- **Status**: implemented — **needs-verification** (2026-09-18 이터레이션 10)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 학교 LMS(COSMOS, learn.hansung.ac.kr, Moodle 기반)의
+  수강 상태를 앱에서 확인 — 수강한/남은 온라인 강의, 미제출 과제,
+  미응시 퀴즈, 마감 임박 항목. 오픈소스 확장 "돋부기"(hs-shell/dotbugi)
+  의 DOM 스크래핑 접근을 참조 — 서버가 COSMOS 세션에 접근할 수 없으므로
+  사용자 브라우저 안에서 수집하는 구조가 유일한 정직한 경로.
+- **Done**:
+  - `public/lms-collect.js` — 브라우저 수집 스크립트 (`/lms-collect.js`
+    정적 제공). 대시보드 `.my-course-lists` 과목 목록 → 과목별
+    `mod/assign/index.php`(generaltable), `mod/quiz/index.php` +
+    `quizattemptsummary` 제출 판정, `report/ubcompletion/user_progress[_a].php`
+    출석부(thead 동적 컬럼 매칭 + rowspan 평탄화, 일괄출석인정 처리),
+    `course/view.php` VOD 링크/수강기간. `Promise.allSettled` 부분 실패
+    보존 + `errors` 필드. 결과 `lms-data.json` 다운로드 — 외부 전송 없음.
+  - `lib/data/lms.ts` — `LmsSnapshot` 타입 + `validateLms`(형식 검증),
+    `courseProgress`, `pendingTasks`, `dueSoon`(range 끝날짜 파싱).
+  - `app/sections/lms.tsx` + 사이드바 '수업 현황' 메뉴 — 3단계 수집 안내,
+    스크립트 복사 버튼/파일 링크, JSON 업로드 가져오기(검증 실패 시
+    오류), 과목별 카드(강의 진행률 바 + 미완료 목록 + COSMOS 딥링크 +
+    부분 수집 고지), 7일 마감 임박 목록, 데이터 삭제.
+  - `Data.lms` 필드 + demo shape-check + account profile API에
+    `validateLms` 검증 추가 (body 한도 30KB→200KB — 스냅샷 크기 대응).
+  - `deriveNotifs` — LMS 마감 ≤7일 미완료 항목 알림(cat '수업', 최대 5).
+  - `tests/lms.test.mjs` 21/21 — 검증/진행률/미완료/dueSoon/알림 도출.
+- **Out of scope**: 확장 설치·자동 수집(브라우저 확장은 후속 옵션),
+  LMS 로그인 자동화, 서버 측 COSMOS 요청, 돋부기 자체 배포.
+- **Note**: 셀렉터 계약은 dotbugi 소스(fetchCourseData/fetchAssign/
+  fetchQuiz/fetchVodAttendance/fetchVodList/lmsKeywords)에서 확인한
+  실제 COSMOS DOM 구조 기반 — 페이지 구조 변경 시 수집 실패로 표면화
+  (조용한 오류 아님). 수집 시점 스냅샷 — 이후 LMS 변경은 재수집 필요.
+- **Follow-up candidates**: 북마클릿 형태(콘솔 붙여넣기 대체), 수집
+  주기 알림(stale 경고), 강의별 시청 시간(%) 표시, 학사일정/캘린더에
+  LMS 마감 병합, advisor 검색에 LMS 과목 포함.
+
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 
 - **Status**: backlog

@@ -433,3 +433,52 @@ search/notifs extraction + synonym layer, ISSUE-20 dept-rules pipeline
 (parser·crawler·snapshot·API·UI card·yearTable parser) await
 independent verification.
   
+## 2026-09-18 — loop iteration 10 (Devin/Paseo session)
+
+DONE:
+- ISSUE-23 implemented — COSMOS LMS 수업 현황 연동 (돋부기 hs-shell/dotbugi
+  참조). 서버가 COSMOS 세션에 접근 불가 → 사용자 브라우저 안에서 수집하는
+  구조 채택 (외부 전송·로그인 자동화 없음).
+- `public/lms-collect.js` — 브라우저 수집 스크립트, `/lms-collect.js`
+  정적 제공. dotbugi 셀렉터 계약 기반: `.my-course-lists` 과목 목록,
+  `mod/assign/index.php`(generaltable), `mod/quiz/index.php` +
+  `quizattemptsummary` 제출 판정, `report/ubcompletion/user_progress[_a].php`
+  출석부(thead 동적 컬럼 + rowspan 평탄화 + 일괄출석인정),
+  `course/view.php` VOD 링크/수강기간. `Promise.allSettled` 부분 실패
+  보존 + `errors` 필드. 출력 `lms-data.json` 다운로드.
+- `lib/data/lms.ts` — LmsSnapshot 타입 + validateLms(엄격 형식 검증),
+  courseProgress, pendingTasks, dueSoon(range 끝날짜 파싱).
+- `app/sections/lms.tsx` + '수업 현황' 사이드바 메뉴 — 3단계 수집 안내,
+  스크립트 복사 버튼/파일 링크, JSON 업로드(검증), 과목별 카드(강의
+  진행률 + 미완료 목록 + COSMOS 딥링크 + 부분 수집 고지), 7일 마감
+  임박, 데이터 삭제.
+- `Data.lms` 필드 + demo shape-check + account profile API에
+  `validateLms` 검증 + body 한도 30KB→200KB(스냅샷 크기 대응).
+- `deriveNotifs` — LMS 마감 ≤7일 미완료 알림(cat '수업', 최대 5건,
+  D-day 라벨).
+- `tests/lms.test.mjs` 21/21.
+- Gates all green; both repos synced (parity OK) + built.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. Fresh-session verification: ISSUE-23 전체(수집 스크립트·검증·UI·
+   알림·API 한도) + 이전 needs-verification 잔여(ISSUE-18, 21, 22,
+   ISSUE-20 파이프라인).
+2. ISSUE-23 후속 후보: 북마클릿 형태, stale 경고, 시청시간(%) 표시,
+   캘린더 병합, advisor 검색에 LMS 과목 포함. 실제 COSMOS 계정으로
+   수집 스크립트 실동작 확인(needs-human — 로그인 필요).
+3. ISSUE-20 잔여(카탈로그 매칭·빈 본문·엔진 연동) + ISSUE-10.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 need
+human/accounts. COSMOS 실계정 수집 검증도 사용자 로그인 필요.
+
+TESTS: tsc clean, oxlint 0 err, lms 21/21, catalog 4/4, school 5/5,
+notifs 11/11, search 10/10, dept-rules 40/40, build (both repos),
+http-check PASS, account-db PASS, sync --check parity OK.
+
+REPO SCOUT: none needed — 브라우저 표준 API만 사용(외부 의존성 없음).
+
+VERIFICATION STATUS: ISSUE-23 (collect script·validateLms·section UI·
+notifs 통합·profile API 검증/한도) awaits independent verification;
+prior items (ISSUE-18, 21, 22, ISSUE-20) still pending.

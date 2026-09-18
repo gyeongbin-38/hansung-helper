@@ -5,7 +5,7 @@ import sys
 SRC = r'C:\Users\82107\Desktop\학사 도우미'
 DST = r'C:\Users\82107\Desktop\학사 도우미\published-personal'
 
-DIRS = ['app', 'lib', 'tests', 'scripts', 'docs', 'drizzle', 'data']
+DIRS = ['app', 'lib', 'tests', 'scripts', 'docs', 'drizzle', 'data', 'public']
 FILES = [
     'package.json',
     'package-lock.json',
