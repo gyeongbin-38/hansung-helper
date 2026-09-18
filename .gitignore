@@ -44,3 +44,7 @@ next-env.d.ts
 scripts/cloudflared.exe
 scripts/_tunnel.log
 /_tunnel.log
+
+# LMS collector output — personal academic data, never commit
+lms-data.json
+**/lms-data.json
