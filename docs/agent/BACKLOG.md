@@ -528,6 +528,11 @@ blocking regressions.
   BE-6 배포·원격 D1(권한 필요).
 - **Note**: 서버가 로그인 시 COSMOS 세션을 이미 확보함(school.ts) —
   브라우저 수동 수집(ISSUE-23)은 백업 경로로 유지, 서버 수집이 본선.
+- **Progress**: BE-6 ✅ 완료 (2026-09-18) — Cloudflare Workers 프로덕션
+  라이브 `https://hansung-helper.gyeongbin-38.workers.dev`, 원격 D1 생성+
+  마이그레이션, `scripts/_deploy.py` 재배포 경로 확립. 잔여: 원격 실계정
+  회원가입→저장→재로그인 한 바퀴 수동 확인. GitHub 정리 완료:
+  `hansung-helper` public, `-`(빈 repo) 삭제, deploy repo private 유지.
 
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 

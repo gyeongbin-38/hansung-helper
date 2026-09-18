@@ -127,13 +127,19 @@
   정책 재검토 + Referer 폴백 여부 결정.
 - http-check에 위 항목 회귀 테스트 추가.
 
-## BE-6: 배포/원격 D1 (계정 권한 필요 — needs-human 해소 시)
+## BE-6: 배포/원격 D1 ✅ 완료 (2026-09-18)
 
-- 리모트 D1에 `drizzle/0000_academic_accounts.sql` 적용:
-  `npx wrangler d1 execute site-creator-d1 --remote --config dist/server/wrangler.json --file drizzle/0000_academic_accounts.sql`
-- `wrangler deploy`로 published-personal 빌드 산출물 배포.
-- Cloudflare 계정/프로젝트 권한 필요 — 권한 받으면 실행 + 검증
-  (원격 로그인→프로필 저장→재로그인 확인).
+- **라이브**: `https://hansung-helper.gyeongbin-38.workers.dev`
+  (워커 `hansung-helper`, 버전 `02bc60c9-afa2-438d-8b81-f34f2ab77177`)
+- 원격 D1 `site-creator-d1` 생성됨 — database_id
+  `27aa326b-5433-4bcb-bc38-1b63bd66f67b` (APAC), 마이그레이션 적용 완료.
+- workers.dev 서브도메인: `gyeongbin-38` (계정 등록됨).
+- **재배포 절차**: `published-personal`에서 `npm run build` →
+  `python scripts/_deploy.py` (생성 wrangler.json의 placeholder DB ID와
+  워커명을 실값으로 패치 후 `wrangler deploy` 실행).
+- 검증: `/`, `/lms-collect.js`, `/api/courses|schedule|dept-rules|activities`
+  전부 200 (`scripts/_verify_prod.py`).
+- 잔여 수동 검증: 원격에서 실제 회원가입→프로필 저장→재로그인 한 바퀴.
 
 ---
 

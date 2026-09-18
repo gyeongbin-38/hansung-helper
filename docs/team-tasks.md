@@ -1,9 +1,10 @@
 # 팀 작업 분배 — 기획팀 / 백엔드팀
 
 개발을 몰라도 이해할 수 있게 적은 작업 카드입니다.
-공유 주소(임시): **https://previous-discusses-college-waterproof.trycloudflare.com**
-— 이 주소는 팀 내부 공유만! 공개 게시판에 올리지 마세요.
-— 임시 주소라 서버 재시작 시 바뀝니다. 접속이 안 되면 팀장에게 새 주소를 요청하세요.
+공유 주소(정식 배포): **https://hansung-helper.gyeongbin-38.workers.dev**
+— Cloudflare 정식 배포 주소입니다. 24시간 살아있고 사기 경고도 없습니다.
+— 단, 아는 사람 누구든 접속 가능 → 팀 내부 공유만! 공개 게시판에 올리지 마세요.
+— 이전 임시 터널 주소(trycloudflare.com)는 폐기됐습니다.
 
 ---
 
@@ -17,7 +18,7 @@
 - **하는 법** (5분):
   1. learn.hansung.ac.kr 로그인 → 내 강의실(대시보드)
   2. 키보드 F12 → 맨 위 탭에서 "Console" 클릭
-  3. https://previous-discusses-college-waterproof.trycloudflare.com/lms-collect.js
+  3. https://hansung-helper.gyeongbin-38.workers.dev/lms-collect.js
      열기 → 전체 복사 (Ctrl+A, Ctrl+C) → 콘솔에 붙여넣기 (Ctrl+V) → Enter
   4. `lms-data.json` 파일이 다운로드되면 성공
 - **확인할 것**: 내 과목들이 다 나왔나 / 수강한 강의·안 들은 강의 구분이
@@ -117,11 +118,13 @@
 - **쉬운 설명**: 로그인 세션 정리, 보안 헤더 같은 안전장치 보강.
   실제 서비스에 올리기 전에 꼭 필요한 작업.
 
-### B-6. 진짜 서버에 올리기 (배포)
+### B-6. 진짜 서버에 올리기 (배포) ✅ 완료 (2026-09-18)
 
-- **쉬운 설명**: 지금은 내 PC에서만 돌아가서 터널로 보여주는 상태.
-  Cloudflare에 계정 권한을 받으면 진짜 주소로 올릴 수 있음.
-  **필요한 것**: Cloudflare 계정 + 프로젝트 권한 (팀장에게 요청)
+- **완료됨**: Cloudflare Workers에 정식 배포됨 —
+  `https://hansung-helper.gyeongbin-38.workers.dev`
+  (워커명 `hansung-helper`, 원격 D1 `site-creator-d1` 마이그레이션 적용 완료)
+- **남은 것**: 나중에 코드가 바뀌면 재배포 —
+  `published-personal`에서 `npm run build` 후 `python scripts/_deploy.py`
 
 ---
 
@@ -132,7 +135,7 @@
 | 기획팀 1명 | **G-1** (COSMOS 테스트) | 지금 제일 막힌 부분 — 결과만으로도 가치 큼 |
 | 기획팀 | G-2, G-3 | 사용성 피드백 + 데이터 구멍 메우기 |
 | 백엔드팀 | **B-1** → B-3 | 사용자 가치 가장 큼 |
-| 팀장 | B-6 권한 확보 | 진짜 배포의 선결 조건 |
+| 팀장 | 배포 운영 | B-6 완료됨 — 변경 시 `scripts/_deploy.py`로 재배포 |
 
 결과는 이 파일이나 팀 공유 문서에 적어주세요. 코드 쪽 기록은
 `docs/agent/BACKLOG.md`가 자동으로 따라갑니다.

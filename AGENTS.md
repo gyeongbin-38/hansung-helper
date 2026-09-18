@@ -20,7 +20,7 @@
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
 - 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (drizzle/0000_academic_accounts.sql)
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
-- 리모트 조회: 동일 명령 + `--remote` (Cloudflare 계정 인증 필요 — needs-human)
+- 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
 - 또는 Cloudflare 대시보드 → D1 → site-creator-d1 → SQL Editor
 
 ## 데이터
@@ -30,3 +30,12 @@
 - 크롤러 공통: 이상 감지(급감) 시 기존 스냅샷 유지, 사용자 요청 경로에서 라이브 수집 없음
 - 원본 xlsx: `data/source/` (재임포트용)
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요
+
+## 프로덕션 (2026-09-18부터 라이브)
+- **URL**: https://hansung-helper.gyeongbin-38.workers.dev (워커 `hansung-helper`)
+- Cloudflare 계정: gyeongbinb38@gmail.com (account `49fee188…`), workers.dev 서브도메인 `gyeongbin-38`
+- 원격 D1: `site-creator-d1` = `27aa326b-5433-4bcb-bc38-1b63bd66f67b` (APAC), 마이그레이션 적용됨
+- **재배포**: `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
+  (생성된 wrangler.json의 placeholder DB ID·워커명을 실값으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
+- **프로덕션 검증**: `python scripts/_verify_prod.py` (모든 라이브 엔드포인트 200 확인)
+- GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)
