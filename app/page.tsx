@@ -27,6 +27,20 @@ import { deriveNotifs } from '@/lib/data/notifs';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
+
+/** 계정 프로필 + 로그인 시 서버 수집 LMS 스냅샷을 Data로 병합.
+ *  더 최신 fetchedAt 쪽이 이김 (수동 가져오기 파일이 최신이면 유지). */
+function accountData(result: Account): Data {
+  const merged = { ...empty, ...result.profile };
+  const serverLms = result.snapshot?.lmsData;
+  if (
+    serverLms &&
+    (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
+  )
+    merged.lms = serverLms;
+  return merged;
+}
+
 export default function App() {
   const [data, setData] = useState<Data>(empty),
     [ready, setReady] = useState(false),
@@ -56,7 +70,7 @@ export default function App() {
           const result: Account = await response.json();
           if (active) {
             setAccount(result);
-            setData({ ...empty, ...result.profile });
+            setData(accountData(result));
             setDraft(result.profile.prefs || []);
           }
         } else if (response.status !== 401 && active)
@@ -248,7 +262,7 @@ export default function App() {
           notice={accountError || undefined}
           onAuthenticated={(result) => {
             setAccount(result);
-            setData({ ...empty, ...result.profile });
+            setData(accountData(result));
             setDraft(result.profile.prefs || []);
             go('home');
           }}

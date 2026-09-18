@@ -1,8 +1,13 @@
+import { collectLms } from './lms.ts';
+import type { LmsSnapshot } from '../data/lms.ts';
+
 export type SchoolCourse = { id: string; name: string; url: string };
 export type SchoolSnapshot = {
   portal: 'connected';
   lms: 'connected' | 'unavailable';
   courses: SchoolCourse[];
+  /** 로그인 시 서버가 수집한 LMS 상세 스냅샷 (부분 실패는 course.errors) */
+  lmsData?: LmsSnapshot;
   checkedAt: string;
   courseScope: string;
 };
@@ -183,6 +188,11 @@ export async function connectSchool(
     if (/\/login\/logout\.php/.test(html)) {
       snapshot.lms = 'connected';
       snapshot.courses = parseCourses(html);
+      try {
+        snapshot.lmsData = await collectLms(session, snapshot.courses);
+      } catch {
+        /* 수집 실패해도 로그인 자체는 유지 */
+      }
     }
   } catch {
     /* Portal authentication remains valid when LMS is temporarily unavailable. */

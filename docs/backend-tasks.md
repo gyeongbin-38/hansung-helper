@@ -51,8 +51,14 @@
 
 ---
 
-## BE-1: 로그인 시 서버 측 COSMOS 수집 (최우선)
+## BE-1: 로그인 시 서버 측 COSMOS 수집 (최우선) ✅ 구현됨 (2026-09-18)
 
+- **구현 상태**: `lib/server/lms.ts` + `school.ts`의 `connectSchool` 연동
+  완료 (정규식 파서 방식 선택, 수집 예산 24s, 부분 실패 errors[] 보존).
+  `SchoolSnapshot.lmsData` → 클라이언트가 최신 fetchedAt 기준 `data.lms`
+  승격. 테스트 `tests/lms-server.test.mjs` 35/35. **실계정 end-to-end
+  검증이 남은 유일한 미완료** — `node --experimental-transform-types
+  scripts/cosmos-live.mts`로 실제 학번/비번 검증 필요.
 - **배경**: ISSUE-23은 브라우저 수동 수집 — 사용자가 콘솔에 스크립트를
   붙여넣어야 함. 그런데 `connectSchool`은 이미 COSMOS 세션을 로그인 시점에
   확보하고 대시보드 HTML에서 과목 목록까지 파싱함. 같은 세션으로 나머지
