@@ -17,6 +17,7 @@ import {
   isRulesetAnomalous,
   pairDeptRules,
   parseSitemapLinks,
+  parseYearTable,
   type DeptRuleset,
   type DeptRulesSnapshot,
 } from '../lib/data/dept-rules.ts';
@@ -87,6 +88,7 @@ for (const slug of SLUGS) {
         lines,
         attachment: extractAttachment(html),
         multiDept: multi || undefined,
+        yearTable: parseYearTable(html) ?? undefined,
       };
       if (isRulesetAnomalous(ruleset)) {
         console.log(
@@ -95,7 +97,7 @@ for (const slug of SLUGS) {
       } else {
         items.push(ruleset);
         console.log(
-          `  ${deptLabel || '(학과 미확정)'} -> ${ruleset.dept ?? '(미해석)'}: ${lines.length}줄${ruleset.attachment ? ' +첨부' : ''}`,
+          `  ${deptLabel || '(학과 미확정)'} -> ${ruleset.dept ?? '(미해석)'}: ${lines.length}줄${ruleset.attachment ? ' +첨부' : ''}${ruleset.yearTable ? ' +학번표' : ''}`,
         );
       }
     } catch (e) {

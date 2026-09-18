@@ -162,6 +162,27 @@
   color: var(--nt-steel);
   font-size: 12.5px;
 }
+.year-table-wrap {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.year-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+.year-table th,
+.year-table td {
+  border: 1px solid var(--nt-line, #e4e4e7);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.year-table th {
+  background: var(--nt-tint-lavender, #f4f4f5);
+  font-weight: 600;
+  white-space: nowrap;
+}
 .dept-rules-index {
   margin-bottom: 14px;
 }

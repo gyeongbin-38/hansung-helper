@@ -7,6 +7,9 @@ import {
   isRulesetAnomalous,
   pairDeptRules,
   parseSitemapLinks,
+  parseYearLabel,
+  parseYearTable,
+  yearColumnIndex,
 } from '../lib/data/dept-rules.ts';
 
 let pass = 0, fail = 0;
@@ -101,6 +104,39 @@ t('multi: 단일 학과', !isMultiDeptPage(['융합보안학과 졸업요건', '
 t('anomaly: 규정 없음', isRulesetAnomalous({ deptLabel: 'x', dept: null, url: 'u', lines: ['TOP'] }));
 t('anomaly: 한 줄 규정은 유효', !isRulesetAnomalous({ deptLabel: 'x', dept: null, url: 'u', lines: ['창작발표회 2회 졸업작품'] }));
 t('anomaly: 첨부 있으면 유효', !isRulesetAnomalous({ deptLabel: 'x', dept: null, url: 'u', lines: [], attachment: '규정.hwp' }));
+
+// --- parseYearLabel ---
+t('year: ~15학번', parseYearLabel('~ 15학번').to === 2015 && parseYearLabel('~ 15학번').from === undefined);
+t('year: 16학번', parseYearLabel('16학번').from === 2016 && parseYearLabel('16학번').to === 2016);
+t('year: 17~23학번', parseYearLabel('17학번 ~23학번').from === 2017 && parseYearLabel('17학번 ~23학번').to === 2023);
+t('year: 24학번~', parseYearLabel('24학번 ~').from === 2024 && parseYearLabel('24학번 ~').to === undefined);
+t('year: 학번 없음', !parseYearLabel('이수 학점').from);
+
+// --- parseYearTable (CSE/1564 형 fixture) ---
+const CSE_PAGE = `
+<div id="contentsEditHtml">
+<table>
+<tr><th>항목</th><th>졸업요건</th><th>~ 15학번</th><th>16학번</th><th>17학번 ~23학번</th><th>24학번 ~</th></tr>
+<tr><td>이수 학점</td><td>총 취득 학점</td><td>140학점</td><td>교과 130학점, 비교과 800pt</td><td>교과 130학점, 비교과 800pt</td><td>교과 130학점, 비교과 800pt</td></tr>
+<tr><td>캡스톤</td><td>작품 출품</td><td>V</td><td>V</td><td>V 필수</td><td>V 필수</td></tr>
+<tr><td>트랙 이수</td><td>이수 트랙 수</td><td>X</td><td>1</td><td>2</td><td>2</td></tr>
+</table>
+</div>`;
+const yt = parseYearTable(CSE_PAGE);
+t('table: 파싱 성공', !!yt);
+t('table: 컬럼 4개', yt?.columns.length === 4);
+t('table: 컬럼 범위', yt?.columns[0].to === 2015 && yt?.columns[2].from === 2017 && yt?.columns[2].to === 2023);
+t('table: 행 수', yt?.rows.length === 3);
+t('table: 행 라벨 결합', yt?.rows[0].label === '이수 학점 / 총 취득 학점');
+t('table: 셀 원문', yt?.rows[0].cells[1] === '교과 130학점, 비교과 800pt');
+t('table: 학번 없는 표 → null', parseYearTable('<table><tr><td>a</td></tr></table>') === null);
+t('table: 표 없음 → null', parseYearTable('<div>텍스트만</div>') === null);
+
+// --- yearColumnIndex ---
+t('col: 2014 → 0', yearColumnIndex(yt, 2014) === 0);
+t('col: 2016 → 1', yearColumnIndex(yt, 2016) === 1);
+t('col: 2020 → 2', yearColumnIndex(yt, 2020) === 2);
+t('col: 2026 → 3', yearColumnIndex(yt, 2026) === 3);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

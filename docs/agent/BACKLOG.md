@@ -432,6 +432,14 @@ blocking regressions.
   (학과명 라벨 또는 '학과 소개' URL 첫 라벨) 내 졸업요건 링크 연결.
   본문은 CMS `contentsEditHtml` 컨테이너에서 **원문 추출** — 수치
   해석 없음. `tests/dept-rules.test.mjs` 23/23.
+- **학번-컬럼 표 파서 추가 (이터레이션 9)**: `parseYearTable` —
+  헤더 행의 학번 셀 위치로 라벨/연도 컬럼 구분, 셀 원문 보존,
+  비규격 행(colspan) 건너뜀, 유효 행 없으면 null. `parseYearLabel`
+  (~15/16/17~23/24~ 범위→연도) + `yearColumnIndex`(입학연도→컬럼).
+  실제 CSE/1564에서 4컬럼×5행 정확 파싱 확인 → `yearTable` 필드로
+  스냅샷 저장, 카드 UI에 실제 표 렌더링(표 셀과 동일한 라인은
+  중복 제외). tests 40/40. 엔진 연동은 미해석 학과(컴퓨터공학부)
+  해소 후 — 현재는 구조화 데이터 보존 단계.
 - **수집 현황**: CreCon 4(문콘은 hwp 첨부만), HmnArt 7, futureplus 1
   (다학과 공통 페이지 → multiDept), CSE 1(컴퓨터공학부 — 카탈로그
   미연결, 추정: AI·소프트웨어로 개편?), global 6 전원 해석.

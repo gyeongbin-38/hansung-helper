@@ -295,17 +295,57 @@ export function Graduation({
             {myRules.deptLabel || myRules.dept} · 수치 해석 없이 원문 표시 —
             최종 졸업 사정은 학교 시스템이 확인합니다.
           </p>
-          {myRules.lines.length > 0 && (
-            <ul className="rule-lines">
-              {myRules.lines.slice(0, 24).map((l, i) => (
-                <li key={i}>{l}</li>
-              ))}
-              {myRules.lines.length > 24 && (
-                <li className="meta">
-                  … 외 {myRules.lines.length - 24}줄 — 원문 링크에서 계속
-                </li>
-              )}
-            </ul>
+          {(() => {
+            // 표가 있으면 표 셀과 동일한 라인은 제외하고 나머지 안내만 표시
+            const cellSet = new Set(
+              myRules.yearTable
+                ? [
+                    ...myRules.yearTable.columns.map((c) => c.label),
+                    ...myRules.yearTable.rows.flatMap((r) => r.cells),
+                    ...myRules.yearTable.rows.flatMap((r) =>
+                      r.label.split(' / '),
+                    ),
+                  ]
+                : [],
+            );
+            const extras = myRules.lines.filter((l) => !cellSet.has(l));
+            if (!extras.length) return null;
+            return (
+              <ul className="rule-lines">
+                {extras.slice(0, 24).map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+                {extras.length > 24 && (
+                  <li className="meta">
+                    … 외 {extras.length - 24}줄 — 원문 링크에서 계속
+                  </li>
+                )}
+              </ul>
+            );
+          })()}
+          {myRules.yearTable && (
+            <div className="year-table-wrap">
+              <table className="year-table">
+                <thead>
+                  <tr>
+                    <th>항목</th>
+                    {myRules.yearTable.columns.map((c, i) => (
+                      <th key={i}>{c.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {myRules.yearTable.rows.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.label}</td>
+                      {r.cells.map((c, j) => (
+                        <td key={j}>{c}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {myRules.attachment && (
             <p className="meta">

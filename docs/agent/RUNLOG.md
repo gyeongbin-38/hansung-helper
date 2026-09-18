@@ -383,4 +383,53 @@ VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22,
 search/notifs extraction + synonym layer, and the ISSUE-20 dept-rules
 pipeline (parser, crawler, snapshot, API, UI card) await independent
 verification.
+
+## 2026-09-18 — loop iteration 9 (ISSUE-20 yearTable parser + table UI)
+
+DONE:
+- Verified pending items by code review (dept-rules module, UI card,
+  crawler) — consistent with gates; full matrix re-run.
+- ISSUE-20 yearTable parser implemented:
+  - `parseYearLabel` — '~ 15학번'→{to:2015}, '16학번'→{2016},
+    '17학번 ~23학번'→{2017–2023}, '24학번 ~'→{from:2024}; 학번 없으면 {}.
+  - `parseYearTable` — CMS 본문 컨테이너 내 <table> 탐색, 헤더 행의
+    학번 셀 위치로 라벨/연도 컬럼 분리, 셀은 **원문 보존**,
+    셀 수 불일치(colspan) 행 건너뜀, 유효 행 없으면 null.
+  - `yearColumnIndex` — 입학연도→해당 컬럼 (엔진 연동 준비물).
+  - `DeptRuleset.yearTable` 필드 추가, 크롤러 연결 (+학번표 로그).
+  - 실제 CSE/1564 검증: 4컬럼(~15/16/17~23/24~)×5행(총학점·캡스톤·
+    트랙수·GitHub·산학협력) 정확 파싱 — 공식 표와 일치 확인.
+- UI: 학과 규정 카드에 yearTable 있으면 실제 <table> 렌더링 +
+  표 셀/라벨과 동일한 라인은 중복 제외한 나머지 안내만 표시
+  (표 외 프로즈 보존).
+- tests: dept-rules 40/40 (parseYearLabel 5, parseYearTable 8,
+  yearColumnIndex 4 추가).
+- Gates all green; both repos synced (parity OK) + built.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. Fresh-session verification: ISSUE-18, 21, 22, ISSUE-20 파이프라인
+   전체(파서·크롤러·스냅샷·API·UI 카드·yearTable).
+2. ISSUE-20 잔여: 컴퓨터공학부↔카탈로그 학과 매칭 확인(개편 여부,
+   공식 근거 필요 — 추정 연결 금지), Design/HmnArt 빈 본문 원인,
+   SclScn 규정 위치, multiDept 분할, yearTable→엔진 연동(해석된
+   학과 + 신뢰된 매핑 있을 때만).
+3. ISSUE-10 toolchain audit bumps.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+hosting.json) need human/accounts. Public deployment still predates
+all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, search 10/10,
+notifs 11/11, dept-rules 40/40, build (both repos), http-check PASS,
+account-db PASS, sync --check parity OK.
+
+REPO SCOUT: none needed — all changes built from existing deps.
+
+VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22,
+search/notifs extraction + synonym layer, ISSUE-20 dept-rules pipeline
+(parser·crawler·snapshot·API·UI card·yearTable parser) await
+independent verification.
   

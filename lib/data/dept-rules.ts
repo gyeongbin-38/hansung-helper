@@ -25,6 +25,8 @@ export type DeptRuleset = {
   attachment?: string | null;
   /** 본문이 여러 학과 규정을 나열하는 공통 안내 페이지 */
   multiDept?: boolean;
+  /** 학번-컬럼 규정 표가 파싱된 경우의 구조화 데이터 */
+  yearTable?: YearTable;
 };
 
 export type DeptRulesSnapshot = {
@@ -209,6 +211,102 @@ export function isRulesetAnomalous(ruleset: DeptRuleset): boolean {
     (l) => l.length >= 6 && /[가-힣]/.test(l),
   );
   return meaningful.length === 0;
+}
+
+export type YearColumn = {
+  /** 헤더 원문 (예: '17학번 ~23학번') */
+  label: string;
+  /** 적용 시작 입학연도 (4자리). 미해석이면 undefined */
+  from?: number;
+  /** 적용 끝 입학연도 (4자리). 미해석이면 undefined */
+  to?: number;
+};
+
+export type YearTable = {
+  /** 학번 컬럼들 (헤더 순서) */
+  columns: YearColumn[];
+  /** 데이터 행: 라벨 셀 결합 + 학번 컬럼 위치의 원문 값 */
+  rows: { label: string; cells: string[] }[];
+};
+
+const YEAR_CELL = /학번/;
+
+function cellText(html: string): string {
+  return decodeEntities(
+    html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+  );
+}
+
+/** '~ 15학번' → {to:2015}, '16학번' → {from:to:2016}, '17~23학번' → 범위 */
+export function parseYearLabel(label: string): Pick<YearColumn, 'from' | 'to'> {
+  const t = label.replace(/\s+/g, '');
+  const range =
+    t.match(/(\d{2})학번[~-](\d{2})학번/) ??
+    t.match(/(\d{2})[~-](\d{2})학번/);
+  if (range) return { from: 2000 + +range[1], to: 2000 + +range[2] };
+  const before = t.match(/^~(\d{2})학번/) ?? t.match(/(\d{2})학번이전|(\d{2})학번까지/);
+  if (before) return { to: 2000 + +(before[1] ?? before[2]) };
+  const after = t.match(/(\d{2})학번~/);
+  if (after) return { from: 2000 + +after[1] };
+  const single = t.match(/(\d{2})학번/);
+  if (single) return { from: 2000 + +single[1], to: 2000 + +single[1] };
+  return {};
+}
+
+/**
+ * 학번-컬럼 규정 표 파싱 (CSE/1564 형).
+ * 헤더 행에서 학번 셀 시작 위치를 찾아 그 이전은 라벨 셀, 이후는 연도 컬럼으로
+ * 간주. 데이터 행의 셀 수가 맞지 않으면 그 행은 건너뛰고, 유효 행이 없으면
+ * null — 형식이 다른 페이지는 원문 보존 경로로 둔다.
+ */
+export function parseYearTable(html: string): YearTable | null {
+  const container = html.match(
+    /<div[^>]*id="(?:contentsEditHtml|_contentBuilder)"[^>]*>([\s\S]*)<\/body/i,
+  );
+  const scope = container ? container[1] : html;
+  const tables = scope.match(/<table[\s\S]*?<\/table>/gi) ?? [];
+  for (const table of tables) {
+    const trs = table.match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
+    const grid = trs.map((tr) =>
+      (tr.match(/<t[hd][^>]*>[\s\S]*?<\/t[hd]>/gi) ?? []).map((c) =>
+        cellText(c),
+      ),
+    );
+    // 헤더 행: 학번 셀이 2개 이상인 첫 행
+    const hi = grid.findIndex(
+      (r) => r.filter((c) => YEAR_CELL.test(c)).length >= 2,
+    );
+    if (hi < 0) continue;
+    const header = grid[hi];
+    const firstYear = header.findIndex((c) => YEAR_CELL.test(c));
+    const columns: YearColumn[] = header
+      .slice(firstYear)
+      .map((label) => ({ label, ...parseYearLabel(label) }));
+    if (columns.length < 2) continue;
+    const labelCols = firstYear;
+    const rows: YearTable['rows'] = [];
+    for (const r of grid.slice(hi + 1)) {
+      if (r.length !== labelCols + columns.length) continue; // colspan 등 비규격
+      const label = r.slice(0, labelCols).filter(Boolean).join(' / ');
+      const cells = r.slice(labelCols);
+      if (!label || cells.every((c) => !c)) continue;
+      rows.push({ label, cells });
+    }
+    if (rows.length) return { columns, rows };
+  }
+  return null;
+}
+
+/** 입학연도에 해당하는 학번 컬럼 인덱스 — 범위 밖이면 null */
+export function yearColumnIndex(table: YearTable, admitYear: number): number | null {
+  for (let i = 0; i < table.columns.length; i++) {
+    const c = table.columns[i];
+    if (c.from !== undefined && admitYear < c.from) continue;
+    if (c.to !== undefined && admitYear > c.to) continue;
+    if (c.from === undefined && c.to === undefined) continue;
+    return i;
+  }
+  return null;
 }
 
 /** 본문에 학과명 라벨이 2개 이상이면 전체 학과 공통 안내 페이지로 간주 */
