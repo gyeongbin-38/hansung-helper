@@ -517,6 +517,18 @@ blocking regressions.
   주기 알림(stale 경고), 강의별 시청 시간(%) 표시, 학사일정/캘린더에
   LMS 마감 병합, advisor 검색에 LMS 과목 포함.
 
+## ISSUE-24 — BE 업무 패키지 (팀원 핸드오프)
+
+- **Status**: handed-off — `docs/backend-tasks.md` (2026-09-18)
+- **Labels**: priority:p1, area:backend
+- **Objective**: 백엔드 작업을 팀원에게 위임 — BE-1 로그인 시 서버 측
+  COSMOS 수집(`connectSchool`의 기존 LMS 세션 재사용, 최우선), BE-2
+  재수집 경로 설계(자격 증명 비저장 제약), BE-3 공개 스냅샷 D1 이관+
+  갱신 파이프라인, BE-4 프로필 검증 모듈화, BE-5 보안/운영 하드닝,
+  BE-6 배포·원격 D1(권한 필요).
+- **Note**: 서버가 로그인 시 COSMOS 세션을 이미 확보함(school.ts) —
+  브라우저 수동 수집(ISSUE-23)은 백업 경로로 유지, 서버 수집이 본선.
+
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 
 - **Status**: backlog
