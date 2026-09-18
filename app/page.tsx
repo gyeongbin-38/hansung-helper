@@ -346,6 +346,9 @@ export default function App() {
             <Courses
               data={data}
               plan={plan}
+              swap={swapPlan}
+              detail={detail}
+              go={go}
               catalog={catalog}
               failed={catalogFailed}
               notify={setToast}

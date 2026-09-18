@@ -70,20 +70,30 @@ export function deriveNotifs({
       route: 'timetable',
     });
 
-  // 활동 신청 마감 임박 (7일 이내)
-  for (const a of acts?.items ?? []) {
-    if (!a.applyEnd) continue;
+  // 활동 신청 마감 임박 (7일 이내) — 저장한 활동을 먼저 강조
+  const deadlines = (acts?.items ?? []).filter((a) => {
+    if (!a.applyEnd) return false;
     const t = Date.parse(a.applyEnd);
-    if (t >= now && t <= in7 && (a.status === 'open' || a.status === 'closing'))
-      items.push({
-        id: 'act-' + a.id,
-        tone: 'orange',
-        cat: '활동',
-        label: a.statusLabel,
-        title: a.title,
-        desc: `신청 마감 ${a.applyEnd.slice(0, 10)}${a.dday ? ` · ${a.dday}` : ''}`,
-        route: 'activities/' + a.id,
-      });
+    return (
+      t >= now && t <= in7 && (a.status === 'open' || a.status === 'closing')
+    );
+  });
+  deadlines.sort(
+    (a, b) =>
+      Number(data.saved.includes(b.id)) - Number(data.saved.includes(a.id)),
+  );
+  for (const a of deadlines) {
+    if (!a.applyEnd) continue;
+    const saved = data.saved.includes(a.id);
+    items.push({
+      id: 'act-' + a.id,
+      tone: saved ? 'purple' : 'orange',
+      cat: '활동',
+      label: saved ? '저장한 활동' : a.statusLabel,
+      title: a.title,
+      desc: `신청 마감 ${a.applyEnd.slice(0, 10)}${a.dday ? ` · ${a.dday}` : ''}`,
+      route: 'activities/' + a.id,
+    });
   }
 
   // 다가오는 공식 학사일정 (7일 이내 시작)

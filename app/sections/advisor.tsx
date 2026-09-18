@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Sparkles, Search } from 'lucide-react';
 import type { Data } from './data';
-import { useActivities, courseMatch } from './catalog';
+import { useActivities, useSchedule, courseMatch } from './catalog';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
   conflicts,
@@ -10,6 +10,7 @@ import {
   type CourseSection,
 } from '@/lib/data/catalog';
 import { activityMatch, type Activity } from '@/lib/data/activities';
+import type { ScheduleEvent } from '@/lib/data/schedule';
 
 type Hit = { label: string; route: string; sub: string };
 
@@ -55,6 +56,7 @@ function searchAll(
   q: string,
   catalog: Catalog | null,
   acts: Activity[] | null,
+  sched: ScheduleEvent[] | null,
 ): Hit[] {
   const hits: Hit[] = [];
   for (const s of catalog?.sections ?? []) {
@@ -67,12 +69,21 @@ function searchAll(
       });
   }
   for (const a of acts ?? []) {
-    if (hits.length >= 7) break;
+    if (hits.length >= 6) break;
     if (activityMatch(a, q, koreanMatch))
       hits.push({
         label: a.title,
         route: 'activities/' + a.id,
         sub: `${a.dept} · ${a.statusLabel}`,
+      });
+  }
+  for (const e of sched ?? []) {
+    if (hits.length >= 8) break;
+    if (koreanMatch(e.title, q))
+      hits.push({
+        label: e.title,
+        route: 'calendar',
+        sub: `공식 학사일정 · ${e.start}${e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}`,
       });
   }
   return hits;
@@ -90,6 +101,7 @@ export function Advisor({
   go: (route: string) => void;
 }) {
   const { snap, failed: actsFailed } = useActivities();
+  const { snap: sched } = useSchedule();
   const [answer, setAnswer] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
   const [q, setQ] = useState('');
@@ -108,7 +120,12 @@ export function Advisor({
   const askFree = () => {
     const query = q.trim();
     if (!query) return;
-    const found = searchAll(query, catalog, snap?.items ?? null);
+    const found = searchAll(
+      query,
+      catalog,
+      snap?.items ?? null,
+      sched?.items ?? null,
+    );
     setHits(found);
     setAnswer(
       found.length

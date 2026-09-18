@@ -220,4 +220,57 @@ REPO SCOUT: none needed — carousel/search built from existing deps.
 
 VERIFICATION STATUS: ISSUE-13 fixes, ISSUE-14, ISSUE-17, ISSUE-19
 await independent verification.
+
+---
+
+## 2026-09-18 — loop iteration 6 (verification + 21 + 22 + 18-partial + 20-scout)
+
+DONE:
+- Verified ISSUE-13 readIds fix, ISSUE-14, ISSUE-17, ISSUE-19 → all PASS
+  (code review: per-item read state consistent across schema/API/demo
+  shape-check; sync --check live-verified with real drift then parity OK;
+  carousel + unified search confirmed via review + gates).
+- ISSUE-21 implemented: advisor free-text search now includes official
+  schedule events — searchAll(query, catalog, activities, schedEvents),
+  koreanMatch on event titles, route 'calendar', `공식 학사일정` subtitle
+  with dates. Limitation documented: title-substring matching only.
+- ISSUE-22 implemented: saved activities prioritized in deadline
+  notifications — sort puts data.saved first, purple tone + '저장한 활동'
+  label; unsaved keep status label. Prioritization, not restriction.
+- ISSUE-18 partially implemented: /courses/:id detail route — breadcrumb,
+  full section metadata, plan/remove with conflict display, sibling
+  분반 list with add + swap-when-planned, timetable link, provenance
+  disclaimers. Course names in list + unified search link to detail.
+  /graduation/:id + /calendar/:id remain in backlog.
+- ISSUE-20 explored: CSE dept page (CSE/1564/subview.do) confirmed to
+  have a real admission-year-column rules table (UTF-8 server-rendered).
+  Blocker identified: no dept-link discovery path — college index pages
+  6082-6088 are nav chrome only; 6081 (대학·대학원) is a candidate dept
+  directory needing deeper parse; dept slug + 졸업요건 subview id differ
+  per dept → manual registry or per-dept nav crawl needed. Probe script
+  kept at scripts/_probe-dept-rules.py (root-local, sync-excluded).
+- Gates all green; both repos synced (parity OK) + built; commits pending.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. Fresh-session verification: ISSUE-21, ISSUE-22, ISSUE-18 courses/:id.
+2. ISSUE-18 remainder (/graduation/:id, /calendar/:id), ISSUE-10
+   (toolchain audit bumps).
+3. ISSUE-20 implementation: dept directory discovery (6081 parse or
+   per-dept nav crawl) → dept registry → ruleset JSON for consistent-
+   format depts; unknown preserved for the rest.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+hosting.json) need human/accounts. Public deployment still predates
+all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, build (both repos),
+http-check PASS, account-db PASS, sync --check parity OK.
+
+REPO SCOUT: none needed — all three features built from existing deps.
+
+VERIFICATION STATUS: ISSUE-21, ISSUE-22, ISSUE-18 (courses/:id) await
+independent verification.
   

@@ -283,13 +283,8 @@ blocking regressions.
 
 ## ISSUE-13 — 알림함·홈 위젯 실데이터 도출
 
-- **Status**: **verified with fix** (2026-09-18) — 검증 중 버그 발견·수정:
-  `read: boolean` 단일 플래그는 "모두 읽음" 후 신규 알림도 영구히 읽음
-  처리됨 → `readIds: string[]`로 변경(프로필 스키마+API 검증 갱신,
-  데모 shape-check 추가), 도출 로직을 `deriveNotifs()`로 추출해 Topbar
-  벨 점이 실제 unread 수를 반영. 수정분 자체는 재검증 대상.
-  추가 수정: profile route의 ruleOverrides 상한 300→2000 (UI는 2000까지
-  허용하고 800P가 공식 목표라 불일치였음).
+- **Status**: **verified** (2026-09-18 이터레이션 5 — readIds per-item
+  읽음·deriveNotifs 공유·API/UI 상한 일치·스키마 전파 확인)
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: 알림함은 고정 1건(연결 안내)뿐이고 홈 "지금 할 일"은
   완료 여부와 무관하게 카운트 `3` 고정. 실제 상태에서 알림을 도출:
@@ -303,6 +298,11 @@ blocking regressions.
   계획 없음·설문 미작성), 완료 시 빈 상태 문구, 카운트는 shownTasks.length.
   page.tsx — Notifications에 planned 전달. React Compiler 순수성 규칙상
   `Date.now()`는 useState lazy init으로 마운트 시점 1회 평가.
+- **Verifier-found fixes (2026-09-18)**: `read: boolean`은 "모두 읽음" 후
+  신규 알림도 영구 읽음 처리 → `readIds: string[]`로 교체, 도출 로직을
+  `deriveNotifs()`로 추출해 Topbar 벨이 실제 unread 수 반영. profile
+  route의 ruleOverrides 상한 300→2000 (UI ≤2000, 800P 공식 목표와
+  불일치였음). 프로필 스키마·API 검증·데모 shape-check 전파.
 
 ## ISSUE-15 — 설문 선호 추천 반영 + 미반영 항목 명시
 
@@ -333,7 +333,8 @@ blocking regressions.
 
 ## ISSUE-17 — 홈 Hero 캐러셀 (spec §5.3/§12.10)
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified** (2026-09-18 이터레이션 5 — 슬라이드 정렬·
+  수동 넘김·dots·출처·빈 상태 미렌더 확인)
 - **Labels**: agent-ready, priority:p2, area:frontend
 - **Objective**: spec이 요구하는 홈 중심 Hero 캐러셀 부재. 실데이터 있음:
   활동 스냅샷(커버이미지·D-day·포인트·상태). 수동 넘김 + 위치 표시,
@@ -345,14 +346,23 @@ blocking regressions.
 
 ## ISSUE-18 — 상세 라우트 부재 (spec §6)
 
-- **Status**: backlog — agent-ready
+- **Status**: partially implemented — `/courses/:id` **needs-verification**;
+  `/graduation/:id`, `/calendar/:id` backlog 잔여
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: `/courses/:id`, `/graduation/:id`, `/calendar/:id` 상세
   라우트 없음(activities/:id만 존재). 브레드크럼 포함.
+- **Done (courses/:id)**: courses.tsx에 detail 분기 — id로 분반 해석,
+  브레드크럼(← 과목 목록), 전체 메타데이터(과목명·학과·코드/분반·학점·
+  대상학년·교수·강의실·시간대·이수구분/정규화·온라인/교차/시간보정
+  표시), 담기/빼기(plan 토글 + 충돌 표시 + 완료 과목 차단), 동일 코드
+  분반 목록(시간·교수·강의실·담기 + 현재 분반 계획 중이면 swap 교체),
+  시간표 이동 링크, 학기/출처/비공식 수강신청 고지. 목록·통합검색의 과목명
+  클릭 → 상세 라우트. page.tsx에 swap/detail/go 전달.
 
 ## ISSUE-19 — 전체 검색 범위 확대
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified** (2026-09-18 이터레이션 5 — 라우트 배선·그룹
+  결과·담기 버튼이 실제 plan() 호출 확인)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: Topbar 검색이 활동만 검색 → 과목·공식일정 포함.
 - **Done**: `app/sections/search.tsx` — 통합 검색 라우트(과목 cap 8·
@@ -362,7 +372,8 @@ blocking regressions.
 
 ## ISSUE-14 — `_sync.py` parity check 모드
 
-- **Status**: implemented — needs-verification (2026-09-18)
+- **Status**: **verified** (2026-09-18 이터레이션 5 — 실제 드리프트
+  감지·exit 1·동기화 후 parity OK 확인)
 - **Done**: `--check` 플래그 — robocopy /L(list-only)로 드리프트 감지,
   파일 목록 행만 추려 DRIFT 리포트, 불일치 시 exit 1. 실제 미동기
   상태에서 6개 파일 정확히 감지 + 동기화 후 parity OK 확인.
@@ -370,6 +381,58 @@ blocking regressions.
 - **Objective**: 이번에 발견된 stale-sync 버그(/XO /XN /XC 조합으로
   수정 파일 미복사) 재발 방지. `--check` 모드로 루트↔published-personal
   간 동기화 대상 파일 diff를 출력하고 불일치 시 non-zero exit.
+
+## ISSUE-20 — 학과별 졸업 규정 수집 파이프라인 (ISSUE-6 잔여)
+
+- **Status**: backlog — agent-ready (타당성 확인됨 2026-09-18)
+- **Labels**: agent-ready, priority:p2, area:crawler, area:data
+- **Objective**: 학과별 졸업요건 페이지가 학번-컬럼 표 구조로 공개됨
+  (예: hansung.ac.kr/CSE/1564/subview.do — 총학점·캡스톤·트랙수·산학
+  요건을 입학연도별로 표기). 단과대 인덱스(hansung/6082~6088)에서 학과
+  링크를 수집해 각 학과 졸업요건 페이지를 크롤 → dept×year ruleset JSON.
+- **Acceptance Criteria**: 학과 URL 레지스트리 + 페이지별 파서 +
+  학번 컬럼 매핑(~15학번/16학번/17~23/24~ 범위 파싱); 수집 못한 학과는
+  unknown 유지(현행 DEFAULT_RULES 폴백); 규정형 요건(캡스톤/트랙수)은
+  학점과 다른 rule source로 모델링; source/asOf 보존.
+- **Scope note**: 학과별 CMS 구조가 다를 수 있어 포맷 일치 학과부터
+  커버, 나머지는 미수집으로 명시.
+- **Exploration findings (2026-09-18)**: `www.hansung.ac.kr/CSE/1564/
+  subview.do` — 실제 학번-컬럼 규정 표 확인 (총학점·캡스톤·트랙수·산학
+  요건 × ~15/16/17~23/24~학번), UTF-8 서버렌더링. 그러나 학과 발견
+  경로가 장애물: 단과대 인덱스(6082~6088)는 사이트 nav만 반복해 학과
+  링크 없음, `/hansung/6081/subview.do`(대학·대학원, ~140KB)가 학과
+  디렉터리 후보이나 링크 구조 추가 파싱 필요. 학과 slug(예: CSE)와
+  각 학과 졸업요건 subview id는 학과마다 상이 — 학과 홈페이지 nav
+  크롤 또는 수동 레지스트리 필요. 탐색 스크립트 `scripts/_probe-
+  dept-rules.py` 보관(root-local, sync 제외).
+
+## ISSUE-21 — advisor 자유질문에 학사일정 검색 포함
+
+- **Status**: implemented — **needs-verification**
+- **Labels**: agent-ready, priority:p3, area:frontend
+- **Objective**: advisor.tsx의 searchAll이 과목·활동만 검색 — "수강신청
+  언제" 같은 질문에 공식 학사일정 타이틀 매칭이 안 됨. useSchedule
+  결과를 검색 대상에 추가(route: 'calendar').
+- **Done**: `searchAll(query, catalog, activities, schedEvents)` —
+  과목 cap 4 → 활동(합산 cap 6) → 공식 학사일정(합산 cap 8) 순으로
+  `koreanMatch(e.title, q)` 매칭, 결과는 `route: 'calendar'` +
+  `공식 학사일정 · 시작일[~종료일]` 부제. advisor 컴포넌트가
+  `useSchedule()` 호출해 `sched?.items` 전달.
+- **Known limitation**: 제목 문자열 매칭만 — "수강신청 언제"는 제목에
+  '수강신청'이 포함된 이벤트만 매칭. 의미 매칭(동의어/날짜 질의)은
+  없으며 AI 사칭 없이 검색 결과로만 응답.
+
+## ISSUE-22 — 저장한 활동 우선 마감 알림
+
+- **Status**: implemented — **needs-verification**
+- **Labels**: agent-ready, priority:p3, area:frontend
+- **Objective**: deriveNotifs의 활동 마감 알림이 전체 open/closing
+  대상 — 저장한 활동(data.saved)은 별도 강조하거나, 저장 활동만으로
+  제한하는 옵션 검토. 개인화 우선순위.
+- **Done**: notifications.tsx — 마감 후보(applyEnd 있고 now~+7일,
+  open/closing)를 `data.saved` 포함 여부로 정렬해 저장 활동 우선.
+  저장 활동은 purple 톤 + `저장한 활동` 라벨, 비저장은 기존 상태
+  라벨 유지. 제한이 아닌 우선순위 — 모든 마감 알림 표시 유지.
 
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 

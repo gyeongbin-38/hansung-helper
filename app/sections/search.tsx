@@ -67,7 +67,14 @@ export function SearchResults({
             <div className="event-line" key={s.id}>
               <BookOpen />
               <div>
-                <b>{s.name}</b>
+                <b>
+                  <button
+                    className="link"
+                    onClick={() => go('courses/' + s.id)}
+                  >
+                    {s.name}
+                  </button>
+                </b>
                 <small>
                   {s.dept} · {s.section}분반 · {s.credits}학점 ·{' '}
                   {slotsLabel(s)}

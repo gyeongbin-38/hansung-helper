@@ -1,8 +1,9 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { BookOpen, Check, Plus, Search } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Plus, Search } from 'lucide-react';
 import {
   conflicts,
+  slotLabel,
   slotsLabel,
   type Catalog,
   type CourseSection,
@@ -16,12 +17,18 @@ const LIMIT = 60;
 export function Courses({
   data,
   plan,
+  swap,
+  detail,
+  go,
   catalog,
   failed,
   notify,
 }: {
   data: Data;
   plan: (id: string) => void;
+  swap?: (fromId: string, toId: string) => void;
+  detail?: string;
+  go: (route: string) => void;
   catalog: Catalog | null;
   failed?: boolean;
   notify?: (msg: string) => void;
@@ -104,6 +111,137 @@ export function Courses({
     }
     plan(s.id);
   }
+
+  // ---------- 상세 라우트 (/courses/:id) ----------
+  if (detail !== undefined) {
+    const s = catalog?.sections.find((x) => x.id === detail);
+    if (!catalog)
+      return (
+        <div className="card pad">
+          <p>{failed ? '개설강의 데이터를 불러오지 못했습니다.' : '불러오는 중…'}</p>
+        </div>
+      );
+    if (!s)
+      return (
+        <div className="card pad">
+          <p>과목을 찾을 수 없습니다.</p>
+          <div>
+            <button className="secondary" onClick={() => go('courses')}>
+              과목 목록으로
+            </button>
+          </div>
+        </div>
+      );
+    const siblings = catalog.sections.filter(
+      (x) => x.code === s.code && x.id !== s.id,
+    );
+    const added = data.planned.includes(s.id);
+    const clashes = conflicts(s, plannedSecs);
+    const completedHere = data.completed.some((c) => c.code === s.code);
+    return (
+      <>
+        <button
+          className="link crumb"
+          onClick={() => go('courses')}
+          aria-label="과목 목록으로"
+        >
+          홈 / 과목 추천 / {s.name}
+        </button>
+        <section className="card detail">
+          <div className="course-badges">
+            {added && <span className="badge purple">계획에 담김</span>}
+            <span className="badge">{s.category}</span>
+            {s.online && <span className="badge blue">온라인</span>}
+            {s.cross && <span className="badge green">교차가능</span>}
+            {s.timeFixed && <span className="badge orange">시간 보정됨</span>}
+          </div>
+          <h2>{s.name}</h2>
+          <p>
+            {s.dept} · {s.code}-{s.section} · {s.credits}학점
+            {s.year ? ` · ${s.year}학년` : ''}
+          </p>
+          <div className="detail-grid">
+            {[
+              ['담당 교수', s.professor || '교수 미정'],
+              ['강의실', s.room || '강의실 미정'],
+              [
+                '수업 시간',
+                s.slots.length ? s.slots.map(slotLabel).join(' · ') : '온라인 · 시간 미정',
+              ],
+              ['이수구분', s.category + ` (${catGroup(s)})`],
+            ].map(([l, v]) => (
+              <div key={l}>
+                <small>{l}</small>
+                <b>{v}</b>
+              </div>
+            ))}
+          </div>
+          {clashes.length > 0 && !added && (
+            <p className="meta">
+              현재 계획과 시간이 겹칩니다:{' '}
+              {clashes
+                .map((h) => h.name)
+                .slice(0, 3)
+                .join(', ')}
+            </p>
+          )}
+          {completedHere && (
+            <p className="meta">이미 이수한 과목으로 입력되어 있습니다.</p>
+          )}
+          <div className="actions">
+            <button className="primary" onClick={() => toggle(s)}>
+              {added ? <Check size={17} /> : <Plus size={17} />}{' '}
+              {added ? '계획에서 빼기' : '다음 학기 계획에 담기'}
+            </button>
+            <button className="secondary" onClick={() => go('timetable')}>
+              시간표에서 보기 <ArrowUpRight size={16} />
+            </button>
+          </div>
+          {siblings.length > 0 && (
+            <>
+              <h3>다른 분반 ({siblings.length})</h3>
+              <div className="events">
+                {siblings.map((alt) => {
+                  const altIn = data.planned.includes(alt.id);
+                  return (
+                    <div className="event-line" key={alt.id}>
+                      <BookOpen />
+                      <div>
+                        <b>{alt.section}분반</b>
+                        <small>
+                          {slotsLabel(alt)} · {alt.professor || '교수 미정'}
+                          {alt.room ? ` · ${alt.room}` : ''}
+                        </small>
+                      </div>
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          if (altIn) return;
+                          if (added && swap) return swap(s.id, alt.id);
+                          if (data.planned.some((id) => catalog.sections.find((x) => x.id === id)?.code === s.code)) {
+                            notify?.('같은 과목의 다른 분반이 이미 계획에 있습니다. 시간표에서 분반을 변경하세요.');
+                            return;
+                          }
+                          plan(alt.id);
+                        }}
+                      >
+                        {altIn ? '담김' : added && swap ? '이 분반으로 변경' : '담기'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <p className="meta">
+            출처: {catalog.semester} 공식 개설 시간표 · {catalog.source} ·
+            공식 수강신청이 아닌 개인 계획용 데이터입니다.
+          </p>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="demo-note">
@@ -201,7 +339,14 @@ export function Courses({
                   {s.cross && <span className="badge green">교차가능</span>}
                 </div>
               </div>
-              <h3>{s.name}</h3>
+              <h3>
+                <button
+                  className="link course-title"
+                  onClick={() => go('courses/' + s.id)}
+                >
+                  {s.name}
+                </button>
+              </h3>
               <p>
                 {s.dept} · {s.section}분반 · {s.credits}학점
                 {s.year ? ` · ${s.year}학년` : ''}
