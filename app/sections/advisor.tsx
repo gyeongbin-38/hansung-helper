@@ -2,17 +2,14 @@
 import { useState } from 'react';
 import { Sparkles, Search } from 'lucide-react';
 import type { Data } from './data';
-import { useActivities, useSchedule, courseMatch } from './catalog';
-import { koreanMatch } from '@/lib/data/hangul';
+import { useActivities, useSchedule } from './catalog';
 import {
   conflicts,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { activityMatch, type Activity } from '@/lib/data/activities';
-import type { ScheduleEvent } from '@/lib/data/schedule';
-
-type Hit = { label: string; route: string; sub: string };
+import type { Activity } from '@/lib/data/activities';
+import { searchAll, type SearchHit } from '@/lib/data/search';
 
 function planAnswer(data: Data, planned: CourseSection[]) {
   if (!planned.length)
@@ -52,43 +49,6 @@ function actAnswer(items: Activity[] | null, failed: boolean) {
   return `지금 신청 가능한 비교과 ${open}개, 접수 예정 ${soon}개가 있습니다 (hsportal ${'공식 목록'} 기준). 비교과·대외활동 화면에서 저장하거나 공고로 이동할 수 있습니다.`;
 }
 
-function searchAll(
-  q: string,
-  catalog: Catalog | null,
-  acts: Activity[] | null,
-  sched: ScheduleEvent[] | null,
-): Hit[] {
-  const hits: Hit[] = [];
-  for (const s of catalog?.sections ?? []) {
-    if (hits.length >= 4) break;
-    if (courseMatch(s, q))
-      hits.push({
-        label: s.name,
-        route: 'courses',
-        sub: `${s.dept} · ${s.credits}학점 · ${s.category}`,
-      });
-  }
-  for (const a of acts ?? []) {
-    if (hits.length >= 6) break;
-    if (activityMatch(a, q, koreanMatch))
-      hits.push({
-        label: a.title,
-        route: 'activities/' + a.id,
-        sub: `${a.dept} · ${a.statusLabel}`,
-      });
-  }
-  for (const e of sched ?? []) {
-    if (hits.length >= 8) break;
-    if (koreanMatch(e.title, q))
-      hits.push({
-        label: e.title,
-        route: 'calendar',
-        sub: `공식 학사일정 · ${e.start}${e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}`,
-      });
-  }
-  return hits;
-}
-
 export function Advisor({
   data,
   planned,
@@ -103,7 +63,7 @@ export function Advisor({
   const { snap, failed: actsFailed } = useActivities();
   const { snap: sched } = useSchedule();
   const [answer, setAnswer] = useState('');
-  const [hits, setHits] = useState<Hit[]>([]);
+  const [hits, setHits] = useState<SearchHit[]>([]);
   const [q, setQ] = useState('');
 
   const ask = (kind: string) => {
@@ -130,7 +90,7 @@ export function Advisor({
     setAnswer(
       found.length
         ? `'${query}' 관련 항목을 ${found.length}개 찾았습니다.`
-        : `'${query}'에 맞는 과목이나 활동을 찾지 못했습니다. 다른 키워드로 검색해 보세요.`,
+        : `'${query}'에 맞는 과목·활동·학사일정을 찾지 못했습니다. 다른 키워드로 검색해 보세요.`,
     );
   };
 

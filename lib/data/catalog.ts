@@ -1,3 +1,5 @@
+import { koreanMatch } from './hangul.ts';
+
 /** One meeting of a section: d=요일(0월..6일), s/e=자정 이후 분. */
 export type CourseSlot = { d: number; s: number; e: number };
 export type CourseSection = {
@@ -92,6 +94,11 @@ export function daySummaries(planned: CourseSection[]): DaySummary[] {
     }
   }
   return out;
+}
+
+/** 과목명·교수·코드·학과에 대한 한국어 검색 (초성·부분문자열). */
+export function courseMatch(s: CourseSection, q: string) {
+  return koreanMatch(`${s.name} ${s.professor} ${s.code} ${s.dept}`, q);
 }
 
 /** Sections that share a 시간표 슬롯 overlap on the same day. */

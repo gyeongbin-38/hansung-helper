@@ -9,15 +9,61 @@ const fmtRange = (start: string, end: string | null) =>
 export function CalendarSection({
   data,
   persist,
+  detail,
+  go,
 }: {
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
+  detail?: string;
+  go: (route: string) => void;
 }) {
   const { snap, failed } = useSchedule();
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (snap?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 12);
+
+  // /calendar/:id — 공식 학사일정 상세
+  if (detail) {
+    const e = snap?.items.find((x) => x.id === detail);
+    const fetched = snap?.fetchedAt.slice(0, 10);
+    return (
+      <section className="card pad">
+        <button className="link" onClick={() => go('calendar')}>
+          ← 학사일정
+        </button>
+        {!snap && !failed && <p className="meta">불러오는 중…</p>}
+        {snap && !e && <h2>일정을 찾지 못했습니다.</h2>}
+        {e && (
+          <>
+            <h2>{e.title}</h2>
+            <p>
+              공식 학사일정 · {e.start}
+              {e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}
+            </p>
+            <p className="meta">
+              hansung.ac.kr 수집 · {fetched} 기준 · 일정은
+              학교 사정으로 변동될 수 있습니다.
+            </p>
+            <a
+              className="link"
+              href="https://www.hansung.ac.kr/hansung/6096/subview.do"
+              target="_blank"
+              rel="noreferrer"
+            >
+              원본 페이지에서 확인 <ArrowUpRight size={16} />
+            </a>
+          </>
+        )}
+        {failed && !e && (
+          <p className="meta">
+            학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.
+          </p>
+        )}
+      </section>
+    );
+  }
+
   return (
     <>
       <section className="card pad">
@@ -56,7 +102,14 @@ export function CalendarSection({
                 <small>{Number(e.start.slice(5, 7))}월</small>
               </span>
               <div>
-                <b>{e.title}</b>
+                <b>
+                  <button
+                    className="link title-link"
+                    onClick={() => go('calendar/' + e.id)}
+                  >
+                    {e.title}
+                  </button>
+                </b>
                 <small>공식 학사일정 · {fmtRange(e.start, e.end)}</small>
               </div>
             </div>

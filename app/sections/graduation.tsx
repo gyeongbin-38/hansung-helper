@@ -13,12 +13,14 @@ export function Graduation({
   catalog,
   planned,
   persist,
+  detail,
 }: {
   data: Data;
   go: (route: string) => void;
   catalog: Catalog | null;
   planned: CourseSection[];
   persist: (next: Data, msg?: string) => Promise<boolean>;
+  detail?: string;
 }) {
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
@@ -100,6 +102,130 @@ export function Graduation({
   const pct = (r: (typeof results)[number]) =>
     r.required ? Math.min(100, Math.round((shown(r) / r.required) * 100)) : 0;
 
+  // /graduation/:id — 규정 상세: 어떤 과목이 이 규정에 잡혔는지 분해 표시
+  if (detail) {
+    const r = results.find((x) => x.rule.id === detail);
+    if (!r)
+      return (
+        <section className="card pad">
+          <button className="link" onClick={() => go('graduation')}>
+            ← 졸업요건
+          </button>
+          <h2>규정을 찾지 못했습니다.</h2>
+        </section>
+      );
+    const isPoints = r.rule.source === 'points';
+    const inGroups = (cat: string) =>
+      r.rule.groups.includes(gradGroup(cat));
+    const contrib = data.completed.filter((c) => inGroups(c.category));
+    const contribPlan = planned.filter((s) => inGroups(s.category));
+    return (
+      <>
+        <section className="card pad">
+          <button className="link" onClick={() => go('graduation')}>
+            ← 졸업요건
+          </button>
+          <div className="between">
+            <h2>{r.rule.label}</h2>
+            {r.status === 'met' ? (
+              <span className="badge green">충족</span>
+            ) : r.status === 'unknown' ? (
+              <span className="badge orange">기준 확인 필요</span>
+            ) : (
+              <span className="badge purple">진행 중</span>
+            )}
+          </div>
+          <strong>
+            {shown(r)}
+            {r.required === null
+              ? ` ${r.rule.unit ?? '학점'}`
+              : ` / ${r.required}${r.rule.unit ?? '학점'}`}
+          </strong>
+          <progress
+            className="progress-track"
+            aria-label={r.rule.label + ' 충족률'}
+            aria-valuetext={
+              r.required === null ? '기준 미확정' : `${pct(r)}%`
+            }
+            max={100}
+            value={pct(r)}
+          />
+          {r.rule.note && <p className="meta">{r.rule.note}</p>}
+          <p className="meta">
+            {r.required === null
+              ? '이 규정의 공식 필요 수량은 수집되지 않았습니다 — 학과별 세부 요건을 학교에서 확인하세요.'
+              : `공식 전역 기준(2016학번 이후) · 출처: ${GLOBAL_RULE_SOURCE.label} · 확인일 ${GLOBAL_RULE_SOURCE.asOf}`}
+          </p>
+          <label className="rule-target">
+            필요 {r.rule.unit ?? '학점'}
+            <input
+              type="number"
+              min={1}
+              max={2000}
+              defaultValue={r.required ?? ''}
+              placeholder="미확정"
+              aria-label={r.rule.label + ' 필요 수량'}
+              key={r.rule.id + ':' + (r.required ?? '')}
+              onBlur={(e) => setRequired(r.rule.id, e.target.value)}
+            />
+          </label>
+          {data.ruleOverrides[r.rule.id] !== undefined && (
+            <p className="meta">현재 입력값 기준입니다 — 공식 기준 아님.</p>
+          )}
+        </section>
+        <section className="card pad">
+          {isPoints ? (
+            <>
+              <h3>비교과 포인트</h3>
+              <p>
+                현재 입력된 누적 포인트: {data.points?.trim() || '미입력'}.
+                실제 포인트는 hsportal 마이페이지에서 확인하고 내 정보에
+                입력해 주세요.
+              </p>
+              <button className="secondary" onClick={() => go('profile')}>
+                내 정보에서 포인트 입력
+              </button>
+            </>
+          ) : (
+            <>
+              <h3>이 규정에 잡히는 과목</h3>
+              <p className="meta">
+                대상 이수구분: {r.rule.groups.join(' · ')}
+              </p>
+              {contrib.map((c, i) => (
+                <div className="event-line" key={c.code + i}>
+                  <Check />
+                  <div>
+                    <b>{c.name}</b>
+                    <small>
+                      {c.category} · {c.credits}학점 · 이수 완료
+                    </small>
+                  </div>
+                </div>
+              ))}
+              {contribPlan.map((s) => (
+                <div className="event-line" key={s.id}>
+                  <Plus />
+                  <div>
+                    <b>{s.name}</b>
+                    <small>
+                      {s.category} · {s.credits}학점 · 계획 중
+                    </small>
+                  </div>
+                </div>
+              ))}
+              {!contrib.length && !contribPlan.length && (
+                <p className="empty-small">
+                  아직 이 규정에 잡히는 과목이 없어요.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="card pad grad-intro">
@@ -153,7 +279,14 @@ export function Graduation({
         {results.map((r) => (
           <section className="card pad" key={r.rule.id}>
             <div className="between">
-              <h3>{r.rule.label}</h3>
+              <h3>
+                <button
+                  className="link title-link"
+                  onClick={() => go('graduation/' + r.rule.id)}
+                >
+                  {r.rule.label}
+                </button>
+              </h3>
               {r.status === 'met' ? (
                 <span className="badge green">충족</span>
               ) : r.status === 'unknown' ? (

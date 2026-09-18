@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import {
   conflicts,
+  courseMatch,
   DAY_SHORT,
   daySummaries,
   fmtMin,
@@ -33,7 +34,6 @@ import {
 } from '@/lib/data/catalog';
 import {
   catGroup,
-  courseMatch,
   deptMatches,
   deptPoolOf,
   recommend,

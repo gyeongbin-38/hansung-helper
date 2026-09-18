@@ -3,12 +3,13 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, BookOpen, Check, Plus, Search } from 'lucide-react';
 import {
   conflicts,
+  courseMatch,
   slotLabel,
   slotsLabel,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, courseMatch, deptMatches } from './catalog';
+import { catGroup, deptMatches } from './catalog';
 import { resolveDept } from '@/lib/data/dept';
 import type { Data } from './data';
 
@@ -341,7 +342,7 @@ export function Courses({
               </div>
               <h3>
                 <button
-                  className="link course-title"
+                  className="link title-link"
                   onClick={() => go('courses/' + s.id)}
                 >
                   {s.name}

@@ -273,4 +273,62 @@ REPO SCOUT: none needed — all three features built from existing deps.
 
 VERIFICATION STATUS: ISSUE-21, ISSUE-22, ISSUE-18 (courses/:id) await
 independent verification.
+
+---
+
+## 2026-09-18 — loop iteration 7 (test coverage + synonyms + 18-complete + 20-path)
+
+DONE:
+- Test coverage (improvement #4): extracted pure modules —
+  `searchAll` → `lib/data/search.ts`, `deriveNotifs` →
+  `lib/data/notifs.ts` (minimal structural input types, no lib→app deps),
+  `courseMatch` → `lib/data/catalog.ts` (domain function alongside
+  conflicts/gradGroup; 4 importers updated). New suites:
+  `tests/search.test.mjs` 10/10, `tests/notifs.test.mjs` 11/11 —
+  deep-link routes, synonym matching, caps, ordering, saved-first
+  deadline sort, window filters, conflict/profile/connection notifs.
+- Advisor synonyms (improvement #5): `SCHED_ALIASES` in search.ts —
+  schedule-query alias table (시험→중간·기말, 납부→등록, 휴학/복학,
+  졸업/학위, 방학/계절, 성적). Rule-based expansion, honestly scoped.
+- ISSUE-18 completed: `/graduation/:id` (rule detail — status,
+  progress, official-source vs uncollected-rule wording, override
+  editor, points-rule input guidance, contributing completed/planned
+  course breakdown; rule card titles link) and `/calendar/:id` (event
+  detail — title, range, collection date, official-page link,
+  breadcrumb; event titles link). Schedule hits in searchAll +
+  search.tsx now deep-link `calendar/<id>`; advisor course hits
+  deep-link `courses/<id>`. Shared `.title-link` class added
+  (globals.css) — replaces undefined `course-title`/`rule-link`
+  classes so heading links inherit parent title styling.
+- ISSUE-20 path confirmed: 6081 (대학·대학원) → college slugs
+  (CreCon/Design/HmnArt/LibArt/SclScn/cncschool/futureplus/global)
+  → college home navs directly expose 학과소개 + 졸업요건 links
+  (CreCon 2772/2781/2791/2800, Design 트랙졸업요건 5108/5115/5122/5124,
+  HmnArt 5596 + 예술학부 트랙별). Registry builder + 학번-column table
+  parser is the remaining work — recorded in backlog.
+- Gates all green; both repos synced (parity OK) + built.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. Fresh-session verification: ISSUE-18 전 라우트, ISSUE-21/22,
+   추출/동의어/테스트 변경분.
+2. ISSUE-20 implementation: dept↔rules-page registry (nav 순서 쌍),
+   학번-컬럼 표 파서, ruleset JSON + 엔진 연동, 미수집 unknown 유지.
+3. ISSUE-10 toolchain audit bumps.
+
+BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+hosting.json) need human/accounts. Public deployment still predates
+all of this work.
+
+TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
+6/6, activities 6/6, schedule 4/4, ux-utils 24/24, search 10/10,
+notifs 11/11, build (both repos), http-check PASS, account-db PASS,
+sync --check parity OK.
+
+REPO SCOUT: none needed — all changes built from existing deps.
+
+VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22, and
+the search/notifs extraction + synonym layer await independent
+verification.
   

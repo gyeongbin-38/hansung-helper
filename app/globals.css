@@ -249,6 +249,18 @@ small {
 .link:hover {
   color: var(--nt-link-pressed);
 }
+/* 제목 안에 넣는 링크 버튼 — 부모 제목 스타일을 물려받고 hover만 링크색 */
+.title-link {
+  font: inherit;
+  font-weight: inherit;
+  color: var(--nt-ink);
+  padding: 0;
+  text-align: left;
+}
+.title-link:hover {
+  color: var(--nt-link);
+  text-decoration: underline;
+}
 .icon {
   display: inline-flex;
   align-items: center;

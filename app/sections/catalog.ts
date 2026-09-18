@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { resolveDept } from '@/lib/data/dept';
-import { koreanMatch } from '@/lib/data/hangul';
 import {
   conflicts,
   type Catalog,
@@ -123,10 +122,6 @@ export function deptPoolOf(
   if (r.dept) return [r.dept];
   if (r.candidates) return r.candidates;
   return null;
-}
-
-export function courseMatch(s: CourseSection, q: string) {
-  return koreanMatch(`${s.name} ${s.professor} ${s.code} ${s.dept}`, q);
 }
 
 export type Rec = { section: CourseSection; score: number; reasons: string[] };

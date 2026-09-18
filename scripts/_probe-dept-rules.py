@@ -10,25 +10,18 @@ def get(u):
     req = urllib.request.Request(u, headers=UA)
     return urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='replace')
 
-# 대학·대학원 페이지에서 학과 사이트 링크 탐색
-for u in [
-    'https://www.hansung.ac.kr/hansung/6081/subview.do',
-    'https://enter.hansung.ac.kr/',
-]:
+# 단과대학 슬러그 홈페이지에서 학과 링크 + 졸업요건 링크 탐색
+for slug in ['CreCon', 'Design', 'HmnArt', 'LibArt', 'SclScn', 'cncschool', 'futureplus', 'global']:
+    u = f'https://www.hansung.ac.kr/{slug}/index.do'
     try:
         html = get(u)
-        print('===', u, len(html))
-        links = re.findall(r'href="([^"]+)"[^>]*>([^<]{0,50})', html)
-        deptish = [
-            (h, re.sub(r'\s+', ' ', l).strip())
-            for h, l in links
-            if re.search(r'학과|학부|전공|트랙', l) and re.search(r'subview|index|[A-Z]{2,}', h)
-        ]
+        print('===', slug, len(html))
+        links = re.findall(r'<a[^>]+href="([^"]+)"[^>]*>([\s\S]{0,60}?)</a>', html)
         seen = set()
-        for h, l in deptish[:60]:
-            if h in seen:
-                continue
-            seen.add(h)
-            print('  ', h[:90], '|', l[:40])
+        for href, lab in links:
+            t = re.sub(r'<[^>]+>|\s+', ' ', lab).strip()
+            if re.search(r'학과|학부|전공|졸업', t) and len(t) < 40 and (href, t) not in seen:
+                seen.add((href, t))
+                print('  ', href[:90], '|', t)
     except Exception as e:
-        print('===', u, 'FAIL', e)
+        print('===', slug, 'FAIL', type(e).__name__, str(e)[:60])

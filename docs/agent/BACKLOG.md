@@ -346,8 +346,7 @@ blocking regressions.
 
 ## ISSUE-18 — 상세 라우트 부재 (spec §6)
 
-- **Status**: partially implemented — `/courses/:id` **needs-verification**;
-  `/graduation/:id`, `/calendar/:id` backlog 잔여
+- **Status**: implemented — **needs-verification** (전 라우트)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: `/courses/:id`, `/graduation/:id`, `/calendar/:id` 상세
   라우트 없음(activities/:id만 존재). 브레드크럼 포함.
@@ -358,6 +357,19 @@ blocking regressions.
   분반 목록(시간·교수·강의실·담기 + 현재 분반 계획 중이면 swap 교체),
   시간표 이동 링크, 학기/출처/비공식 수강신청 고지. 목록·통합검색의 과목명
   클릭 → 상세 라우트. page.tsx에 swap/detail/go 전달.
+- **Done (2026-09-18 이터레이션 7)**: `/graduation/:id` — 규정 상세
+  (상태·진행률·공식 출처/미수집 고지·override 편집·포인트 규정은 입력
+  안내), 규정에 잡히는 이수/계획 과목 분해 목록; 규정 카드 제목 링크.
+  `/calendar/:id` — 공식 일정 상세(제목·기간·수집일·원본 링크·브레드
+  크럼), 일정 제목 링크. 검색/advisor 일정 히트도 `calendar/<id>`
+  딥링크로 변경. 제목-링크 공용 클래스 `.title-link` 추가(globals.css).
+- **Logic extraction**: `searchAll`→`lib/data/search.ts`,
+  `deriveNotifs`→`lib/data/notifs.ts`, `courseMatch`→`lib/data/catalog.ts`
+  (순수 모듈로 이동 — 테스트 가능). 새 테스트 `tests/search.test.mjs`
+  (10건) + `tests/notifs.test.mjs` (11건).
+- **Advisor synonym layer**: `SCHED_ALIASES` — 학사일정 질의 동의어
+  (시험→중간·기말, 납부→등록, 휴학/복학, 졸업/학위, 방학/계절, 성적).
+  규칙 기반 확장으로 명시, 의미 검색 사칭 없음.
 
 ## ISSUE-19 — 전체 검색 범위 확대
 
@@ -398,13 +410,22 @@ blocking regressions.
   커버, 나머지는 미수집으로 명시.
 - **Exploration findings (2026-09-18)**: `www.hansung.ac.kr/CSE/1564/
   subview.do` — 실제 학번-컬럼 규정 표 확인 (총학점·캡스톤·트랙수·산학
-  요건 × ~15/16/17~23/24~학번), UTF-8 서버렌더링. 그러나 학과 발견
-  경로가 장애물: 단과대 인덱스(6082~6088)는 사이트 nav만 반복해 학과
-  링크 없음, `/hansung/6081/subview.do`(대학·대학원, ~140KB)가 학과
-  디렉터리 후보이나 링크 구조 추가 파싱 필요. 학과 slug(예: CSE)와
-  각 학과 졸업요건 subview id는 학과마다 상이 — 학과 홈페이지 nav
-  크롤 또는 수동 레지스트리 필요. 탐색 스크립트 `scripts/_probe-
-  dept-rules.py` 보관(root-local, sync 제외).
+  요건 × ~15/16/17~23/24~학번), UTF-8 서버렌더링.
+- **Discovery path confirmed (2026-09-18 이터레이션 7)**: 6081
+  (대학·대학원) → 단과대 슬러그 (`/CreCon`, `/Design`, `/HmnArt`,
+  `/LibArt`, `/SclScn`, `/cncschool`, `/futureplus`, `/global`)
+  → 각 단과대 홈 nav에 학과소개 + 졸업요건 링크 직접 노출 확인:
+  CreCon — 상상력인재학부(2772), 문학문화콘텐츠학과(2781),
+  AI응용학과(2791), 융합보안학과(2800); Design — 글로벌패션산업학부
+  트랙졸업요건(5108/5115/5122), ICT디자인학부(5124); HmnArt —
+  크리에이티브인문학부(5596), 예술학부 트랙별(5667/5674/5681 등);
+  futureplus — 학과소개 링크만 확인(졸업요건은 하위 페이지 탐색 필요).
+  LibArt는 교양학부(규정 없음). SclScn/cncschool/global은 nav 라벨
+  미매칭 — 추가 파싱 필요.
+- **Next step**: 학과↔졸업요건 페이지 쌍을 nav 순서(학과소개 뒤
+  졸업요건)로 연결하는 레지스트리 빌더 → 각 규정 페이지의 학번-컬럼
+  표 파서 → ruleset JSON + 엔진 연동. 미수집 학과 unknown 유지.
+  탐색 스크립트 `scripts/_probe-dept-rules.py` (root-local, sync 제외).
 
 ## ISSUE-21 — advisor 자유질문에 학사일정 검색 포함
 
@@ -418,9 +439,10 @@ blocking regressions.
   `koreanMatch(e.title, q)` 매칭, 결과는 `route: 'calendar'` +
   `공식 학사일정 · 시작일[~종료일]` 부제. advisor 컴포넌트가
   `useSchedule()` 호출해 `sched?.items` 전달.
-- **Known limitation**: 제목 문자열 매칭만 — "수강신청 언제"는 제목에
-  '수강신청'이 포함된 이벤트만 매칭. 의미 매칭(동의어/날짜 질의)은
-  없으며 AI 사칭 없이 검색 결과로만 응답.
+- **Known limitation**: 제목 문자열 매칭 + 규칙 기반 동의어 확장
+  (이터레이션 7의 `SCHED_ALIASES`) — 의미 검색은 아니며 AI 사칭 없이
+  검색 결과로만 응답. 과목 히트는 이터레이션 7부터 `courses/<id>`
+  딥링크.
 
 ## ISSUE-22 — 저장한 활동 우선 마감 알림
 

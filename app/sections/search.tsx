@@ -2,10 +2,10 @@
 import { BookOpen, CalendarDays, Compass, Plus, SearchX, Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Catalog } from '@/lib/data/catalog';
-import { courseMatch, useActivities, useSchedule } from './catalog';
+import { useActivities, useSchedule } from './catalog';
 import { activityMatch } from '@/lib/data/activities';
 import { koreanMatch } from '@/lib/data/hangul';
-import { slotsLabel } from '@/lib/data/catalog';
+import { courseMatch, slotsLabel } from '@/lib/data/catalog';
 
 const CAP = 8;
 
@@ -146,9 +146,9 @@ export function SearchResults({
               </div>
               <button
                 className="secondary"
-                onClick={() => go('calendar')}
+                onClick={() => go('calendar/' + e.id)}
               >
-                일정
+                자세히
               </button>
             </div>
           ))}

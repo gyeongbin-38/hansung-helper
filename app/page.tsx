@@ -21,7 +21,8 @@ import { SemesterPlan } from './sections/semester-plan';
 import { Timetable } from './sections/timetable';
 import { CalendarSection } from './sections/calendar';
 import { Advisor } from './sections/advisor';
-import { Notifications, deriveNotifs } from './sections/notifications';
+import { Notifications } from './sections/notifications';
+import { deriveNotifs } from '@/lib/data/notifs';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
@@ -341,6 +342,7 @@ export default function App() {
               catalog={catalog}
               planned={planned}
               persist={persist}
+              detail={detail}
             />
           ) : section === 'courses' ? (
             <Courses
@@ -371,7 +373,12 @@ export default function App() {
               notify={setToast}
             />
           ) : section === 'calendar' ? (
-            <CalendarSection data={data} persist={persist} />
+            <CalendarSection
+              data={data}
+              persist={persist}
+              detail={detail}
+              go={go}
+            />
           ) : section === 'advisor' ? (
             <Advisor
               data={data}
