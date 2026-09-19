@@ -688,3 +688,42 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: waitUntil 비동기 수집 + 직렬화 수집이 프로덕션
 실계정에서 검증됨. ISSUE-21/22는 여전히 fresh-session 독립 검증 필요.
+
+---
+
+## 2026-09-19 — LMS 실데이터 활용 + 알림 패널 (user-requested 자율)
+
+DONE:
+- 홈 "이번 주 수업" 위젯(home.tsx): `dueSoon(data.lms, now, 7)` 상위 4건을
+  D-day 칩 + COSMOS 딥링크로 표시. 마감 없으면 미완료 건수 안내,
+  `pendingTasks` 0이면 섹션 미렌더. 하단 "학습 일정" 카드도 LMS 데이터
+  유무 분기로 갱신(미수집 안내문 제거).
+- 캘린더 "수업 마감" 병합(calendar.tsx): `dueSoon(lms, now, 14)` 최대
+  8건을 공식 일정 아래 수업 카테고리로 표시 — COSMOS 수집일·과목·kind
+  병기, data.lms 없으면 미렌더.
+- 알림 슬라이드오버(spec §8): 벨 클릭이 페이지 이동 대신 우측
+  `<dialog>` 패널 — 분류 칩 필터(aria-pressed), 읽지 않음 카운트,
+  모두 읽음, 항목 이동 시 패널 닫힘, Esc/스크림 닫기, 전체 알림함 링크.
+  Topbar에 `onBell` prop 추가, page.tsx가 notifItems를 한 번만 도출해
+  배지·패널이 공유. `.notif-panel` CSS — `<dialog>` UA 스타일 리셋 +
+  축소 애니메이션(reduced-motion 대응).
+- `NotifRow`로 알림 행 마크업 공용화(알림함 페이지·패널 동일 사용).
+- 재배포: version d5f85822 라이브.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, BE-3 D1 이관,
+   토스트 큐, 수강 과목→시간표 연동, 에러 재시도 표준화 등
+   (사용자 리스트업 문서의 A/B/C/D 항목).
+2. needs-verification 큐는 fresh-session 독립 검증 필요.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(lms-server 40/40, search 14/14, notifs 11/11), root+deploy 빌드 green.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트 수준 — 실기기
+시각 확인은 미수행. 기존 검증 라벨 상태 불변.

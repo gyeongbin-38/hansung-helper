@@ -297,6 +297,94 @@ footer {
   height: 26px;
   flex-shrink: 0;
 }
+/* ---- notification slide-over panel ---- */
+.notif-scrim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--nt-navy) 40%, transparent);
+  z-index: 30;
+  padding: 0;
+}
+.notif-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: min(420px, 100%);
+  max-width: none;
+  max-height: none;
+  height: auto;
+  margin: 0;
+  background: var(--nt-canvas);
+  border: 0;
+  border-left: 1px solid var(--nt-hairline);
+  box-shadow: var(--nt-shadow-modal);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+  color: var(--nt-ink);
+}
+.notif-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.notif-panel-head > div {
+  flex: 1;
+}
+.notif-panel-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.notif-panel-head small {
+  color: var(--nt-stone);
+}
+.notif-panel-head .secondary {
+  font-size: 13px;
+  padding: 7px 11px;
+}
+.notif-panel .notif-cats {
+  margin-top: 12px;
+}
+.notif-panel .notif-cats .badge {
+  border: 1px solid var(--nt-hairline);
+  background: var(--nt-surface);
+}
+.notif-panel .notif-cats .badge.sel {
+  background: var(--nt-tint-lavender);
+  color: var(--nt-purple-800);
+  border-color: color-mix(in srgb, var(--nt-purple-800) 20%, transparent);
+}
+.notif-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 14px -20px 0;
+  padding: 0 20px;
+}
+.notif-panel-list .notif-list {
+  margin-top: 0;
+}
+.notif-panel .notif-item {
+  padding: 14px 12px;
+  gap: 10px;
+}
+.notif-panel .notif-ico {
+  width: 32px;
+  height: 32px;
+}
+.notif-panel .notif-empty {
+  margin-top: 0;
+}
+.notif-panel-foot {
+  margin-top: 12px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 /* ---- cookie banner ---- */
 .cookie {
   position: fixed;
@@ -332,11 +420,28 @@ footer {
   .toast {
     animation: nt-toast-in 0.28s var(--nt-ease);
   }
+  .notif-panel {
+    animation: nt-panel-in 0.24s var(--nt-ease);
+  }
+  .notif-scrim {
+    animation: nt-fade-in 0.2s ease;
+  }
 }
 @keyframes nt-toast-in {
   from {
     opacity: 0;
     transform: translateY(-6px);
+  }
+}
+@keyframes nt-panel-in {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+}
+@keyframes nt-fade-in {
+  from {
+    opacity: 0;
   }
 }
 @media (max-width: 1199px) {

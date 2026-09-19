@@ -101,6 +101,7 @@ export function Topbar({
   unread,
   onMenu,
   onSearch,
+  onBell,
 }: {
   query: string;
   setQuery: (value: string) => void;
@@ -109,6 +110,7 @@ export function Topbar({
   unread: number;
   onMenu: () => void;
   onSearch: () => void;
+  onBell: () => void;
 }) {
   return (
     <header className="topbar">
@@ -139,9 +141,10 @@ export function Topbar({
       <button
         className="icon notification"
         aria-label={
-          unread ? `알림함 — 읽지 않은 알림 ${unread}개` : '알림함'
+          unread ? `알림 — 읽지 않은 알림 ${unread}개` : '알림'
         }
-        onClick={() => go('notifications')}
+        aria-haspopup="dialog"
+        onClick={onBell}
       >
         <Bell size={20} />
         {unread > 0 && <i aria-hidden="true" />}

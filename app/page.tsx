@@ -22,7 +22,7 @@ import { Timetable } from './sections/timetable';
 import { CalendarSection } from './sections/calendar';
 import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
-import { Notifications } from './sections/notifications';
+import { Notifications, NotifPanel } from './sections/notifications';
 import { deriveNotifs } from '@/lib/data/notifs';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
@@ -50,6 +50,7 @@ export default function App() {
     [query, setQuery] = useState(''),
     [toast, setToast] = useState(''),
     [survey, setSurvey] = useState(false),
+    [notifOpen, setNotifOpen] = useState(false),
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
@@ -261,14 +262,17 @@ export default function App() {
     planned = (catalog?.sections ?? []).filter((s) =>
       data.planned.includes(s.id),
     );
-  const unread = deriveNotifs({
+  const notifItems = deriveNotifs({
     account,
     data,
     planned,
     acts: actsSnap,
     sched: schedSnap,
     now: notifNow,
-  }).filter((n) => !(data.readIds ?? []).includes(n.id)).length;
+  });
+  const unread = notifItems.filter(
+    (n) => !(data.readIds ?? []).includes(n.id),
+  ).length;
   const label =
     menus.find((m) => m[0] === section)?.[1] ||
     (
@@ -357,6 +361,7 @@ export default function App() {
           unread={unread}
           onMenu={() => setDrawer(true)}
           onSearch={() => go('search')}
+          onBell={() => setNotifOpen(true)}
         />
         <main>
           <PageHeading
@@ -485,6 +490,19 @@ export default function App() {
           </footer>
         </main>
       </div>
+      <NotifPanel
+        items={notifItems}
+        readIds={data.readIds ?? []}
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        onMarkAll={() =>
+          void persist(
+            { ...data, readIds: notifItems.map((i) => i.id) },
+            '알림을 읽음으로 표시했습니다.',
+          )
+        }
+        go={go}
+      />
       <Toast toast={toast} onClose={() => setToast('')} />
       {ready && !account && !data.consent && (
         <CookieBanner

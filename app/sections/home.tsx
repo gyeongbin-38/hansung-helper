@@ -13,6 +13,7 @@ import {
 import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { conflicts, type CourseSection } from '@/lib/data/catalog';
+import { dueSoon, pendingTasks } from '@/lib/data/lms';
 import { useActivities, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
@@ -31,7 +32,11 @@ export function Home({
   const { snap: sched } = useSchedule();
   const { snap: acts } = useActivities();
   const [slide, setSlide] = useState(0);
+  const [now] = useState(() => Date.now());
   const today = new Date().toISOString().slice(0, 10);
+  const lmsSnap = data.lms;
+  const lmsDue = lmsSnap ? dueSoon(lmsSnap, now, 7) : [];
+  const lmsPending = lmsSnap ? pendingTasks(lmsSnap).length : 0;
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
   const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
   const slides = (acts?.items ?? [])
@@ -216,6 +221,60 @@ export function Home({
           <p className="meta">{account.snapshot.courseScope}</p>
         </section>
       )}
+      {lmsSnap && (lmsDue.length > 0 || lmsPending > 0) && (
+        <section>
+          <div className="section-heading">
+            <h2>
+              이번 주 수업 <span className="count">{lmsDue.length}</span>
+            </h2>
+            <button className="link" onClick={() => go('lms')}>
+              수업 현황 <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="card pad week-list">
+            {lmsDue.slice(0, 4).map((t, i) => {
+              const dd = Math.ceil((t.dueTs - now) / 86400000);
+              return (
+                <div className="event-line" key={i}>
+                  <span className="event-date">
+                    <b>{dd <= 0 ? '지남' : `D-${dd}`}</b>
+                    <small>{t.kind}</small>
+                  </span>
+                  <div>
+                    <b>
+                      {t.url ? (
+                        <a
+                          className="link title-link"
+                          href={t.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {t.title}
+                        </a>
+                      ) : (
+                        t.title
+                      )}
+                    </b>
+                    <small>{t.course}</small>
+                  </div>
+                </div>
+              );
+            })}
+            {!lmsDue.length && (
+              <p className="meta">
+                7일 이내 마감은 없어요. 미완료 항목 {lmsPending}건이 남아
+                있어요.
+              </p>
+            )}
+            {lmsDue.length > 4 && (
+              <p className="meta">외 {lmsDue.length - 4}건 — 수업 현황에서 확인</p>
+            )}
+            <p className="meta">
+              COSMOS {lmsSnap.fetchedAt.slice(0, 10)} 수집 기준
+            </p>
+          </div>
+        </section>
+      )}
       <section>
         <div className="section-heading">
           <h2>
@@ -332,18 +391,27 @@ export function Home({
         <section className="card pad">
           <span className="badge">학습 일정</span>
           <h2>수업의 흐름도 놓치지 않도록</h2>
-          <p>
-            강의 목록과 별개로 과제·출석 정보는 아직 수집하지 않습니다. 학교
-            학습 시스템에서 확인해 주세요.
-          </p>
-          <a
-            className="link"
-            href="https://learn.hansung.ac.kr/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            한성 e-Class 열기 <ArrowUpRight size={16} />
-          </a>
+          {lmsSnap ? (
+            <>
+              <p>
+                COSMOS에서 확인한 수업 {lmsSnap.courses.length}개 과목의 강의
+                수강·과제·퀴즈 현황을 수업 현황에서 볼 수 있어요.
+              </p>
+              <button className="link" onClick={() => go('lms')}>
+                수업 현황 열기 <ArrowUpRight size={16} />
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                COSMOS 수업 현황을 가져오면 강의 수강·과제·퀴즈 마감을 여기서
+                확인할 수 있어요.
+              </p>
+              <button className="link" onClick={() => go('lms')}>
+                수업 현황 가져오기 <ArrowUpRight size={16} />
+              </button>
+            </>
+          )}
         </section>
       </div>
     </>

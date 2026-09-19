@@ -1,6 +1,8 @@
 'use client';
-import { CalendarDays, ArrowUpRight, Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarDays, ArrowRight, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { Data } from './data';
+import { dueSoon } from '@/lib/data/lms';
 import { useSchedule } from './catalog';
 import { SkeletonRows } from './skeleton';
 
@@ -19,10 +21,13 @@ export function CalendarSection({
   go: (route: string) => void;
 }) {
   const { snap, failed } = useSchedule();
+  const [now] = useState(() => Date.now());
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (snap?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 12);
+  // COSMOS 수업 마감 — 14일 이내 미완료 항목을 학사일정 아래에 병합 표시
+  const lmsDue = data.lms ? dueSoon(data.lms, now, 14).slice(0, 8) : [];
 
   // /calendar/:id — 공식 학사일정 상세
   if (detail) {
@@ -117,6 +122,59 @@ export function CalendarSection({
           ))}
         </div>
       </section>
+      {data.lms && (
+        <section className="card pad">
+          <div className="between">
+            <h2>수업 마감</h2>
+            <button className="link" onClick={() => go('lms')}>
+              수업 현황 <ArrowRight size={16} />
+            </button>
+          </div>
+          <p className="meta">
+            COSMOS 수집 {data.lms.fetchedAt.slice(0, 10)} 기준 · 미제출
+            과제·미응시 퀴즈·미수강 강의의 마감입니다.
+          </p>
+          {lmsDue.length ? (
+            <div className="events">
+              {lmsDue.map((t, i) => {
+                const d = new Date(t.dueTs);
+                return (
+                  <div className="event-line" key={i}>
+                    <span className="event-date" title={t.due ?? ''}>
+                      <b>{d.getDate()}</b>
+                      <small>{d.getMonth() + 1}월</small>
+                    </span>
+                    <div>
+                      <b>
+                        {t.url ? (
+                          <a
+                            className="link title-link"
+                            href={t.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t.title}
+                          </a>
+                        ) : (
+                          t.title
+                        )}
+                      </b>
+                      <small>
+                        {t.kind} · {t.course} ·{' '}
+                        {t.dueTs < now
+                          ? '마감 지남'
+                          : `D-${Math.ceil((t.dueTs - now) / 86400000)}`}
+                      </small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="meta">14일 이내 마감되는 수업 항목이 없습니다.</p>
+          )}
+        </section>
+      )}
       <section className="card pad">
         <div className="between">
           <h2>나의 일정</h2>
