@@ -491,7 +491,13 @@ export function Timetable({
           lms={data.lms}
           catalog={catalog}
           planned={planned}
-          onFilter={setQ}
+          onFilter={(name) => {
+            setQ(name);
+            setDept('전체');
+            setCat('전체');
+            setDay('');
+            setBand('전체');
+          }}
         />
       )}
       <DndContext

@@ -126,6 +126,15 @@ const catalog = {
     mkSection('b1', '데이터베이스'),
   ],
 };
+const catalog2 = {
+  ...catalog,
+  sections: [
+    ...catalog.sections,
+    mkSection('c1', '알고리즘'),
+    mkSection('c2', '알고리즘', { section: '02' }),
+    mkSection('d1', '자료구조및실습'),
+  ],
+};
 const lmsMatch = {
   source: 'cosmos-lms', fetchedAt: 'x',
   courses: [
@@ -133,13 +142,21 @@ const lmsMatch = {
     { id: '2', title: '[2026-2학기] 데이터베이스(01분반)', vods: [], assigns: [], quizzes: [] },
     { id: '3', title: '카탈로그에없는과목', vods: [], assigns: [], quizzes: [] },
     { id: '4', title: '캡스톤 커뮤니티', community: true, vods: [], assigns: [], quizzes: [] },
+    // 실제 COSMOS fullname 형식
+    { id: '5', title: '교과(오프라인) 학부 알고리즘[A] 이지은', vods: [], assigns: [], quizzes: [] },
+    { id: '6', title: '교과(오프라인) 학부 자료구조및실습[A,B] 김철수', vods: [], assigns: [], quizzes: [] },
+    { id: '7', title: '교과(온라인) 학부 머신러닝[B] 지준', vods: [], assigns: [], quizzes: [] },
+    { id: '8', title: '커뮤니티 HSU AI 활용 윤리 지침 신상희 / 오현준', community: true, vods: [], assigns: [], quizzes: [] },
   ],
 };
-const em = matchEnrollment(lmsMatch, catalog);
+const em = matchEnrollment(lmsMatch, catalog2);
 t('match: 정확한 이름 매칭', em[0].sections.length === 2);
 t('match: 장식 제거 매칭', em[1].sections.length === 1 && em[1].sections[0].id === 'b1');
 t('match: 매칭 없음 빈 배열', em[2].sections.length === 0);
-t('match: 모든 과목 반환', em.length === 4);
+t('match: 모든 과목 반환', em.length === 8);
+t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
+t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
+t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
 
 // ── pendingTasks ────────────────────────────────────────────
 const pend = pendingTasks(snap);

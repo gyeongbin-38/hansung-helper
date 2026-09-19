@@ -219,8 +219,22 @@ const normTitle = (s: string) =>
     .replace(/\s+/g, '')
     .toLowerCase();
 
+/** LMS 강의명에서 카테고리·분반·교수 장식을 벗긴 과목 후보 키.
+ *  실제 fullname 형식: "교과(오프라인) 학부 알고리즘[A] 이지은" */
+const lmsKey = (title: string) =>
+  normTitle(
+    title
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(
+        /(^|\s)(교과|비교과|커뮤니티|학부|대학원|대학|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g,
+        ' ',
+      ),
+  );
+
 /** LMS 수강 과목 ↔ 개설강의 카탈로그 이름 매칭 — 수강 정보를 지어내지 않고
- *  이름이 일치하는 분반만 반환한다(매칭 없으면 빈 배열). */
+ *  이름이 일치하는 분반만 반환한다(매칭 없으면 빈 배열).
+ *  카탈로그 과목명이 LMS 제목의 접두어인 경우 매칭으로 보고, 여러 이름이
+ *  겹치면 가장 구체적인(가장 긴) 이름의 분반만 반환한다. */
 export function matchEnrollment(
   lms: LmsSnapshot,
   catalog: Catalog,
@@ -233,10 +247,15 @@ export function matchEnrollment(
     arr.push(s);
     byName.set(k, arr);
   }
-  return lms.courses.map((course) => ({
-    course,
-    sections: byName.get(normTitle(course.title)) ?? [],
-  }));
+  return lms.courses.map((course) => {
+    const key = lmsKey(course.title);
+    if (!key) return { course, sections: [] };
+    let best = '';
+    for (const name of byName.keys()) {
+      if (key.startsWith(name) && name.length > best.length) best = name;
+    }
+    return { course, sections: best ? byName.get(best)! : [] };
+  });
 }
 
 /** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외 */
