@@ -1,11 +1,12 @@
 'use client';
-import { BookOpen, CalendarDays, Compass, Plus, SearchX, Check } from 'lucide-react';
+import { BookOpen, CalendarDays, Compass, MonitorPlay, Plus, SearchX, Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Catalog } from '@/lib/data/catalog';
 import { useActivities, useSchedule } from './catalog';
 import { activityMatch } from '@/lib/data/activities';
 import { koreanMatch } from '@/lib/data/hangul';
 import { courseMatch, slotsLabel, type CourseSection } from '@/lib/data/catalog';
+import { lmsTaskSearch, type SearchHit } from '@/lib/data/search';
 import { planBlockReason } from './catalog';
 
 const CAP = 8;
@@ -42,7 +43,27 @@ export function SearchResults({
         .filter((e) => koreanMatch(e.title, q))
         .slice(0, CAP)
     : [];
-  const nothing = q && !courses.length && !activities.length && !events.length;
+  // COSMOS 수업 현황 — 개별 과제·퀴즈·강의 항목 + 과목 제목 매칭
+  const lmsHits: SearchHit[] = q
+    ? [
+        ...lmsTaskSearch(data.lms?.courses ?? [], q),
+        ...(data.lms?.courses ?? [])
+          .filter((c) => koreanMatch(c.title, q))
+          .map(
+            (c): SearchHit => ({
+              label: c.title,
+              route: 'lms/' + c.id,
+              sub: `COSMOS 수업 현황 · 수강 중${c.prof ? ` · ${c.prof}` : ''}`,
+            }),
+          ),
+      ].slice(0, CAP)
+    : [];
+  const nothing =
+    q &&
+    !courses.length &&
+    !activities.length &&
+    !events.length &&
+    !lmsHits.length;
   const plannedSecs = (catalog?.sections ?? []).filter((s) =>
     data.planned.includes(s.id),
   );
@@ -67,9 +88,12 @@ export function SearchResults({
               {courses.length === CAP ? '+' : ''} · 활동 {activities.length}
               {activities.length === CAP ? '+' : ''} · 학사일정 {events.length}
               {events.length === CAP ? '+' : ''}
+              {data.lms
+                ? ` · 수업 현황 ${lmsHits.length}${lmsHits.length === CAP ? '+' : ''}`
+                : ''}
             </>
           ) : (
-            '검색어를 입력하면 과목·활동·학사일정을 함께 찾습니다.'
+            '검색어를 입력하면 과목·활동·학사일정·수업 현황을 함께 찾습니다.'
           )}
         </p>
       </section>
@@ -162,6 +186,28 @@ export function SearchResults({
               <button
                 className="secondary"
                 onClick={() => go('calendar/' + e.id)}
+              >
+                자세히
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+      {lmsHits.length > 0 && (
+        <section className="card pad">
+          <h3>
+            <MonitorPlay size={17} /> 수업 현황
+          </h3>
+          {lmsHits.map((h, i) => (
+            <div className="event-line" key={h.route + h.label + i}>
+              <MonitorPlay />
+              <div>
+                <b>{h.label}</b>
+                <small>{h.sub}</small>
+              </div>
+              <button
+                className="secondary"
+                onClick={() => go(h.route)}
               >
                 자세히
               </button>

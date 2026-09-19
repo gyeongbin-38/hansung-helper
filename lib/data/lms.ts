@@ -196,7 +196,8 @@ export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
   return out;
 }
 
-const parseDue = (due: string | null): number | null => {
+/** 'YYYY-MM-DD HH:mm' 또는 범위 'a ~ b'의 마감(끝) 시각 — 파싱 불가면 null */
+export const parseDue = (due: string | null): number | null => {
   if (!due) return null;
   // 'YYYY-MM-DD HH:mm' — range 'a ~ b' 형태면 끝(마감) 쪽 날짜가 매칭됨
   const m = due.match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?\s*$/);

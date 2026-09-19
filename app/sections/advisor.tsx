@@ -10,6 +10,7 @@ import {
 } from '@/lib/data/catalog';
 import type { Activity } from '@/lib/data/activities';
 import { searchAll, type SearchHit } from '@/lib/data/search';
+import { dueSoon, pendingTasks } from '@/lib/data/lms';
 
 function planAnswer(data: Data, planned: CourseSection[]) {
   if (!planned.length)
@@ -35,6 +36,29 @@ function gradAnswer(data: Data) {
   if (missing.length)
     return `졸업 판정에 필요한 정보가 비어 있습니다: ${missing.join(', ')}. 내 정보에서 입력하면 졸업요건 화면이 계산을 시작합니다. 적용 규정 자체는 학교 종합정보시스템에서 확인하세요.`;
   return '입력된 이수 정보를 바탕으로 졸업요건 화면에서 진행률을 계산 중입니다. 적용 규정은 학과·입학연도별로 달라질 수 있으니 공식 규정도 함께 확인하세요.';
+}
+
+/** COSMOS 수집 스냅샷 기준 이번 주 마감 요약 — 수집 시점 데이터임을 명시한다 */
+function weekAnswer(data: Data) {
+  const snap = data.lms;
+  if (!snap)
+    return 'COSMOS 수업 현황이 없어 이번 주 마감을 모을 수 없습니다. 수업 현황 화면에서 연결하면 강의·과제·퀴즈 마감을 한 번에 보여드립니다.';
+  const due = dueSoon(snap, Date.now(), 7);
+  const uncertain = pendingTasks(snap).filter((t) => t.uncertain).length;
+  const suffix = uncertain
+    ? ` 응시 여부를 확인하지 못한 퀴즈 ${uncertain}건은 COSMOS에서 직접 확인해 보세요.`
+    : '';
+  if (!due.length)
+    return `이번 주 안에 마감하는 강의·과제·퀴즈가 없습니다. (${snap.fetchedAt ? snap.fetchedAt.slice(0, 10) : '수집일 미상'} 수집 기준)` + suffix;
+  const top = due
+    .slice(0, 5)
+    .map((t) => `${t.course} ${t.kind} "${t.title}"(${t.due ?? '마감 미기재'})`)
+    .join(' / ');
+  return (
+    `이번 주 마감 ${due.length}건 — ${top}${due.length > 5 ? ` 외 ${due.length - 5}건` : ''}. ` +
+    `수집일 ${snap.fetchedAt ? snap.fetchedAt.slice(0, 10) : '미상'} 기준이며, 전체 목록은 수업 현황에서 확인하세요.` +
+    suffix
+  );
 }
 
 function actAnswer(items: Activity[] | null, failed: boolean) {
@@ -73,7 +97,9 @@ export function Advisor({
         ? gradAnswer(data)
         : kind === 'plan'
           ? planAnswer(data, planned)
-          : actAnswer(snap?.items ?? null, actsFailed),
+          : kind === 'week'
+            ? weekAnswer(data)
+            : actAnswer(snap?.items ?? null, actsFailed),
     );
   };
 
@@ -91,7 +117,7 @@ export function Advisor({
     setAnswer(
       found.length
         ? `'${query}' 관련 항목을 ${found.length}개 찾았습니다.`
-        : `'${query}'에 맞는 과목·활동·학사일정을 찾지 못했습니다. 다른 키워드로 검색해 보세요.`,
+        : `'${query}'에 맞는 과목·활동·학사일정·수업 항목을 찾지 못했습니다. 다른 키워드로 검색해 보세요.`,
     );
   };
 
@@ -110,6 +136,7 @@ export function Advisor({
         {[
           ['졸업요건은 어디서 확인해?', 'grad'],
           ['다음 학기 계획을 세우고 싶어', 'plan'],
+          ['이번 주에 뭐 해야 해?', 'week'],
           ['비교과 활동을 찾고 싶어', 'act'],
         ].map(([label, kind]) => (
           <button
@@ -130,7 +157,7 @@ export function Advisor({
       >
         <input
           className="field"
-          placeholder="과목명·활동 키워드로 물어보기 (예: 튜터링, 취업)"
+          placeholder="묻고 싶은 것을 입력 (예: 튜터링, 알고리즘 과제 언제까지)"
           aria-label="자유 질문"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -145,8 +172,8 @@ export function Advisor({
           <p>{answer}</p>
           {hits.length > 0 && (
             <ul className="answer-hits">
-              {hits.map((h) => (
-                <li key={h.label + h.route}>
+              {hits.map((h, i) => (
+                <li key={h.label + h.route + i}>
                   <button className="link" onClick={() => go(h.route)}>
                     {h.label}
                   </button>

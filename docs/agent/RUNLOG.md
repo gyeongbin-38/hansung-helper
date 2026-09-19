@@ -1155,3 +1155,48 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: 단위 테스트·빌드·배포 검증 완료. UI 동작
 (필터 버튼, 토스트, 하이라이트)의 실계정 브라우저 확인은 미수행.
+
+---
+
+## 2026-09-19 — LMS 과제·마감 검색 + advisor 이번 주 마감 (감사 후속)
+
+DONE:
+- **`lib/data/search.ts`**: `lmsTaskSearch()` 신규 — LMS 개별
+  항목(강의·과제·퀴즈)을 자유질문에서 검색. 종류어 필터
+  (과제/숙제, 퀴즈/쪽지시험, 강의/동영상/vod/수업), 토큰 끝 질문
+  어미·조사 제거('알고리즘은'→'알고리즘', '언제까지'→drop, 1자 잔여는
+  과도 절단으로 보고 원형 유지), 마감 의도어(마감/데드라인/기한/제출)
+  = 종류 무관 전 항목. 미완료→마감(범위면 끝)순 정렬, 상태는
+  완료/미완료/응시 여부 확인 실패로 구분 표기. 결과는 `lms/{id}` 딥링크.
+- **`searchAll`**: LMS 블록을 개별 항목(cap 10) → 과목 제목(cap 12)
+  순으로 확장. 과목 hit도 `lms/{id}`로.
+- **`lms.tsx`**: `LmsSection`에 `detail` prop — CourseCard에
+  `id="lms-c-{id}"` + forceOpen, useEffect로 scrollIntoView.
+- **`search.tsx`**: 글로벌 검색에 '수업 현황' 그룹 추가(과제·퀴즈·
+  강의 항목 + 과목, cap 8) — 이전엔 LMS를 아예 검색하지 않았음.
+- **`advisor.tsx`**: "이번 주에 뭐 해야 해?" 칩 — `dueSoon`(7일)으로
+  마감 요약 + uncertain 퀴즈는 COSMOS 직접 확인 안내, 수집일 기준
+  명시. 빈 결과 문구에 수업 항목 포함, placeholder에 예시 추가.
+- **`lms.ts`**: `parseDue` export(검색 정렬에서 재사용).
+- **`page.tsx`**: LmsSection에 detail 배선.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 실계정 e2e: '알고리즘 과제 언제까지' → task hit → lms/{id} 카드
+   펼침·스크롤, advisor 주간 마감 칩.
+2. 알림 예약(푸시 인프라 필요), 수강중 상태(LMS에 학점·코드 없어
+   제목 매칭만으로는 부정확 — 보류 유지), 나머지 18개 규정 수집.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(search 26/26 — task 검색 12 신규: 종류 필터·질문 어미·마감 의도·
+초성·정렬·uncertain·순수 질문어 무매칭), root+deploy 빌드 green,
+번들 마커 확인, _verify_prod 전 엔드포인트 200.
+라이브 version 38e0db29.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 매칭 로직은 단위 테스트로 검증. 딥링크
+펼침·스크롤과 advisor 칩의 실계정 브라우저 확인은 미수행.

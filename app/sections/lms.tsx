@@ -8,7 +8,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import {
@@ -83,7 +83,16 @@ function TaskRow({
   );
 }
 
-function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
+function CourseCard({
+  c,
+  now,
+  forceOpen,
+}: {
+  c: LmsCourse;
+  now: number;
+  /** 검색·advisor 딥링크(lms/{courseId})로 진입 — 해당 카드를 펼친다 */
+  forceOpen?: boolean;
+}) {
   const { done, total } = courseProgress(c);
   const weeks = weekProgress(c);
   const pend = [
@@ -118,7 +127,11 @@ function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
     c.assigns.filter((a) => a.submitted).length +
     c.quizzes.filter((q) => q.submitted).length;
   return (
-    <details className="lms-course" open={pend.length > 0 && pend.length <= 8}>
+    <details
+      id={`lms-c-${c.id}`}
+      className="lms-course"
+      open={forceOpen || (pend.length > 0 && pend.length <= 8)}
+    >
       <summary>
         <div className="lms-course-head">
           <b>{c.title}</b>
@@ -206,6 +219,7 @@ export function LmsSection({
   lmsUnavailable,
   studentMask,
   onAccount,
+  detail,
 }: {
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
@@ -220,6 +234,8 @@ export function LmsSection({
   studentMask?: string;
   /** 서버 응답의 최신 계정 스냅샷을 상위 상태에 반영 */
   onAccount?: (account: Account) => void;
+  /** 검색·advisor 딥링크의 과목 id — 해당 카드를 펼치고 스크롤 */
+  detail?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
@@ -228,6 +244,13 @@ export function LmsSection({
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
+
+  useEffect(() => {
+    if (!detail || !snap) return;
+    document
+      .getElementById(`lms-c-${detail}`)
+      ?.scrollIntoView({ block: 'start' });
+  }, [detail, snap]);
 
   const importJson = async (raw: string) => {
     try {
@@ -410,7 +433,12 @@ export function LmsSection({
             </div>
             <div className="lms-courses">
               {snap.courses.map((c) => (
-                <CourseCard key={c.id} c={c} now={now} />
+                <CourseCard
+                  key={c.id}
+                  c={c}
+                  now={now}
+                  forceOpen={detail === c.id}
+                />
               ))}
             </div>
           </section>

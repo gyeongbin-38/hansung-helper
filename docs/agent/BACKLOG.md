@@ -387,6 +387,11 @@ blocking regressions.
   활동 cap 8·학사일정 cap 8, koreanMatch 기반, 그룹별 섹션, 과목 행에
   "담기" 버튼, 활동→상세 라우트, 일정→캘린더). page.tsx에 search 라우트
   추가, Topbar onSearch → 'search', placeholder/aria-label 통합 검색으로.
+- **Follow-up (2026-09-19)**: 검색 범위에 COSMOS 수업 현황 추가 —
+  `lmsTaskSearch()`가 개별 과제·퀴즈·강의 항목을 찾는다(질의 종류어
+  필터 + 질문 어미·마감 의도어 정리, 미완료→마감순 정렬, `lms/{id}`
+  딥링크). LmsSection이 `detail` prop으로 해당 과목 카드를 펼치고
+  스크롤. advisor의 `searchAll`도 같은 경로 사용. search 26/26.
 
 ## ISSUE-14 — `_sync.py` parity check 모드
 

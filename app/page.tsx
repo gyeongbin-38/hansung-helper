@@ -478,6 +478,7 @@ export default function App() {
               data={data}
               persist={persist}
               notify={setToast}
+              detail={detail}
               serverCollecting={lmsPending && !collectStale}
               collectFailed={lmsFailed}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
