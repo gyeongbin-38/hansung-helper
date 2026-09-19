@@ -960,3 +960,48 @@ VERIFICATION STATUS: 단위 테스트로 마커·uncertain·dueSoon 하한 확�
 실계정 e2e로 재수집 폼·실패 상태 렌더는 미검증(배포는 됨 —
 실패 상태는 실제 장애 시에만 자연 발생). 라이브 version e645c64f,
 _verify_prod 전 엔드포인트 200.
+
+---
+
+## 2026-09-19 — 취약점 감사·패치 (ISSUE-10, user-audited priority 2)
+
+DONE:
+- `npm audit` 재실행: high 10·low 1 확인(이전 기록 "전부 빌드 도구"
+  은 부정확 — `react-server-dom-webpack`은 직접 의존성+배포 번들
+  포함이라 배포 경로 해당. GHSA-wx67-qw84-cm4g Server Functions
+  DoS; 앱에 'use server'는 없음).
+- 경로별 영향 분류: 배포 경로 = react-server-dom-webpack만.
+  dev/build 경로 = vite(dev server), esbuild(dev on Windows),
+  miniflare+undici+ws+sharp(로컬 에뮬레이션), image-size(vinext
+  빌드 파싱), wrangler(배포 도구).
+- 수동 호환 범프(audit fix --force 아님, peer 제약 추적):
+  react/react-dom/react-server-dom-webpack 19.2.6→19.3.0,
+  vinext 1.0.0-beta.5→beta.10(peer @vitejs/plugin-rsc ^0.5.34 →
+  0.5.35로 동반), vite 8.0.13→8.3.0,
+  @cloudflare/vite-plugin 1.37.1→1.56.0(peer wrangler ^4.135.0 →
+  4.135.0로 동반, 그 peerOptional @cloudflare/workers-types
+  5.20260919.1로 동반), @types/react(-dom) 19.3.0.
+- 결과: `npm audit` **0 vulnerabilities**, install 양쪽 성공.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. EnrolledStrip 매칭 분반 직접 담기.
+2. 졸업 ruleset 매핑 → 검증 학과만 엔진 연결.
+3. LMS 과제·마감 검색(advisor), 알림 예약.
+4. 나머지: 수집 실패율 관측, 스냅샷 크론(도달성 검증 선행),
+   사이드바 축약, 접근성 설정, needs-verification 큐.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(lms 46/46, lms-server 47/47), root 빌드 green, deploy 빌드 green,
+_verify_prod 전 엔드포인트 200. 라이브 version ec3280d1 — 새 툴체인
+(vinext beta.10 + react 19.3 + vite 8.3 + cf-vite-plugin 1.56 +
+wrangler 4.135)으로 프로덕션 동작 확인.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 새 툴체인으로 빌드·테스트·배포·공개 엔드포인트
+검증 완료. RSC 렌더 경로(react 19.3)의 실계정 브라우저 e2e는
+미수행 — 다음 시각 검증 라운드에서 확인 권장.

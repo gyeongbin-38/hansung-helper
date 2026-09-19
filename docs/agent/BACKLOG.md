@@ -555,7 +555,7 @@ blocking regressions.
 
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 
-- **Status**: backlog
+- **Status**: ✅ resolved (2026-09-19) — `npm audit` 0 vulnerabilities
 - **Labels**: agent-ready, priority:p3, area:infra
 - **Objective**: `npm audit` (2026-09-17) reports 8 high items, all in
   build tooling — vinext, vite, wrangler, @cloudflare/vite-plugin,
@@ -564,3 +564,19 @@ blocking regressions.
   react/react-dom/@dnd-kit/lucide), but bump toolchain versions
   periodically and re-audit. Do not `audit fix --force` blindly —
   verify vinext/vite compatibility per bump.
+- **Resolution (2026-09-19)**: 재감사에서 high 10·low 1로 증가 확인 —
+  `react-server-dom-webpack@19.2.6`은 직접 의존성이고 RSC 런타임이
+  워커 번들에 포함되므로 배포 경로에 해당(GHSA-wx67-qw84-cm4g,
+  Server Functions DoS — 앱에 'use server' 없지만 패키지는 번들에
+  존재). 나머지는 dev/build 경로(vite dev server, miniflare 로컬
+  에뮬레이션, esbuild dev on Windows, image-size 빌드 시 파싱).
+  수동 호환 범프 적용(audit fix --force 아님):
+  react/react-dom/react-server-dom-webpack 19.2.6→19.3.0,
+  vinext beta.5→beta.10, vite 8.0.13→8.3.0,
+  @vitejs/plugin-rsc 0.5.26→0.5.35(vinext peer ^0.5.34),
+  @cloudflare/vite-plugin 1.37.1→1.56.0, wrangler 4.92.0→4.135.0
+  (peer 요구), @cloudflare/workers-types 4.x→5.20260919.1
+  (wrangler peerOptional), @types/react(-dom) 19.3.0.
+  결과: **npm audit 0건**, tsc/oxlint/전체 테스트/양쪽 빌드/배포
+  검증 통과, 라이브 version ec3280d1. 이전 "전부 빌드 도구라 영향
+  없음" 메모는 부정확했음 — 직접 의존성 패키지는 별도 추적 필요.
