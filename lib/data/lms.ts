@@ -3,6 +3,7 @@
  * 수집한 스냅샷(public/lms-collect.js 출력물, /lms-collect.js로 제공).
  * 학교 LMS 상태의 복사본이며, 원본은 LMS가 최종 권위다.
  */
+import type { Catalog, CourseSection } from './catalog';
 
 export type LmsTask = {
   title: string;
@@ -202,6 +203,41 @@ const parseDue = (due: string | null): number | null => {
     +(m[5] ?? 59),
   ).getTime();
 };
+
+export type EnrolledMatch = {
+  course: LmsCourse;
+  /** 카탈로그에서 이름이 매칭된 분반들 — 없으면 빈 배열 */
+  sections: CourseSection[];
+};
+
+/** 과목명 정규화 — 학기 표기·괄호 장식·공백을 제거해 이름 비교에 사용 */
+const normTitle = (s: string) =>
+  s
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\d{4}\s*[-./년]?\s*\d?학기/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+
+/** LMS 수강 과목 ↔ 개설강의 카탈로그 이름 매칭 — 수강 정보를 지어내지 않고
+ *  이름이 일치하는 분반만 반환한다(매칭 없으면 빈 배열). */
+export function matchEnrollment(
+  lms: LmsSnapshot,
+  catalog: Catalog,
+): EnrolledMatch[] {
+  const byName = new Map<string, CourseSection[]>();
+  for (const s of catalog.sections) {
+    const k = normTitle(s.name);
+    if (!k) continue;
+    const arr = byName.get(k) ?? [];
+    arr.push(s);
+    byName.set(k, arr);
+  }
+  return lms.courses.map((course) => ({
+    course,
+    sections: byName.get(normTitle(course.title)) ?? [],
+  }));
+}
 
 /** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외 */
 export function dueSoon(

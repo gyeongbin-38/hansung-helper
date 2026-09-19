@@ -38,6 +38,7 @@ import {
   deptPoolOf,
   recommend,
 } from './catalog';
+import { matchEnrollment } from '@/lib/data/lms';
 import { RetryButton, SkeletonRows } from './skeleton';
 import type { Data } from './data';
 
@@ -125,6 +126,65 @@ function CatRow({
         </button>
       </div>
     </div>
+  );
+}
+
+/** COSMOS 수강 과목 ↔ 카탈로그 매칭 스트립 — 시간표 반영 여부를 보여준다. */
+function EnrolledStrip({
+  lms,
+  catalog,
+  planned,
+  onFilter,
+}: {
+  lms: NonNullable<Data['lms']>;
+  catalog: Catalog;
+  planned: CourseSection[];
+  onFilter: (title: string) => void;
+}) {
+  const matches = useMemo(() => matchEnrollment(lms, catalog), [lms, catalog]);
+  if (!matches.length) return null;
+  const plannedIds = new Set(planned.map((p) => p.id));
+  const covered = matches.filter((m) =>
+    m.sections.some((s) => plannedIds.has(s.id)),
+  ).length;
+  return (
+    <details className="enrolled">
+      <summary>
+        COSMOS 수강 {matches.length}과목 · 시간표 반영 {covered}개
+      </summary>
+      <div className="enrolled-rows">
+        {matches.map(({ course, sections }) => {
+          const inPlan = sections.filter((s) => plannedIds.has(s.id));
+          return (
+            <div className="enrolled-row" key={course.id}>
+              <div>
+                <b>{course.title}</b>
+                <small>
+                  {course.prof || '교수 미기재'}
+                  {course.community ? ' · 커뮤니티' : ''}
+                </small>
+              </div>
+              {sections.length === 0 ? (
+                <span className="meta">카탈로그에 없는 과목</span>
+              ) : inPlan.length ? (
+                <span className="badge green">계획에 있음</span>
+              ) : (
+                <button
+                  className="link"
+                  onClick={() => onFilter(sections[0].name)}
+                >
+                  분반 {sections.length}개 보기
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="meta">
+        수강 상태는 COSMOS 수집 시점 기준이며 최종 수강 여부는 학교 시스템에서
+        확인하세요.
+      </p>
+    </details>
   );
 }
 
@@ -425,6 +485,14 @@ export function Timetable({
             </span>
           )}
         </div>
+      )}
+      {data.lms && catalog && (
+        <EnrolledStrip
+          lms={data.lms}
+          catalog={catalog}
+          planned={planned}
+          onFilter={setQ}
+        />
       )}
       <DndContext
         sensors={sensors}

@@ -5,6 +5,7 @@ import {
   dueSoon,
   staleDays,
   weekProgress,
+  matchEnrollment,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -109,6 +110,36 @@ t('weeks: 주차 정렬', weekProgress({
   ],
   assigns: [], quizzes: [],
 }).map((w) => w.week).join(',') === '2,5');
+
+// ── matchEnrollment ─────────────────────────────────────────
+const mkSection = (id, name, extra = {}) => ({
+  id, code: id, section: '01', name, dept: 'x', deptCode: 'x',
+  category: '전선', credits: 3, year: '2', professor: 'x', room: '',
+  cross: false, online: false, slots: [], ...extra,
+});
+const catalog = {
+  semester: '2026-2', source: 'x', sourceFile: 'x', generatedAt: '',
+  sectionCount: 3, untimedCount: 0,
+  sections: [
+    mkSection('a1', '운영체제'),
+    mkSection('a2', '운영체제', { section: '02' }),
+    mkSection('b1', '데이터베이스'),
+  ],
+};
+const lmsMatch = {
+  source: 'cosmos-lms', fetchedAt: 'x',
+  courses: [
+    { id: '1', title: '운영체제', vods: [], assigns: [], quizzes: [] },
+    { id: '2', title: '[2026-2학기] 데이터베이스(01분반)', vods: [], assigns: [], quizzes: [] },
+    { id: '3', title: '카탈로그에없는과목', vods: [], assigns: [], quizzes: [] },
+    { id: '4', title: '캡스톤 커뮤니티', community: true, vods: [], assigns: [], quizzes: [] },
+  ],
+};
+const em = matchEnrollment(lmsMatch, catalog);
+t('match: 정확한 이름 매칭', em[0].sections.length === 2);
+t('match: 장식 제거 매칭', em[1].sections.length === 1 && em[1].sections[0].id === 'b1');
+t('match: 매칭 없음 빈 배열', em[2].sections.length === 0);
+t('match: 모든 과목 반환', em.length === 4);
 
 // ── pendingTasks ────────────────────────────────────────────
 const pend = pendingTasks(snap);

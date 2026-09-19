@@ -823,3 +823,42 @@ REPO SCOUT: none.
 VERIFICATION STATUS: D1 경로는 행 존재+fetched_at 비교 로직+응답
 바이트 일치로 확인(페이로드 동일 시 경로 구분 불가 — 코드 경로상
 D1 우선 확실). 실사용 트래픽 하의 캐시 동작은 미관측.
+
+---
+
+## 2026-09-19 — A3 COSMOS 수강 과목 → 시간표 연동 (user-requested)
+
+DONE:
+- `lib/data/lms.ts` `matchEnrollment(lms, catalog)` + `EnrolledMatch`
+  타입 추가. normTitle 정규화(괄호/대괄호 장식·학기 라벨·공백 제거,
+  소문자)로 카탈로그 과목명 인덱스 구성 — fuzzy/추정 매칭 없이
+  결정론적, 동명 과목은 분반 전체를 sections[]로 반환(임의 분반
+  배정 안 함), 매칭 없으면 빈 배열(미매칭 유지, 지어내지 않음).
+- `app/sections/timetable.tsx` `EnrolledStrip` — builder 헤드 아래
+  `<details>` 스트립. 요약 "COSMOS 수강 N과목 · 시간표 반영 M개",
+  과목별 상태: 매칭 없음(카탈로그에 없는 과목) / 이미 계획에 있음
+  (badge green) / 미반영("분반 N개 보기" → 카탈로그 정식명으로
+  setQ 필터). 수집 시점 스냅샷임을 명시하는 meta 문구 포함.
+- `learning.css` `.enrolled*` 스타일 추가.
+- tests/lms.test.mjs +4 (35/35): 정확 매칭·장식 제거·미매칭 빈 배열·
+  전 과목 반환 순서.
+- 재배포: version 7a77b266 라이브, _verify_prod 전 엔드포인트 200.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, LMS 부분수집 재시도
+   UX, 사이드바 축약, 설정 화면/접근성 항목 등.
+2. 스냅샷 자동 갱신(크론)은 Worker→학교 도달성 검증 선행 필요.
+3. needs-verification 큐는 fresh-session 독립 검증 필요.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(lms 35/35 — matchEnrollment +4건), root+deploy 빌드 green,
+_verify_prod 200 전체.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: A3는 단위테스트+게이트 수준 — 실제 LMS
+스냅샷으로 UI 렌더 확인 미수행(실기기 확인 필요).
