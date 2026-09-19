@@ -4,7 +4,7 @@ import { CalendarDays, ArrowRight, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { Data } from './data';
 import { dueSoon } from '@/lib/data/lms';
 import { useSchedule } from './catalog';
-import { SkeletonRows } from './skeleton';
+import { RetryButton, SkeletonRows } from './skeleton';
 
 const fmtRange = (start: string, end: string | null) =>
   end && end !== start ? `${start.slice(5)} ~ ${end.slice(5)}` : start.slice(5);
@@ -20,7 +20,7 @@ export function CalendarSection({
   detail?: string;
   go: (route: string) => void;
 }) {
-  const { snap, failed } = useSchedule();
+  const { snap, failed, retry } = useSchedule();
   const [now] = useState(() => Date.now());
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (snap?.items ?? [])
@@ -63,7 +63,8 @@ export function CalendarSection({
         )}
         {failed && !e && (
           <p className="meta">
-            학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.
+            학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.{' '}
+            <RetryButton onRetry={retry} />
           </p>
         )}
       </section>
@@ -93,7 +94,8 @@ export function CalendarSection({
         )}
         {failed && (
           <p className="meta">
-            학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.
+            학사일정을 불러오지 못했습니다. 원본 페이지에서 확인해 주세요.{' '}
+            <RetryButton onRetry={retry} />
           </p>
         )}
         {!snap && !failed && <SkeletonRows />}

@@ -270,23 +270,34 @@ footer {
   font-size: 12px;
   color: var(--nt-stone);
 }
-/* ---- floating toast ---- */
-.toast {
+/* ---- floating toast stack ---- */
+.toast-stack {
   position: fixed;
   right: 24px;
   top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+  max-width: 400px;
+}
+.toast {
   background: var(--nt-canvas);
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   box-shadow: var(--nt-shadow-modal);
-  max-width: 400px;
   padding: 13px 14px;
   display: flex;
   gap: 10px;
   align-items: center;
-  z-index: 60;
   font-size: 14px;
   color: var(--nt-ink);
+}
+.toast-count {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nt-steel);
 }
 .toast > svg {
   color: var(--nt-green);
@@ -542,7 +553,7 @@ footer {
     bottom: 12px;
     padding: 15px;
   }
-  .toast {
+  .toast-stack {
     left: 16px;
     right: 16px;
     top: 64px;

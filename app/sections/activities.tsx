@@ -2,7 +2,7 @@
 import { Bookmark, ArrowUpRight, Search } from 'lucide-react';
 import type { Data } from './data';
 import { useActivities } from './catalog';
-import { SkeletonCards } from './skeleton';
+import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
   activityMatch,
@@ -43,7 +43,7 @@ export function Activities({
   go: (route: string) => void;
   save: (id: string) => void;
 }) {
-  const { snap, failed } = useActivities();
+  const { snap, failed, retry } = useActivities();
   const items = snap?.items ?? [];
   const a = items.find((x) => x.id === detail);
 
@@ -159,14 +159,17 @@ export function Activities({
           <Search />
           <h3>활동 목록을 불러오지 못했어요.</h3>
           <p>학교 스마트자기관리시스템에서 최신 공고를 확인할 수 있어요.</p>
-          <a
-            className="link"
-            href="https://hsportal.hansung.ac.kr/ko/program/all"
-            target="_blank"
-            rel="noreferrer"
-          >
-            hsportal에서 직접 보기 <ArrowUpRight size={16} />
-          </a>
+          <p className="empty-actions">
+            <RetryButton onRetry={retry} />{' '}
+            <a
+              className="link"
+              href="https://hsportal.hansung.ac.kr/ko/program/all"
+              target="_blank"
+              rel="noreferrer"
+            >
+              hsportal에서 직접 보기 <ArrowUpRight size={16} />
+            </a>
+          </p>
         </div>
       ) : !snap ? (
         <SkeletonCards />

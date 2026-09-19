@@ -889,6 +889,45 @@
 .lms-course > .meta {
   margin-top: 10px;
 }
+.lms-weeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.lms-week {
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  padding: 9px 11px;
+}
+.lms-week.done {
+  border-color: var(--nt-tint-mint);
+  background: var(--nt-tint-mint);
+}
+.lms-week-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.lms-week-head span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nt-slate);
+}
+.lms-week.done .lms-week-head span {
+  color: var(--nt-green-deep);
+}
+.lms-week .progress-track {
+  height: 5px;
+  margin: 7px 0 0;
+}
+.lms-week small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--nt-stone);
+}
 .lms-tasks {
   display: grid;
   gap: 8px;

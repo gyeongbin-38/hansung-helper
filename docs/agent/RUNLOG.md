@@ -727,3 +727,47 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트 수준 — 실기기
 시각 확인은 미수행. 기존 검증 라벨 상태 불변.
+
+---
+
+## 2026-09-19 — 에러 재시도 표준화 + 토스트 큐 + 주차별 진도 (user-requested 자율)
+
+DONE:
+- C15 API 실패 재시도 표준화(spec §13): catalog.ts 4개 훅
+  (useCatalog/useActivities/useSchedule/useDeptRules)에 retry() 추가 —
+  실패 시 모듈 캐시는 loader가 비우므로 재호출=실제 재요청, tick 상태로
+  effect 재실행, unmount 가드 유지. skeleton.tsx에 공용 `RetryButton`
+  ("다시 시도" link 버튼) 추가. 배선: courses(상세+헤드), timetable
+  (헤드+목록), activities(empty-small에 hsportal 링크와 병기),
+  calendar(목록+상세 2곳). advisor 텍스트 답변·graduation의 deptRules
+  은닉(graceful)은 표시 대상 아님 — 현행 유지.
+- C14 토스트 큐(spec §8): chrome.tsx에 `useToasts` 훅 + `ToastStack`
+  컴포넌트. 동일 문구 푸시는 병합(×N 배지, 타이머 재시작 — v 버전 키로
+  타이머 교체), 동시 표시 최근 3개(slice -TOAST_MAX), 항목별 5초 자동
+  닫힘+개별 닫기. `.toast`를 `.toast-stack` 고정 컨테이너의 플렉스
+  아이템으로 변경, 모바일·print 규칙 동기화. push(msg) 시그니처라
+  기존 notify=setToast 호출처 무변경.
+- A4 LMS 주차별 vod 진도(lms.tsx): lib/data/lms.ts에 `weekProgress(c)`
+  추가 — vod.week 그룹화(미기재 항목 제외, 주차를 지어내지 않음),
+  주차 오름차순, done/total + 첫 항목 range. 과목 카드 details 안에
+  `.lms-weeks` 그리드 — 주차·분수·미니 progress-track·기간 축약
+  (MM-DD ~ MM-DD), 완료 주차는 mint 틴트. week 없는 과목은 미렌더.
+- 재배포: version 097ac9ad 라이브, _verify_prod 전 엔드포인트 200.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, BE-3 D1 이관,
+   수강 과목→시간표 연동(A3), LMS 부분수집 재시도 UX, 사이드바 축약,
+   설정 화면/접근성 항목 등.
+2. needs-verification 큐는 fresh-session 독립 검증 필요.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(lms 31/31 — weekProgress +6건), root+deploy 빌드 green.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트+단위테스트 수준 —
+실기기 시각 확인 미수행. 기존 검증 라벨 상태 불변.

@@ -1,4 +1,5 @@
 'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   User,
   Settings,
@@ -234,22 +235,105 @@ export function AccountBar({
   );
 }
 
-export function Toast({
-  toast,
+export interface ToastItem {
+  id: number;
+  msg: string;
+  count: number;
+  /** 병합될 때마다 증가 — 타이머 재시작 키로 사용 */
+  v: number;
+}
+
+const TOAST_MS = 5000;
+const TOAST_MAX = 3;
+
+/** 토스트 큐 — 같은 문구는 병합(×N 표시), 동시 표시는 최근 3개까지. */
+export function useToasts() {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  const idRef = useRef(0);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const dismiss = useCallback((id: number) => {
+    timers.current.forEach((t, key) => {
+      if (key.startsWith(id + ':')) {
+        clearTimeout(t);
+        timers.current.delete(key);
+      }
+    });
+    setItems((xs) => xs.filter((x) => x.id !== id));
+  }, []);
+
+  const push = useCallback((msg: string) => {
+    if (!msg) return;
+    setItems((xs) => {
+      const dup = xs.find((x) => x.msg === msg);
+      if (dup)
+        return xs.map((x) =>
+          x.id === dup.id ? { ...x, count: x.count + 1, v: x.v + 1 } : x,
+        );
+      return [...xs, { id: ++idRef.current, msg, count: 1, v: 0 }].slice(
+        -TOAST_MAX,
+      );
+    });
+  }, []);
+
+  // 각 토스트의 자동 닫힘 타이머 — 목록·버전에서 빠진 항목의 타이머는 해제
+  useEffect(() => {
+    const keys = new Set(items.map((x) => `${x.id}:${x.v}`));
+    timers.current.forEach((t, key) => {
+      if (!keys.has(key)) {
+        clearTimeout(t);
+        timers.current.delete(key);
+      }
+    });
+    items.forEach((x) => {
+      const key = `${x.id}:${x.v}`;
+      if (!timers.current.has(key)) {
+        timers.current.set(
+          key,
+          setTimeout(() => dismiss(x.id), TOAST_MS),
+        );
+      }
+    });
+  }, [items, dismiss]);
+
+  useEffect(
+    () => () => {
+      timers.current.forEach((t) => clearTimeout(t));
+      timers.current.clear();
+    },
+    [],
+  );
+
+  return { items, push, dismiss };
+}
+
+export function ToastStack({
+  toasts,
   onClose,
 }: {
-  toast: string;
-  onClose: () => void;
+  toasts: ToastItem[];
+  onClose: (id: number) => void;
 }) {
-  if (!toast) return null;
+  if (!toasts.length) return null;
   return (
-    <output className="toast">
-      <Check size={18} />
-      {toast}
-      <button className="icon" aria-label="알림 닫기" onClick={onClose}>
-        <X size={16} />
-      </button>
-    </output>
+    <div className="toast-stack">
+      {toasts.map((t) => (
+        <output className="toast" key={t.id}>
+          <Check size={18} />
+          {t.msg}
+          {t.count > 1 && (
+            <span className="toast-count">×{t.count}</span>
+          )}
+          <button
+            className="icon"
+            aria-label="알림 닫기"
+            onClick={() => onClose(t.id)}
+          >
+            <X size={16} />
+          </button>
+        </output>
+      ))}
+    </div>
   );
 }
 

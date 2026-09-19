@@ -38,7 +38,7 @@ import {
   deptPoolOf,
   recommend,
 } from './catalog';
-import { SkeletonRows } from './skeleton';
+import { RetryButton, SkeletonRows } from './skeleton';
 import type { Data } from './data';
 
 const GRID_START = 540; // 09:00
@@ -131,6 +131,7 @@ function CatRow({
 export function Timetable({
   catalog,
   failed,
+  retry,
   planned,
   data,
   plan,
@@ -139,6 +140,7 @@ export function Timetable({
 }: {
   catalog: Catalog | null;
   failed?: boolean;
+  retry?: () => void;
   planned: CourseSection[];
   data: Data;
   plan: (id: string) => void;
@@ -376,11 +378,16 @@ export function Timetable({
         <div>
           <h2>시간표 짜기</h2>
           <p>
-            {catalog
-              ? `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
-              : failed
-                ? '개설강의 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
-                : '개설강의 데이터를 불러오는 중입니다.'}{' '}
+            {catalog ? (
+              `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
+            ) : failed ? (
+              <>
+                개설강의 데이터를 불러오지 못했습니다.{' '}
+                {retry && <RetryButton onRetry={retry} />}
+              </>
+            ) : (
+              '개설강의 데이터를 불러오는 중입니다.'
+            )}{' '}
             · 개인 계획이며 공식 수강신청이 아닙니다.
           </p>
         </div>
@@ -500,7 +507,10 @@ export function Timetable({
             <div className="cat-rows scrollable">
               {!catalog && !failed && <SkeletonRows n={8} />}
               {!catalog && failed && (
-                <div className="empty-small">불러오기에 실패했습니다.</div>
+                <div className="empty-small">
+                  불러오기에 실패했습니다.{' '}
+                  {retry && <RetryButton onRetry={retry} />}
+                </div>
               )}
               {catalog &&
                 filtered.slice(0, 80).map((s) => (

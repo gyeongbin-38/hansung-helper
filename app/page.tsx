@@ -9,7 +9,8 @@ import {
   Topbar,
   PageHeading,
   AccountBar,
-  Toast,
+  ToastStack,
+  useToasts,
   CookieBanner,
 } from './sections/chrome';
 import { Home } from './sections/home';
@@ -48,16 +49,17 @@ export default function App() {
     [drawer, setDrawer] = useState(false),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
-    [toast, setToast] = useState(''),
     [survey, setSurvey] = useState(false),
     [notifOpen, setNotifOpen] = useState(false),
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]);
+  const { items: toasts, push: setToast, dismiss: dismissToast } =
+    useToasts();
   const [account, setAccount] = useState<Account | null>(null);
   const [demo, setDemo] = useState(false);
   const [accountError, setAccountError] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
-  const { catalog, failed: catalogFailed } = useCatalog();
+  const { catalog, failed: catalogFailed, retry: retryCatalog } = useCatalog();
   const { snap: actsSnap } = useActivities();
   const { snap: schedSnap } = useSchedule();
   const [notifNow] = useState(() => Date.now());
@@ -128,12 +130,6 @@ export default function App() {
       clearTimeout(timer);
     };
   }, [account?.snapshot.lms, data.lms]);
-  useEffect(() => {
-    if (toast) {
-      const t = setTimeout(() => setToast(''), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [toast]);
   useEffect(() => {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
@@ -409,6 +405,7 @@ export default function App() {
               go={go}
               catalog={catalog}
               failed={catalogFailed}
+              retry={retryCatalog}
               notify={setToast}
             />
           ) : section === 'semester-plan' ? (
@@ -422,6 +419,7 @@ export default function App() {
             <Timetable
               catalog={catalog}
               failed={catalogFailed}
+              retry={retryCatalog}
               planned={planned}
               data={data}
               plan={plan}
@@ -503,7 +501,7 @@ export default function App() {
         }
         go={go}
       />
-      <Toast toast={toast} onClose={() => setToast('')} />
+      <ToastStack toasts={toasts} onClose={dismissToast} />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}

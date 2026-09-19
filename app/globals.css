@@ -334,6 +334,11 @@ select {
 .empty-small p {
   font-size: 14px;
 }
+.empty-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
 .empty-small h3 {
   margin-top: 15px;
 }
@@ -594,7 +599,7 @@ button:disabled {
   .topbar,
   .scrim,
   .cookie,
-  .toast {
+  .toast-stack {
     display: none !important;
   }
   .workspace {

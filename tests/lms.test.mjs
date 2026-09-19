@@ -4,6 +4,7 @@ import {
   pendingTasks,
   dueSoon,
   staleDays,
+  weekProgress,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -88,6 +89,26 @@ t('validate: 배열 누락 허용', validateLms({
 // ── courseProgress ──────────────────────────────────────────
 t('progress: 수강률 계산', courseProgress(snap.courses[0]).done === 1 && courseProgress(snap.courses[0]).total === 2);
 t('progress: 강의 없는 과목', courseProgress(snap.courses[1]).total === 0);
+
+// ── weekProgress ────────────────────────────────────────────
+const weeks = weekProgress(snap.courses[0]);
+t('weeks: 주차 그룹 수', weeks.length === 2);
+t('weeks: 주차별 진도', weeks[0].week === 1 && weeks[0].done === 1 && weeks[0].total === 1 && weeks[1].week === 2 && weeks[1].done === 0 && weeks[1].total === 1);
+t('weeks: range 전달', weeks[1].range === '2026-09-14 ~ 2026-09-20 23:59');
+t('weeks: vod 없는 과목 빈 배열', weekProgress(snap.courses[1]).length === 0);
+const noWeek = weekProgress({
+  id: 'x', title: 'x', vods: [{ title: 'a', attended: true }, { title: 'b', week: 3, attended: false }], assigns: [], quizzes: [],
+});
+t('weeks: week 미기재 항목 제외', noWeek.length === 1 && noWeek[0].week === 3 && noWeek[0].total === 1);
+t('weeks: 주차 정렬', weekProgress({
+  id: 'x', title: 'x',
+  vods: [
+    { title: 'a', week: 5, attended: true },
+    { title: 'b', week: 2, attended: false },
+    { title: 'c', week: 5, attended: false },
+  ],
+  assigns: [], quizzes: [],
+}).map((w) => w.week).join(',') === '2,5');
 
 // ── pendingTasks ────────────────────────────────────────────
 const pend = pendingTasks(snap);

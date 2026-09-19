@@ -39,6 +39,15 @@ export function SkeletonRows({ n = 6 }: { n?: number }) {
   );
 }
 
+/** API 실패 상태 표준 액션 — 문구 옆에 붙는 "다시 시도" 버튼. */
+export function RetryButton({ onRetry }: { onRetry: () => void }) {
+  return (
+    <button className="link retry-btn" type="button" onClick={onRetry}>
+      다시 시도
+    </button>
+  );
+}
+
 export function SkeletonDetail() {
   return (
     <output className="sk-status">

@@ -27,6 +27,7 @@ function load() {
 export function useCatalog() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let on = true;
     load()
@@ -35,8 +36,13 @@ export function useCatalog() {
     return () => {
       on = false;
     };
-  }, []);
-  return { catalog, failed };
+  }, [tick]);
+  // 실패 시 load()가 cache를 비우므로 재호출은 실제 재요청이 된다
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { catalog, failed, retry };
 }
 
 let actCache: Promise<ActivitySnapshot> | null = null;
@@ -55,6 +61,7 @@ function loadActivities() {
 export function useActivities() {
   const [snap, setSnap] = useState<ActivitySnapshot | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let on = true;
     loadActivities()
@@ -63,8 +70,12 @@ export function useActivities() {
     return () => {
       on = false;
     };
-  }, []);
-  return { snap, failed };
+  }, [tick]);
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { snap, failed, retry };
 }
 
 let schCache: Promise<ScheduleSnapshot> | null = null;
@@ -83,6 +94,7 @@ function loadSchedule() {
 export function useSchedule() {
   const [snap, setSnap] = useState<ScheduleSnapshot | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let on = true;
     loadSchedule()
@@ -91,8 +103,12 @@ export function useSchedule() {
     return () => {
       on = false;
     };
-  }, []);
-  return { snap, failed };
+  }, [tick]);
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { snap, failed, retry };
 }
 
 let deptRulesCache: Promise<DeptRulesSnapshot> | null = null;
@@ -111,6 +127,7 @@ function loadDeptRules() {
 export function useDeptRules() {
   const [snap, setSnap] = useState<DeptRulesSnapshot | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let on = true;
     loadDeptRules()
@@ -119,8 +136,12 @@ export function useDeptRules() {
     return () => {
       on = false;
     };
-  }, []);
-  return { snap, failed };
+  }, [tick]);
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { snap, failed, retry };
 }
 
 /** 넓은 카테고리 그룹 (표시는 원본 이수구분 유지). */

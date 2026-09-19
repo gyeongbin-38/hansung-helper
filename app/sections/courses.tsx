@@ -10,7 +10,7 @@ import {
   type CourseSection,
 } from '@/lib/data/catalog';
 import { catGroup, deptMatches } from './catalog';
-import { SkeletonCards, SkeletonDetail } from './skeleton';
+import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
 import type { Data } from './data';
 
@@ -24,6 +24,7 @@ export function Courses({
   go,
   catalog,
   failed,
+  retry,
   notify,
 }: {
   data: Data;
@@ -33,6 +34,7 @@ export function Courses({
   go: (route: string) => void;
   catalog: Catalog | null;
   failed?: boolean;
+  retry?: () => void;
   notify?: (msg: string) => void;
 }) {
   const [q, setQ] = useState('');
@@ -121,7 +123,10 @@ export function Courses({
       return (
         <div className="card pad">
           {failed ? (
-            <p>개설강의 데이터를 불러오지 못했습니다.</p>
+            <p>
+              개설강의 데이터를 불러오지 못했습니다.{' '}
+              {retry && <RetryButton onRetry={retry} />}
+            </p>
           ) : (
             <SkeletonDetail />
           )}
@@ -258,7 +263,10 @@ export function Courses({
             확인해 주세요.
           </>
         ) : failed ? (
-          '개설강의 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+          <>
+            개설강의 데이터를 불러오지 못했습니다.{' '}
+            {retry && <RetryButton onRetry={retry} />}
+          </>
         ) : (
           '개설강의 데이터를 불러오는 중입니다.'
         )}

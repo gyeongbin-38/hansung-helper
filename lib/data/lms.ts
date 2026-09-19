@@ -131,6 +131,29 @@ export function courseProgress(c: LmsCourse): { done: number; total: number } {
   };
 }
 
+export type WeekProgress = {
+  week: number;
+  done: number;
+  total: number;
+  /** 그룹 내 첫 항목의 수강 기간 원문 */
+  range?: string;
+};
+
+/** vod를 주차별로 그룹화 — week 미기재 항목은 제외(주차를 지어내지 않음), 주차 오름차순 */
+export function weekProgress(c: LmsCourse): WeekProgress[] {
+  const map = new Map<number, WeekProgress>();
+  for (const v of c.vods) {
+    if (typeof v.week !== 'number') continue;
+    const g =
+      map.get(v.week) ?? { week: v.week, done: 0, total: 0 };
+    g.total += 1;
+    if (v.attended) g.done += 1;
+    g.range ??= v.range;
+    map.set(v.week, g);
+  }
+  return [...map.values()].sort((a, b) => a.week - b.week);
+}
+
 /** 미완료 항목 평탄화 — 미수강 강의 + 미제출 과제 + 미응시 퀴즈 */
 export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
   const out: LmsPending[] = [];

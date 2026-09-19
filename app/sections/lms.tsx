@@ -16,12 +16,20 @@ import {
   pendingTasks,
   staleDays,
   validateLms,
+  weekProgress,
   type LmsCourse,
   type LmsSnapshot,
 } from '@/lib/data/lms';
 
 const LMS_BASE = 'https://learn.hansung.ac.kr';
 const DAY = 86400000;
+
+/** 수강 기간 원문 'YYYY-MM-DD … ~ YYYY-MM-DD …' → 'MM-DD ~ MM-DD' 축약 */
+const shortRange = (r?: string) => {
+  if (!r) return '';
+  const m = r.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}-${m[3]} ~ ${m[5]}-${m[6]}` : r;
+};
 
 function TaskRow({
   kind,
@@ -63,6 +71,7 @@ function TaskRow({
 
 function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
   const { done, total } = courseProgress(c);
+  const weeks = weekProgress(c);
   const pend = [
     ...c.vods
       .filter((v) => !v.attended)
@@ -126,6 +135,28 @@ function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
       {c.errors?.length ? (
         <p className="meta">일부 항목을 수집하지 못했습니다: {c.errors.join(', ')}</p>
       ) : null}
+      {weeks.length > 0 && (
+        <div className="lms-weeks" aria-label="주차별 강의 진도">
+          {weeks.map((w) => (
+            <div
+              className={'lms-week' + (w.done === w.total ? ' done' : '')}
+              key={w.week}
+            >
+              <div className="lms-week-head">
+                <b>{w.week}주차</b>
+                <span>{w.done}/{w.total}</span>
+              </div>
+              <progress
+                className="progress-track"
+                value={w.done}
+                max={w.total}
+                aria-label={`${w.week}주차 강의 ${w.done}/${w.total} 수강`}
+              />
+              {w.range && <small>{shortRange(w.range)}</small>}
+            </div>
+          ))}
+        </div>
+      )}
       {pend.length ? (
         <div className="lms-tasks">
           {pend.map((t, i) => (
