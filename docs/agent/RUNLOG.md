@@ -886,3 +886,77 @@ POST-DEPLOY FIXES (같은 날 후속):
 - 관찰: 짧은 간격 반복 로그인 시 "코스모스 조회 실패" 발생 —
   Moodle 측 연결 실패로 추정, 실패 상태 UI·재로그인 안내는
   정상 동작 확인.
+
+---
+
+## 2026-09-19 — LMS 수집 상태·실패 복구·갱신 반영 (user-audited priority)
+
+DONE:
+- **수집 상태 마커**: `SchoolSnapshot`에 `lmsPending`(지연 수집 진행)/
+  `lmsFailedAt`(실패 시각) 추가. 로그인·재수집 라우트가 저장 직전
+  `lmsPending=true` 설정 → 지연 수집 성공 시 `json_patch`로
+  `lmsData` 기록+`lmsPending:null` 해제, 실패 시 `lmsFailedAt` 기록
+  + 실패 로그. `checkedAt` 가드 유지 — 이전 waitUntil 쓰기가 새
+  스냅샷을 덮지 않음. 비지연 경로(connectSchool 동기 수집) 실패도
+  `lmsFailedAt` 기록.
+- **무한 "수집 중" 수정**: 이전엔 지연 수집 실패를 아무것도 기록하지
+  않아 `lms='connected'`+lmsData 없음이 영구 지속됐음. 이제 실패
+  마커로 종료 상태 표현 — 클라이언트 폴링은 `lmsPending` 기준으로
+  시작하고 성공·실패 모두에서 종료. 마커 도입 전 스냅샷(connected인데
+  lmsData·pending 없음)도 실패로 분류. 수집 예산+5분 초과 pending은
+  워커 중도 종료로 간주해 세션 내에서도 실패 전환(타이머 상태).
+- **갱신 반영 수정**: 폴링이 `!data.lms` 조건이라 기존 데이터가 있으면
+  새 수집 결과를 못 받던 문제 — `snapshot.lmsData`를 항상 최신
+  fetchedAt 기준으로 `data.lms`에 병합하는 별도 이펙트로 분리.
+  로그인 응답·지연 완료·재수집 결과 모두 같은 경로로 반영.
+- **재수집 경로(BE-2 1차)**: `POST /api/account/lms-refresh` — 세션
+  인증 후 입력 학번 해시가 계정 id와 일치해야 함(타인 계정 불가),
+  `refresh:` 3회/15분 레이트리밋, `connectSchool` 재실행으로 서버
+  수집. 비밀번호는 검증 후 즉시 폐기·미저장. 새 수집 실패 시 이전
+  lmsData 보존(로그인 라우트도 동일). UI `RefreshForm` — 수업 현황
+  섹션에서 학번+비밀번호 재입력으로 재수집, 마스킹 학번 힌트 표시.
+- **퀴즈 미응시 오인 수정**: 상세 페이지 fetch 실패가 `submitted:false`
+  로 단정되던 것 → `uncertain:true`+`errors:['quiz-check']`로 표현.
+  `LmsTask`/`LmsPending`에 `uncertain` 필드, `pendingTasks` 전달,
+  `validateLms` 보존, UI "응시 여부 확인 실패" 라벨. 브라우저 수집기
+  (public/lms-collect.js)도 동일 의미로 수정.
+- **`dueSoon` 과거 하한**: 기존 상한만 있어 오래 지난 미완료가 최신
+  마감을 밀어냈음 → `pastDays=7` 하한 추가(마감 지남 표시는 유지하되
+  7일 이상 지난 항목 제외). 홈·캘린더·알림 도출 모두 동일 적용.
+- **UI 상태 구분**: 수업 현황 빈 상태가 수집 중/수집 실패/COSMOS 연결
+  실패를 구분해 표시, snap 있으면 배너로 표현. "다시 가져오기" 버튼이
+  실은 파일 업로드였던 것 → "파일로 가져오기"로 정정 + 서버 재수집은
+  별도 RefreshForm. `c.errors` 코드 한글 라벨화(vod→강의 등). 사이드바
+  (chrome.tsx)·설정(settings.tsx) 연결 상태가 pending/failed/데이터
+  유무를 구분 표시 — settings 초록 배지는 lmsData 있고 실패 없을 때만.
+- 문서 정합: backend-tasks.md의 BE-1(검증 완료 표기)·BE-2(재인증 방식
+  구현)·BE-3(완료) 갱신, 아키텍처 사실의 LMS 수집·공개 스냅샷 설명을
+  현재 구현(D1 우선+폴백, 서버 수집+마커)으로 정정. BACKLOG.md
+  ISSUE-24 진행 상황 갱신.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. npm audit high 10·low 1 — react-server-dom-webpack이 직접 의존성,
+   GHSA-wx67-qw84-cm4g 범위라 배포 경로 영향 확인 후 호환 패치.
+2. EnrolledStrip에서 매칭 분반을 바로 계획에 담는 액션(현재는 필터만).
+3. 졸업: 신뢰할 학과↔ruleset 매핑 먼저, 검증된 학과부터 엔진 연결.
+   yearTable은 19개 중 1개뿐(dept null이라 현재 매칭 제외) — 전 학과
+   확대 금지, 확인 필요 유지.
+4. LMS 과제·퀴즈·마감 검색(advisor), 알림 예약.
+5. 수집 실패율 관측(현재 console.log만), 스냅샷 크론(Worker→학교
+   도달성 검증 선행).
+
+BLOCKER: none.
+
+TESTS: 전체 매트릭스 11파일 OK — lms.test 46/46(+8: dueSoon 과거
+하한·uncertain 전달), lms-server.test 47/47(+7: 퀴즈 상세 실패→
+uncertain/quiz-check, 목록 실패→quiz). tsc clean, oxlint 0 err,
+root+deploy 빌드 green.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 단위 테스트로 마커·uncertain·dueSoon 하한 확인.
+실계정 e2e로 재수집 폼·실패 상태 렌더는 미검증(배포는 됨 —
+실패 상태는 실제 장애 시에만 자연 발생). 라이브 version e645c64f,
+_verify_prod 전 엔드포인트 200.

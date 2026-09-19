@@ -95,10 +95,23 @@ export default function App() {
       removeEventListener('hashchange', sync);
     };
   }, []);
-  // LMS 연결인데 상세 스냅샷이 아직 없으면 서버 백그라운드 수집이
-  // 진행 중인 것 — 도착하면 즉시 반영하도록 짧게 폴링한다.
+  // 서버 스냅샷의 lmsData가 로컬보다 새로우면 흡수한다 — 로그인 응답에
+  // 실린 데이터, 지연 수집 완료, 재수집 결과 모두 이 경로로 반영된다.
   useEffect(() => {
-    if (account?.snapshot.lms !== 'connected' || data.lms) return;
+    const serverLms = account?.snapshot.lmsData;
+    if (!serverLms) return;
+    setData((prev) =>
+      !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
+        ? { ...prev, lms: serverLms }
+        : prev,
+    );
+  }, [account?.snapshot.lmsData]);
+  // 서버 지연 수집(waitUntil) 진행 중이면 완료/실패까지 짧게 폴링해
+  // 결과를 즉시 반영한다. 기존 lms 데이터가 있어도 재로그인 수집은
+  // lmsPending으로 표시되므로 갱신을 놓치지 않는다.
+  const lmsPending = account?.snapshot.lmsPending === true;
+  useEffect(() => {
+    if (!lmsPending) return;
     let cancelled = false,
       tries = 0,
       timer: ReturnType<typeof setTimeout>;
@@ -108,16 +121,17 @@ export default function App() {
         const res = await fetch('/api/account', { cache: 'no-store' });
         if (res.ok) {
           const result: Account = await res.json();
+          setAccount(result);
           const serverLms = result.snapshot?.lmsData;
-          if (serverLms) {
-            setAccount(result);
+          if (serverLms)
             setData((prev) =>
               !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
                 ? { ...prev, lms: serverLms }
                 : prev,
             );
+          // 수집이 끝났으면(성공·실패 무관) 폴링 중단
+          if (!result.snapshot?.lmsPending || result.snapshot?.lmsFailedAt)
             return;
-          }
         }
       } catch {
         /* 다음 주기에 재시도 */
@@ -129,7 +143,33 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [account?.snapshot.lms, data.lms]);
+  }, [lmsPending]);
+  // 수집 예산(60s)+여유를 넘긴 pending은 워커 중도 종료로 간주 — 무한
+  // "수집 중" 대신 지연 안내로 전환한다. 마커 도입 전의 스냅샷은
+  // connected인데 lmsData·pending이 없는 상태로 남을 수 있어 그것도
+  // 실패로 분류한다.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const checkedAt = account?.snapshot.checkedAt;
+    if (!lmsPending || !checkedAt) return;
+    const remaining = Date.parse(checkedAt) + 5 * 60e3 - Date.now();
+    if (remaining <= 0) {
+      setNowTick(Date.now());
+      return;
+    }
+    const timer = setTimeout(() => setNowTick(Date.now()), remaining);
+    return () => clearTimeout(timer);
+  }, [lmsPending, account?.snapshot.checkedAt]);
+  const collectStale =
+    lmsPending &&
+    !!account?.snapshot.checkedAt &&
+    Date.parse(account.snapshot.checkedAt) + 5 * 60e3 <= nowTick;
+  const lmsFailed =
+    !!account?.snapshot.lmsFailedAt ||
+    collectStale ||
+    (account?.snapshot.lms === 'connected' &&
+      !account.snapshot.lmsData &&
+      !account.snapshot.lmsPending);
   useEffect(() => {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
@@ -438,9 +478,11 @@ export default function App() {
               data={data}
               persist={persist}
               notify={setToast}
-              serverCollecting={
-                account?.snapshot.lms === 'connected' && !data.lms
-              }
+              serverCollecting={lmsPending && !collectStale}
+              collectFailed={lmsFailed}
+              lmsUnavailable={account?.snapshot.lms === 'unavailable'}
+              studentMask={account?.studentMask}
+              onAccount={setAccount}
             />
           ) : section === 'advisor' ? (
             <Advisor

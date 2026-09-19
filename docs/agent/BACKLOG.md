@@ -532,12 +532,26 @@ blocking regressions.
   라이브 `https://hansung-helper.gyeongbin-38.workers.dev`, 원격 D1 생성+
   마이그레이션, `scripts/_deploy.py` 재배포 경로 확립. GitHub 정리 완료:
   `hansung-helper` public, `-`(빈 repo) 삭제, deploy repo private 유지.
-  BE-1 ✅ 구현 (2026-09-18, needs-verification) — `lib/server/lms.ts`
+  BE-1 ✅ 완료 (2026-09-18, 실계정 검증 09-19) — `lib/server/lms.ts`
   서버 측 수집기(정규식 파서, dotbugi 계약): 로그인 시 과목별
   과제/퀴즈/출석부/수강기간 수집 → `snapshot.lmsData` → 클라이언트가
   최신 fetchedAt 기준 `data.lms` 승격. 24s 수집 예산, 부분 실패
-  errors[] 보존. `scripts/cosmos-live.mts` 실계정 검증 도구.
-  잔여: 실계정 end-to-end 확인 + 원격 한 바퀴.
+  errors[] 보존. 실계정 7과목 수집·시간표 매칭 브라우저 검증 완료.
+  BE-3 ✅ 완료 — `public_snapshots` D1 테이블(60K자 청크 분할,
+  SQLITE_TOOBIG 우회) + `lib/server/snapshots.ts` D1 우선·번들 폴백
+  + `scripts/_publish_snapshots.mjs` 재배포 없는 게시 경로.
+  BE-2 ✅ 1차 구현 — 비밀번호 재인증 재수집 `POST /api/account/lms-refresh`
+  (세션 유지, 학번 해시 일치, 3회/15분 제한). 수집 상태 마커
+  `lmsPending`/`lmsFailedAt`로 실패를 영구 "수집 중"과 구분 — 지연 수집
+  성공·실패 모두 D1에 기록, checkedAt 가드 유지. 클라이언트 폴링은
+  마커 기준으로 종료하고 스냅샷 lmsData를 항상 최신 fetchedAt으로 병합.
+  퀴즈 응시 확인 실패는 `uncertain`+`quiz-check` 오류로 표현(미응시
+  단정 금지), `dueSoon`에 과거 7일 하한 추가(오래 지난 항목이 최신
+  마감을 밀어내지 않도록). 브라우저 수집기(lms-collect.js)도 동일
+  의미로 갱신. UI: 수집 중/실패/미연결 상태 구분, 서버 재수집 폼
+  (RefreshForm), 파일 가져오기 라벨 정정.
+  잔여: 수집 실패율 관측(로그만 있음), 클라이언트 측 자동 갱신(설계
+  필요), BE-4/BE-5 미착수.
 
 ## ISSUE-10 — 빌드 툴체인 취약점 주기 갱신
 

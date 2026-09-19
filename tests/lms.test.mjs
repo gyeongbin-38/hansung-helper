@@ -172,6 +172,50 @@ t('dueSoon: 마감 미기재 제외', !pendingTasks(snap).some((p) => p.title ==
 t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59')));
 const far = dueSoon(snap, NOW, 2);
 t('dueSoon: 2일 창', far.length === 1 && far[0].title === '퀴즈1');
+// 과거 하한 — 오래 지난 미완료가 다가오는 마감을 밀어내지 않아야 한다
+const oldSnap = {
+  ...snap,
+  courses: [{
+    id: '201', title: '고대과목',
+    vods: [],
+    assigns: [
+      { title: '아주오래된과제', due: '2026-01-05 23:59', submitted: false },
+      { title: '최근지난과제', due: '2026-09-15 23:59', submitted: false },
+      { title: '다가오는과제', due: '2026-09-20 23:59', submitted: false },
+    ],
+    quizzes: [],
+  }],
+};
+const withOld = dueSoon(oldSnap, NOW, 7);
+t('dueSoon: 오래 지난 항목 제외', !withOld.some((p) => p.title === '아주오래된과제'));
+t('dueSoon: 최근 지난 항목은 포함(마감 지남 표시용)', withOld.some((p) => p.title === '최근지난과제'));
+t('dueSoon: 다가오는 항목 포함', withOld.some((p) => p.title === '다가오는과제'));
+t('dueSoon: 정렬 유지', withOld[0].dueTs <= withOld[withOld.length - 1].dueTs);
+const allPast = {
+  ...oldSnap,
+  courses: [{ ...oldSnap.courses[0], assigns: [
+    { title: '만년전과제', due: '2020-01-01 00:00', submitted: false },
+  ] }],
+};
+t('dueSoon: 전부 오래됐으면 빈 배열', dueSoon(allPast, NOW, 7).length === 0);
+
+// ── uncertain (응시 확인 실패) ──────────────────────────────
+const unSnap = {
+  ...snap,
+  courses: [{
+    id: '301', title: '퀴즈과목',
+    vods: [], assigns: [],
+    quizzes: [
+      { title: '확인된미응시', due: '2026-09-20 23:59', submitted: false },
+      { title: '확인실패퀴즈', due: '2026-09-21 23:59', submitted: false, uncertain: true },
+      { title: '응시완료', due: '2026-09-22 23:59', submitted: true },
+    ],
+  }],
+};
+const unPend = pendingTasks(unSnap);
+t('uncertain: 미응시·확인실패 모두 pending 포함', unPend.length === 2);
+t('uncertain: 플래그 전달', unPend.find((p) => p.title === '확인실패퀴즈')?.uncertain === true);
+t('uncertain: 확인된 항목은 플래그 없음', !unPend.find((p) => p.title === '확인된미응시')?.uncertain);
 
 // ── staleDays ───────────────────────────────────────────────
 t('stale: 수집 당일 0일', staleDays(snap, NOW) === 0); // 14h 경과 → 0일

@@ -91,9 +91,14 @@
   const quizSubmitted = async (url) => {
     try {
       const doc = await fetchHtml(url);
-      return doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0;
+      return {
+        submitted:
+          doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0,
+        uncertain: undefined,
+      };
     } catch {
-      return false;
+      // 확인 실패를 미응시로 단정하지 않는다
+      return { submitted: false, uncertain: true };
     }
   };
   const fetchQuizzes = async (id) => {
@@ -117,7 +122,7 @@
       };
     });
     return Promise.all(
-      items.map(async (it) => ({ ...it, submitted: await quizSubmitted(it.url) })),
+      items.map(async (it) => ({ ...it, ...(await quizSubmitted(it.url)) })),
     );
   };
 
@@ -280,6 +285,7 @@
         vods.status === 'rejected' && 'vod',
         assigns.status === 'rejected' && 'assign',
         quizzes.status === 'rejected' && 'quiz',
+        quizzes.value?.some((q) => q.uncertain) && 'quiz-check',
       ].filter(Boolean),
     });
   }

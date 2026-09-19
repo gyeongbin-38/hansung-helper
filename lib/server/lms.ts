@@ -304,13 +304,19 @@ export async function collectLms(
       await html(`${BASE}/mod/quiz/index.php?id=${id}`),
     );
     const out: LmsTask[] = [];
+    let unchecked = 0;
     for (const it of items) {
-      const submitted = await html(it.url!)
-        .then(hasQuizAttempt)
-        .catch(() => false);
-      out.push({ ...it, submitted });
+      const r = await html(it.url!)
+        .then((h) => ({ submitted: hasQuizAttempt(h), failed: false }))
+        .catch(() => ({ submitted: false, failed: true }));
+      if (r.failed) unchecked += 1;
+      out.push({
+        ...it,
+        submitted: r.submitted,
+        uncertain: r.failed || undefined,
+      });
     }
-    return out;
+    return { tasks: out, unchecked };
   };
   const fetchRanges = async (id: string) =>
     parseVodRanges(await html(`${BASE}/course/view.php?id=${id}`));
@@ -340,6 +346,10 @@ export async function collectLms(
     const quizzes = await settle(fetchQuizzes(c.id));
     const ranges = await settle(fetchRanges(c.id));
     const rangeMap = ranges.status === 'fulfilled' ? ranges.value : {};
+    const quizOut =
+      quizzes.status === 'fulfilled'
+        ? quizzes.value
+        : { tasks: [], unchecked: 0 };
     out.push({
       id: c.id,
       title: c.name,
@@ -349,14 +359,23 @@ export async function collectLms(
         url: rangeMap[v.title]?.url,
       })),
       assigns: assigns.status === 'fulfilled' ? assigns.value : [],
-      quizzes: quizzes.status === 'fulfilled' ? quizzes.value : [],
+      quizzes: quizOut.tasks,
       errors: [
         vods.status === 'rejected' && 'vod',
         assigns.status === 'rejected' && 'assign',
         quizzes.status === 'rejected' && 'quiz',
+        quizOut.unchecked > 0 && 'quiz-check',
       ].filter((e): e is string => !!e),
     });
   }
+  const errCourses = out.filter((c) => c.errors?.length).length;
+  console.log(
+    `[lms] collect done: courses=${out.length} ` +
+      `vod=${out.reduce((n, c) => n + c.vods.length, 0)} ` +
+      `assign=${out.reduce((n, c) => n + c.assigns.length, 0)} ` +
+      `quiz=${out.reduce((n, c) => n + c.quizzes.length, 0)} ` +
+      `errorCourses=${errCourses}`,
+  );
   return {
     source: 'cosmos-lms',
     fetchedAt: new Date().toISOString(),

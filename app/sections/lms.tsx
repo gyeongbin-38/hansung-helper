@@ -9,6 +9,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import type { Account } from '../account-flow';
 import type { Data } from './data';
 import {
   courseProgress,
@@ -24,6 +25,14 @@ import {
 const LMS_BASE = 'https://learn.hansung.ac.kr';
 const DAY = 86400000;
 
+/** 수집 오류 코드 → 화면 표시명 */
+const ERROR_LABELS: Record<string, string> = {
+  vod: '강의',
+  assign: '과제',
+  quiz: '퀴즈',
+  'quiz-check': '퀴즈 응시 여부',
+};
+
 /** 수강 기간 원문 'YYYY-MM-DD … ~ YYYY-MM-DD …' → 'MM-DD ~ MM-DD' 축약 */
 const shortRange = (r?: string) => {
   if (!r) return '';
@@ -36,12 +45,15 @@ function TaskRow({
   title,
   url,
   due,
+  uncertain,
   now,
 }: {
   kind: string;
   title: string;
   url?: string;
   due: string | null;
+  /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
+  uncertain?: boolean;
   now: number;
 }) {
   const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
@@ -63,6 +75,7 @@ function TaskRow({
           {due
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
+          {uncertain ? ' · 응시 여부 확인 실패' : ''}
         </small>
       </div>
     </div>
@@ -96,6 +109,7 @@ function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
         title: q.title,
         url: q.url,
         due: q.due ?? null,
+        uncertain: q.uncertain,
       })),
   ];
   const doneCount =
@@ -133,7 +147,11 @@ function CourseCard({ c, now }: { c: LmsCourse; now: number }) {
         </div>
       </summary>
       {c.errors?.length ? (
-        <p className="meta">일부 항목을 수집하지 못했습니다: {c.errors.join(', ')}</p>
+        <p className="meta">
+          일부 항목을 수집하지 못했습니다:{' '}
+          {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')} — COSMOS에서
+          직접 확인해 주세요.
+        </p>
       ) : null}
       {weeks.length > 0 && (
         <div className="lms-weeks" aria-label="주차별 강의 진도">
@@ -183,12 +201,24 @@ export function LmsSection({
   persist,
   notify,
   serverCollecting,
+  collectFailed,
+  lmsUnavailable,
+  studentMask,
+  onAccount,
 }: {
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
   notify?: (msg: string) => void;
   /** 로그인 계정의 서버 측 COSMOS 수집이 백그라운드로 진행 중 */
   serverCollecting?: boolean;
+  /** 서버 측 수집이 실패/중단된 상태 — 계정 연결 자체는 유지됨 */
+  collectFailed?: boolean;
+  /** 포털 로그인은 됐지만 COSMOS 접속 자체가 실패한 상태 */
+  lmsUnavailable?: boolean;
+  /** 연결된 계정의 마스킹된 학번 — 재수집 폼 힌트용 */
+  studentMask?: string;
+  /** 서버 응답의 최신 계정 스냅샷을 상위 상태에 반영 */
+  onAccount?: (account: Account) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
@@ -196,6 +226,7 @@ export function LmsSection({
   const [now] = useState(() => Date.now());
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
+  const canRefresh = !!onAccount && !!studentMask;
 
   const importJson = async (raw: string) => {
     try {
@@ -247,17 +278,35 @@ export function LmsSection({
             재수집해야 반영됩니다.
           </p>
         )}
+        {serverCollecting && snap && (
+          <p className="meta">
+            서버에서 최신 데이터를 수집하고 있습니다. 완료되면 자동으로
+            반영됩니다.
+          </p>
+        )}
+        {collectFailed && snap && (
+          <p className="lms-stale">
+            최근 서버 수집이 완료되지 못했습니다. 아래는 이전 수집 데이터입니다.
+          </p>
+        )}
+        {lmsUnavailable && snap && (
+          <p className="lms-stale">
+            이번 연결에서 COSMOS 접속에 실패했습니다. 아래는 이전 수집
+            데이터입니다.
+          </p>
+        )}
         {stale !== null && stale >= 7 && (
           <p className="lms-stale">
-            수집한 지 {stale}일 지났습니다. 최신 상태가 아닐 수 있으니{' '}
-            <button
-              className="link"
-              onClick={() => fileRef.current?.click()}
-            >
-              다시 가져오기
-            </button>
-            를 권장합니다.
+            수집한 지 {stale}일 지났습니다. 최신 상태가 아닐 수 있습니다.
           </p>
+        )}
+        {canRefresh && (
+          <RefreshForm
+            studentMask={studentMask!}
+            onAccount={onAccount!}
+            notify={notify}
+            busy={serverCollecting}
+          />
         )}
         <ol className="lms-steps">
           <li>
@@ -307,12 +356,20 @@ export function LmsSection({
             <h3>
               {serverCollecting
                 ? '서버에서 수집 중입니다…'
-                : '아직 수업 데이터가 없습니다.'}
+                : collectFailed
+                  ? '서버 수집이 완료되지 못했습니다.'
+                  : lmsUnavailable
+                    ? 'COSMOS에 접속하지 못했습니다.'
+                    : '아직 수업 데이터가 없습니다.'}
             </h3>
             <p>
               {serverCollecting
                 ? '학교 계정 연결로 COSMOS 수업 현황을 수집하고 있습니다. 완료되면 이 화면에 자동으로 표시됩니다(보통 1분 이내).'
-                : '위 순서대로 수집하면 수강한 강의·남은 강의·미제출 과제·미응시 퀴즈를 여기서 확인할 수 있습니다.'}
+                : collectFailed
+                  ? '학교 계정 연결은 유지되어 있습니다. 위의 재수집으로 다시 시도하거나, COSMOS 상태를 확인한 뒤 잠시 후 시도해 주세요.'
+                  : lmsUnavailable
+                    ? '학교 계정 연결은 됐지만 COSMOS 로그인에 실패했습니다. 위의 재수집으로 다시 시도하거나, 아래 수동 수집을 이용해 주세요.'
+                    : '위 순서대로 수집하면 수강한 강의·남은 강의·미제출 과제·미응시 퀴즈를 여기서 확인할 수 있습니다.'}
             </p>
           </div>
         </section>
@@ -325,7 +382,7 @@ export function LmsSection({
               <h2>마감 임박</h2>
               <div className="lms-actions">
                 <button className="secondary" onClick={() => fileRef.current?.click()}>
-                  <RefreshCw size={14} /> 다시 가져오기
+                  <Upload size={14} /> 파일로 가져오기
                 </button>
                 <button
                   className="secondary"
@@ -359,6 +416,106 @@ export function LmsSection({
         </>
       )}
     </>
+  );
+}
+
+/** 학교 비밀번호 재인증으로 서버 수집을 다시 실행한다.
+ *  비밀번호는 서버 검증에만 쓰이고 저장되지 않는다. */
+function RefreshForm({
+  studentMask,
+  onAccount,
+  notify,
+  busy,
+}: {
+  studentMask: string;
+  onAccount: (account: Account) => void;
+  notify?: (msg: string) => void;
+  busy?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [studentId, setStudentId] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+  const submit = async () => {
+    if (loading) return;
+    setErr('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/account/lms-refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, password }),
+      });
+      const body = (await res.json()) as Account & { error?: string };
+      if (!res.ok) {
+        setErr(body.error || '재수집에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      onAccount(body);
+      setPassword('');
+      setOpen(false);
+      notify?.('서버에서 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.');
+    } catch {
+      setErr('요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  if (!open)
+    return (
+      <p className="lms-script-actions">
+        <button className="secondary" onClick={() => setOpen(true)} disabled={busy}>
+          <RefreshCw size={14} />{' '}
+          {busy ? '서버 수집 중…' : '서버에서 다시 수집'}
+        </button>
+      </p>
+    );
+  return (
+    <form
+      className="lms-refresh"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await submit();
+      }}
+    >
+      <p className="meta">
+        학교 계정으로 다시 로그인해 COSMOS를 재수집합니다. 비밀번호는 검증에만
+        쓰이며 저장되지 않습니다. 연결된 계정: {studentMask}
+      </p>
+      <div className="lms-refresh-row">
+        <input
+          value={studentId}
+          onChange={(e) => setStudentId(e.currentTarget.value)}
+          placeholder="학번"
+          inputMode="numeric"
+          autoComplete="username"
+          required
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.currentTarget.value)}
+          placeholder="학교 비밀번호"
+          autoComplete="current-password"
+          required
+        />
+        <button className="primary" type="submit" disabled={loading}>
+          {loading ? '확인 중…' : '재수집'}
+        </button>
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setErr('');
+          }}
+        >
+          취소
+        </button>
+      </div>
+      {err && <p className="lms-error">{err}</p>}
+    </form>
   );
 }
 

@@ -213,9 +213,15 @@ export function AccountBar({
             <b>학교 계정 연결됨</b>
             <small>
               코스모스{' '}
-              {account.snapshot.lms === 'connected'
-                ? '조회 완료'
-                : '조회 실패 · 재로그인으로 다시 연결'}{' '}
+              {account.snapshot.lmsPending
+                ? '수집 중…'
+                : account.snapshot.lms !== 'connected'
+                  ? '연결 실패 · 수업 현황에서 재수집 가능'
+                  : account.snapshot.lmsFailedAt
+                    ? '수집 실패 · 수업 현황에서 재수집 가능'
+                    : account.snapshot.lmsData
+                      ? '조회 완료'
+                      : '수집 실패 · 수업 현황에서 재수집 가능'}{' '}
               · {new Date(account.snapshot.checkedAt).toLocaleString('ko-KR')}
             </small>
           </div>

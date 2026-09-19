@@ -8,6 +8,10 @@ export type SchoolSnapshot = {
   courses: SchoolCourse[];
   /** 로그인 시 서버가 수집한 LMS 상세 스냅샷 (부분 실패는 course.errors) */
   lmsData?: LmsSnapshot;
+  /** waitUntil 지연 수집 진행 중 — 완료(lmsData 도착) 또는 실패 시 해제 */
+  lmsPending?: boolean;
+  /** 지연 수집 실패 시각 — 실패 상태 표시용 */
+  lmsFailedAt?: string;
   checkedAt: string;
   courseScope: string;
 };
@@ -199,7 +203,8 @@ export async function connectSchool(
         try {
           snapshot.lmsData = await collectLms(session, snapshot.courses);
         } catch {
-          /* 수집 실패해도 로그인 자체는 유지 */
+          // 수집 실패해도 로그인 자체는 유지 — 실패 상태는 표시한다
+          snapshot.lmsFailedAt = new Date().toISOString();
         }
     }
   } catch (e) {

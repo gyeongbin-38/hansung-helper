@@ -24,11 +24,14 @@ export function SettingsSection({
         '스마트자기관리시스템',
         '코스모스 / e-Class',
       ].map((n) => {
+        const isLms = n === '코스모스 / e-Class';
         const verified =
           (account && n === '한성대학교 종합정보시스템') ||
           (account &&
-            n === '코스모스 / e-Class' &&
-            account.snapshot.lms === 'connected');
+            isLms &&
+            account.snapshot.lms === 'connected' &&
+            !!account.snapshot.lmsData &&
+            !account.snapshot.lmsFailedAt);
         return (
           <div className="event-line" key={n}>
             <Layers size={22} />
@@ -43,10 +46,15 @@ export function SettingsSection({
             <span className={verified ? 'badge green' : 'badge'}>
               {account && n === '한성대학교 종합정보시스템'
                 ? '인증 확인'
-                : account &&
-                    n === '코스모스 / e-Class' &&
-                    account.snapshot.lms === 'connected'
-                  ? '강의 조회 완료'
+                : account && isLms
+                  ? account.snapshot.lmsPending
+                    ? '수집 중…'
+                    : account.snapshot.lms !== 'connected'
+                      ? '연결 실패'
+                      : account.snapshot.lmsFailedAt ||
+                          !account.snapshot.lmsData
+                        ? '수집 실패'
+                        : '강의 조회 완료'
                   : '미연결'}
             </span>
           </div>

@@ -30,14 +30,19 @@
     lms connected/unavailable, checkedAt)를 통째로 JSON 저장.
   - `profile` 컬럼: 사용자 데이터 JSON blob — PUT /api/account/profile이
     필드 화이트리스트+검증(200KB 한도) 후 통째 덮어씀.
-- **공개 스냅샷**: `/api/courses|activities|schedule|dept-rules`는 모두
-  `lib/data/*.json` 정적 파일 서빙(`Cache-Control: public`) — 크롤러
-  (`scripts/crawl-*.mts`)가 수동 실행해 갱신. **학교 사이트 실시간 요청은
-  사용자 요청 경로에 없음**(로그인 제외) — 이 원칙 유지.
-- **LMS 수집(현재)**: `public/lms-collect.js` — 사용자가 COSMOS 페이지
-  콘솔에서 실행해 `lms-data.json` 다운로드 → 수업 현황 섹션에서 업로드.
-  스냅샷 형식 `lib/data/lms.ts`의 `LmsSnapshot`. 로그인 정보는 브라우저
-  밖으로 안 나감. 돋부기(hs-shell/dotbugi) 셀렉터 계약 사용.
+- **공개 스냅샷**: `/api/courses|activities|schedule|dept-rules`는 D1
+  `public_snapshots` 우선 읽기 + `lib/data/*.json` 폴백(60초 아이솔레이트
+  캐시, `lib/server/snapshots.ts`). 게시는
+  `scripts/_publish_snapshots.mjs`로 remote D1에 직접 — 재배포 없이 갱신.
+  D1보다 번들이 새로우면 번들 우선. **학교 사이트 실시간 요청은 사용자
+  요청 경로에 없음**(로그인·재수집 제외) — 이 원칙 유지.
+- **LMS 수집**: 로그인·재수집 시 서버가 COSMOS를 직접 수집
+  (`lib/server/lms.ts`, `waitUntil` 지연 수집 → D1 json_patch). 결과는
+  `SchoolSnapshot.lmsData`에 저장. 진행 상태는 `lmsPending`(수집 중)과
+  `lmsFailedAt`(실패 시각) 마커로 표현 — 클라이언트는 이 마커로 폴링
+  종료/실패 표시를 결정. 수동 경로 `public/lms-collect.js`(콘솔 스크립트
+  → JSON 업로드)는 폴백으로 유지. 퀴즈 응시 확인 실패는 `submitted:false`
+  가 아니라 `uncertain`+`errors:['quiz-check']`로 표현 — 미응시 단정 금지.
 - **Workers 제약**: `DOMParser` 없음 — 서버 파싱은 `HTMLRewriter` 또는
   정규식(`school.ts`의 `parseCourses` 참조). `crypto.subtle` 사용 가능.
 
@@ -51,14 +56,18 @@
 
 ---
 
-## BE-1: 로그인 시 서버 측 COSMOS 수집 (최우선) ✅ 구현됨 (2026-09-18)
+## BE-1: 로그인 시 서버 측 COSMOS 수집 (최우선) ✅ 완료 (2026-09-18, 검증 09-19)
 
 - **구현 상태**: `lib/server/lms.ts` + `school.ts`의 `connectSchool` 연동
   완료 (정규식 파서 방식 선택, 수집 예산 24s, 부분 실패 errors[] 보존).
   `SchoolSnapshot.lmsData` → 클라이언트가 최신 fetchedAt 기준 `data.lms`
-  승격. 테스트 `tests/lms-server.test.mjs` 35/35. **실계정 end-to-end
-  검증이 남은 유일한 미완료** — `node --experimental-transform-types
-  scripts/cosmos-live.mts`로 실제 학번/비번 검증 필요.
+  승격. 실계정 end-to-end 검증 완료(7개 과목 수집·매칭 확인).
+- **수집 상태 마커(추가)**: 지연 수집 시작 시 `lmsPending=true`, 성공 시
+  `lmsData` 기록+해제, 실패 시 `lmsFailedAt` 기록 — 실패 시에도 영구
+  "수집 중"으로 남지 않음. checkedAt 가드로 이전 지연 쓰기가 새
+  스냅샷을 덮지 않음. 비밀번호 재인증 재수집:
+  `POST /api/account/lms-refresh`(세션 유지, 학번 해시 일치 검증,
+  3회/15분 레이트리밋). 새 수집 실패 시 이전 lmsData 보존.
 - **배경**: ISSUE-23은 브라우저 수동 수집 — 사용자가 콘솔에 스크립트를
   붙여넣어야 함. 그런데 `connectSchool`은 이미 COSMOS 세션을 로그인 시점에
   확보하고 대시보드 HTML에서 과목 목록까지 파싱함. 같은 세션으로 나머지
@@ -86,33 +95,34 @@
   타임아웃(요청당 15초 기존 패턴) 유지. 반복 로그인 유도하지 않기
   (레이트리밋과 충돌 주의).
 
-## BE-2: LMS 스냅샷 재수집 경로 설계
+## BE-2: LMS 스냅샷 재수집 경로 설계 ✅ 1차 구현 (비밀번호 재인증 방식)
 
-- **배경**: 로그인 세션은 일회성 — 이후 데이터 갱신은 재로그인 필요.
-  브라우저 수집 파일 업로드는 이미 있음(profile.lms). 서버 재수집을
-  하려면 자격 증명이 필요한데 **비밀번호 저장은 금지** — 설계 선택지를
-  정하는 게 이 작업의 핵심.
-- **선택지** (택1 또는 조합, 장단 정리 후 구현):
-  1. 수동 갱신만: "최신화하려면 재로그인" UX + 브라우저 수집 병행 (구현 0)
-  2. 세션 수명 연장: 우리 세션 24h 내에 학교 쿠키도 유효할 때 갱신
-     엔드포인트 — 학교 세션 쿠키를 서버가 보관해야 함 → **저장 금지 규칙과
-     충돌, 별도 검토 필요**
-  3. 리프레시 토큰: 비밀번호를 D1에 저장하는 대신 클라이언트 측(확장/
-     로컬) 보관 후 갱신 시 전송 — 브라우저 저장이라 서버는 여전히 무저장
-- **수용 기준**: 선택 근거 문서화 + 구현 시 보안 규칙 준수. 2번 선택 시
-  반드시 암호화/만료/삭제 경로 포함.
+- **결정**: 선택지 1+α — 비밀번호를 저장하지 않고 **사용자가 재입력한
+  비밀번호로 즉시 재인증**해 수집. `POST /api/account/lms-refresh`:
+  세션 인증 → 입력 학번 해시가 계정 id와 일치 확인(타인 계정 재수집
+  불가) → `refresh:` 레이트리밋(3회/15분) → `connectSchool` 재실행 →
+  지연 수집·마커·이전 lmsData 보존은 로그인 경로와 동일. 학교 세션
+  쿠키/비밀번호 저장 없음 — 보안 규칙 유지하면서 "재로그인 말고
+  갱신" UX 확보.
+- **남은 선택지(미구현)**: 클라이언트 측 자격증명 보관(확장/로컬) 후
+  자동 갱신 — UX는 더 좋지만 브라우저 저장 설계가 별도 필요. 현재는
+  수동 재인증만.
+- **주의**: 재수집 남용은 Moodle 부하 — 레이트리밋으로 억제. 재수집
+  폼은 `LmsSection`의 `RefreshForm`(연결된 계정의 마스킹 학번 힌트 표시).
 
-## BE-3: 공개 스냅샷 D1 이관 + 갱신 파이프라인
+## BE-3: 공개 스냅샷 D1 이관 + 갱신 파이프라인 ✅ 완료
 
-- **배경**: courses/activities/schedule/dept-rules가 빌드 산출물 속 JSON —
-  학교 페이지 변경 반영에 재빌드·재배포 필요.
-- **작업**: `snapshots(key TEXT PK, payload TEXT, fetched_at INTEGER)`
-  테이블(마이그레이션 추가) → 라우트가 D1 우선·JSON 폴백 읽기 →
-  수집 결과를 받는 `PUT /api/snapshots/:key`(관리자 시크릿 헤더 인증) →
-  크롤러(`scripts/crawl-*.mts`)가 로컬에서 주기 실행·POST. Workers Cron
-  Trigger로 서버 측 주기 수집도 가능(학교 부하·robots 고려해 빈도 제한).
-- **수용 기준**: D1 없을 때 기존 JSON으로 동일 응답; 갱신 후 즉시 반영;
-  잘못된 페이로드 거부(형식 검증 재사용); Cache-Control 정책 유지.
+- **구현**: `public_snapshots(kind, part, payload, fetched_at, updated_at)`
+  — 단일 INSERT가 D1 문장 크기 제한(약 100KB)을 넘어 60K자 part 청크로
+  분할 저장·재조립. `lib/server/snapshots.ts`가 D1 우선 읽기(60초
+  아이솔레이트 캐시) + 번들 JSON 폴백 + D1이 더 오래됐으면 번들 우선.
+  라우트 4개(`courses|activities|schedule|dept-rules`) 모두 경유.
+- **게시 경로**: `python` → `node scripts/_publish_snapshots.mjs` —
+  JSON 형식 검증 후 remote D1 INSERT. **재배포 없이 데이터 갱신 가능**.
+  크롤러(`scripts/crawl-*.mts`)로 로컬 JSON 갱신 후 게시 2단계.
+- **남은 것**: Workers Cron Trigger 자동 수집 — Worker→학교 서버
+  도달성이 미검증(hsportal이 CF 데이터센터 IP를 차단할 수 있음).
+  확인되면 주기 자동 갱신 추가.
 
 ## BE-4: 프로필 검증 모듈화
 

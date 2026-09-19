@@ -11,6 +11,8 @@ export type LmsTask = {
   /** 'YYYY-MM-DD HH:mm' 또는 null (마감 없음/미기재) */
   due?: string | null;
   submitted: boolean;
+  /** 제출/응시 여부 확인에 실패 — 미응시로 단정하지 않음 */
+  uncertain?: boolean;
 };
 
 export type LmsVod = {
@@ -35,7 +37,7 @@ export type LmsCourse = {
   vods: LmsVod[];
   assigns: LmsTask[];
   quizzes: LmsTask[];
-  /** 수집 실패한 항목 (vod/assign/quiz) — 부분 수집 표시용 */
+  /** 수집 실패한 항목 (vod/assign/quiz/quiz-check) — 부분 수집 표시용 */
   errors?: string[];
 };
 
@@ -67,6 +69,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           url: typeof t.url === 'string' ? t.url : undefined,
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
+          uncertain: t.uncertain === true ? true : undefined,
         };
       });
     };
@@ -115,6 +118,8 @@ export type LmsPending = {
   title: string;
   url?: string;
   due: string | null;
+  /** 확인 실패 항목 — "미완료"가 아니라 "확인 불가"로 표시해야 함 */
+  uncertain?: boolean;
 };
 
 /** 스냅샷 수집 후 경과 일수 — fetchedAt 파싱 불가면 null */
@@ -185,6 +190,7 @@ export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
           title: q.title,
           url: q.url,
           due: q.due ?? null,
+          uncertain: q.uncertain,
         });
   }
   return out;
@@ -258,17 +264,23 @@ export function matchEnrollment(
   });
 }
 
-/** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외 */
+/** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외.
+ *  마감이 pastDays일 이상 지난 항목도 제외 — 오래 지난 항목이
+ *  다가오는 마감을 밀어내지 않게 한다. */
 export function dueSoon(
   snap: LmsSnapshot,
   now: number,
   days = 7,
+  pastDays = 7,
 ): (LmsPending & { dueTs: number })[] {
   const limit = now + days * 86400e3;
+  const floor = now - pastDays * 86400e3;
   return pendingTasks(snap)
     .flatMap((t) => {
       const ts = parseDue(t.due);
-      return ts !== null && ts <= limit ? [{ ...t, dueTs: ts }] : [];
+      return ts !== null && ts >= floor && ts <= limit
+        ? [{ ...t, dueTs: ts }]
+        : [];
     })
     .sort((a, b) => a.dueTs - b.dueTs);
 }

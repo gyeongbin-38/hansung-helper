@@ -156,5 +156,34 @@ t(
     snap4.courses[0].vods.length === 0,
 );
 
+// 퀴즈 상세 조회 실패 → 미응시 단정 금지: uncertain 표시 + quiz-check 오류
+const snap5 = await collectLms(
+  {
+    request: async (url) => {
+      if (url.includes('mod/quiz/view.php')) throw new Error('upstream');
+      return byUrl(url);
+    },
+  },
+  [{ id: '999', name: '테스트과목' }],
+);
+t('snap5: 퀴즈 목록은 수집됨', snap5.courses[0].quizzes.length === 1);
+t('snap5: 실패는 uncertain으로 표시', snap5.courses[0].quizzes[0].uncertain === true);
+t('snap5: submitted는 false 유지(미응시 단정 아님)', snap5.courses[0].quizzes[0].submitted === false);
+t('snap5: errors=quiz-check', snap5.courses[0].errors?.includes('quiz-check'));
+t('snap5: 목록 자체 오류 아님', !snap5.courses[0].errors?.includes('quiz'));
+
+// 퀴즈 목록 페이지 자체 실패 → 기존처럼 errors:['quiz'], uncertain 아님
+const snap6 = await collectLms(
+  {
+    request: async (url) => {
+      if (url.includes('mod/quiz/index.php')) throw new Error('upstream');
+      return byUrl(url);
+    },
+  },
+  [{ id: '999', name: '테스트과목' }],
+);
+t('snap6: errors=quiz', snap6.courses[0].errors?.includes('quiz'));
+t('snap6: quiz-check 아님', !snap6.courses[0].errors?.includes('quiz-check'));
+
 console.log(`lms-server.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

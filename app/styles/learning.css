@@ -881,6 +881,28 @@
   gap: 6px;
   font-size: 13px;
 }
+.lms-refresh {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--nt-line);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-bg-soft, var(--nt-tint-blue));
+}
+.lms-refresh-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.lms-refresh-row input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.lms-refresh-row button {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
 .lms-courses {
   display: grid;
   gap: 10px;
