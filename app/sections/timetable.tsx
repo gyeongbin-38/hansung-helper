@@ -135,13 +135,17 @@ function EnrolledStrip({
   catalog,
   planned,
   onFilter,
+  onAdd,
 }: {
   lms: NonNullable<Data['lms']>;
   catalog: Catalog;
   planned: CourseSection[];
   onFilter: (title: string) => void;
+  /** 분반을 계획에 담기 — 충돌·중복·이수 검사는 호출처가 처리, 성공 여부 반환 */
+  onAdd: (s: CourseSection) => boolean;
 }) {
   const matches = useMemo(() => matchEnrollment(lms, catalog), [lms, catalog]);
+  const [picking, setPicking] = useState<string | null>(null);
   if (!matches.length) return null;
   const plannedIds = new Set(planned.map((p) => p.id));
   const covered = matches.filter((m) =>
@@ -156,25 +160,61 @@ function EnrolledStrip({
         {matches.map(({ course, sections }) => {
           const inPlan = sections.filter((s) => plannedIds.has(s.id));
           return (
-            <div className="enrolled-row" key={course.id}>
-              <div>
-                <b>{course.title}</b>
-                <small>
-                  {course.prof || '교수 미기재'}
-                  {course.community ? ' · 커뮤니티' : ''}
-                </small>
+            <div className="enrolled-item" key={course.id}>
+              <div className="enrolled-row">
+                <div>
+                  <b>{course.title}</b>
+                  <small>
+                    {course.prof || '교수 미기재'}
+                    {course.community ? ' · 커뮤니티' : ''}
+                  </small>
+                </div>
+                {sections.length === 0 ? (
+                  <span className="meta">카탈로그에 없는 과목</span>
+                ) : inPlan.length ? (
+                  <span className="badge green">계획에 있음</span>
+                ) : (
+                  <span className="enrolled-actions">
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        if (sections.length === 1) onAdd(sections[0]);
+                        else
+                          setPicking(
+                            picking === course.id ? null : course.id,
+                          );
+                      }}
+                    >
+                      <Plus size={13} /> 담기
+                    </button>
+                    {sections.length > 1 && (
+                      <button
+                        className="link"
+                        onClick={() => onFilter(sections[0].name)}
+                      >
+                        분반 {sections.length}개 보기
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
-              {sections.length === 0 ? (
-                <span className="meta">카탈로그에 없는 과목</span>
-              ) : inPlan.length ? (
-                <span className="badge green">계획에 있음</span>
-              ) : (
-                <button
-                  className="link"
-                  onClick={() => onFilter(sections[0].name)}
-                >
-                  분반 {sections.length}개 보기
-                </button>
+              {picking === course.id && sections.length > 1 && (
+                <div className="enrolled-pick">
+                  {sections.map((s) => (
+                    <button
+                      key={s.id}
+                      className="enrolled-pick-row"
+                      onClick={() => {
+                        if (onAdd(s)) setPicking(null);
+                      }}
+                    >
+                      <b>{s.section}분반</b>
+                      <small>
+                        {s.professor || '교수 미정'} · {slotsLabel(s)}
+                      </small>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           );
@@ -271,18 +311,18 @@ export function Timetable({
       ) ?? [])
     : [];
 
-  function tryAdd(s: CourseSection) {
-    if (planned.some((p) => p.id === s.id)) return;
+  function tryAdd(s: CourseSection): boolean {
+    if (planned.some((p) => p.id === s.id)) return false;
     if (data.completed.some((c) => c.code === s.code)) {
       notify('이미 이수한 과목입니다. 이수 내역은 졸업요건에서 관리하세요.');
-      return;
+      return false;
     }
     const dup = planned.find((p) => p.code === s.code);
     if (dup) {
       notify(
         `같은 과목의 ${dup.section}분반이 이미 담겨 있습니다. 분반 변경은 해당 블록을 눌러 하세요.`,
       );
-      return;
+      return false;
     }
     const hits = conflicts(s, planned);
     if (hits.length) {
@@ -292,10 +332,11 @@ export function Timetable({
           .slice(0, 2)
           .join(', ')}`,
       );
-      return;
+      return false;
     }
     plan(s.id);
     setSelected(null);
+    return true;
   }
   function onDragStart(e: DragStartEvent) {
     const payload = e.active.data.current as
@@ -498,6 +539,7 @@ export function Timetable({
             setDay('');
             setBand('전체');
           }}
+          onAdd={tryAdd}
         />
       )}
       <DndContext

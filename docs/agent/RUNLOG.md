@@ -1005,3 +1005,39 @@ REPO SCOUT: none.
 VERIFICATION STATUS: 새 툴체인으로 빌드·테스트·배포·공개 엔드포인트
 검증 완료. RSC 렌더 경로(react 19.3)의 실계정 브라우저 e2e는
 미수행 — 다음 시각 검증 라운드에서 확인 권장.
+
+---
+
+## 2026-09-19 — EnrolledStrip 분반 직접 담기 (user-audited priority 3)
+
+DONE:
+- `tryAdd`를 boolean 반환으로 변경 — 성공 시에만 분반 선택 목록을
+  닫도록(충돌·중복·이수 실패 시 선택지 유지).
+- `EnrolledStrip`에 `onAdd` prop + 분반 선택 UI: 분반 1개 과목은
+  "담기" 즉시 추가, 다분반 과목은 "담기" 토글로 분반 목록
+  (분반·교수·시간) 표시 후 선택 추가 — 충돌 검사·이수 검사·
+  동일 과목 중복 검사는 기존 tryAdd 경로 그대로(notify로 실패
+  원인 표시). "분반 N개 보기" 필터 경로도 유지.
+- `.enrolled-item/.enrolled-actions/.enrolled-pick` 스타일 추가 —
+  행 내부를 item(row+선택지) 구조로 재구성.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 졸업 ruleset 매핑 → 검증 학과만 엔진 연결(yearTable 1개뿐,
+   dept null — 전 학과 확대 금지).
+2. LMS 과제·마감 검색(advisor), 알림 예약.
+3. 나머지: 수집 실패율 관측, 스냅샷 크론, 사이드바 축약,
+   접근성, needs-verification 큐.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK,
+root+deploy 빌드 green, _verify_prod 전 엔드포인트 200.
+라이브 version 82a2ceda.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 코드·빌드·배포 검증. 담기 버튼·분반 선택
+목록의 실계정 브라우저 확인은 미수행 — react 19.3 렌더와 함께
+다음 e2e 라운드에서 확인 권장.

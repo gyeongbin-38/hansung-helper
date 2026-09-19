@@ -528,6 +528,47 @@
 .enrolled > .meta {
   margin-top: 12px;
 }
+.enrolled-item {
+  display: grid;
+  gap: 6px;
+}
+.enrolled-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.enrolled-actions .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+.enrolled-pick {
+  display: grid;
+  gap: 4px;
+  margin-left: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--nt-hairline);
+}
+.enrolled-pick-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--nt-r-md);
+  font-size: 13px;
+}
+.enrolled-pick-row:hover {
+  background: var(--nt-tint-blue);
+}
+.enrolled-pick-row b {
+  font-size: 13px;
+}
+.enrolled-pick-row small {
+  color: var(--nt-stone);
+}
 .builder-filters.sub {
   display: flex;
   gap: 8px;
