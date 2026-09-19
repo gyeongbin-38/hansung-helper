@@ -21,7 +21,7 @@
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
-- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (drizzle/0000_academic_accounts.sql)
+- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (drizzle/0000_academic_accounts.sql) + `public_snapshots` (drizzle/0001_public_snapshots.sql — 게시 스크립트가 DROP/CREATE하므로 별도 적용 불필요)
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
 - 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
 - 또는 Cloudflare 대시보드 → D1 → site-creator-d1 → SQL Editor
@@ -32,6 +32,7 @@
 - 학사일정: `node --experimental-strip-types scripts/crawl-schedule.mts` → `lib/data/schedule.json` → `GET /api/schedule` (hansung.ac.kr 공식 학사일정, month/year2 POST)
 - 크롤러 공통: 이상 감지(급감) 시 기존 스냅샷 유지, 사용자 요청 경로에서 라이브 수집 없음
 - 원본 xlsx: `data/source/` (재임포트용)
+- **스냅샷 게시**: `node scripts/_publish_snapshots.mjs` — 4개 공개 JSON을 remote D1 `public_snapshots`에 청크 저장 (`--local`이면 로컬). API는 D1 우선+번들 폴백이므로 **크롤링→게시만으로 재배포 없이 데이터 갱신 가능**. `lib/server/snapshots.ts`가 60초 아이솔레이트 캐시 + fetched_at 비교로 처리
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요
 
 ## 프로덕션 (2026-09-18부터 라이브)

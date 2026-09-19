@@ -771,3 +771,55 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트+단위테스트 수준 —
 실기기 시각 확인 미수행. 기존 검증 라벨 상태 불변.
+
+---
+
+## 2026-09-19 — 스케일 감사 + BE-3 공개 스냅샷 D1 이관 (user-requested, 1000+ 사용자 전제)
+
+DONE:
+- 계정 인프라 보안/스케일 감사 — 코드 리뷰로 확인된 기존 방어:
+  `__Host-` 쿠키(Secure/HttpOnly/SameSite=Lax), 세션 토큰 SHA-256 해시
+  저장·24h 만료·로그아웃 시 서버 삭제, 모든 변경 요청에
+  Origin+JSON content-type CSRF 검사, 로그인 레이트리밋 이중화
+  (IP 20회·계정 3회/15분, 해시 키), 모든 계정 응답 no-store/private
+  +Vary:Cookie, 프로필 PUT 200KB 캡+필드별 엄격 검증, 비밀번호
+  미저장·사용 후 즉시 폐기, 학번 해시+마스킹. 공개 API 4종에
+  max-age=300 캐시 헤더 이미 존재. 수정 필요 사항 없음 판정.
+- BE-3 구현 — 공개 스냅샷(courses/activities/schedule/dept-rules)을
+  D1 `public_snapshots(kind,part,payload,fetched_at,updated_at)`로 이관:
+  - `lib/server/snapshots.ts` `snapshotGet(kind, bundled, bundledAt)` —
+    D1 행이 번들보다 새롭거나 같으면 D1 페이로드를 원문 서빙, 아니면
+    번들 JSON 폴백. D1 미바인딩/오류/깨진 페이로드도 번들 폴백.
+    아이솔레이트 내 60초 캐시로 D1 읽기 최소화.
+  - D1 문장 크기 제한(SQLITE_TOOBIG, 213KB 단일 INSERT 실패) 대응:
+    페이로드를 60K자 part 청크로 분할 저장, 읽기 시 ORDER BY part로
+    재조립. gzip 대비 SQL로 내용 직접 조회 가능한 장점.
+  - `scripts/_publish_snapshots.mjs` — 4개 JSON 형식 검증(필수 키) 후
+    DROP/CREATE + DELETE+INSERT를 `--file`로 remote D1에 게시.
+    **크롤러→게시만으로 재배포 없이 데이터 갱신** 경로 확보.
+  - 4개 라우트를 snapshotGet 호출로 전환, 헤더 동일(max-age=300).
+  - drizzle/0001_public_snapshots.sql 스키마 기록(게시 스크립트가
+    DROP/CREATE하므로 수동 적용 불필요), AGENTS.md 운영 문서 갱신.
+- 재배포: version 627c5e1a 라이브. remote D1에 courses 4part 등
+  7행 게시 확인(_d1q.mjs), _verify_prod 전 엔드포인트 200 —
+  응답 바이트가 파일 원본과 일치(번들은 compact 재직렬화라 약간 작았음).
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, A3 수강 과목→시간표
+   연동, LMS 부분수집 재시도 UX, 사이드바 축약, 설정 화면/접근성.
+2. 스냅샷 자동 갱신(크론)은 Worker→학교 도달성 검증이 선행 필요 —
+   hsportal/hansung.ac.kr이 CF IP를 허용하는지 미확인.
+3. needs-verification 큐는 fresh-session 독립 검증 필요.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err(44파일), root+deploy 빌드 green,
+_verify_prod 200 전체, remote D1 게시·조회 실측 확인.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: D1 경로는 행 존재+fetched_at 비교 로직+응답
+바이트 일치로 확인(페이로드 동일 시 경로 구분 불가 — 코드 경로상
+D1 우선 확실). 실사용 트래픽 하의 캐시 동작은 미관측.
