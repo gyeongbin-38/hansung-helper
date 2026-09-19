@@ -3,6 +3,10 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
+import {
+  deptRuleTargets,
+  rulesetMatchesDept,
+} from '@/lib/data/dept-rules';
 import { deptPoolOf, useDeptRules } from './catalog';
 import type { Completed, Data } from './data';
 
@@ -32,17 +36,40 @@ export function Graduation({
     const pool = deptPoolOf(data.dept, [
       ...new Set(catalog.sections.map((s) => s.dept)),
     ]);
-    if (!pool) return null;
-    return deptRules.items.find((r) => r.dept && pool.includes(r.dept)) ?? null;
+    return (
+      deptRules.items.find((r) => rulesetMatchesDept(r, data.dept, pool)) ??
+      null
+    );
   }, [deptRules, catalog, data.dept]);
+  // 학번-컬럼 규정표 → 학과 기준 해석 (검증된 yearTable이 있는 학과만)
+  const deptTargets = useMemo(() => {
+    const year = parseInt(data.year, 10);
+    if (!myRules || !Number.isInteger(year)) return null;
+    return deptRuleTargets(myRules, year);
+  }, [myRules, data.year]);
+  // 규정표에서 내 학번 컬럼 위치 — 하이라이트용
+  const myColIdx = useMemo(() => {
+    if (!myRules?.yearTable || !deptTargets) return -1;
+    return myRules.yearTable.columns.findIndex(
+      (c) => c.label === deptTargets.columnLabel,
+    );
+  }, [myRules, deptTargets]);
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
     const pts = parseInt(data.points, 10);
     return evaluate(data.completed, planned, data.ruleOverrides, {
       admitYear: Number.isInteger(year) ? year : undefined,
       points: Number.isInteger(pts) ? pts : undefined,
+      deptTargets: deptTargets ?? undefined,
     });
-  }, [data.completed, planned, data.ruleOverrides, data.year, data.points]);
+  }, [
+    data.completed,
+    planned,
+    data.ruleOverrides,
+    data.year,
+    data.points,
+    deptTargets,
+  ]);
   const total = results[0];
   const matches = useMemo(() => {
     if (!catalog || q.length < 2) return [];
@@ -160,11 +187,27 @@ export function Graduation({
             max={100}
             value={pct(r)}
           />
-          {r.rule.note && <p className="meta">{r.rule.note}</p>}
+          {r.requiredSource === 'dept' ? (
+            <p className="meta">
+              내 학과 졸업 규정표에서 해석된 학번별 기준입니다.
+            </p>
+          ) : (
+            r.rule.note && <p className="meta">{r.rule.note}</p>
+          )}
           <p className="meta">
-            {r.required === null
-              ? '이 규정의 공식 필요 수량은 수집되지 않았습니다 — 학과별 세부 요건을 학교에서 확인하세요.'
-              : `공식 전역 기준(2016학번 이후) · 출처: ${GLOBAL_RULE_SOURCE.label} · 확인일 ${GLOBAL_RULE_SOURCE.asOf}`}
+            {r.required === null ? (
+              '이 규정의 공식 필요 수량은 수집되지 않았습니다 — 학과별 세부 요건을 학교에서 확인하세요.'
+            ) : r.requiredSource === 'dept' && myRules && deptTargets ? (
+              <>
+                내 학과 규정표 기준 ({deptTargets.columnLabel}) · 출처:{' '}
+                <a href={myRules.url} target="_blank" rel="noreferrer">
+                  {myRules.deptLabel || myRules.dept} 졸업요건
+                </a>{' '}
+                · 수집일 {deptRules?.fetchedAt.slice(0, 10)}
+              </>
+            ) : (
+              `공식 전역 기준(2016학번 이후) · 출처: ${GLOBAL_RULE_SOURCE.label} · 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
+            )}
           </p>
           <label className="rule-target">
             필요 {r.rule.unit ?? '학점'}
@@ -240,11 +283,16 @@ export function Graduation({
     <>
       <div className="card pad grad-intro">
         <span className="badge green">공식 전역 기준 적용</span>
+        {deptTargets && (
+          <span className="badge green">내 학과 규정표 반영</span>
+        )}
         <span className="badge">사용자 입력 기반</span>
         <h2>졸업 준비는 정확한 기준부터.</h2>
         <p>
-          입력한 이수 과목으로 이수구분별 충족률을 계산합니다. 총 이수학점·
-          비교과 포인트는 학교 공식 전역 기준(2016학번 이후)을 적용하고,
+          입력한 이수 과목으로 이수구분별 충족률을 계산합니다.{' '}
+          {deptTargets
+            ? `총 이수학점·비교과 포인트는 내 학과 졸업 규정표의 학번별 기준(${deptTargets.columnLabel})을 적용했고,`
+            : '총 이수학점·비교과 포인트는 학교 공식 전역 기준(2016학번 이후)을 적용하고,'}{' '}
           학과별 세부 요건은 확인이 필요합니다. 학교의 공식 졸업 사정을
           대체하지 않습니다.
         </p>
@@ -330,7 +378,9 @@ export function Graduation({
                   <tr>
                     <th>항목</th>
                     {myRules.yearTable.columns.map((c, i) => (
-                      <th key={i}>{c.label}</th>
+                      <th key={i} className={i === myColIdx ? 'my-col' : undefined}>
+                        {c.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -339,12 +389,45 @@ export function Graduation({
                     <tr key={i}>
                       <td>{r.label}</td>
                       {r.cells.map((c, j) => (
-                        <td key={j}>{c}</td>
+                        <td key={j} className={j === myColIdx ? 'my-col' : undefined}>
+                          {c}
+                        </td>
                       ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {myRules.yearTable && !deptTargets && (
+            <p className="meta">
+              {data.year.trim()
+                ? '입력한 입학연도에 해당하는 학번 컬럼이 규정표에 없습니다 — 학과 사무실에서 확인하세요.'
+                : '내 정보에 입학연도를 입력하면 내 학번 기준 요건이 표시됩니다.'}
+            </p>
+          )}
+          {deptTargets && deptTargets.conditions.length > 0 && (
+            <div className="dept-conds">
+              <h4>내 학번 기준 ({deptTargets.columnLabel})</h4>
+              <ul>
+                {deptTargets.conditions.map((c, i) => (
+                  <li key={i}>
+                    <span
+                      className={c.recommended ? 'badge' : 'badge orange'}
+                    >
+                      {c.recommended ? '권장' : '필수'}
+                    </span>
+                    <div>
+                      <b>{c.label}</b>
+                      <small>{c.cell}</small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="meta">
+                학점 외 조건은 자동 집계하지 않습니다 — 충족 여부는 학교
+                시스템·학과 사무실에서 확인하세요.
+              </p>
             </div>
           )}
           {myRules.attachment && (
@@ -450,7 +533,13 @@ export function Graduation({
                 onBlur={(e) => setRequired(r.rule.id, e.target.value)}
               />
             </label>
-            {r.rule.note && <p className="meta">{r.rule.note}</p>}
+            {r.requiredSource === 'dept' && deptTargets ? (
+              <p className="meta">
+                내 학과 규정표 기준 ({deptTargets.columnLabel})
+              </p>
+            ) : (
+              r.rule.note && <p className="meta">{r.rule.note}</p>
+            )}
           </section>
         ))}
       </div>

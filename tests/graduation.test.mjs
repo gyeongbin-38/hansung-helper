@@ -90,3 +90,39 @@ test('비교과 포인트 rule: 800P official, missing input stays unknown', () 
   assert.equal(pts2.earned, 900);
   assert.equal(pts2.status, 'met');
 });
+
+// 학과 규정표(yearTable) 해석 기준 — 검증된 학과만 엔진에 연결
+test('deptTargets: 학과 기준이 미수집 전역 기준을 메운다 (pre-2016)', () => {
+  // 2015학번: 전역 기준 미수집이지만 학과 규정표에 140학점 명시
+  const r = evaluate([], [], {}, { admitYear: 2015, deptTargets: { total: 140 } });
+  const total = r.find((x) => x.rule.id === 'total');
+  assert.equal(total.required, 140);
+  assert.equal(total.requiredSource, 'dept');
+  // 학과 기준이 없는 규정은 여전히 unknown
+  const major = r.find((x) => x.rule.id === 'major');
+  assert.equal(major.required, null);
+  assert.equal(major.requiredSource, undefined);
+});
+
+test('deptTargets: 사용자 override가 학과 기준보다 우선한다', () => {
+  const r = evaluate([], [], { total: 150 }, { admitYear: 2015, deptTargets: { total: 140 } });
+  const total = r.find((x) => x.rule.id === 'total');
+  assert.equal(total.required, 150);
+  assert.equal(total.requiredSource, 'override');
+});
+
+test('deptTargets: 비교과 포인트도 학과 기준으로 확정 가능', () => {
+  const r = evaluate([], [], {}, { admitYear: 2015, points: 500, deptTargets: { points: 800 } });
+  const pts = r.find((x) => x.rule.id === 'points');
+  assert.equal(pts.required, 800);
+  assert.equal(pts.requiredSource, 'dept');
+  assert.equal(pts.status, 'progress');
+});
+
+test('requiredSource: 전역 기준 경로는 global로 표시', () => {
+  const r = evaluate([], [], {}, { admitYear: 2023 });
+  assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');
+  // 학과 기준이 있어도 total/points 외 규정에는 영향 없음
+  const r2 = evaluate([], [], {}, { admitYear: 2023, deptTargets: { total: 130, points: 800 } });
+  assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, undefined);
+});

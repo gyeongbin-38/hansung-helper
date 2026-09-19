@@ -1041,3 +1041,63 @@ REPO SCOUT: none.
 VERIFICATION STATUS: 코드·빌드·배포 검증. 담기 버튼·분반 선택
 목록의 실계정 브라우저 확인은 미수행 — react 19.3 렌더와 함께
 다음 e2e 라운드에서 확인 권장.
+
+---
+
+## 2026-09-19 — 졸업 ruleset 매핑 정규화 + 검증 학과 엔진 연결 (user-audited priority 4)
+
+DONE:
+- **매핑 검증(조사)**: 19 rulesets 중 yearTable은 컴퓨터공학부(CSE) 1개뿐,
+  `dept: null`이던 원인은 카탈로그 개설 단위명 차이. 입학처 모집요강·
+  CSE 사이트·카탈로그 교차 확인으로 검증: 컴퓨터공학부 =
+  {IT응용시스템공학과(K191, 공통 교과), 모바일소프트웨어트랙(V021),
+  빅데이터트랙(V022)}. 산학협력 프로젝트 각주의 과목명이 카탈로그 트랙
+  개설과 일치해 매핑 확실. 웹공학·디지털콘텐츠가상현실 트랙은 2026-2
+  카탈로그에 개설 단위가 없어 미등록.
+- **`lib/data/dept-rules.ts`**:
+  - `RULESET_DEPT_FAMILY` — 수집 학과명↔카탈로그 학과 수동 검증 매핑
+    (검증된 것만 등록, 현재 컴퓨터공학부 1건).
+  - `rulesetMatchesDept(r, userDept, pool)` — ①수집 해석 dept 포함
+    ②deptLabel 정규화 일치 ③검증 패밀리(단일 확정 풀에서만 — 모호한
+    candidates 풀에는 규정을 붙이지 않음). 어느 쪽도 아니면 매칭 안 함.
+  - `deptRuleTargets(ruleset, admitYear)` — yearTable 학번 컬럼 해석:
+    '취득/이수/졸업 학점' 행에서 교과 학점→total, 비교과 Npt→points
+    ('140학점' 베어 형태도 총 취득 학점으로 해석). 나머지 V/숫자 셀은
+    `conditions[]`(원문 라벨+셀, 권장 표기 감지)로 원문 보존 — 자동
+    집계하지 않음. 컬럼 없으면 null(추측 금지).
+- **`lib/data/graduation.ts`**: `evaluate` opts에 `deptTargets` 추가 —
+  우선순위 사용자 override > 학과 규정 > 전역 기준. `RuleResult.
+  requiredSource`('override'|'dept'|'global')로 required 출처 추적.
+  학과 기준이 있으면 pre-2016 학번도 공식값 확정 가능(컴퓨터공학부
+  ~15학번 총 140학점).
+- **`app/sections/graduation.tsx`**: myRules를 rulesetMatchesDept로
+  교체(컴퓨터공학부 입력·트랙 학과 입력·IT응용시스템공학과 입력 모두
+  CSE 규정과 연결). deptTargets → evaluate 연결. 학번 컬럼 표 하이라이트
+  (.my-col), "내 학번 기준" 조건 체크리스트(필수/권장 배지 + 자동 집계
+  안 함 고지), 입학연도 미입력/컬럼 부재 안내. requiredSource=dept일 때
+  카드 노트·상세 출처를 학과 규정표(컬럼 라벨·원문 링크·수집일)로 표시,
+  인트로에 "내 학과 규정표 반영" 배지.
+- **`progress.css`**: `.dept-conds` 체크리스트·`.my-col` 스타일.
+- 미검증 학과는 여전히 엔진 미연결 — yearTable이 있는 ruleset만 이
+  경로를 탄다. 나머지 18개는 원문 표시만(기존 동작).
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. LMS 과제·마감 검색(advisor), 알림 예약.
+2. 나머지: 수집 실패율 관측, 스냅샷 크론(도달성 검증 선행),
+   사이드바 축약, 접근성 설정, needs-verification 큐.
+3. 수집 공백(Design 빈 본문, SclScn 링크 없음)은 크롤러 개선 과제로.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(dept-rules 61/61 — 매칭 7 + targets 11 신규, graduation 10/10 — 
+deptTargets 4 신규), root+deploy 빌드 green, _verify_prod 전 엔드포인트
+200. 라이브 version 22e2a286.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 엔진 해석·매칭은 단위 테스트로 검증. 실계정
+브라우저에서 컴퓨터공학부 프로필로 규정 카드·학번 컬럼 하이라이트·
+조건 체크리스트 렌더 확인은 미수행 — 다음 e2e 라운드 권장.

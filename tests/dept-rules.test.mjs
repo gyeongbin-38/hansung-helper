@@ -1,5 +1,6 @@
 // dept-rules 파서 단위 테스트 — node --experimental-strip-types tests/dept-rules.test.mjs
 import {
+  deptRuleTargets,
   extractAttachment,
   extractRulesText,
   inferDeptLabel,
@@ -9,6 +10,7 @@ import {
   parseSitemapLinks,
   parseYearLabel,
   parseYearTable,
+  rulesetMatchesDept,
   yearColumnIndex,
 } from '../lib/data/dept-rules.ts';
 
@@ -137,6 +139,59 @@ t('col: 2014 → 0', yearColumnIndex(yt, 2014) === 0);
 t('col: 2016 → 1', yearColumnIndex(yt, 2016) === 1);
 t('col: 2020 → 2', yearColumnIndex(yt, 2020) === 2);
 t('col: 2026 → 3', yearColumnIndex(yt, 2026) === 3);
+
+// --- rulesetMatchesDept ---
+const CSE = {
+  deptLabel: '컴퓨터공학부',
+  dept: null,
+  url: 'https://www.hansung.ac.kr/CSE/1564/subview.do',
+  lines: [],
+  yearTable: yt,
+};
+t('match: 수집 해석 dept로 매칭',
+  rulesetMatchesDept({ deptLabel: '융합보안학과', dept: '융합보안학과', url: 'u', lines: [] }, '융합보안', ['융합보안학과']));
+t('match: 라벨 동일 입력 — 풀 없어도 매칭', rulesetMatchesDept(CSE, '컴퓨터공학부', null));
+t('match: 검증 패밀리 — 트랙 학과', rulesetMatchesDept(CSE, '모바일소프트웨어트랙', ['모바일소프트웨어트랙']));
+t('match: 검증 패밀리 — 공통 개설 단위', rulesetMatchesDept(CSE, 'IT응용시스템공학과', ['IT응용시스템공학과']));
+t('match: 모호 풀(candidates)엔 패밀리 미적용',
+  !rulesetMatchesDept(CSE, '소프트웨어', ['AI·소프트웨어학과', '모바일소프트웨어트랙']));
+t('match: 무관 학과는 불일치', !rulesetMatchesDept(CSE, '기계시스템공학과', ['기계시스템공학과']));
+t('match: 라벨 공백이면 dept 외 매칭 없음',
+  !rulesetMatchesDept({ deptLabel: '', dept: null, url: 'u', lines: [] }, '아무학과', ['아무학과']));
+
+// --- deptRuleTargets ---
+const d2020 = deptRuleTargets(CSE, 2020);
+t('targets: 2020 교과 130', d2020?.total === 130);
+t('targets: 2020 비교과 800', d2020?.points === 800);
+t('targets: 컬럼 라벨 보존', d2020?.columnLabel === '17학번 ~23학번');
+t('targets: 학점 행은 조건에서 제외', !d2020?.conditions.some((c) => c.label.includes('학점')));
+t('targets: 2020 조건 2개(캡스톤 V필수+트랙 2)', d2020?.conditions.length === 2);
+const d2014 = deptRuleTargets(CSE, 2014);
+t('targets: ~15학번 총 140', d2014?.total === 140);
+t('targets: ~15학번 비교과 미표기 → undefined', d2014?.points === undefined);
+t('targets: X 셀은 조건 제외(트랙)', !d2014?.conditions.some((c) => c.label.includes('트랙')));
+t('targets: V 셀은 조건 포함(캡스톤)', d2014?.conditions.some((c) => c.cell === 'V'));
+const d2016 = deptRuleTargets(CSE, 2016);
+t('targets: 16학번 트랙 수 1', d2016?.conditions.find((c) => c.label.includes('트랙'))?.cell === '1');
+t('targets: yearTable 없으면 null',
+  deptRuleTargets({ deptLabel: 'x', dept: null, url: 'u', lines: [] }, 2020) === null);
+// 권장 표기 감지
+const yt2 = {
+  columns: yt.columns,
+  rows: [...yt.rows, { label: '개발 역량 / GitHub 활동 이력서(권장)', cells: ['X', 'X', 'V', 'V'] }],
+};
+const dRec = deptRuleTargets({ ...CSE, yearTable: yt2 }, 2020);
+t('targets: 권장 항목 감지', dRec?.conditions.find((c) => c.label.includes('GitHub'))?.recommended === true);
+t('targets: 필수는 권장 아님', dRec?.conditions.find((c) => c.label.includes('캡스톤'))?.recommended === false);
+// 학번 컬럼 공백 → null
+const gapTable = {
+  columns: [
+    { label: '16학번', from: 2016, to: 2016 },
+    { label: '18학번', from: 2018, to: 2018 },
+  ],
+  rows: [{ label: '이수 학점 / 총 취득 학점', cells: ['130학점', '130학점'] }],
+};
+t('targets: 해당 학번 컬럼 없음 → null', deptRuleTargets({ ...CSE, yearTable: gapTable }, 2017) === null);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

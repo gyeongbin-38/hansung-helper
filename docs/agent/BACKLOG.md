@@ -142,8 +142,10 @@ blocking regressions.
 
 - **Status**: partially implemented — 전역 기준 부분 **verified**
   (2026-09-18: 2016+ 적용·pre-2016 unknown·포인트 미입력 unknown·
-  프로필 year/points 입력 경로·출처 링크 확인). 잔여(학과별 ruleset,
-  수강중 상태)는 backlog 유지.
+  프로필 year/points 입력 경로·출처 링크 확인). 학과별 ruleset은
+  2026-09-19부터 검증된 1개 학과(컴퓨터공학부 yearTable)만 엔진 연결
+  — ISSUE-20 Engine 연동 참조. 잔여: 다른 학과 ruleset 수집·검증,
+  수강중 상태.
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
@@ -396,9 +398,19 @@ blocking regressions.
 
 ## ISSUE-20 — 학과별 졸업 규정 수집 파이프라인 (ISSUE-6 잔여)
 
-- **Status**: partially implemented — needs-verification (2026-09-18
-  이터레이션 8 — 수집 파이프라인 + 스냅샷 + UI 원문 표시 구현).
-  잔여: 학번-컬럼 표의 구조화 파싱(CSE형), 수집 공백 학과 보완.
+- **Status**: partially implemented — needs-verification (2026-09-19:
+  학번표→엔진 연결을 검증된 1개 학과에 한정해 구현). 잔여: 수집 공백
+  학과(Design 빈 본문·SclScn 링크 없음), 다른 학과의 학번표 포맷 확인.
+- **Engine 연동 (2026-09-19)**: `rulesetMatchesDept`(dept 해석·라벨 일치·
+  `RULESET_DEPT_FAMILY` 검증 매핑 — 현재 컴퓨터공학부
+  →{IT응용시스템공학과, 모바일소프트웨어트랙, 빅데이터트랙} 1건, 입학처
+  요강·사이트·카탈로그 교차 확인)로 ruleset↔사용자 학과 연결.
+  `deptRuleTargets`가 yearTable 학번 컬럼을 해석해 total/points를
+  `evaluate`에 공급(override > 학과 > 전역), `requiredSource`로 출처
+  추적 — pre-2016 학번도 학과 공식값 확정 가능(~15학번 140학점).
+  학점 외 조건(캡스톤·트랙 수·GitHub·산학협력)은 `conditions[]`로 원문
+  보존해 "내 학번 기준" 체크리스트로 표시(자동 집계 안 함 고지).
+  yearTable 없는 18개 ruleset은 원문 표시만 — 엔진 확대는 수집 검증 후.
 - **Labels**: agent-ready, priority:p2, area:crawler, area:data
 - **Objective**: 학과별 졸업요건 페이지가 학번-컬럼 표 구조로 공개됨
   (예: hansung.ac.kr/CSE/1564/subview.do — 총학점·캡스톤·트랙수·산학

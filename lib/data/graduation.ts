@@ -68,6 +68,8 @@ export const DEFAULT_RULES: GradRequirement[] = [
 ];
 
 export type RuleStatus = 'met' | 'progress' | 'unknown';
+/** required 값의 출처 — 사용자 입력 > 학과 규정표 > 전역 공식 순으로 적용 */
+export type RequiredSource = 'override' | 'dept' | 'global';
 export type RuleResult = {
   rule: GradRequirement;
   /** 이수 완료로 확정된 학점 */
@@ -75,6 +77,8 @@ export type RuleResult = {
   /** 계획 과목이 이수되면 추가될 학점 */
   planned: number;
   required: number | null;
+  /** required가 확정된 경우의 출처 (null이면 미설정) */
+  requiredSource?: RequiredSource;
   status: RuleStatus;
 };
 
@@ -98,7 +102,15 @@ export function evaluate(
   completed: CompletedCourse[],
   planned: CourseSection[],
   overrides: Record<string, number> = {},
-  opts: { admitYear?: number; points?: number } = {},
+  opts: {
+    admitYear?: number;
+    points?: number;
+    /**
+     * 학과 규정표(dept-rules yearTable)에서 해석된 학번별 기준.
+     * total/points 규정에만 적용 — 사용자 override보다 낮고 전역 기준보다 높다.
+     */
+    deptTargets?: { total?: number; points?: number };
+  } = {},
 ): RuleResult[] {
   // 입학연도 미입력 → null(참고 기본값 적용), 2016+ → true, 이전 → false(미수집)
   const post16 =
@@ -108,10 +120,27 @@ export function evaluate(
     credits: s.credits,
   }));
   return DEFAULT_RULES.map((rule) => {
-    let required =
-      overrides[rule.id] !== undefined ? overrides[rule.id] : rule.required;
-    // 2015학번 이전의 전역 기준은 수집하지 않았다 — 추측하지 않는다.
-    if (post16 === false && overrides[rule.id] === undefined) required = null;
+    const deptVal =
+      rule.id === 'total'
+        ? opts.deptTargets?.total
+        : rule.id === 'points'
+          ? opts.deptTargets?.points
+          : undefined;
+    let required: number | null;
+    let requiredSource: RequiredSource | undefined;
+    if (overrides[rule.id] !== undefined) {
+      required = overrides[rule.id];
+      requiredSource = 'override';
+    } else if (deptVal !== undefined) {
+      required = deptVal;
+      requiredSource = 'dept';
+    } else if (post16 === false) {
+      // 2015학번 이전의 전역 기준은 수집하지 않았다 — 추측하지 않는다.
+      required = null;
+    } else {
+      required = rule.required;
+      requiredSource = required === null ? undefined : 'global';
+    }
     const isPoints = rule.source === 'points';
     const earned = isPoints ? (opts.points ?? 0) : sumByGroups(completed, rule.groups);
     const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
@@ -122,6 +151,6 @@ export function evaluate(
         : earned >= required
           ? 'met'
           : 'progress';
-    return { rule, earned, planned: plan, required, status };
+    return { rule, earned, planned: plan, required, requiredSource, status };
   });
 }

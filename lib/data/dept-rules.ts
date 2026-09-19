@@ -309,6 +309,108 @@ export function yearColumnIndex(table: YearTable, admitYear: number): number | n
   return null;
 }
 
+/**
+ * 수집 학과명 ↔ 카탈로그 학과명 수동 검증 매핑.
+ * 학과 사이트의 표기(deptLabel)가 카탈로그 개설 단위명과 다를 때만 등록한다.
+ * - 컴퓨터공학부(CSE 사이트): 입학처 공식 명칭 그대로이며 카탈로그에서는
+ *   공통 교과가 'IT응용시스템공학과'(K191)로, 트랙 교과가
+ *   '모바일소프트웨어트랙'·'빅데이터트랙'으로 개설된다.
+ *   (모집요강 기준 컴퓨터공학부 트랙 = 모바일SW·빅데이터·디지털콘텐츠가상현실·
+ *   웹공학 — 이 중 2026-2 카탈로그에 개설이 확인된 단위만 등록)
+ * 검증되지 않은 매핑은 추가하지 않는다.
+ */
+const RULESET_DEPT_FAMILY: Record<string, string[]> = {
+  컴퓨터공학부: ['IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙'],
+};
+
+/**
+ * ruleset이 사용자 학과에 적용되는지 판정.
+ * 1) 수집 시 해석된 카탈로그 학과명(r.dept)이 사용자 dept 풀에 포함
+ * 2) 사용자 입력이 학과 사이트 표기(deptLabel)와 정규화 일치
+ * 3) 검증된 학과 패밀리 매핑 — 사용자 풀이 단일 학과로 확정된 경우만 적용
+ *    (모호한 입력에 규정을 붙이지 않기 위해 candidates 풀에는 적용하지 않음)
+ * 어느 쪽도 해당하지 않으면 false — 규정을 추측해 보여주지 않는다.
+ */
+export function rulesetMatchesDept(
+  r: DeptRuleset,
+  userDept: string,
+  pool: string[] | null,
+): boolean {
+  if (r.dept && pool?.includes(r.dept)) return true;
+  const label = r.deptLabel.replace(/\s+/g, '');
+  if (!label) return false;
+  if (label === userDept.replace(/\s+/g, '')) return true;
+  const family = RULESET_DEPT_FAMILY[label];
+  return !!family && pool?.length === 1 && family.includes(pool[0]);
+}
+
+/** 학점이 아닌 조건 요건 행 — 원문 그대로 보존, 자동 집계하지 않는다. */
+export type DeptCondition = {
+  /** 행 라벨 원문 (예: '트랙 이수 / 이수 트랙 수') */
+  label: string;
+  /** 해당 학번 컬럼 셀 원문 (예: '2', 'V 캡스톤디자인 수강 필수…') */
+  cell: string;
+  /** 권장 항목 여부 — 라벨·셀의 '권장' 표기로 판정 */
+  recommended: boolean;
+};
+
+/** 학번표에서 해석된 학과 기준 — 엔진 입력용 */
+export type DeptTargets = {
+  /** '총 취득 학점' 계열 셀의 교과 학점 (예: 140, 130) */
+  total?: number;
+  /** 비교과 포인트 (예: 800) */
+  points?: number;
+  /** 학점이 아닌 조건 요건 행들 (V/숫자 셀) */
+  conditions: DeptCondition[];
+  /** 매칭된 학번 컬럼 라벨 (provenance 표시용) */
+  columnLabel: string;
+};
+
+const CREDIT_ROW = /취득\s*학점|이수\s*학점|졸업\s*학점/;
+const NO_REQ = /^[-–—xX✕미적용]+$/;
+
+/**
+ * yearTable + 입학연도 → 학과 졸업 기준 해석.
+ * 학번 컬럼이 없으면 null(적용 불가 — 추측하지 않음).
+ * 학점 행은 엔진 입력(total/points)으로 해석하고, V/숫자 셀의 조건 행은
+ * 원문 그대로 conditions에 담아 사용자 확인용으로 돌린다.
+ */
+export function deptRuleTargets(
+  ruleset: DeptRuleset,
+  admitYear: number,
+): DeptTargets | null {
+  const table = ruleset.yearTable;
+  if (!table) return null;
+  const idx = yearColumnIndex(table, admitYear);
+  if (idx === null) return null;
+  const out: DeptTargets = {
+    conditions: [],
+    columnLabel: table.columns[idx].label,
+  };
+  for (const row of table.rows) {
+    const cell = (row.cells[idx] ?? '').trim();
+    if (!cell || NO_REQ.test(cell.replace(/\s+/g, ''))) continue;
+    if (CREDIT_ROW.test(row.label)) {
+      const major = cell.match(/교과\s*(\d+)\s*학점/);
+      const nonmajor = cell.match(/비교과\s*(\d+)\s*(?:pt|p|점|포인트)/i);
+      if (major) out.total = parseInt(major[1], 10);
+      if (nonmajor) out.points = parseInt(nonmajor[1], 10);
+      // '140학점'처럼 교과/비교과 표기 없이 학점만 있으면 총 취득 학점으로 해석
+      if (!major && !nonmajor) {
+        const bare = cell.match(/(\d+)\s*학점/);
+        if (bare) out.total = parseInt(bare[1], 10);
+      }
+      continue;
+    }
+    out.conditions.push({
+      label: row.label,
+      cell,
+      recommended: /권장/.test(row.label) || /권장/.test(cell),
+    });
+  }
+  return out;
+}
+
 /** 본문에 학과명 라벨이 2개 이상이면 전체 학과 공통 안내 페이지로 간주 */
 export function isMultiDeptPage(lines: string[]): boolean {
   let n = 0;
