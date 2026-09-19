@@ -31,6 +31,7 @@ const ERROR_LABELS: Record<string, string> = {
   assign: '과제',
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
+  timeout: '수집 시간 초과',
 };
 
 /** 수강 기간 원문 'YYYY-MM-DD … ~ YYYY-MM-DD …' → 'MM-DD ~ MM-DD' 축약 */
@@ -543,6 +544,7 @@ function DueSoonList({ snap, now }: { snap: LmsSnapshot; now: number }) {
               {t.dueTs < now
                 ? '마감 지남'
                 : `D-${Math.ceil((t.dueTs - now) / DAY)}`}
+              {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
             </small>
           </div>
         </div>

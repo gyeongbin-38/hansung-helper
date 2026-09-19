@@ -364,10 +364,14 @@ export type DeptTargets = {
   conditions: DeptCondition[];
   /** 매칭된 학번 컬럼 라벨 (provenance 표시용) */
   columnLabel: string;
+  /** 매칭된 학번 컬럼 인덱스 (표 하이라이트용) */
+  columnIndex: number;
 };
 
-const CREDIT_ROW = /취득\s*학점|이수\s*학점|졸업\s*학점/;
-const NO_REQ = /^[-–—xX✕미적용]+$/;
+// '총' 또는 '졸업' 수식이 있는 학점 행만 총 기준으로 해석한다 —
+// '전공 이수 학점 45' 같은 세부 행이 총 이수학점으로 오입되지 않게 한다.
+const CREDIT_ROW = /(총|졸업)\s*.{0,4}(취득|이수)\s*학점|졸업\s*학점/;
+const NO_REQ = new Set(['-', '–', '—', 'x', 'X', '✕', '미적용', '해당없음', '없음', 'n', 'N']);
 
 /**
  * yearTable + 입학연도 → 학과 졸업 기준 해석.
@@ -386,10 +390,11 @@ export function deptRuleTargets(
   const out: DeptTargets = {
     conditions: [],
     columnLabel: table.columns[idx].label,
+    columnIndex: idx,
   };
   for (const row of table.rows) {
     const cell = (row.cells[idx] ?? '').trim();
-    if (!cell || NO_REQ.test(cell.replace(/\s+/g, ''))) continue;
+    if (!cell || NO_REQ.has(cell.replace(/\s+/g, ''))) continue;
     if (CREDIT_ROW.test(row.label)) {
       const major = cell.match(/교과\s*(\d+)\s*학점/);
       const nonmajor = cell.match(/비교과\s*(\d+)\s*(?:pt|p|점|포인트)/i);

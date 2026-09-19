@@ -115,10 +115,15 @@ export function evaluate(
   // 입학연도 미입력 → null(참고 기본값 적용), 2016+ → true, 이전 → false(미수집)
   const post16 =
     opts.admitYear === undefined ? null : opts.admitYear >= 2016;
-  const plannedItems = planned.map((s) => ({
-    category: s.category,
-    credits: s.credits,
-  }));
+  // 이수 완료로 등록된 과목이 계획에도 남아 있으면 이중 집계된다 —
+  // earned가 확정분이므로 계획 측에서는 빼고 '남은 이수 예정'만 센다.
+  const doneCodes = new Set(completed.map((c) => c.code));
+  const plannedItems = planned
+    .filter((s) => !doneCodes.has(s.code))
+    .map((s) => ({
+      category: s.category,
+      credits: s.credits,
+    }));
   return DEFAULT_RULES.map((rule) => {
     const deptVal =
       rule.id === 'total'

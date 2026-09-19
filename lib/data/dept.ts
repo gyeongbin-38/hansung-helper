@@ -58,6 +58,17 @@ const ALIASES: Record<string, string> = {
   한언교: '한국언어문화교육학과',
 };
 
+/**
+ * 단일 학과가 아니라 학부/패밀리 명칭으로 불리는 입력 → 카탈로그 후보 전체.
+ * 검증된 집합만 등록한다 (dept-rules.ts의 RULESET_DEPT_FAMILY와 동일 근거:
+ * 입학처 모집요강·학과 사이트·개설 단위 확인).
+ * - 컴퓨터공학부: 공식 학부명. 카탈로그는 공통 교과(IT응용시스템공학과)와
+ *   트랙(모바일소프트웨어·빅데이터)으로 나뉘어 개설된다.
+ */
+const CANDIDATE_ALIASES: Record<string, string[]> = {
+  컴퓨터공학부: ['IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙'],
+};
+
 export type DeptResolution = {
   /** 확정된 카탈로그 학과명 */
   dept?: string;
@@ -73,6 +84,11 @@ export function resolveDept(
   if (!n) return {};
   const alias = ALIASES[n];
   if (alias && depts.includes(alias)) return { dept: alias };
+  const family = CANDIDATE_ALIASES[n];
+  if (family) {
+    const hit = family.filter((d) => depts.includes(d));
+    if (hit.length) return { candidates: hit };
+  }
   const exact = depts.find((d) => NORM(d) === n);
   if (exact) return { dept: exact };
   const cands = depts.filter(

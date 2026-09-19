@@ -8,6 +8,7 @@ import {
   rulesetMatchesDept,
 } from '@/lib/data/dept-rules';
 import { deptPoolOf, useDeptRules } from './catalog';
+import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
@@ -30,16 +31,23 @@ export function Graduation({
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
-  const { snap: deptRules } = useDeptRules();
+  const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
+    useDeptRules();
   const myRules = useMemo(() => {
     if (!deptRules || !catalog) return null;
     const pool = deptPoolOf(data.dept, [
       ...new Set(catalog.sections.map((s) => s.dept)),
     ]);
-    return (
-      deptRules.items.find((r) => rulesetMatchesDept(r, data.dept, pool)) ??
-      null
-    );
+    // 같은 학과에 규정 페이지가 여러 곳이면 내용이 풍부한 쪽을 선택한다
+    // (예: 첨부 문서만 있는 페이지 vs 규정 본문이 있는 페이지)
+    const richness = (r: (typeof deptRules.items)[number]) =>
+      (r.yearTable ? 1e6 : 0) +
+      r.lines.length * 100 +
+      (r.attachment ? 1 : 0);
+    const matches = deptRules.items
+      .filter((r) => rulesetMatchesDept(r, data.dept, pool))
+      .sort((a, b) => richness(b) - richness(a));
+    return matches[0] ?? null;
   }, [deptRules, catalog, data.dept]);
   // 학번-컬럼 규정표 → 학과 기준 해석 (검증된 yearTable이 있는 학과만)
   const deptTargets = useMemo(() => {
@@ -48,12 +56,7 @@ export function Graduation({
     return deptRuleTargets(myRules, year);
   }, [myRules, data.year]);
   // 규정표에서 내 학번 컬럼 위치 — 하이라이트용
-  const myColIdx = useMemo(() => {
-    if (!myRules?.yearTable || !deptTargets) return -1;
-    return myRules.yearTable.columns.findIndex(
-      (c) => c.label === deptTargets.columnLabel,
-    );
-  }, [myRules, deptTargets]);
+  const myColIdx = deptTargets?.columnIndex ?? -1;
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
     const pts = parseInt(data.points, 10);
@@ -448,6 +451,13 @@ export function Graduation({
             수집일 {deptRules?.fetchedAt.slice(0, 10)}
           </p>
         </section>
+      )}
+
+      {deptRulesFailed && (
+        <p className="meta card pad">
+          학과별 졸업 규정을 불러오지 못했습니다.{' '}
+          <RetryButton onRetry={retryDeptRules} />
+        </p>
       )}
 
       {deptRules && deptRules.items.length > 0 && (

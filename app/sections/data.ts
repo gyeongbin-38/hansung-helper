@@ -41,7 +41,7 @@ export type Data = {
   prefs: string[];
   /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
   readIds: string[];
-  /** COSMOS LMS 수집 스냅샷 (scripts/lms-collect.mjs 결과물) */
+  /** COSMOS LMS 수집 스냅샷 (/lms-collect.js 콘솔 스크립트 또는 서버 수집 결과물) */
   lms?: LmsSnapshot;
   consent: boolean;
 };

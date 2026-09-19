@@ -192,6 +192,30 @@ const gapTable = {
   rows: [{ label: '이수 학점 / 총 취득 학점', cells: ['130학점', '130학점'] }],
 };
 t('targets: 해당 학번 컬럼 없음 → null', deptRuleTargets({ ...CSE, yearTable: gapTable }, 2017) === null);
+t('targets: columnIndex 반환', d2020?.columnIndex === 2 && d2014?.columnIndex === 0);
+
+// 세부 학점 행('전공 이수 학점' 등)은 총 기준으로 오입되지 않고 조건으로 보존
+const ytSub = {
+  columns: yt.columns,
+  rows: [
+    { label: '전공 이수 학점', cells: ['45학점', '45학점', '45학점', '45학점'] },
+    ...yt.rows,
+  ],
+};
+const dSub = deptRuleTargets({ ...CSE, yearTable: ytSub }, 2020);
+t('targets: 세부 학점 행은 조건으로 보존',
+  dSub?.conditions.some((c) => c.label === '전공 이수 학점'));
+t('targets: 세부 행이 총 기준을 덮지 않음', dSub?.total === 130);
+
+// '해당없음'/'없음' 셀도 요건 없음으로 건너뛴다
+const ytNo = {
+  columns: yt.columns,
+  rows: [{ label: '졸업 작품', cells: ['해당없음', '없음', 'V', 'V'] }],
+};
+t('targets: 해당없음 셀은 조건 제외',
+  !deptRuleTargets({ ...CSE, yearTable: ytNo }, 2014)?.conditions.some((c) => c.label === '졸업 작품'));
+t('targets: 없음 셀은 조건 제외',
+  !deptRuleTargets({ ...CSE, yearTable: ytNo }, 2016)?.conditions.some((c) => c.label === '졸업 작품'));
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

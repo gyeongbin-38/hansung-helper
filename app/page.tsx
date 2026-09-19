@@ -497,6 +497,7 @@ export default function App() {
               data={data}
               catalog={catalog}
               plan={plan}
+              notify={setToast}
               go={go}
             />
           ) : section === 'notifications' ? (

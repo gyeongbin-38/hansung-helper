@@ -101,11 +101,13 @@ export function deriveNotifs({
     for (const t of dueSoon(data.lms, now, 7).slice(0, 5)) {
       const dd = Math.ceil((t.dueTs - now) / DAY);
       items.push({
-        id: `lms-${t.course}-${t.kind}-${t.title}`.slice(0, 120),
+        // 마감 시각을 붙여 같은 과목·제목의 주차별 항목이 id를 공유하지 않게 한다
+        id: `lms-${t.course}-${t.kind}-${t.title}-${t.dueTs}`.slice(0, 120),
         tone: 'orange',
         cat: '수업',
-        label: dd <= 0 ? `${t.kind} 마감` : `${t.kind} D-${dd}`,
-        title: t.title,
+        label:
+          dd < 0 ? `${t.kind} 마감 지남` : dd === 0 ? `${t.kind} 오늘 마감` : `${t.kind} D-${dd}`,
+        title: t.uncertain ? `${t.title} (응시 여부 확인 실패)` : t.title,
         desc: t.course,
         route: 'lms',
       });

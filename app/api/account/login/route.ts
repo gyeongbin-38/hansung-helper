@@ -20,6 +20,11 @@ export async function POST(request: Request) {
     if (raw.length > 4096)
       return json({ error: '입력 크기를 초과했습니다.' }, 413);
     const input = JSON.parse(raw);
+    if (!input || typeof input !== 'object')
+      return json(
+        { error: '학번, 비밀번호와 정보 조회·보관 동의를 확인해 주세요.' },
+        400,
+      );
     if (
       typeof input.studentId !== 'string' ||
       !/^\d{6,10}$/.test(input.studentId) ||

@@ -24,10 +24,12 @@ export function Notifications({
   const { snap: sched } = useSchedule();
   // 마운트 시점 기준으로 도출 — 알림 신선도는 세션 단위면 충분
   const [now] = useState(() => Date.now());
+  const [cat, setCat] = useState('전체');
   const items = deriveNotifs({ account, data, planned, acts, sched, now });
   const readIds = data.readIds ?? [];
 
   const cats = ['전체', ...new Set(items.map((i) => i.cat))];
+  const shown = cat === '전체' ? items : items.filter((i) => i.cat === cat);
 
   return (
     <section className="card detail">
@@ -53,14 +55,19 @@ export function Notifications({
       </div>
       <div className="notif-cats">
         {cats.map((c) => (
-          <span className="badge" key={c}>
+          <button
+            className={'badge' + (cat === c ? ' sel' : '')}
+            key={c}
+            aria-pressed={cat === c}
+            onClick={() => setCat(c)}
+          >
             {c} {c === '전체' ? items.length : items.filter((i) => i.cat === c).length}
-          </span>
+          </button>
         ))}
       </div>
-      {items.length ? (
+      {shown.length ? (
         <ul className="notif-list">
-          {items.map((n) => (
+          {shown.map((n) => (
             <NotifRow
               key={n.id}
               n={n}
@@ -72,7 +79,7 @@ export function Notifications({
       ) : (
         <div className="empty-small notif-empty">
           <Bell />
-          <p>도착한 알림이 없어요.</p>
+          <p>{cat === '전체' ? '도착한 알림이 없어요.' : '이 분류의 알림이 없어요.'}</p>
         </div>
       )}
       <p className="notif-foot">푸시 알림은 발송되지 않습니다.</p>

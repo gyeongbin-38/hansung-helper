@@ -5,7 +5,8 @@ import type { Catalog } from '@/lib/data/catalog';
 import { useActivities, useSchedule } from './catalog';
 import { activityMatch } from '@/lib/data/activities';
 import { koreanMatch } from '@/lib/data/hangul';
-import { courseMatch, slotsLabel } from '@/lib/data/catalog';
+import { courseMatch, slotsLabel, type CourseSection } from '@/lib/data/catalog';
+import { planBlockReason } from './catalog';
 
 const CAP = 8;
 
@@ -15,12 +16,14 @@ export function SearchResults({
   data,
   catalog,
   plan,
+  notify,
   go,
 }: {
   query: string;
   data: Data;
   catalog: Catalog | null;
   plan: (id: string) => void;
+  notify?: (msg: string) => void;
   go: (route: string) => void;
 }) {
   const { snap: acts } = useActivities();
@@ -40,6 +43,18 @@ export function SearchResults({
         .slice(0, CAP)
     : [];
   const nothing = q && !courses.length && !activities.length && !events.length;
+  const plannedSecs = (catalog?.sections ?? []).filter((s) =>
+    data.planned.includes(s.id),
+  );
+  const toggle = (s: CourseSection) => {
+    if (data.planned.includes(s.id)) return plan(s.id);
+    const blocked = planBlockReason(s, data, plannedSecs);
+    if (blocked) {
+      notify?.(blocked);
+      return;
+    }
+    plan(s.id);
+  };
 
   return (
     <>
@@ -82,7 +97,7 @@ export function SearchResults({
               </div>
               <button
                 className="secondary"
-                onClick={() => plan(s.id)}
+                onClick={() => toggle(s)}
                 aria-label={s.name + ' 계획에 담기'}
               >
                 {data.planned.includes(s.id) ? (

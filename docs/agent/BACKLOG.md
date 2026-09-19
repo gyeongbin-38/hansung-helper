@@ -184,6 +184,10 @@ blocking regressions.
   courses.tsx:184); ambiguous → candidates + notice; alias/exact/single-
   candidate resolve correctly (ux-utils 24/24). Minor: two assertions in
   `tests/ux-utils.test.mjs` are vacuous — tracked in ISSUE-8.
+- **Follow-up (2026-09-19)**: `CANDIDATE_ALIASES` 추가 — 공식 학부명
+  '컴퓨터공학부'(카탈로그 개설 단위 아님) 입력 시 검증 패밀리
+  {IT응용시스템공학과, 모바일소프트웨어트랙, 빅데이터트랙}를 candidates로
+  반환. 이전엔 pool=null로 학과 필터·추천 무력화. ux-utils 26/26.
 
 ## ISSUE-5 — Remote D1 seeding + deploy parity check
 

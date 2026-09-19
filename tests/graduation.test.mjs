@@ -119,6 +119,19 @@ test('deptTargets: 비교과 포인트도 학과 기준으로 확정 가능', ()
   assert.equal(pts.status, 'progress');
 });
 
+test('planned already-completed code is not double counted', () => {
+  // 이수 목록에 올린 과목이 계획에도 남아 있으면 '계획 포함' 표시가 부풀려졌다
+  const completed = [done('A1', '전필', 3)];
+  const planned = [
+    section('A1-1', '전필', 3), // A1과 같은 코드 — 이미 이수됨
+    section('P2-1', '전선', 3),
+  ];
+  const r = evaluate(completed, planned);
+  const total = r.find((x) => x.rule.id === 'total');
+  assert.equal(total.earned, 3);
+  assert.equal(total.planned, 3); // A1 계획분은 제외 — 6이 아니라 3
+});
+
 test('requiredSource: 전역 기준 경로는 global로 표시', () => {
   const r = evaluate([], [], {}, { admitYear: 2023 });
   assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');

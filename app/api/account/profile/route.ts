@@ -15,6 +15,8 @@ export async function PUT(request: Request) {
       return json({ error: '저장할 내용이 너무 큽니다.' }, 413);
     const input = JSON.parse(raw),
       profile: Record<string, unknown> = {};
+    if (!input || typeof input !== 'object')
+      return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     for (const key of [
       'name',
       'year',

@@ -1101,3 +1101,57 @@ REPO SCOUT: none.
 VERIFICATION STATUS: 엔진 해석·매칭은 단위 테스트로 검증. 실계정
 브라우저에서 컴퓨터공학부 프로필로 규정 카드·학번 컬럼 하이라이트·
 조건 체크리스트 렌더 확인은 미수행 — 다음 e2e 라운드 권장.
+
+---
+
+## 2026-09-19 — 코드 감사 기반 개선 라운드 (사용자 요청 "개선점 더 찾아봐")
+
+DONE:
+- **데이터 정확도**:
+  - `dept.ts`: `CANDIDATE_ALIASES` 추가 — '컴퓨터공학부'(공식 학부명, 카탈로그
+    개설 단위 아님) 입력 시 검증 패밀리 {IT응용시스템공학과, 모바일소프트웨어
+    트랙, 빅데이터트랙}를 candidates로 반환. 이전엔 학과 필터·추천이 무력화.
+  - `dept-rules.ts`: CREDIT_ROW를 '졸업 학점/취득 학점' 행으로 한정('전공 이수
+    학점' 행이 total로 오입되는 잠재 버그 차단), NO_REQ에 '해당없음/없음'
+    추가, `deptRuleTargets`가 `columnIndex` 직접 반환(라벨 재검색 제거).
+  - `graduation.ts`: 이수 완료 코드는 planned 집계에서 제외 — 이수 목록에
+    옮겨도 계획에 남아있으면 earned+planned 이중 집계되던 버그 수정.
+- **일관성**:
+  - `planBlockReason` 공통 가드로 담기 검증 통합 — courses/timetable/
+    search 3곳의 중복 검사 제거, 검색 결과 '담기'도 충돌·중복·이수 검사 +
+    토스트(이전엔 plan() 직행).
+  - `uncertain`(응시 확인 실패) 마커 누락 3곳 추가 — lms DueSoonList,
+    home 마감 위젯, calendar 수업 마감.
+  - ERROR_LABELS에 'timeout' → '수집 시간 초과' 한글화.
+  - 알림함 페이지 분류 배지를 실제 필터 버튼으로(패널과 동일), 선택 분류
+    빈 상태 문구 분기. 알림 id에 dueTs 접미(동명 주차별 퀴즈 충돌 방지),
+    지난 마감 '마감 지남' 라벨.
+  - `myRules`를 richness( yearTable>lines>attachment ) 최선 매칭으로 —
+    같은 학과 첨부전용 페이지가 본문 규정을 가리던 문제.
+  - `/api/dept-rules` 로드 실패 시 규정 카드가 조용히 사라지던 것 →
+    실패 표시 + 재시도 버튼.
+- **소규모**: vite.config JSON import 속성 추가, recommend 루프 내
+  plannedDays/dayLoad 재계산 호이스트, login/profile/lms-refresh 라우트
+  JSON 비객체 입력 400 가드 보강, data.ts lms-collect 주석 정정.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. LMS 과제·마감 검색(advisor), 알림 예약, 수강중 상태 — 기능 갭 후보.
+2. 실계정 브라우저 e2e: 검색 담기 차단 토스트, 알림 분류 필터,
+   문콘형 학과 규정 카드, 컴퓨터공학부 입력 시 학과 후보 표시.
+3. 나머지 18개 규정 yearTable 커버리지(크롤러 개선).
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(dept-rules 66/66 — columnIndex·NO_REQ·세부 학점행 5 신규,
+graduation 11/11 — 계획 중복집계 1 신규, ux-utils 26/26 —
+컴퓨터공학부 패밀리 2 신규), root+deploy 빌드 green, 번들 신규 코드
+마커 확인 후 배포, _verify_prod 전 엔드포인트 200.
+라이브 version 903d603c.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 단위 테스트·빌드·배포 검증 완료. UI 동작
+(필터 버튼, 토스트, 하이라이트)의 실계정 브라우저 확인은 미수행.

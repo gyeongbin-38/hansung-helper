@@ -36,6 +36,7 @@ import {
   catGroup,
   deptMatches,
   deptPoolOf,
+  planBlockReason,
   recommend,
 } from './catalog';
 import { matchEnrollment } from '@/lib/data/lms';
@@ -313,25 +314,9 @@ export function Timetable({
 
   function tryAdd(s: CourseSection): boolean {
     if (planned.some((p) => p.id === s.id)) return false;
-    if (data.completed.some((c) => c.code === s.code)) {
-      notify('이미 이수한 과목입니다. 이수 내역은 졸업요건에서 관리하세요.');
-      return false;
-    }
-    const dup = planned.find((p) => p.code === s.code);
-    if (dup) {
-      notify(
-        `같은 과목의 ${dup.section}분반이 이미 담겨 있습니다. 분반 변경은 해당 블록을 눌러 하세요.`,
-      );
-      return false;
-    }
-    const hits = conflicts(s, planned);
-    if (hits.length) {
-      notify(
-        `시간이 겹칩니다: ${hits
-          .map((h) => h.name)
-          .slice(0, 2)
-          .join(', ')}`,
-      );
+    const blocked = planBlockReason(s, data, planned);
+    if (blocked) {
+      notify(blocked);
       return false;
     }
     plan(s.id);

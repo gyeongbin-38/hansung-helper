@@ -255,7 +255,10 @@ export function Home({
                         t.title
                       )}
                     </b>
-                    <small>{t.course}</small>
+                    <small>
+                      {t.course}
+                      {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
+                    </small>
                   </div>
                 </div>
               );

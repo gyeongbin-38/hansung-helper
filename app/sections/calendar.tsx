@@ -166,6 +166,7 @@ export function CalendarSection({
                         {t.dueTs < now
                           ? '마감 지남'
                           : `D-${Math.ceil((t.dueTs - now) / 86400000)}`}
+                        {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
                       </small>
                     </div>
                   </div>

@@ -29,6 +29,8 @@ const DEPTS = [
   'AI응용학과',
   'AI로봇융합트랙',
   'IT응용시스템공학과',
+  '모바일소프트웨어트랙',
+  '빅데이터트랙',
   '전자정보공학과',
   '융합보안학과',
   '뷰티디자인학과',
@@ -66,6 +68,23 @@ t('공백·특수문자 정규화', resolveDept('ai 소프트웨어', DEPTS).dep
   t('미매칭 → 빈 결과', !r.dept && !r.candidates);
 }
 t('빈 입력', !resolveDept('', DEPTS).dept);
+{
+  // 공식 학부명은 카탈로그 개설 단위가 아니라 패밀리 후보로 해석된다
+  const r = resolveDept('컴퓨터공학부', DEPTS);
+  t(
+    '컴퓨터공학부 → 검증 패밀리 후보',
+    !r.dept &&
+      r.candidates?.length === 3 &&
+      r.candidates.includes('IT응용시스템공학과') &&
+      r.candidates.includes('모바일소프트웨어트랙') &&
+      r.candidates.includes('빅데이터트랙'),
+  );
+}
+{
+  // 카탈로그에 없는 패밀리 단위는 후보에서 빠진다
+  const r = resolveDept('컴퓨터공학부', ['IT응용시스템공학과', '국어국문전공']);
+  t('패밀리 부분 매칭', !r.dept && r.candidates?.length === 1 && r.candidates[0] === 'IT응용시스템공학과');
+}
 
 // 공강 분석
 const SEC = (slots) => ({

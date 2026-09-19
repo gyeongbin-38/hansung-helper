@@ -9,7 +9,7 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, deptMatches } from './catalog';
+import { catGroup, deptMatches, planBlockReason } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
 import type { Data } from './data';
@@ -92,25 +92,9 @@ export function Courses({
   );
   function toggle(s: CourseSection) {
     if (data.planned.includes(s.id)) return plan(s.id);
-    if (data.completed.some((c) => c.code === s.code)) {
-      notify?.('이미 이수한 과목입니다. 이수 내역은 졸업요건에서 관리하세요.');
-      return;
-    }
-    const dup = plannedSecs.find((p) => p.code === s.code);
-    if (dup) {
-      notify?.(
-        `같은 과목의 ${dup.section}분반이 이미 담겨 있습니다. 시간표에서 분반을 변경하세요.`,
-      );
-      return;
-    }
-    const hits = conflicts(s, plannedSecs);
-    if (hits.length) {
-      notify?.(
-        `시간이 겹칩니다: ${hits
-          .map((h) => h.name)
-          .slice(0, 2)
-          .join(', ')}`,
-      );
+    const blocked = planBlockReason(s, data, plannedSecs);
+    if (blocked) {
+      notify?.(blocked);
       return;
     }
     plan(s.id);
@@ -229,8 +213,9 @@ export function Courses({
                         onClick={() => {
                           if (altIn) return;
                           if (added && swap) return swap(s.id, alt.id);
-                          if (data.planned.some((id) => catalog.sections.find((x) => x.id === id)?.code === s.code)) {
-                            notify?.('같은 과목의 다른 분반이 이미 계획에 있습니다. 시간표에서 분반을 변경하세요.');
+                          const blocked = planBlockReason(alt, data, plannedSecs);
+                          if (blocked) {
+                            notify?.(blocked);
                             return;
                           }
                           plan(alt.id);

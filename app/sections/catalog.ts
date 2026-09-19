@@ -174,6 +174,32 @@ export function deptPoolOf(
   return null;
 }
 
+/**
+ * 계획 담기 공통 검증 — 이미 담긴 분반·이수 완료·같은 과목 다른 분반·
+ * 시간 충돌을 검사하고 막히는 이유 메시지를 돌려준다.
+ * 통과 가능하면 null. 과목 탐색·시간표·검색의 담기 경로가 공유한다.
+ */
+export function planBlockReason(
+  s: CourseSection,
+  data: Data,
+  planned: CourseSection[],
+): string | null {
+  if (planned.some((p) => p.id === s.id))
+    return '이미 계획에 담긴 분반입니다.';
+  if ((data.completed ?? []).some((c) => c.code === s.code))
+    return '이미 이수한 과목입니다. 이수 내역은 졸업요건에서 관리하세요.';
+  const dup = planned.find((p) => p.code === s.code);
+  if (dup)
+    return `같은 과목의 ${dup.section}분반이 이미 담겨 있습니다. 시간표에서 분반을 변경하세요.`;
+  const hits = conflicts(s, planned);
+  if (hits.length)
+    return `시간이 겹칩니다: ${hits
+      .map((h) => h.name)
+      .slice(0, 2)
+      .join(', ')}`;
+  return null;
+}
+
 export type Rec = { section: CourseSection; score: number; reasons: string[] };
 /**
  * 규칙 기반 추천 — 학과/학년/이수구분/설문 선호/시간 충돌만 사용.
@@ -200,6 +226,11 @@ export function recommend(
   // data.year은 입학연도(예: '2025') — 2026-2 기준 예상 학년으로 환산
   const admit = parseInt(data.year, 10);
   const grade = admit ? Math.min(Math.max(2026 - admit + 1, 1), 4) : 0;
+  const plannedDays = new Set(planned.flatMap((p) => p.slots.map((sl) => sl.d)));
+  const dayLoad = new Map<number, number>();
+  for (const p of planned)
+    for (const sl of p.slots)
+      dayLoad.set(sl.d, (dayLoad.get(sl.d) ?? 0) + 1);
   const recs: Rec[] = [];
   for (const s of sections) {
     if (
@@ -228,11 +259,6 @@ export function recommend(
       score += 2;
       reasons.push(`${grade}학년 과목`);
     }
-    const plannedDays = new Set(planned.flatMap((p) => p.slots.map((sl) => sl.d)));
-    const dayLoad = new Map<number, number>();
-    for (const p of planned)
-      for (const sl of p.slots)
-        dayLoad.set(sl.d, (dayLoad.get(sl.d) ?? 0) + 1);
     for (const p of data.prefs) {
       if (p === '오전' && s.slots.length && s.slots.every((sl) => sl.s < 720)) {
         score += 1;
