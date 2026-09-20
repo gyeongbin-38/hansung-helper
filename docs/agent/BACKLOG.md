@@ -599,6 +599,14 @@ blocking regressions.
   - 테스트: 실계정 7과목 형태 익명 fixture(diag/weeklyStatus/
     watched/required/uncertain/community/quiz-check) + relTime
     단위 — lms.test 78/78.
+- **Done (2026-09-21, 디자인 패스)**: 실제 렌더 스크린샷 감사 후 수정.
+  모바일 밴드 거대 공백 버그(flex-basis가 column 방향에서 height로
+  작동), 지표 구겨짐 → grid 3열+hairline 구분선+자동 갱신을 CTA 아래
+  노트로. LMS 원문 과목명 정제(courseDisplay — '교과(온라인) 학부
+  데이터분석[01] 김교수' → '데이터분석'+[01] 배지+교수 메타, 원문은
+  tooltip). pastel 행 55% 완화(color-mix), '미완료·완료' 중복 수치
+  제거, 모바일 CTA nowrap. `docs/design.md` 기준 문서 추가 — 토큰,
+  WebGL 레퍼런스 판정(코어 화면 부적합 명시), 스크린샷 감사 절차.
 
 ## ISSUE-24 — BE 업무 패키지 (팀원 핸드오프)
 

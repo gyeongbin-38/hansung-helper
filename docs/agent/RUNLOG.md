@@ -1360,3 +1360,40 @@ NEXT: 실계정 Chrome e2e(확장 로드→자동 수집→밴드 상태 전이 
 hsuLmsErr 노출은 ConnCard '마지막 오류'로 1차 커버.
 
 BLOCKER: none.
+
+---
+
+## 2026-09-21 — LMS 디자인 패스 (스크린샷 감사 기반 수정, user-requested)
+
+CONTEXT: 사용자가 현 디자인을 '구리다'고 지적 — 실제 렌더를 headless
+Chrome+CDP로 캡처해 감사 후 수정. 데모 LMS 데이터 주입 경로 확보.
+
+FOUND (스크린샷 근거):
+- 모바일 밴드 중간에 거대 빈 공간 — flex-basis:300px이 column 방향에서
+  height로 작동한 버그
+- 밴드 지표가 구겨지고 '수집 경로' 값이 '자동 갱신' 라벨과 충돌
+- LMS 원문 과목명 노출('교과(온라인) 학부 데이터분석[01] 김교수') +
+  교수명 중복
+- pastel 행 원색 면적 과다 + 배지와 이중 컬러코딩
+- '미완료 N건 · 완료 N' 중복 수치
+
+DONE:
+- `.lms-band` → grid 3열(main/metrics/actions), 지표 hairline 구분선,
+  '자동 갱신'을 CTA 아래 band-note로 이동, 모바일 단일 열+nowrap
+- `courseDisplay()` — 과목명 정제(장식 토큰 제거, [A] 분반 배지 분리,
+  교수명 중복 제거, 원문 title tooltip 보존)
+- pastel 행 color-mix 55% 완화, stat '남은 N건'으로 단순화
+- `docs/design.md` — 디자인 기준 문서(토큰, 제약, WebGL 레퍼런스 판정
+  — 코어 화면 부적합 명시, 스크린샷 감사 체크리스트+CDP 캡처 절차)
+- 캡처 드라이버 cdp-shot.mjs(Temp) — 데모 데이터 주입 후
+  홈/LMS 3탭/모바일 스크린샷 자동화
+
+VERIFIED: tsc clean, oxlint 0, 재캡처로 모바일/데스크톱 수정 확인,
+root+deploy 빌드 green, _verify_prod 전 엔드포인트 200.
+라이브 version 7159db61.
+
+NEXT: 토스트가 콘텐츠를 덮는 문제, 홈 대시보드 밀도, 온보딩 히어로
+비주얼은 다음 디자인 패스 후보. 다른 에이전트의 디자인 산출물은
+design.md 기준으로 리뷰 가능.
+
+BLOCKER: none.

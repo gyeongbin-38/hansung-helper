@@ -48,6 +48,23 @@ const shortRange = (r?: string) => {
   return m ? `${m[2]}-${m[3]} ~ ${m[5]}-${m[6]}` : r;
 };
 
+/** LMS 원문 과목명 → 표시용 정제. '[A]' 분반을 배지로 분리하고
+ *  '교과(온라인) 학부 … 김교수' 같은 장식 토큰을 벗긴다.
+ *  매칭용 키(lmsKey)와 별개로 표시만 다듬는다. */
+const DISPLAY_DECOR =
+  /(교과|비교과|커뮤니티|학부|대학원|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g;
+const courseDisplay = (c: LmsCourse) => {
+  const m = c.title.match(/\[([^\]]{1,8})\]/);
+  const section = m?.[1]?.trim();
+  let t = c.title
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(DISPLAY_DECOR, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (c.prof && t.endsWith(c.prof)) t = t.slice(0, -c.prof.length).trim();
+  return { title: t || c.title, section };
+};
+
 function TaskRow({
   kind,
   title,
@@ -141,10 +158,7 @@ function CourseCard({
         uncertain: q.uncertain,
       })),
   ];
-  const doneCount =
-    c.vods.filter((v) => v.attended).length +
-    c.assigns.filter((a) => a.submitted).length +
-    c.quizzes.filter((q) => q.submitted).length;
+  const disp = courseDisplay(c);
   return (
     <details
       id={`lms-c-${c.id}`}
@@ -153,7 +167,12 @@ function CourseCard({
     >
       <summary>
         <div className="lms-course-head">
-          <b>{c.title}</b>
+          <b title={c.title}>
+            {disp.title}
+            {disp.section && (
+              <span className="lms-sect-badge">{disp.section}</span>
+            )}
+          </b>
           <small>
             {c.prof || '교수 미기재'}
             {c.community ? ' · 커뮤니티' : ''}
@@ -174,8 +193,7 @@ function CourseCard({
             </>
           )}
           <small>
-            {pend.length ? `미완료 ${pend.length}건` : '모두 완료'}
-            {doneCount ? ` · 완료 ${doneCount}` : ''}
+            {pend.length ? `남은 ${pend.length}건` : '모두 완료'}
           </small>
         </div>
       </summary>
@@ -703,10 +721,6 @@ function SyncBand({
             <dt>수집 경로</dt>
             <dd>{viaLabel(snap)}</dd>
           </div>
-          <div>
-            <dt>자동 갱신</dt>
-            <dd>{extInstalled ? '15분 간격' : '확장 설치 시'}</dd>
-          </div>
         </dl>
       )}
       <div className="band-actions">
@@ -734,6 +748,9 @@ function SyncBand({
             {band === 'syncing' ? '수집 중…' : '지금 새로고침'}
           </button>
         )}
+        <span className="band-note">
+          {extInstalled ? '15분 간격 자동 수집' : '확장 설치 시 자동 수집'}
+        </span>
         <a
           className="band-link"
           href={LMS_BASE}
