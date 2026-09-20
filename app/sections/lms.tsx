@@ -51,6 +51,8 @@ function TaskRow({
   url,
   due,
   uncertain,
+  watched,
+  required,
   now,
 }: {
   kind: string;
@@ -59,6 +61,9 @@ function TaskRow({
   due: string | null;
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
   uncertain?: boolean;
+  /** 시청시간/요구시간 — 강의 항목에서만 온다 */
+  watched?: string;
+  required?: string;
   now: number;
 }) {
   const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
@@ -81,6 +86,9 @@ function TaskRow({
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
           {uncertain ? ' · 응시 여부 확인 실패' : ''}
+          {watched
+            ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
+            : ''}
         </small>
       </div>
     </div>
@@ -107,6 +115,8 @@ function CourseCard({
         title: v.title,
         url: v.url,
         due: v.range ?? null,
+        watched: v.watched,
+        required: v.required,
       })),
     ...c.assigns
       .filter((a) => !a.submitted)
@@ -246,6 +256,9 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
             : b.status
               ? ` · 출석 ${b.status}`
               : ''}
+          {b.watched
+            ? ` · 시청 ${b.watched}${b.required ? ` / 요구 ${b.required}` : ''}`
+            : ''}
         </small>
       </div>
     </div>

@@ -553,6 +553,13 @@ blocking regressions.
   + 5분 캐시 + 브리지 30분 스로틀, alarms 재생성 리셋 버그 수정(get으로
   없을 때만), 설치 전 열린 탭에 content.js 직접 주입 복구, runCollect
   throw 격리, /login 경로 감지, 앱 수신 origin 체크.
+- **Done (2026-09-19, v0.3.1)**: 과목 셀렉터 폴백 — .my-course-lists
+  없으면 Moodle 표준 course/view.php 링크 스캔(서버 파서와 동일, 실계정
+  검증 접근) + payload.diag(coursesVia 등) + 실패 시 셀렉터별 매칭 수
+  콘솔 덤프. 확장 quiz uncertain/'quiz-check' 복구. 알람 createTab
+  'known'(수집 이력 있는 사용자만 탭 생성 — 갱신 공백 해소). 수집 실패
+  hsuLmsErr 기록. watched/required UI 표시(BingeItem 패스스루 +
+  BingeRow·TaskRow).
 - **Out of scope**: LMS 로그인 자동화, 돋부기 자체 배포.
 - **Note**: 셀렉터 계약은 dotbugi 소스(fetchCourseData/fetchAssign/
   fetchQuiz/fetchVodAttendance/fetchVodList/lmsKeywords)에서 확인한

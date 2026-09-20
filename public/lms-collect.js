@@ -37,29 +37,59 @@
   };
 
   // ── 수강 과목 목록 (대시보드) ────────────────────────────────
-  const courseEls = document.querySelectorAll('.my-course-lists > li');
-  const courses = Array.from(courseEls).flatMap((li) => {
-    const link = li.querySelector('a.course_link');
-    const id = link?.getAttribute('href')?.match(/id=(\d+)/)?.[1];
-    const titleEl = li.querySelector(
-      '.course-title h1, .course-title h2, .course-title h3',
+  // .my-course-lists가 없으면 Moodle 표준 과목 링크 스캔으로 폴백.
+  const readCourse = (box) => {
+    const link = box.querySelector(
+      'a.course_link, a[href*="/course/view.php"]',
     );
+    const id = link?.getAttribute('href')?.match(/id=(\d+)/)?.[1];
+    const titleEl =
+      box.querySelector(
+        '.course-title h1, .course-title h2, .course-title h3',
+      ) ?? link;
     const title = titleEl?.textContent?.trim();
-    if (!id || !title) return [];
+    if (!id || !title) return null;
     return {
       id,
       title,
-      prof: text(li, '.course-title p') || undefined,
-      community: !!li.querySelector('.course_label_ec'),
+      prof: text(box, '.course-title p') || undefined,
+      community: !!box.querySelector('.course_label_ec'),
     };
-  });
+  };
+  let courseEls = Array.from(
+    document.querySelectorAll('.my-course-lists > li'),
+  );
+  let coursesVia = 'my-course-lists';
+  if (!courseEls.length) {
+    coursesVia = 'link-scan';
+    const seen = new Set();
+    courseEls = Array.from(
+      document.querySelectorAll('a[href*="/course/view.php?id="]'),
+    ).flatMap((a) => {
+      const id = a.getAttribute('href')?.match(/id=(\d+)/)?.[1];
+      if (!id || seen.has(id)) return [];
+      seen.add(id);
+      return [a.closest('li, .coursebox, .dashboard-card, .card') ?? a];
+    });
+  }
+  const courses = courseEls.map(readCourse).filter(Boolean);
   if (!courses.length) {
     console.error(
       '수강 과목을 찾지 못했습니다. COSMOS 로그인 후 대시보드(내 강의실)에서 실행하세요.',
+      {
+        page: location.pathname,
+        myCourseLists: document.querySelectorAll('.my-course-lists > li')
+          .length,
+        courseLinks: document.querySelectorAll(
+          'a[href*="/course/view.php?id="]',
+        ).length,
+      },
     );
     return;
   }
-  console.log(`과목 ${courses.length}개 발견 — 수집 시작…`);
+  console.log(
+    `과목 ${courses.length}개 발견(${coursesVia}) — 수집 시작…`,
+  );
 
   // ── 과제 목록 (/mod/assign/index.php?id=) ─────────────────────
   const fetchAssigns = async (id) => {
@@ -294,6 +324,7 @@
     source: 'cosmos-lms',
     fetchedAt: new Date().toISOString(),
     courses: result,
+    diag: { coursesVia, pagePath: location.pathname },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json',

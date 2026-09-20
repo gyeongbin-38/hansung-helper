@@ -110,19 +110,31 @@ async function collectLms({ createTab }) {
 }
 
 // 진행 중 수집 공유 + 단기 캐시 — 앱 탭 여러 개/빠른 재방문이 LMS를
-// 중복으로 두드리지 않게 한다.
+// 중복으로 두드리지 않게 한다. 실패는 hsuLmsErr로 남겨 콘솔·진단에 쓴다.
 let inflight = null;
 async function requestCollect(opts) {
-  const { hsuLmsAt } = await chrome.storage.local.get('hsuLmsAt');
-  if (hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS) {
-    const { hsuLms } = await chrome.storage.local.get('hsuLms');
-    if (hsuLms) return { payload: hsuLms, cached: true };
-  }
+  const { hsuLmsAt, hsuLms } = await chrome.storage.local.get([
+    'hsuLmsAt',
+    'hsuLms',
+  ]);
+  if (hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
+    return { payload: hsuLms, cached: true };
+  // 'known': 과거 성공 수집이 있는(COSMOS 사용자인) 경우에만 탭 생성 —
+  // 한 번도 수집한 적 없는 브라우저에 무작위 탭을 띄우지 않기 위함.
+  const createTab =
+    opts.createTab === 'known' ? !!hsuLmsAt : opts.createTab;
   if (!inflight)
-    inflight = collectLms(opts).finally(() => {
+    inflight = collectLms({ createTab }).finally(() => {
       inflight = null;
     });
-  return inflight;
+  const res = await inflight;
+  if (res.error) {
+    console.warn('[학사도우미] 수집 실패:', res.error);
+    void chrome.storage.local.set({
+      hsuLmsErr: { error: res.error, at: Date.now() },
+    });
+  }
+  return res;
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -135,12 +147,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
 // 브라우저가 켜져 있는 동안 4시간마다 조용히 수집 — 대시보드에 열려 있는
-// LMS 탭만 사용(새 탭은 띄우지 않음). 결과는 storage에 쌓여 다음 앱 오픈에
-// 반영. 워커가 깰 때마다 create를 다시 부르면 카운트다운이 리셋되므로
-// 없을 때만 만든다.
+// LMS 탭을 재사용하고, 없으면 과거 수집 이력이 있는 경우에만 비활성 탭을
+// 만들어 갱신 공백을 막는다(수집 후 탭은 닫힘). 워커가 깰 때마다 create를
+// 다시 부르면 카운트다운이 리셋되므로 없을 때만 만든다.
 chrome.alarms.get('hsu-poll', (a) => {
   if (!a) chrome.alarms.create('hsu-poll', { periodInMinutes: 240 });
 });
 chrome.alarms.onAlarm.addListener(() => {
-  void requestCollect({ createTab: false });
+  void requestCollect({ createTab: 'known' });
 });

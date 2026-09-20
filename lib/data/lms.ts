@@ -273,6 +273,10 @@ export type BingeItem = {
   weeklyStatus?: string;
   /** 수강 기간 끝(마감) 시각 — 파싱 불가면 null */
   dueTs: number | null;
+  /** 시청시간 'HH:mm[:ss]' (확장·콘솔 수집기만 제공) */
+  watched?: string;
+  /** 출석인정 요구시간 원문 */
+  required?: string;
 };
 
 /**
@@ -294,6 +298,8 @@ export function bingeQueue(snap: LmsSnapshot): BingeItem[] {
           status: v.status,
           weeklyStatus: v.weeklyStatus,
           dueTs: parseDue(v.range ?? null),
+          watched: v.watched,
+          required: v.required,
         });
   return out.sort((a, b) => {
     if (a.dueTs === null && b.dueTs === null)

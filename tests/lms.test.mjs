@@ -252,7 +252,7 @@ const bqSnap = {
   courses: [{
     id: '401', title: '몰아듣기과목',
     vods: [
-      { title: '기한없음 2주차', week: 2, attended: false },
+      { title: '기한없음 2주차', week: 2, attended: false, watched: '12:34', required: '45:00' },
       { title: '느린 마감 강의', week: 1, attended: false, range: '2026-09-01 ~ 2026-10-01 23:59' },
       { title: '빠른 마감 강의', week: 5, attended: false, range: '2026-09-01 ~ 2026-09-19 23:59' },
       { title: '기한없음 1주차', week: 1, attended: false },
@@ -264,6 +264,7 @@ const bqSnap = {
 const bq2 = bingeQueue(bqSnap);
 t('binge: 마감 빠른 순 정렬', bq2[0].title === '빠른 마감 강의' && bq2[1].title === '느린 마감 강의');
 t('binge: 기한 없음은 주차순 뒤로', bq2[2].title === '기한없음 1주차' && bq2[3].title === '기한없음 2주차');
+t('binge: 시청·요구시간 전달', bq2[3].watched === '12:34' && bq2[3].required === '45:00');
 t('binge: 수강 완료 제외', !bq2.some((b) => b.title === '들은 강의'));
 t('binge: vod 없는 과목 빈 큐', bingeQueue({ ...snap, courses: [snap.courses[1]] }).length === 0);
 

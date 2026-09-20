@@ -39,24 +39,48 @@
   };
 
   // ── 수강 과목 목록 (대시보드) ────────────────────────────────
+  // .my-course-lists가 없으면 Moodle 표준 과목 링크 스캔으로 폴백 —
+  // 서버 파서가 실계정 대시보드에서 검증한 동일 접근.
   function listCourses() {
-    return Array.from(
-      document.querySelectorAll('.my-course-lists > li'),
-    ).flatMap((li) => {
-      const link = li.querySelector('a.course_link');
-      const id = link?.getAttribute('href')?.match(/id=(\d+)/)?.[1];
-      const titleEl = li.querySelector(
-        '.course-title h1, .course-title h2, .course-title h3',
+    const read = (box) => {
+      const link = box.querySelector(
+        'a.course_link, a[href*="/course/view.php"]',
       );
+      const id = link?.getAttribute('href')?.match(/id=(\d+)/)?.[1];
+      const titleEl =
+        box.querySelector(
+          '.course-title h1, .course-title h2, .course-title h3',
+        ) ?? link;
       const title = titleEl?.textContent?.trim();
-      if (!id || !title) return [];
+      if (!id || !title) return null;
       return {
         id,
         title,
-        prof: text(li, '.course-title p') || undefined,
-        community: !!li.querySelector('.course_label_ec'),
+        prof: text(box, '.course-title p') || undefined,
+        community: !!box.querySelector('.course_label_ec'),
       };
-    });
+    };
+    let items = Array.from(
+      document.querySelectorAll('.my-course-lists > li'),
+    );
+    let via = 'my-course-lists';
+    if (!items.length) {
+      via = 'link-scan';
+      const seen = new Set();
+      items = Array.from(
+        document.querySelectorAll('a[href*="/course/view.php?id="]'),
+      ).flatMap((a) => {
+        const id = a.getAttribute('href')?.match(/id=(\d+)/)?.[1];
+        if (!id || seen.has(id)) return [];
+        seen.add(id);
+        return [a.closest('li, .coursebox, .dashboard-card, .card') ?? a];
+      });
+    }
+    return {
+      courses: items.map(read).filter(Boolean),
+      via,
+      scanned: items.length,
+    };
   }
 
   // ── 과제 목록 ────────────────────────────────────────────────
@@ -87,9 +111,14 @@
   const quizSubmitted = async (url) => {
     try {
       const doc = await fetchHtml(url);
-      return doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0;
+      return {
+        submitted:
+          doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0,
+        uncertain: undefined,
+      };
     } catch {
-      return false;
+      // 확인 실패를 미응시로 단정하지 않는다
+      return { submitted: false, uncertain: true };
     }
   };
   const fetchQuizzes = async (id) => {
@@ -112,10 +141,7 @@
       };
     });
     return Promise.all(
-      items.map(async (it) => ({
-        ...it,
-        submitted: await quizSubmitted(it.url),
-      })),
+      items.map(async (it) => ({ ...it, ...(await quizSubmitted(it.url)) })),
     );
   };
 
@@ -264,9 +290,12 @@
 
   // ── 전체 수집 ───────────────────────────────────────────────
   async function collect(onProgress) {
-    const courses = listCourses();
+    const { courses, via, scanned } = listCourses();
     if (!courses.length)
-      throw new Error('수강 과목을 찾지 못했습니다 — 내 강의실 페이지에서 실행하세요.');
+      throw new Error(
+        `수강 과목을 찾지 못했습니다 — 내 강의실 페이지에서 실행하세요. ` +
+          `(path=${location.pathname} links=${document.querySelectorAll('a[href*="/course/view.php?id="]').length})`,
+      );
     const result = [];
     for (const c of courses) {
       onProgress?.(`수집 중: ${c.title} (${result.length + 1}/${courses.length})`);
@@ -289,6 +318,7 @@
           vods.status === 'rejected' && 'vod',
           assigns.status === 'rejected' && 'assign',
           quizzes.status === 'rejected' && 'quiz',
+          quizzes.value?.some((q) => q.uncertain) && 'quiz-check',
         ].filter(Boolean),
       });
     }
@@ -296,6 +326,9 @@
       source: 'cosmos-lms',
       fetchedAt: new Date().toISOString(),
       courses: result,
+      // 진단 메타 — validateLms는 알려진 키만 복사하므로 무시됨.
+      // 어떤 셀렉터로 과목을 찾았는지 기록해 실계정 불일치를 추적한다.
+      diag: { coursesVia: via, pagePath: location.pathname, scanned },
     };
   }
 
@@ -342,7 +375,9 @@
           window.open(APP_URL, '_blank');
       } catch (e) {
         console.error('[학사도우미]', e);
-        btn.textContent = '실패 — 내 강의실에서 실행';
+        btn.textContent = String(e?.message ?? e).includes('수강 과목')
+          ? '과목 인식 실패 — 콘솔 확인'
+          : '수집 실패 — 콘솔 확인';
       }
       btn.disabled = false;
       setTimeout(() => (btn.textContent = '학사도우미 수집'), 10000);

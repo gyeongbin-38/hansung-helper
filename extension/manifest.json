@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "한성 학사 도우미 — COSMOS 수집",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "learn.hansung.ac.kr의 수강 현황을 수집해 한성 학사 도우미에 자동 반영. 앱을 열 때 자동 수집 + LMS 페이지 수집 버튼. 로그인 세션은 브라우저 안에서만 사용된다.",
   "permissions": ["scripting", "tabs", "alarms", "storage"],
   "host_permissions": [
