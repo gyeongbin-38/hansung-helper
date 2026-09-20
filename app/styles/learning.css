@@ -1058,6 +1058,13 @@
   color: var(--nt-stone);
   margin-top: 2px;
 }
+.lms-task .badge:last-child {
+  margin-left: auto;
+}
+.lms-tabs {
+  display: flex;
+  gap: 8px;
+}
 @media (max-width: 767px) {
   .lms-course > summary {
     flex-direction: column;

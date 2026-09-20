@@ -550,6 +550,10 @@ blocking regressions.
   앱이 열려 있을 때만 동작 — 백그라운드 푸시는 VAPID+서비스워커+
   구독 저장 인프라가 필요한 별도 과제. `enrolledSectionIds`로 LMS
   과목↔카탈로그 이름 매칭 '수강 중' 배지(표시 전용, 집계 미반영).
+  LMS 섹션 뷰 탭 추가 — '제출·응시'(`submissionItems`: 과제·퀴즈
+  완료 포함 통합 현황, uncertain은 확정 미응시와 구분)와 '몰아듣기'
+  (`bingeQueue`: 미시청 강의 기한순 큐 + COSMOS 링크, 자동 재생/
+  출석 조작 아님).
 
 ## ISSUE-24 — BE 업무 패키지 (팀원 핸드오프)
 

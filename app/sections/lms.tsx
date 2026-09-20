@@ -12,14 +12,18 @@ import { useEffect, useRef, useState } from 'react';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import {
+  bingeQueue,
   courseProgress,
   dueSoon,
   pendingTasks,
   staleDays,
+  submissionItems,
   validateLms,
   weekProgress,
+  type BingeItem,
   type LmsCourse,
   type LmsSnapshot,
+  type SubmissionItem,
 } from '@/lib/data/lms';
 
 const LMS_BASE = 'https://learn.hansung.ac.kr';
@@ -210,6 +214,137 @@ function CourseCard({
   );
 }
 
+/** 안 들은 강의 한 줄 — 몰아듣기 큐용 */
+function BingeRow({ b, now }: { b: BingeItem; now: number }) {
+  const overdue = b.dueTs !== null && b.dueTs <= now;
+  const dd = b.dueTs !== null ? Math.ceil((b.dueTs - now) / DAY) : null;
+  return (
+    <div className="lms-task">
+      <span className={'badge ' + (overdue ? 'orange' : 'blue')}>
+        {b.week ? `${b.week}주차` : '강의'}
+      </span>
+      <div>
+        {b.url ? (
+          <a className="link" href={b.url} target="_blank" rel="noreferrer">
+            {b.title} <ArrowUpRight size={13} />
+          </a>
+        ) : (
+          <b>{b.title}</b>
+        )}
+        <small>
+          {b.course}
+          {b.range ? ` · ${shortRange(b.range)}` : ''}
+          {dd !== null
+            ? dd < 0
+              ? ' · 기한 지남'
+              : dd === 0
+                ? ' · 오늘까지'
+                : ` · D-${dd}`
+            : ''}
+          {b.weeklyStatus
+            ? ` · ${b.weeklyStatus}`
+            : b.status
+              ? ` · 출석 ${b.status}`
+              : ''}
+        </small>
+      </div>
+    </div>
+  );
+}
+
+/** 안 들은 온라인 강의를 수강 기간 마감순으로 나열한 몰아듣기 큐 */
+function BingeView({ snap, now }: { snap: LmsSnapshot; now: number }) {
+  const queue = bingeQueue(snap);
+  if (!queue.length)
+    return (
+      <p className="meta">
+        안 들은 온라인 강의가 없습니다 — 모두 수강했거나 강의가 수집되지
+        않았습니다.
+      </p>
+    );
+  const urgent = queue.filter(
+    (b) => b.dueTs !== null && b.dueTs <= now + 3 * DAY,
+  ).length;
+  return (
+    <>
+      <p className="meta">
+        안 들은 강의 {queue.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
+        — 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
+        수강 반영은 재수집 후 확인됩니다.
+      </p>
+      <div className="lms-tasks">
+        {queue.map((b, i) => (
+          <BingeRow key={i} b={b} now={now} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** 과제·퀴즈 한 줄 — 제출·응시 상태 배지 포함 */
+function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
+  const dd = s.dueTs !== null ? Math.ceil((s.dueTs - now) / DAY) : null;
+  return (
+    <div className="lms-task">
+      <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
+        {s.kind}
+      </span>
+      <div>
+        {s.url ? (
+          <a className="link" href={s.url} target="_blank" rel="noreferrer">
+            {s.title} <ArrowUpRight size={13} />
+          </a>
+        ) : (
+          <b>{s.title}</b>
+        )}
+        <small>
+          {s.course}
+          {s.due
+            ? ` · 마감 ${s.due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
+            : ' · 마감 미기재'}
+        </small>
+      </div>
+      <span
+        className={
+          'badge ' +
+          (s.submitted ? 'green' : s.uncertain ? 'purple' : 'orange')
+        }
+      >
+        {s.submitted
+          ? s.kind === '퀴즈'
+            ? '응시 완료'
+            : '제출 완료'
+          : s.uncertain
+            ? '응시 여부 확인 실패'
+            : s.kind === '퀴즈'
+              ? '미응시'
+              : '미제출'}
+      </span>
+    </div>
+  );
+}
+
+/** 전체 과제·퀴즈 — 제출·응시 완료 항목 포함 통합 현황 */
+function SubmissionsView({ snap, now }: { snap: LmsSnapshot; now: number }) {
+  const items = submissionItems(snap);
+  if (!items.length)
+    return <p className="meta">수집된 과제·퀴즈가 없습니다.</p>;
+  const done = items.filter((i) => i.submitted).length;
+  return (
+    <>
+      <p className="meta">
+        과제·퀴즈 {items.length}건 — 완료 {done} · 남은 것{' '}
+        {items.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
+      </p>
+      <div className="lms-tasks">
+        {items.map((s, i) => (
+          <SubmissionRow key={i} s={s} now={now} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function LmsSection({
   data,
   persist,
@@ -241,9 +376,18 @@ export function LmsSection({
   const [err, setErr] = useState('');
   const [copying, setCopying] = useState(false);
   const [now] = useState(() => Date.now());
+  const [view, setView] = useState<'courses' | 'binge' | 'submit'>('courses');
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
+
+  // 딥링크가 바뀌면 과목별 뷰로 돌아간다 — 대상 카드는 그 뷰에만 있다
+  // (렌더 중 상태 조정 패턴 — effect 내 setState 대신)
+  const [prevDetail, setPrevDetail] = useState(detail);
+  if (detail !== prevDetail) {
+    setPrevDetail(detail);
+    if (detail) setView('courses');
+  }
 
   useEffect(() => {
     if (!detail || !snap) return;
@@ -426,21 +570,50 @@ export function LmsSection({
 
           <section className="card pad">
             <div className="between">
-              <h2>과목별 현황</h2>
+              <div className="lms-tabs" role="tablist" aria-label="수업 현황 보기">
+                <button
+                  role="tab"
+                  aria-selected={view === 'courses'}
+                  className={'badge' + (view === 'courses' ? ' sel' : '')}
+                  onClick={() => setView('courses')}
+                >
+                  과목별
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === 'binge'}
+                  className={'badge' + (view === 'binge' ? ' sel' : '')}
+                  onClick={() => setView('binge')}
+                >
+                  몰아듣기
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === 'submit'}
+                  className={'badge' + (view === 'submit' ? ' sel' : '')}
+                  onClick={() => setView('submit')}
+                >
+                  제출·응시
+                </button>
+              </div>
               <small className="meta">
                 남은 항목 {pendingTasks(snap).length}건
               </small>
             </div>
-            <div className="lms-courses">
-              {snap.courses.map((c) => (
-                <CourseCard
-                  key={c.id}
-                  c={c}
-                  now={now}
-                  forceOpen={detail === c.id}
-                />
-              ))}
-            </div>
+            {view === 'courses' && (
+              <div className="lms-courses">
+                {snap.courses.map((c) => (
+                  <CourseCard
+                    key={c.id}
+                    c={c}
+                    now={now}
+                    forceOpen={detail === c.id}
+                  />
+                ))}
+              </div>
+            )}
+            {view === 'binge' && <BingeView snap={snap} now={now} />}
+            {view === 'submit' && <SubmissionsView snap={snap} now={now} />}
           </section>
         </>
       )}

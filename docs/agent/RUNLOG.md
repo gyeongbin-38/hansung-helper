@@ -1266,3 +1266,46 @@ VERIFICATION STATUS: 단위 테스트·빌드·배포·데모 e2e 완료. 실계
 브라우저 확인은 데모로 대체(로그인 경로만 미검증). 브라우저 알림의
 실제 OS 알림 발송은 headless라 시각 확인 불가 — 예약·토글·한계 고지
 로직만 검증됨.
+
+---
+
+## 2026-09-20 — LMS 제출·응시 현황 + 강의 몰아듣기 (사용자 요청)
+
+DONE:
+- **`lib/data/lms.ts`**: `SubmissionItem` + `submissionItems(snap)` —
+  전 과목의 과제·퀴즈를 완료 포함 통합 목록으로(기존 CourseCard는
+  미완료만 표시). 미제출/미응시·uncertain을 앞에, 완료를 뒤에, 각
+  그룹은 마감(parseDue, 범위면 끝)순. `BingeItem` + `bingeQueue(snap)`
+  — 미시청 VOD만 수강 기간 마감 빠른 순 큐, 무기한은 주차순으로 뒤에.
+  주차·기간 원문·출석 상태·weeklyStatus·강의 url 보존.
+- **`app/sections/lms.tsx`**: 뷰 탭 3개(role=tablist/tab,
+  aria-selected) — 과목별/몰아듣기/제출·응시. `BingeView`(안 들은 강의
+  n건, COSMOS에서 시청 안내 문구), `SubmissionsView`(제출 완료/응시
+  완료/미제출/미응시/응시 여부 확인 실패 배지 — uncertain을 확정
+  미응시로 표기하지 않음, COSMOS 원문 링크). `detail` 딥링크 변경 시
+  렌더 단계 상태 조정 패턴으로 과목별 뷰 복귀(effect 내 setState는
+  react-compiler 린트 오류라 제거), 스크롤 이펙트는 유지.
+- **`learning.css`**: `.lms-tabs` flex, `.lms-task .badge:last-child`
+  우측 정렬.
+
+IN PROGRESS: nothing.
+
+NEXT:
+1. 실계정 e2e로 세 탭 렌더 확인(데모 17/17로 대체 검증됨).
+2. 백그라운드 푸시(인프라 필요) — 유일한 잔여 큰 과제.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(lms 62/62 — submissionItems·bingeQueue 14 신규: 완료 포함, 미완료
+우선 정렬, dueTs 파싱, uncertain 보존, 미시청만, 기한순, 무기한
+주차순, 출석 제외), root+deploy 빌드 green, 번들 마커 6종 확인,
+_verify_prod 전 엔드포인트 200. e2e 17/17.
+라이브 version ecaf4437.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 단위 테스트·빌드·배포·데모 e2e(탭 전환, 큐
+표시, 상태 배지, 완료 항목, 딥링크 복귀) 완료. 실계정 확인 미수행.
+'몰아듣기'는 우선순위 큐+COSMOS 링크이며 자동 재생·출석 조작이
+아님을 UI에 명시.

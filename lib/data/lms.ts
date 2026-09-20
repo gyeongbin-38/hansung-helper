@@ -196,6 +196,108 @@ export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
   return out;
 }
 
+export type SubmissionItem = {
+  course: string;
+  courseId: string;
+  kind: '과제' | '퀴즈';
+  title: string;
+  url?: string;
+  due: string | null;
+  /** parseDue 기반 마감 시각 — 정렬용, 파싱 불가면 null */
+  dueTs: number | null;
+  submitted: boolean;
+  /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않음 */
+  uncertain?: boolean;
+};
+
+/**
+ * 전체 과제·퀴즈 — 제출 완료 항목 포함 (pendingTasks는 미완료만).
+ * 정렬: 미완료·확인불가 먼저 → 마감 빠른 순 → 완료는 마감 빠른 순으로 뒤에.
+ */
+export function submissionItems(snap: LmsSnapshot): SubmissionItem[] {
+  const out: SubmissionItem[] = [];
+  for (const c of snap.courses) {
+    for (const a of c.assigns)
+      out.push({
+        course: c.title,
+        courseId: c.id,
+        kind: '과제',
+        title: a.title,
+        url: a.url,
+        due: a.due ?? null,
+        dueTs: parseDue(a.due ?? null),
+        submitted: a.submitted,
+      });
+    for (const q of c.quizzes)
+      out.push({
+        course: c.title,
+        courseId: c.id,
+        kind: '퀴즈',
+        title: q.title,
+        url: q.url,
+        due: q.due ?? null,
+        dueTs: parseDue(q.due ?? null),
+        submitted: q.submitted,
+        uncertain: q.uncertain,
+      });
+  }
+  return out.sort((a, b) => {
+    const pa = a.submitted ? 1 : 0;
+    const pb = b.submitted ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    if (a.dueTs === null && b.dueTs === null) return 0;
+    if (a.dueTs === null) return 1;
+    if (b.dueTs === null) return -1;
+    return a.dueTs - b.dueTs;
+  });
+}
+
+export type BingeItem = {
+  course: string;
+  courseId: string;
+  week?: number;
+  title: string;
+  /** COSMOS 강의 페이지 링크 */
+  url?: string;
+  /** 수강 기간 원문 */
+  range?: string;
+  /** 출석 상태 원문 (O/X/P 등) */
+  status?: string;
+  /** 주차 출석 원문 (일괄출석인정 포함) */
+  weeklyStatus?: string;
+  /** 수강 기간 끝(마감) 시각 — 파싱 불가면 null */
+  dueTs: number | null;
+};
+
+/**
+ * 안 들은 온라인 강의 몰아듣기 큐 — 수강 기간 마감 빠른 순.
+ * 기한을 알 수 없는 항목은 주차 오름차순으로 뒤에 둔다.
+ */
+export function bingeQueue(snap: LmsSnapshot): BingeItem[] {
+  const out: BingeItem[] = [];
+  for (const c of snap.courses)
+    for (const v of c.vods)
+      if (!v.attended)
+        out.push({
+          course: c.title,
+          courseId: c.id,
+          week: v.week,
+          title: v.title,
+          url: v.url,
+          range: v.range,
+          status: v.status,
+          weeklyStatus: v.weeklyStatus,
+          dueTs: parseDue(v.range ?? null),
+        });
+  return out.sort((a, b) => {
+    if (a.dueTs === null && b.dueTs === null)
+      return (a.week ?? 99) - (b.week ?? 99);
+    if (a.dueTs === null) return 1;
+    if (b.dueTs === null) return -1;
+    return a.dueTs - b.dueTs;
+  });
+}
+
 /** 'YYYY-MM-DD HH:mm' 또는 범위 'a ~ b'의 마감(끝) 시각 — 파싱 불가면 null */
 export const parseDue = (due: string | null): number | null => {
   if (!due) return null;

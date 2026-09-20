@@ -7,6 +7,8 @@ import {
   weekProgress,
   matchEnrollment,
   enrolledSectionIds,
+  submissionItems,
+  bingeQueue,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -228,6 +230,42 @@ t('stale: 수집 당일 0일', staleDays(snap, NOW) === 0); // 14h 경과 → 0�
 t('stale: 8일 경과', staleDays(snap, NOW + 8 * DAY) === 8);
 t('stale: 미래 시각은 0', staleDays(snap, Date.parse(snap.fetchedAt) - DAY) === 0);
 t('stale: 파싱 불가 → null', staleDays({ ...snap, fetchedAt: 'not-a-date' }, NOW) === null);
+
+// ── submissionItems (제출·응시 통합 현황) ────────────────────
+const subs = submissionItems(snap);
+t('submissions: 완료 포함 전체', subs.length === 3);
+t('submissions: 미완료 먼저 + 마감순', subs[0].title === '퀴즈1' && subs[1].title === '과제1');
+t('submissions: 완료는 뒤로', subs[2].title === '과제0' && subs[2].submitted === true);
+t('submissions: kind 구분', subs.find((s) => s.title === '퀴즈1').kind === '퀴즈' && subs.find((s) => s.title === '과제1').kind === '과제');
+t('submissions: dueTs 파싱', subs[0].dueTs !== null && subs[2].dueTs === null);
+const unSubs = submissionItems(unSnap);
+t('submissions: uncertain 전달', unSubs.find((s) => s.title === '확인실패퀴즈')?.uncertain === true);
+t('submissions: 응시완료 포함', unSubs.some((s) => s.title === '응시완료' && s.submitted));
+
+// ── bingeQueue (강의 몰아듣기) ───────────────────────────────
+const bq = bingeQueue(snap);
+t('binge: 안 들은 강의만', bq.length === 1 && bq[0].title === '2주차 강의');
+t('binge: range 끝날짜→dueTs', bq[0].dueTs === Date.parse('2026-09-20T23:59'));
+t('binge: 주차·출석 원문 전달', bq[0].week === 2 && bq[0].status === 'X');
+const bqSnap = {
+  ...snap,
+  courses: [{
+    id: '401', title: '몰아듣기과목',
+    vods: [
+      { title: '기한없음 2주차', week: 2, attended: false },
+      { title: '느린 마감 강의', week: 1, attended: false, range: '2026-09-01 ~ 2026-10-01 23:59' },
+      { title: '빠른 마감 강의', week: 5, attended: false, range: '2026-09-01 ~ 2026-09-19 23:59' },
+      { title: '기한없음 1주차', week: 1, attended: false },
+      { title: '들은 강의', week: 3, attended: true },
+    ],
+    assigns: [], quizzes: [],
+  }],
+};
+const bq2 = bingeQueue(bqSnap);
+t('binge: 마감 빠른 순 정렬', bq2[0].title === '빠른 마감 강의' && bq2[1].title === '느린 마감 강의');
+t('binge: 기한 없음은 주차순 뒤로', bq2[2].title === '기한없음 1주차' && bq2[3].title === '기한없음 2주차');
+t('binge: 수강 완료 제외', !bq2.some((b) => b.title === '들은 강의'));
+t('binge: vod 없는 과목 빈 큐', bingeQueue({ ...snap, courses: [snap.courses[1]] }).length === 0);
 
 // ── deriveNotifs 통합 ───────────────────────────────────────
 const notifs = deriveNotifs({
