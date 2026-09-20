@@ -2,16 +2,30 @@
  * 한성 학사 도우미 — 백그라운드 서비스 워커
  *
  * 앱(hansung-helper)이 열리면 app-bridge가 'hsu-refresh' 메시지를 보낸다.
- * 열려 있는 LMS 탭을 찾거나(없으면 비활성 탭으로 생성) 그 탭의
- * MAIN world에 심어진 window.__hsCollect를 실행해 스냅샷을 받는다.
- * 결과는 chrome.storage.local에도 남겨 다음 앱 오픈 때 즉시 표시한다.
+ * 대시보드(/my/ 또는 /)에 있는 LMS 탭을 재사용하거나, 없으면 비활성 탭을
+ * 직접 만들어(수집 후 닫는다) 그 탭의 MAIN world에 심어진
+ * window.__hsCollect를 실행해 스냅샷을 받는다.
+ * - 사용자가 보고 있는 LMS 탭은 절대 이동시키지 않는다.
+ * - 진행 중 수집은 중복 실행하지 않고, 최근 성공 수집은 캐시로 응답한다.
+ * - 결과는 chrome.storage.local에 남겨 다음 앱 오픈 때 즉시 표시한다.
  * COSMOS 로그인 세션은 사용자 브라우저의 것을 그대로 쓴다.
  */
 const LMS = 'https://learn.hansung.ac.kr';
+const RECENT_MS = 5 * 60e3; // 백그라운드 단기 캐시 — 5분 이내 성공분 재사용
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const isDashboard = (u) => {
+  try {
+    const p = new URL(u).pathname;
+    return p === '/my/' || p === '/my' || p === '/';
+  } catch {
+    return false;
+  }
+};
+
 const findLmsTab = async () =>
-  (await chrome.tabs.query({ url: `${LMS}/*` }))[0] ?? null;
+  (await chrome.tabs.query({ url: `${LMS}/*` }))
+    .find((t) => isDashboard(t.url)) ?? null;
 
 async function waitComplete(tabId, timeout = 20000) {
   for (let i = 0; i < timeout / 500; i++) {
@@ -28,6 +42,7 @@ async function runCollect(tabId) {
     world: 'MAIN',
     func: async () => {
       if (
+        location.pathname.startsWith('/login') ||
         document.querySelector(
           'form[action*="login"], #page-login-index, .login-form',
         )
@@ -45,61 +60,87 @@ async function runCollect(tabId) {
   return res?.result ?? { error: 'no-result' };
 }
 
-/** LMS 탭에서 수집 실행. createTab이면 탭이 없을 때 비활성 탭 생성. */
+/** LMS 탭에서 수집 실행. createTab이면 탭이 없을 때 비활성 탭 생성.
+ *  우리가 만든 탭은 성공·실패 무관하게 닫는다. */
 async function collectLms({ createTab }) {
   let tab = await findLmsTab();
+  let ours = false;
   if (!tab) {
     if (!createTab) return { error: 'no-lms-tab' };
     tab = await chrome.tabs.create({ url: `${LMS}/my/`, active: false });
+    ours = true;
   }
   try {
     await waitComplete(tab.id);
-  } catch {
-    return { error: 'tab-load-timeout' };
-  }
-  for (let i = 0; i < 12; i++) {
-    const r = await runCollect(tab.id);
-    if (r.payload) {
-      await chrome.storage.local.set({
-        hsuLms: r.payload,
-        hsuLmsAt: Date.now(),
-      });
-      return { payload: r.payload };
-    }
-    if (r.error === 'collector-missing') {
-      await sleep(1000);
-      continue; // content.js 주입 대기
-    }
-    // 대시보드가 아닌 페이지(홈/로그인 통과 후 다른 화면)면 /my/로 이동
-    if (
-      r.error?.includes('수강 과목을 찾지') &&
-      !tab.url?.includes('/my/')
-    ) {
-      await chrome.tabs.update(tab.id, { url: `${LMS}/my/` });
+    for (let i = 0; i < 12; i++) {
+      let r;
       try {
-        await waitComplete(tab.id);
-      } catch {
-        return { error: 'tab-load-timeout' };
+        r = await runCollect(tab.id);
+      } catch (e) {
+        // 탭 소실·권한 밖 도메인 리다이렉트(SSO 로그인) 등 — 재시도 의미 없음
+        return { error: String(e?.message ?? e) };
       }
-      continue;
+      if (r.payload) {
+        await chrome.storage.local.set({
+          hsuLms: r.payload,
+          hsuLmsAt: Date.now(),
+        });
+        return { payload: r.payload };
+      }
+      if (r.error === 'collector-missing') {
+        // 확장 설치 전에 열린 탭 등 — content.js를 직접 주입해 복구
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: 'MAIN',
+            files: ['content.js'],
+          });
+        } catch {
+          /* 다음 재시도에서 판정 */
+        }
+        await sleep(1000);
+        continue;
+      }
+      return { error: r.error };
     }
-    return { error: r.error };
+    return { error: 'collector-timeout' };
+  } finally {
+    if (ours) chrome.tabs.remove(tab.id).catch(() => {});
   }
-  return { error: 'collector-timeout' };
+}
+
+// 진행 중 수집 공유 + 단기 캐시 — 앱 탭 여러 개/빠른 재방문이 LMS를
+// 중복으로 두드리지 않게 한다.
+let inflight = null;
+async function requestCollect(opts) {
+  const { hsuLmsAt } = await chrome.storage.local.get('hsuLmsAt');
+  if (hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS) {
+    const { hsuLms } = await chrome.storage.local.get('hsuLms');
+    if (hsuLms) return { payload: hsuLms, cached: true };
+  }
+  if (!inflight)
+    inflight = collectLms(opts).finally(() => {
+      inflight = null;
+    });
+  return inflight;
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'hsu-refresh') {
-    collectLms({ createTab: true })
+    requestCollect({ createTab: true })
       .then(sendResponse)
       .catch((e) => sendResponse({ error: String(e?.message ?? e) }));
     return true; // 비동기 sendResponse
   }
 });
 
-// 브라우저가 켜져 있는 동안 4시간마다 조용히 수집 — 열려 있는 LMS 탭만
-// 사용(새 탭은 띄우지 않음). 결과는 storage에 쌓여 다음 앱 오픈에 반영.
-chrome.alarms.create('hsu-poll', { periodInMinutes: 240 });
+// 브라우저가 켜져 있는 동안 4시간마다 조용히 수집 — 대시보드에 열려 있는
+// LMS 탭만 사용(새 탭은 띄우지 않음). 결과는 storage에 쌓여 다음 앱 오픈에
+// 반영. 워커가 깰 때마다 create를 다시 부르면 카운트다운이 리셋되므로
+// 없을 때만 만든다.
+chrome.alarms.get('hsu-poll', (a) => {
+  if (!a) chrome.alarms.create('hsu-poll', { periodInMinutes: 240 });
+});
 chrome.alarms.onAlarm.addListener(() => {
-  void collectLms({ createTab: false });
+  void requestCollect({ createTab: false });
 });

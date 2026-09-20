@@ -548,6 +548,11 @@ blocking regressions.
   postMessage로 앱에 전달, page.tsx가 validateLms 후 persist로 저장.
   alarms 4h 주기 수집 + storage 마지막 스냅샷 즉시 표시. COSMOS 미로그인
   시 'cosmos-login-required' 상태 메시지 → 데이터 없을 때만 안내 토스트.
+- **Done (2026-09-19, v0.3.0 하드닝)**: 사용자 LMS 탭 납치 제거(대시보드
+  탭만 재사용, 아니면 자체 탭 생성+수집 후 폐쇄), inflight 중복 수집 공유
+  + 5분 캐시 + 브리지 30분 스로틀, alarms 재생성 리셋 버그 수정(get으로
+  없을 때만), 설치 전 열린 탭에 content.js 직접 주입 복구, runCollect
+  throw 격리, /login 경로 감지, 앱 수신 origin 체크.
 - **Out of scope**: LMS 로그인 자동화, 돋부기 자체 배포.
 - **Note**: 셀렉터 계약은 dotbugi 소스(fetchCourseData/fetchAssign/
   fetchQuiz/fetchVodAttendance/fetchVodList/lmsKeywords)에서 확인한

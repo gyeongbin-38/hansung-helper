@@ -12,14 +12,18 @@
 
   // 마지막 저장 스냅샷 — 새 수집이 오기 전 즉시 표시용.
   // React 리스너 등록을 기다려 약간 지연 후 전송.
-  chrome.storage.local.get(['hsuLms'], (r) => {
+  // 30분 이내 성공 수집이면 새 수집을 트리거하지 않는다 — 앱을 자주
+  // 여닫아도 LMS를 반복해서 두드리지 않기 위함(백그라운드에도 5분 캐시).
+  const FRESH_MS = 30 * 60e3;
+  chrome.storage.local.get(['hsuLms', 'hsuLmsAt'], (r) => {
     if (r.hsuLms)
       setTimeout(() => post('hsu-lms-import', { payload: r.hsuLms }), 1200);
-  });
-
-  chrome.runtime.sendMessage({ type: 'hsu-refresh' }, (res) => {
-    if (chrome.runtime.lastError) return;
-    if (res?.payload) post('hsu-lms-import', { payload: res.payload });
-    else if (res?.error) post('hsu-lms-status', { error: res.error });
+    if (typeof r.hsuLmsAt === 'number' && Date.now() - r.hsuLmsAt < FRESH_MS)
+      return;
+    chrome.runtime.sendMessage({ type: 'hsu-refresh' }, (res) => {
+      if (chrome.runtime.lastError) return;
+      if (res?.payload) post('hsu-lms-import', { payload: res.payload });
+      else if (res?.error) post('hsu-lms-status', { error: res.error });
+    });
   });
 })();

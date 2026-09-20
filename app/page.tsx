@@ -186,7 +186,7 @@ export default function App() {
   // fetchedAt일 때만 저장한다.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.source !== window) return;
+      if (e.source !== window || e.origin !== location.origin) return;
       const d = e.data as
         | { type?: string; payload?: unknown; error?: string }
         | null
