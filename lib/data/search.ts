@@ -1,10 +1,22 @@
-import { courseMatch, type Catalog } from './catalog.ts';
-import { activityMatch, type Activity } from './activities.ts';
+import { courseMatch, semesterStartTs, type Catalog } from './catalog.ts';
+import { activityMatch, liveStatus, type Activity } from './activities.ts';
 import type { ScheduleEvent } from './schedule.ts';
-import { parseDue, type LmsCourse } from './lms.ts';
+import {
+  courseIsPast,
+  currentSemesterStart,
+  isPast,
+  parseDue,
+  type LmsCourse,
+} from './lms.ts';
 import { koreanMatch } from './hangul.ts';
 
-export type SearchHit = { label: string; route: string; sub: string };
+export type SearchHit = {
+  label: string;
+  route: string;
+  sub: string;
+  /** LMS 항목의 완료 여부 — '미완료만' 필터용 (LMS 외 결과는 미설정) */
+  done?: boolean;
+};
 
 /** 질의 속 종류 단어 → LMS 항목 종류 필터 ('과제 언제까지' → 과제만) */
 const KIND_WORDS: [RegExp, '강의' | '과제' | '퀴즈'][] = [
@@ -28,9 +40,14 @@ const stripToken = (w: string) => {
 const DEADLINE_RE = /마감|데드라인|기한|제출일?/;
 
 /** LMS 개별 항목(강의·과제·퀴즈) 검색 — '알고리즘 과제 언제까지' 같은
- *  자유질문에서 마감 단위까지 찾는다. 미완료 항목을 먼저, 마감 빠른 순. */
+ *  자유질문에서 마감 단위까지 찾는다. 미완료 항목을 먼저, 마감 빠른 순.
+ *  before를 주면 그보다 이전에 끝난 지난 학기 항목은 결과에서 제외한다. */
 
-export function lmsTaskSearch(lms: LmsCourse[], q: string): SearchHit[] {
+export function lmsTaskSearch(
+  lms: LmsCourse[],
+  q: string,
+  before?: number | null,
+): SearchHit[] {
   const kinds = KIND_WORDS.filter(([re]) => re.test(q)).map(([, k]) => k);
   const tokens = q
     .split(/\s+/)
@@ -76,6 +93,7 @@ export function lmsTaskSearch(lms: LmsCourse[], q: string): SearchHit[] {
     ];
     for (const t of items) {
       if (kinds.length && !kinds.includes(t.kind)) continue;
+      if (isPast(parseDue(t.due), before)) continue;
       if (
         tokens.length &&
         !tokens.every((w) => koreanMatch(`${c.title} ${t.title}`, w))
@@ -93,6 +111,7 @@ export function lmsTaskSearch(lms: LmsCourse[], q: string): SearchHit[] {
           label: t.title,
           route: 'lms/' + c.id,
           sub: `COSMOS ${t.kind} · ${c.title} · ${state}${t.due ? ` · 마감 ${t.due}` : ''}`,
+          done: t.done,
         },
       });
     }
@@ -141,7 +160,9 @@ export function searchAll(
   acts: Activity[] | null,
   sched: ScheduleEvent[] | null,
   lms: LmsCourse[] | null = null,
+  now?: number,
 ): SearchHit[] {
+  const at = now ?? Date.now();
   const hits: SearchHit[] = [];
   for (const s of catalog?.sections ?? []) {
     if (hits.length >= 4) break;
@@ -158,7 +179,7 @@ export function searchAll(
       hits.push({
         label: a.title,
         route: 'activities/' + a.id,
-        sub: `${a.dept} · ${a.statusLabel}`,
+        sub: `${a.dept} · ${liveStatus(a, at).label}`,
       });
   }
   for (const e of sched ?? []) {
@@ -170,7 +191,11 @@ export function searchAll(
         sub: `공식 학사일정 · ${e.start}${e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}`,
       });
   }
-  for (const h of lmsTaskSearch(lms ?? [], q)) {
+  // 지난 학기 항목은 기본 결과에서 제외 — 카탈로그 학기가 기준, 없으면 현재 시각 기준
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(at);
+  for (const h of lmsTaskSearch(lms ?? [], q, before)) {
     if (hits.length >= 10) break;
     hits.push(h);
   }
@@ -180,7 +205,7 @@ export function searchAll(
       hits.push({
         label: c.title,
         route: 'lms/' + c.id,
-        sub: `COSMOS 수업 현황 · 수강 중${c.prof ? ` · ${c.prof}` : ''}`,
+        sub: `COSMOS 수업 현황 · ${courseIsPast(c, before) ? '지난 학기' : '수강 중'}${c.prof ? ` · ${c.prof}` : ''}`,
       });
   }
   return hits;

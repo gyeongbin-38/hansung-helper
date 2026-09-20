@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import {
+  semesterStartTs,
+  roomLabel,
+  deliveryLabel,
+  placeLabel,
+} from '../lib/data/catalog.ts';
 
 const catalog = JSON.parse(
   readFileSync(new URL('../lib/data/catalog-2026-2.json', import.meta.url)),
@@ -44,4 +50,25 @@ test('no personal/student data leaked into the public catalog', () => {
     'utf8',
   );
   assert.ok(!/password|passwd|학번.*\d{7,}|cookie|token/i.test(raw));
+});
+
+test('semesterStartTs maps YYYY-1→3/1, YYYY-2→9/1, unknown→null', () => {
+  assert.equal(semesterStartTs('2026-1'), new Date(2026, 2, 1).getTime());
+  assert.equal(semesterStartTs('2026-2'), new Date(2026, 8, 1).getTime());
+  assert.equal(semesterStartTs('2025-2'), new Date(2025, 8, 1).getTime());
+  assert.equal(semesterStartTs('garbage'), null);
+  assert.equal(semesterStartTs('2026-3'), null);
+});
+
+test('room/delivery/place labels separate online from room text', () => {
+  const online = { room: '온라인강좌 미래관B107', online: true };
+  const offline = { room: '미래관B107', online: false };
+  const noRoom = { room: '', online: true };
+  assert.equal(roomLabel(online), '미래관B107');
+  assert.equal(deliveryLabel(online), '온라인');
+  assert.equal(deliveryLabel(offline), '대면');
+  assert.equal(placeLabel(online), '온라인 · 미래관B107');
+  assert.equal(placeLabel(noRoom), '온라인');
+  assert.equal(placeLabel(offline), '미래관B107');
+  assert.equal(placeLabel({ room: '', online: false }), '강의실 미정');
 });

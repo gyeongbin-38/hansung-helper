@@ -4,6 +4,9 @@ import { ArrowUpRight, BookOpen, Check, Plus, Search } from 'lucide-react';
 import {
   conflicts,
   courseMatch,
+  deliveryLabel,
+  placeLabel,
+  roomLabel,
   slotLabel,
   slotsLabel,
   type Catalog,
@@ -172,13 +175,18 @@ export function Courses({
           </p>
           <div className="detail-grid">
             {[
+              ['이수구분', s.category === catGroup(s) ? s.category : `${s.category} (${catGroup(s)})`],
               ['담당 교수', s.professor || '교수 미정'],
-              ['강의실', s.room || '강의실 미정'],
+              ['수업 방식', deliveryLabel(s)],
+              [
+                '강의실',
+                roomLabel(s) ||
+                  (s.online ? '온라인' : s.room || '강의실 미정'),
+              ],
               [
                 '수업 시간',
                 s.slots.length ? s.slots.map(slotLabel).join(' · ') : '온라인 · 시간 미정',
               ],
-              ['이수구분', s.category + ` (${catGroup(s)})`],
             ].map(([l, v]) => (
               <div key={l}>
                 <small>{l}</small>
@@ -220,7 +228,7 @@ export function Courses({
                         <b>{alt.section}분반</b>
                         <small>
                           {slotsLabel(alt)} · {alt.professor || '교수 미정'}
-                          {alt.room ? ` · ${alt.room}` : ''}
+                          {roomLabel(alt) ? ` · ${roomLabel(alt)}` : ''}
                         </small>
                       </div>
                       <button
@@ -377,7 +385,7 @@ export function Courses({
               <p>
                 {s.professor || '교수 미정'} · {slotsLabel(s)}
               </p>
-              <small>{s.room || '강의실 미정'}</small>
+              <small>{placeLabel(s)}</small>
               <button className="secondary full" onClick={() => toggle(s)}>
                 {added ? <Check size={17} /> : <Plus size={17} />}{' '}
                 {added ? '계획에서 빼기' : '다음 학기 계획에 담기'}

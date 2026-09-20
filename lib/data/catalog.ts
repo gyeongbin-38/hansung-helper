@@ -31,6 +31,16 @@ export type Catalog = {
   sections: CourseSection[];
 };
 export const DAY_SHORT = ['월', '화', '수', '목', '금', '토', '일'];
+/** '2026-2' 같은 학기 문자열 → 학기 시작 로컬 시각 (1학기 3/1, 2학기 9/1).
+ *  해석 불가하면 null — 학기를 지어내지 않는다. */
+export function semesterStartTs(semester: string): number | null {
+  const m = semester.match(/(\d{4})\s*[-./]?\s*(\d)/);
+  if (!m) return null;
+  const y = +m[1];
+  if (m[2] === '1') return new Date(y, 2, 1).getTime();
+  if (m[2] === '2') return new Date(y, 8, 1).getTime();
+  return null;
+}
 /** 원본 이수구분 → 졸업요건 계산용 그룹. 카탈로그의 표시용 catGroup과는 별도 축. */
 export function gradGroup(category: string): string {
   if (category === '전필') return '전공필수';
@@ -57,6 +67,21 @@ export function slotLabel(s: CourseSlot) {
 export function slotsLabel(s: CourseSection) {
   if (s.untimed || !s.slots.length) return '온라인 · 시간 미정';
   return s.slots.map(slotLabel).join(' · ');
+}
+/** 강의실 표시 — 원본 '온라인강좌 미래관B107'에서 방식 접두어를 벗겨
+ *  실제 강의실만 돌려준다('미래관B107'). '온라인강좌' 단독이면 빈 문자열. */
+export function roomLabel(s: CourseSection): string {
+  return (s.room ?? '').replace(/^온라인강좌\s*/, '').trim();
+}
+/** 수업 방식 표시 — 온라인/대면을 강의실과 분리해 보여준다 */
+export function deliveryLabel(s: CourseSection): string {
+  return s.online ? '온라인' : '대면';
+}
+/** 방식+장소 한 줄 표시 — '온라인 · 미래관B107' / '미래관B107' / '온라인' */
+export function placeLabel(s: CourseSection): string {
+  const room = roomLabel(s);
+  if (s.online) return room ? `온라인 · ${room}` : '온라인';
+  return room || s.room || '강의실 미정';
 }
 /** 요일별 수업 요약: 수업 수, 첫/끝 시각, 수업 사이 공강(30분 이상만). */
 export type DaySummary = {

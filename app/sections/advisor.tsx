@@ -5,12 +5,17 @@ import type { Data } from './data';
 import { useActivities, useSchedule } from './catalog';
 import {
   conflicts,
+  semesterStartTs,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import type { Activity } from '@/lib/data/activities';
+import { liveStatus, type Activity } from '@/lib/data/activities';
 import { searchAll, type SearchHit } from '@/lib/data/search';
-import { dueSoon, pendingTasks } from '@/lib/data/lms';
+import {
+  currentSemesterStart,
+  dueSoon,
+  pendingTasks,
+} from '@/lib/data/lms';
 
 function planAnswer(data: Data, planned: CourseSection[]) {
   if (!planned.length)
@@ -38,13 +43,20 @@ function gradAnswer(data: Data) {
   return '입력된 이수 정보를 바탕으로 졸업요건 화면에서 진행률을 계산 중입니다. 적용 규정은 학과·입학연도별로 달라질 수 있으니 공식 규정도 함께 확인하세요.';
 }
 
-/** COSMOS 수집 스냅샷 기준 이번 주 마감 요약 — 수집 시점 데이터임을 명시한다 */
-function weekAnswer(data: Data) {
+/** COSMOS 수집 스냅샷 기준 이번 주 마감 요약 — 수집 시점 데이터임을 명시한다.
+ *  지난 학기 항목은 학기 경계(catalog 학기 우선, 없으면 현재 시각 추정)로 제외 */
+function weekAnswer(data: Data, catalog: Catalog | null) {
   const snap = data.lms;
   if (!snap)
     return 'COSMOS 수업 현황이 없어 이번 주 마감을 모을 수 없습니다. 수업 현황 화면에서 연결하면 강의·과제·퀴즈 마감을 한 번에 보여드립니다.';
-  const due = dueSoon(snap, Date.now(), 7);
-  const uncertain = pendingTasks(snap).filter((t) => t.uncertain).length;
+  const now = Date.now();
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const due = dueSoon(snap, now, 7, 7, before);
+  const uncertain = pendingTasks(snap, before).filter(
+    (t) => t.uncertain,
+  ).length;
   const suffix = uncertain
     ? ` 응시 여부를 확인하지 못한 퀴즈 ${uncertain}건은 COSMOS에서 직접 확인해 보세요.`
     : '';
@@ -66,10 +78,15 @@ function actAnswer(items: Activity[] | null, failed: boolean) {
     return '비교과 목록을 불러오지 못했습니다. 잠시 후 다시 시도하거나 hsportal 공식 목록에서 직접 확인하세요.';
   if (!items)
     return '비교과 목록을 불러오는 중입니다. 잠시 후 다시 확인해 주세요.';
-  const open = items.filter(
-    (a) => a.status === 'open' || a.status === 'closing',
+  // 스냅샷 상태 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
+  const now = Date.now();
+  const open = items.filter((a) => {
+    const st = liveStatus(a, now).status;
+    return st === 'open' || st === 'closing';
+  }).length;
+  const soon = items.filter(
+    (a) => liveStatus(a, now).status === 'upcoming',
   ).length;
-  const soon = items.filter((a) => a.status === 'upcoming').length;
   return `지금 신청 가능한 비교과 ${open}개, 접수 예정 ${soon}개가 있습니다 (hsportal ${'공식 목록'} 기준). 비교과·대외활동 화면에서 저장하거나 공고로 이동할 수 있습니다.`;
 }
 
@@ -98,7 +115,7 @@ export function Advisor({
         : kind === 'plan'
           ? planAnswer(data, planned)
           : kind === 'week'
-            ? weekAnswer(data)
+            ? weekAnswer(data, catalog)
             : actAnswer(snap?.items ?? null, actsFailed),
     );
   };
@@ -112,6 +129,7 @@ export function Advisor({
       snap?.items ?? null,
       sched?.items ?? null,
       data.lms?.courses ?? null,
+      Date.now(),
     );
     setHits(found);
     setAnswer(

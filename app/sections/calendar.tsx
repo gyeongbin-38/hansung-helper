@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { CalendarDays, ArrowRight, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { Data } from './data';
-import { dueSoon } from '@/lib/data/lms';
-import { useSchedule } from './catalog';
+import { currentSemesterStart, dueSoon } from '@/lib/data/lms';
+import { semesterStartTs } from '@/lib/data/catalog';
+import { useCatalog, useNow, useSchedule } from './catalog';
 import { RetryButton, SkeletonRows } from './skeleton';
 
 const fmtRange = (start: string, end: string | null) =>
@@ -21,13 +22,19 @@ export function CalendarSection({
   go: (route: string) => void;
 }) {
   const { snap, failed, retry } = useSchedule();
-  const [now] = useState(() => Date.now());
+  const { catalog } = useCatalog();
+  const now = useNow(30000);
+  const [eventErr, setEventErr] = useState('');
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (snap?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 12);
-  // COSMOS 수업 마감 — 14일 이내 미완료 항목을 학사일정 아래에 병합 표시
-  const lmsDue = data.lms ? dueSoon(data.lms, now, 14).slice(0, 8) : [];
+  // COSMOS 수업 마감 — 14일 이내 미완료 항목을 학사일정 아래에 병합 표시.
+  // 지난 학기 항목은 학기 경계로 제외한다.
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const lmsDue = data.lms ? dueSoon(data.lms, now, 14, 7, before).slice(0, 8) : [];
 
   // /calendar/:id — 공식 학사일정 상세
   if (detail) {
@@ -184,20 +191,33 @@ export function CalendarSection({
         </div>
         <form
           className="event-form"
+          noValidate
           onSubmit={async (e) => {
             e.preventDefault();
             const form = e.currentTarget,
               d = new FormData(form);
+            const title = (d.get('title') as string).trim();
+            const date = d.get('date') as string;
+            // 빈 값은 인라인 오류로 안내 — 입력값과 공식 일정 목록을 그대로 둔다
+            if (!title || !date) {
+              setEventErr(
+                !title ? '일정 제목을 입력해 주세요.' : '날짜를 선택해 주세요.',
+              );
+              form
+                .querySelector<HTMLInputElement>(
+                  !title ? 'input[name="title"]' : 'input[name="date"]',
+                )
+                ?.focus();
+              return;
+            }
+            setEventErr('');
             if (
               await persist(
                 {
                   ...data,
                   events: [
                     ...data.events,
-                    {
-                      title: d.get('title') as string,
-                      date: d.get('date') as string,
-                    },
+                    { title, date },
                   ].sort((a, b) => a.date.localeCompare(b.date)),
                 },
                 '개인 일정을 저장했습니다.',
@@ -211,13 +231,25 @@ export function CalendarSection({
             required
             placeholder="개인 일정 제목"
             aria-label="일정 제목"
+            aria-invalid={!!eventErr}
             maxLength={100}
           />
-          <input name="date" type="date" required aria-label="일정 날짜" />
+          <input
+            name="date"
+            type="date"
+            required
+            aria-label="일정 날짜"
+            aria-invalid={!!eventErr}
+          />
           <button className="primary">
             일정 추가 <Plus size={16} />
           </button>
         </form>
+        {eventErr && (
+          <p className="meta form-error" role="alert">
+            {eventErr}
+          </p>
+        )}
         {data.events.length ? (
           <div className="events">
             {data.events.map((e, i) => {

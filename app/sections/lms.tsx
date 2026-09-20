@@ -11,12 +11,17 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
-import type { Catalog } from '@/lib/data/catalog';
+import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
+import { useNow } from './catalog';
 import {
   bingeQueue,
+  courseIsPast,
   courseProgress,
+  currentSemesterStart,
   dueSoon,
+  isPast,
   matchEnrollment,
+  parseDue,
   pendingTasks,
   relTime,
   staleDays,
@@ -73,6 +78,7 @@ function TaskRow({
   uncertain,
   watched,
   required,
+  past,
   now,
 }: {
   kind: string;
@@ -84,6 +90,8 @@ function TaskRow({
   /** 시청시간/요구시간 — 강의 항목에서만 온다 */
   watched?: string;
   required?: string;
+  /** 지난 학기 마감 항목 — 현재 할 일과 구분해 표시 */
+  past?: boolean;
   now: number;
 }) {
   const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
@@ -104,6 +112,7 @@ function TaskRow({
           <b>{title}</b>
         )}
         <small>
+          {past ? <span className="badge">지난 학기</span> : null}
           {due
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
@@ -120,15 +129,19 @@ function TaskRow({
 function CourseCard({
   c,
   now,
+  before,
   forceOpen,
 }: {
   c: LmsCourse;
   now: number;
+  /** 학기 경계 — 이전 마감 항목을 지난 학기로 표시 */
+  before?: number | null;
   /** 검색·advisor 딥링크(lms/{courseId})로 진입 — 해당 카드를 펼친다 */
   forceOpen?: boolean;
 }) {
   const { done, total } = courseProgress(c);
   const weeks = weekProgress(c);
+  const pastCourse = courseIsPast(c, before);
   const pend = [
     ...c.vods
       .filter((v) => !v.attended)
@@ -139,6 +152,7 @@ function CourseCard({
         due: v.range ?? null,
         watched: v.watched,
         required: v.required,
+        past: pastCourse || isPast(parseDue(v.range ?? null), before),
       })),
     ...c.assigns
       .filter((a) => !a.submitted)
@@ -147,6 +161,7 @@ function CourseCard({
         title: a.title,
         url: a.url,
         due: a.due ?? null,
+        past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
       .filter((q) => !q.submitted)
@@ -156,6 +171,7 @@ function CourseCard({
         url: q.url,
         due: q.due ?? null,
         uncertain: q.uncertain,
+        past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];
   const disp = courseDisplay(c);
@@ -163,7 +179,10 @@ function CourseCard({
     <details
       id={`lms-c-${c.id}`}
       className="lms-course"
-      open={forceOpen || (pend.length > 0 && pend.length <= 8)}
+      open={
+        forceOpen ||
+        (!pastCourse && pend.length > 0 && pend.length <= 8)
+      }
     >
       <summary>
         <div className="lms-course-head">
@@ -193,7 +212,17 @@ function CourseCard({
             </>
           )}
           <small>
-            {pend.length ? `남은 ${pend.length}건` : '모두 완료'}
+            {pastCourse ? (
+              <span className="badge">지난 학기</span>
+            ) : null}{' '}
+            {(() => {
+              const cur = pend.filter((p) => !p.past).length;
+              return cur
+                ? `남은 ${cur}건`
+                : pastCourse
+                  ? '지난 학기 과목'
+                  : '모두 완료';
+            })()}
           </small>
         </div>
       </summary>
@@ -289,8 +318,17 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
 }
 
 /** 안 들은 온라인 강의를 수강 기간 마감순으로 나열한 몰아듣기 큐 */
-function BingeView({ snap, now }: { snap: LmsSnapshot; now: number }) {
-  const queue = bingeQueue(snap);
+function BingeView({
+  snap,
+  now,
+  before,
+}: {
+  snap: LmsSnapshot;
+  now: number;
+  /** 학기 경계 — 이전 마감 강의는 보관 영역으로 분리 */
+  before?: number | null;
+}) {
+  const queue = bingeQueue(snap, before);
   if (!queue.length)
     return (
       <p className="meta">
@@ -298,21 +336,33 @@ function BingeView({ snap, now }: { snap: LmsSnapshot; now: number }) {
         않았습니다.
       </p>
     );
-  const urgent = queue.filter(
+  const cur = queue.filter((b) => !b.past);
+  const past = queue.filter((b) => b.past);
+  const urgent = cur.filter(
     (b) => b.dueTs !== null && b.dueTs <= now + 3 * DAY,
   ).length;
   return (
     <>
       <p className="meta">
-        안 들은 강의 {queue.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
+        안 들은 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
         — 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
         수강 반영은 재수집 후 확인됩니다.
       </p>
       <div className="lms-tasks">
-        {queue.map((b, i) => (
+        {cur.map((b, i) => (
           <BingeRow key={i} b={b} now={now} />
         ))}
       </div>
+      {past.length > 0 && (
+        <details className="lms-past">
+          <summary>지난 학기 미수강 강의 {past.length}개</summary>
+          <div className="lms-tasks">
+            {past.map((b, i) => (
+              <BingeRow key={i} b={b} now={now} />
+            ))}
+          </div>
+        </details>
+      )}
     </>
   );
 }
@@ -361,22 +411,43 @@ function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
 }
 
 /** 전체 과제·퀴즈 — 제출·응시 완료 항목 포함 통합 현황 */
-function SubmissionsView({ snap, now }: { snap: LmsSnapshot; now: number }) {
-  const items = submissionItems(snap);
+function SubmissionsView({
+  snap,
+  now,
+  before,
+}: {
+  snap: LmsSnapshot;
+  now: number;
+  /** 학기 경계 — 이전 마감 항목은 보관 영역으로 분리 */
+  before?: number | null;
+}) {
+  const items = submissionItems(snap, before);
   if (!items.length)
     return <p className="meta">수집된 과제·퀴즈가 없습니다.</p>;
-  const done = items.filter((i) => i.submitted).length;
+  const cur = items.filter((i) => !i.past);
+  const past = items.filter((i) => i.past);
+  const done = cur.filter((i) => i.submitted).length;
   return (
     <>
       <p className="meta">
-        과제·퀴즈 {items.length}건 — 완료 {done} · 남은 것{' '}
-        {items.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
+        과제·퀴즈 {cur.length}건 — 완료 {done} · 남은 것{' '}
+        {cur.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
       </p>
       <div className="lms-tasks">
-        {items.map((s, i) => (
+        {cur.map((s, i) => (
           <SubmissionRow key={i} s={s} now={now} />
         ))}
       </div>
+      {past.length > 0 && (
+        <details className="lms-past">
+          <summary>지난 학기 과제·퀴즈 {past.length}건</summary>
+          <div className="lms-tasks">
+            {past.map((s, i) => (
+              <SubmissionRow key={i} s={s} now={now} />
+            ))}
+          </div>
+        </details>
+      )}
     </>
   );
 }
@@ -437,14 +508,18 @@ export function LmsSection({
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
   const [copying, setCopying] = useState(false);
-  const [now] = useState(() => Date.now());
+  const now = useNow(30000);
   const [view, setView] = useState<'courses' | 'binge' | 'submit'>('courses');
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
   const extStatus: ExtSync = ext ?? { installed: false, status: 'idle' };
   const syncing = !!serverCollecting || extStatus.status === 'syncing';
-  const pendCount = snap ? pendingTasks(snap).length : 0;
+  // 학기 경계 — 카탈로그 학기가 기준, 없으면 현재 시각 기준 추정
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const pendCount = snap ? pendingTasks(snap, before).length : 0;
 
   // 단일 동기화 상태 — 밴드와 연결 관리가 같은 판정을 본다
   const band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh' =
@@ -456,7 +531,7 @@ export function LmsSection({
           ? 'failed'
           : !snap
             ? 'setup'
-            : stale !== null && stale >= 7
+            : stale !== null && stale >= 1
               ? 'stale'
               : 'fresh';
   const lastError =
@@ -530,6 +605,24 @@ export function LmsSection({
         onExtRefresh={onExtRefresh}
       />
 
+      {snap && unmatched.length > 0 && (
+        <section className="card pad lms-match-warn" role="note">
+          <b>
+            {snap.courses.length}과목 중 {unmatched.length}과목이 개설강의
+            카탈로그와 이름이 달라 매칭되지 않았습니다.
+          </b>
+          <p className="meta">
+            {unmatched.slice(0, 4).join(' · ')}
+            {unmatched.length > 4 ? ` 외 ${unmatched.length - 4}개` : ''}
+          </p>
+          <p className="meta">
+            이름 매칭으로만 수강을 추정하므로 이 과목들은 수강 중 배지·졸업요건
+            계산에 반영되지 않습니다 — 실제 수강 여부는 학교 시스템에서
+            확인하세요.
+          </p>
+        </section>
+      )}
+
       {!snap ? (
         <SetupGuide
           band={band}
@@ -584,19 +677,24 @@ export function LmsSection({
                     key={c.id}
                     c={c}
                     now={now}
+                    before={before}
                     forceOpen={detail === c.id}
                   />
                 ))}
               </div>
             )}
-            {view === 'binge' && <BingeView snap={snap} now={now} />}
-            {view === 'submit' && <SubmissionsView snap={snap} now={now} />}
+            {view === 'binge' && (
+              <BingeView snap={snap} now={now} before={before} />
+            )}
+            {view === 'submit' && (
+              <SubmissionsView snap={snap} now={now} before={before} />
+            )}
           </section>
 
           <aside className="lms-side">
             <section className="card pad">
               <h3>마감 임박</h3>
-              <DueSoonList snap={snap} now={now} />
+              <DueSoonList snap={snap} now={now} before={before} />
             </section>
             <ConnCard
               snap={snap}
@@ -715,7 +813,15 @@ function SyncBand({
           </div>
           <div>
             <dt>마지막 동기화</dt>
-            <dd>{relTime(snap.fetchedAt, now)}</dd>
+            <dd>
+              {relTime(snap.fetchedAt, now)}
+              {snap.fetchedAt
+                ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})`
+                : ''}
+              {staleDays(snap, now) !== null && staleDays(snap, now)! >= 1 ? (
+                <span className="badge orange">오래된 데이터</span>
+              ) : null}
+            </dd>
           </div>
           <div>
             <dt>수집 경로</dt>
@@ -749,7 +855,9 @@ function SyncBand({
           </button>
         )}
         <span className="band-note">
-          {extInstalled ? '15분 간격 자동 수집' : '확장 설치 시 자동 수집'}
+          {extInstalled
+            ? '15분 간격 자동 수집'
+            : '지금 새로고침은 확장 설치 후 사용할 수 있습니다'}
         </span>
         <a
           className="band-link"
@@ -1107,8 +1215,16 @@ function RefreshForm({
   );
 }
 
-function DueSoonList({ snap, now }: { snap: LmsSnapshot; now: number }) {
-  const soon = dueSoon(snap, now, 7);
+function DueSoonList({
+  snap,
+  now,
+  before,
+}: {
+  snap: LmsSnapshot;
+  now: number;
+  before?: number | null;
+}) {
+  const soon = dueSoon(snap, now, 7, 7, before);
   if (!soon.length)
     return <p className="meta">7일 이내 마감되는 미완료 항목이 없습니다.</p>;
   return (

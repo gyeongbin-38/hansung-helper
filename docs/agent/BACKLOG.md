@@ -395,6 +395,10 @@ blocking regressions.
   필터 + 질문 어미·마감 의도어 정리, 미완료→마감순 정렬, `lms/{id}`
   딥링크). LmsSection이 `detail` prop으로 해당 과목 카드를 펼치고
   스크롤. advisor의 `searchAll`도 같은 경로 사용. search 26/26.
+- **Follow-up (2026-09-21)**: 범위 칩(전체/과목/활동·일정/수업 현황,
+  fieldset) + '미완료만' 토글(done 플래그) + 지난 학기 LMS 항목 기본
+  제외(현재 학기 안내 문구) + 활동 라벨 liveStatus + LMS 과목 hit에
+  '지난 학기' 라벨. search 30/30.
 
 ## ISSUE-14 — `_sync.py` parity check 모드
 
@@ -508,6 +512,9 @@ blocking regressions.
   open/closing)를 `data.saved` 포함 여부로 정렬해 저장 활동 우선.
   저장 활동은 purple 톤 + `저장한 활동` 라벨, 비저장은 기존 상태
   라벨 유지. 제한이 아닌 우선순위 — 모든 마감 알림 표시 유지.
+- **Done (2026-09-21)**: 활동 상태를 수집 시점 스냅샷 문자열 대신
+  `liveStatus()`로 재계산(9/20 종료 활동이 9/21에 '마감' 표시) +
+  `useNow(30000)`로 주기 갱신 + 지난 학기 LMS 마감 알림 제외.
 
 ## ISSUE-23 — COSMOS LMS 수업 현황 연동 (돋부기 참조)
 
@@ -577,6 +584,19 @@ blocking regressions.
   완료 포함 통합 현황, uncertain은 확정 미응시와 구분)와 '몰아듣기'
   (`bingeQueue`: 미시청 강의 기한순 큐 + COSMOS 링크, 자동 재생/
   출석 조작 아님).
+- **Done (2026-09-21, UX/QA 감사 P0/P1/P2)**:
+  - 지난 학기 분리 — `currentSemesterStart(now)` + `isPast`/
+    `courseIsPast`; pendingTasks·submissionItems·bingeQueue·dueSoon에
+    `before` 파라미터(카탈로그 semester 우선). 지난 학기 과목·항목
+    배지 + 몰아듣기/제출·응시 보관 영역(details.lms-past), 카드
+    '남은 N건'·홈·알림·캘린더·advisor·검색은 현재 학기만 집계.
+    마감 미기재는 과거로 추측하지 않음.
+  - 동기화 시각 일치 — `useNow(30000)` 공유(마운트 고정 now 제거),
+    SyncBand·ConnCard가 같은 snap.fetchedAt에서 relTime+절대시각
+    병기, stale ≥1일 '오래된 데이터' 배지 + band stale 임계 동일화,
+    새로고침 disabled 사유 표기.
+  - 카탈로그 매칭 경고 상단 배치 — lms-match-warn 카드(N 중 M 미매칭
+    + 졸업 계산 제외) + 졸업 수강 스트립에 집계 경고.
 - **Done (2026-09-21, v0.4.0 + UI 리디자인)**: 확장↔앱 프로토콜 정식화
   + 동기화 상태 단일화 + LMS 화면 재설계.
   - 브리지 계약: `hsu-extension-ready`(버전, ping 재요청 가능),

@@ -10,6 +10,10 @@ import {
   submissionItems,
   bingeQueue,
   relTime,
+  currentSemesterStart,
+  isPast,
+  courseIsPast,
+  parseDue,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -405,6 +409,64 @@ t('live: relTime 시간·일', relTime('2026-09-17T08:30:00.000Z', Date.parse('2
 t('live: relTime 파싱 불가', relTime('not-a-date', NOW) === '시각 미상');
 const lwp = weekProgress(lv.courses[1]);
 t('live: 주차 진행', lwp.length === 2 && lwp[0].done === 1 && lwp[1].done === 0 && lwp[1].total === 1);
+
+// ── 학기 경계 (지난 학기 분리) ──────────────────────────────
+const SEM = currentSemesterStart(NOW); // 2026-09-18 → 2026-09-01
+t('semester: 9월은 9/1 시작', SEM === new Date(2026, 8, 1).getTime());
+t('semester: 3월은 3/1 시작', currentSemesterStart(Date.parse('2026-03-15')) === new Date(2026, 2, 1).getTime());
+t('semester: 1~2월은 전년 9/1', currentSemesterStart(Date.parse('2026-02-15')) === new Date(2025, 8, 1).getTime());
+t('isPast: 경계 이전 마감', isPast(parseDue('2025-11-23 23:59'), SEM) === true);
+t('isPast: 경계 이후 마감', isPast(parseDue('2026-09-20 23:59'), SEM) === false);
+t('isPast: 마감 미기재는 현재 간주(추측 금지)', isPast(null, SEM) === false);
+t('isPast: 경계 없으면 항상 현재', isPast(parseDue('2020-01-01 00:00'), null) === false);
+const mixedSnap = {
+  ...snap,
+  courses: [
+    {
+      id: '501', title: '지난학기과목',
+      vods: [],
+      assigns: [
+        { title: '지난학기과제', due: '2025-11-23 23:59', submitted: false },
+        { title: '지난학기퀴즈', due: '2025-10-30 23:59', submitted: false },
+      ],
+      quizzes: [],
+    },
+    {
+      id: '502', title: '현재과목',
+      vods: [{ title: '지난기간강의', attended: false, range: '2025-11-01 ~ 2025-11-30 23:59' }],
+      assigns: [{ title: '이번학기과제', due: '2026-09-25 23:59', submitted: false }],
+      quizzes: [],
+    },
+  ],
+};
+t('courseIsPast: 전부 지난 마감 → 지난 학기', courseIsPast(mixedSnap.courses[0], SEM) === true);
+t('courseIsPast: 섞이면 현재', courseIsPast(mixedSnap.courses[1], SEM) === false);
+t('courseIsPast: 마감 없는 과목은 현재', courseIsPast(snap.courses[1], SEM) === false);
+t('courseIsPast: 경계 없으면 현재', courseIsPast(mixedSnap.courses[0], null) === false);
+t('pending(before): 지난 학기 항목 제외', pendingTasks(mixedSnap, SEM).length === 1 && pendingTasks(mixedSnap, SEM)[0].title === '이번학기과제');
+t('pending(no before): 전부 포함', pendingTasks(mixedSnap).length === 4);
+const mixSubs = submissionItems(mixedSnap, SEM);
+t('submissions(before): 지난 학기는 뒤로', mixSubs[mixSubs.length - 1].past === true);
+t('submissions(before): 현재 먼저', mixSubs[0].title === '이번학기과제' && !mixSubs[0].past);
+t('submissions(before): past 플래그', mixSubs.filter((s) => s.past).length === 2 && mixSubs.length === 3);
+const mixBq = bingeQueue(mixedSnap, SEM);
+t('binge(before): 지난 학기는 뒤로 + past', mixBq[0].past === true && mixBq.length === 1);
+// 지난 학기 항목이 pastDays 창 안에 있어도 경계로 제외
+const edgeSnap = {
+  ...snap,
+  courses: [{
+    id: '503', title: '경계과목',
+    vods: [], quizzes: [],
+    assigns: [
+      { title: '학기말과제', due: '2026-08-30 23:59', submitted: false },
+      { title: '이번주과제', due: '2026-09-06 23:59', submitted: false },
+    ],
+  }],
+};
+// 2026-09-03 시점: 8/30 마감은 4일 전(pastDays 창 안)이지만 학기 경계 이전
+const soonEdge = dueSoon(edgeSnap, Date.parse('2026-09-03'), 7, 7, SEM);
+t('dueSoon(before): 경계 이전 항목 제외', !soonEdge.some((p) => p.title === '학기말과제'));
+t('dueSoon(before): 현재 학기 유지', soonEdge.some((p) => p.title === '이번주과제'));
 
 console.log(`lms.test: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

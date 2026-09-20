@@ -1,15 +1,23 @@
 'use client';
+import { useState } from 'react';
 import { BookOpen, CalendarDays, Compass, MonitorPlay, Plus, SearchX, Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Catalog } from '@/lib/data/catalog';
-import { useActivities, useSchedule } from './catalog';
-import { activityMatch } from '@/lib/data/activities';
+import { useActivities, useNow, useSchedule } from './catalog';
+import { activityMatch, liveStatus } from '@/lib/data/activities';
 import { koreanMatch } from '@/lib/data/hangul';
-import { courseMatch, slotsLabel, type CourseSection } from '@/lib/data/catalog';
+import {
+  courseMatch,
+  semesterStartTs,
+  slotsLabel,
+  type CourseSection,
+} from '@/lib/data/catalog';
+import { currentSemesterStart } from '@/lib/data/lms';
 import { lmsTaskSearch, type SearchHit } from '@/lib/data/search';
 import { planBlockReason } from './catalog';
 
 const CAP = 8;
+const SCOPES = ['전체', '과목', '활동·일정', '수업 현황'];
 
 /** 통합 검색 — 과목·비교과 활동·공식 학사일정을 한 번에 찾는다. */
 export function SearchResults({
@@ -29,24 +37,34 @@ export function SearchResults({
 }) {
   const { snap: acts } = useActivities();
   const { snap: sched } = useSchedule();
+  const now = useNow(30000);
+  const [scope, setScope] = useState('전체');
+  const [pendingOnly, setPendingOnly] = useState(false);
   const q = query.trim();
-  const courses = q
+  const showCourses = scope === '전체' || scope === '과목';
+  const showActs = scope === '전체' || scope === '활동·일정';
+  const showLms = scope === '전체' || scope === '수업 현황';
+  const courses = q && showCourses
     ? (catalog?.sections ?? []).filter((s) => courseMatch(s, q)).slice(0, CAP)
     : [];
-  const activities = q
+  const activities = q && showActs
     ? (acts?.items ?? [])
         .filter((a) => activityMatch(a, q, koreanMatch))
         .slice(0, CAP)
     : [];
-  const events = q
+  const events = q && showActs
     ? (sched?.items ?? [])
         .filter((e) => koreanMatch(e.title, q))
         .slice(0, CAP)
     : [];
-  // COSMOS 수업 현황 — 개별 과제·퀴즈·강의 항목 + 과목 제목 매칭
-  const lmsHits: SearchHit[] = q
+  // COSMOS 수업 현황 — 개별 과제·퀴즈·강의 항목 + 과목 제목 매칭.
+  // 지난 학기 항목은 학기 경계로 기본 제외, '미완료만'은 완료 항목을 추가 제외
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const lmsHits: SearchHit[] = q && showLms
     ? [
-        ...lmsTaskSearch(data.lms?.courses ?? [], q),
+        ...lmsTaskSearch(data.lms?.courses ?? [], q, before),
         ...(data.lms?.courses ?? [])
           .filter((c) => koreanMatch(c.title, q))
           .map(
@@ -56,7 +74,9 @@ export function SearchResults({
               sub: `COSMOS 수업 현황 · 수강 중${c.prof ? ` · ${c.prof}` : ''}`,
             }),
           ),
-      ].slice(0, CAP)
+      ]
+        .filter((h) => !pendingOnly || h.done === false)
+        .slice(0, CAP)
     : [];
   const nothing =
     q &&
@@ -96,6 +116,33 @@ export function SearchResults({
             '검색어를 입력하면 과목·활동·학사일정·수업 현황을 함께 찾습니다.'
           )}
         </p>
+        <fieldset className="tabs search-scope" aria-label="검색 범위">
+          {SCOPES.map((s) => (
+            <button
+              key={s}
+              className={scope === s ? 'active' : ''}
+              aria-pressed={scope === s}
+              onClick={() => setScope(s)}
+            >
+              {s}
+            </button>
+          ))}
+          {data.lms && showLms && (
+            <button
+              className={'badge' + (pendingOnly ? ' sel' : '')}
+              aria-pressed={pendingOnly}
+              onClick={() => setPendingOnly((v) => !v)}
+            >
+              미완료만
+            </button>
+          )}
+        </fieldset>
+        {data.lms && (
+          <p className="meta">
+            수업 현황은 현재 학기({catalog?.semester ?? '추정'}) 항목만 표시
+            — 지난 학기 항목은 제외됩니다.
+          </p>
+        )}
       </section>
       {courses.length > 0 && (
         <section className="card pad">
@@ -152,8 +199,10 @@ export function SearchResults({
               <div>
                 <b>{a.title}</b>
                 <small>
-                  {a.statusLabel}
-                  {a.dday ? ' · ' + a.dday : ''}
+                  {liveStatus(a, now).label}
+                  {liveStatus(a, now).dday
+                    ? ' · ' + liveStatus(a, now).dday
+                    : ''}
                   {a.points != null ? ` · ${a.points}P` : ''} · {a.dept}
                 </small>
               </div>

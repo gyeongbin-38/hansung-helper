@@ -70,7 +70,7 @@ export function SemesterPlan({
         <p className="empty-small">아직 계획한 과목이 없어요.</p>
       )}
       <button className="primary" onClick={() => go('timetable')}>
-        시간표에서 담기 <Plus size={17} />
+        시간표에서 확인·담기 <Plus size={17} />
       </button>
     </section>
   );

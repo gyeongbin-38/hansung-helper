@@ -11,6 +11,21 @@ import type { DeptRulesSnapshot } from '@/lib/data/dept-rules';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import type { Data } from './data';
 
+/**
+ * 현재 시각을 tickMs 간격으로 갱신하는 훅.
+ * `useState(() => Date.now())`는 마운트 시각에 고정돼 탭을 오래 열어 두면
+ * 상대시간(방금/N분 전)과 마감 계산이 실제 시각과 어긋난다 — 상태가 실제
+ * 시각을 따라가도록 주기적으로 다시 읽는다.
+ */
+export function useNow(tickMs = 30000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), tickMs);
+    return () => clearInterval(t);
+  }, [tickMs]);
+  return now;
+}
+
 let cache: Promise<Catalog> | null = null;
 function load() {
   cache ??= fetch('/api/courses')

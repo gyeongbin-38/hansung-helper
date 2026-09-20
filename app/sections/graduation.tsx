@@ -289,15 +289,57 @@ export function Graduation({
     );
   }
 
+  // 계산 대기 단계 — 비어 있는 입력을 순서대로 안내한다
+  const profileMissing = [
+    !data.dept || data.dept === '소속 미입력' ? '학과' : '',
+    !data.year ? '입학연도' : '',
+  ].filter(Boolean);
+  const gradSteps: { label: string; done: boolean; route?: string }[] = [
+    {
+      label: '내 정보에 소속 학과·입학연도 입력',
+      done: profileMissing.length === 0,
+      route: 'profile',
+    },
+    {
+      label: '이수한 과목 입력',
+      done: data.completed.length > 0,
+    },
+    {
+      label: '내 학과 공식 규정 확인',
+      done: !!myRules,
+    },
+  ];
+  const pendingSteps = gradSteps.filter((s) => !s.done);
+
   return (
     <>
       <div className="card pad grad-intro">
-        <span className="badge green">공식 전역 기준 적용</span>
+        {pendingSteps.length ? (
+          <span className="badge orange">계산 대기</span>
+        ) : (
+          <span className="badge green">공식 전역 기준 적용</span>
+        )}
         {deptTargets && (
           <span className="badge green">내 학과 규정표 반영</span>
         )}
         <span className="badge">사용자 입력 기반</span>
         <h2>졸업 준비는 정확한 기준부터.</h2>
+        {pendingSteps.length > 0 && (
+          <ol className="grad-steps">
+            {gradSteps.map((s, i) => (
+              <li key={i} className={s.done ? 'done' : ''}>
+                {s.route && !s.done ? (
+                  <button className="link" onClick={() => go(s.route!)}>
+                    {s.label}
+                  </button>
+                ) : (
+                  s.label
+                )}
+                {s.done ? ' ✓' : ''}
+              </li>
+            ))}
+          </ol>
+        )}
         <p>
           입력한 이수 과목으로 이수구분별 충족률을 계산합니다.{' '}
           {deptTargets
@@ -325,7 +367,10 @@ export function Graduation({
         />
         <strong>
           {shown(total)}
-          {total.required === null ? ' 이수 / 기준 미확정' : ` / ${total.required} 이수`}
+          {total.required === null
+            ? ' 이수 / 기준 미확정'
+            : ` / ${total.required} 이수`}
+          {pendingSteps.length ? ' — 참고값' : ''}
         </strong>
         {total.planned > 0 && !withPlan && (
           <p className="meta">+{total.planned}학점 계획 중</p>
@@ -353,6 +398,16 @@ export function Graduation({
             수집 스냅샷 기준 수강 중인 과목입니다 — 이름 매칭만으로는 이수
             확정이 아니므로 졸업 학점 계산에는 포함하지 않습니다.
           </p>
+          {(() => {
+            const unmatched = enrolled.filter((m) => m.sections.length === 0);
+            return unmatched.length > 0 ? (
+              <p className="meta conn-warn">
+                {enrolled.length}과목 중 {unmatched.length}과목은 이름이
+                카탈로그와 달라 매칭되지 않았습니다 — 매칭 안 된 과목은
+                아래 계산에서 전부 제외됩니다.
+              </p>
+            ) : null;
+          })()}
           <ul className="rule-lines">
             {enrolled.map((m) => (
               <li key={m.course.id}>
@@ -554,10 +609,9 @@ export function Graduation({
               )}
             </div>
             <strong>
-              {shown(r)}
               {r.required === null
-                ? ` ${r.rule.unit ?? '학점'}`
-                : ` / ${r.required}${r.rule.unit ?? '학점'}`}
+                ? `계산 대기 — ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
+                : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             <progress
               className="progress-track"

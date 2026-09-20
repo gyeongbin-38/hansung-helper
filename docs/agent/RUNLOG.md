@@ -1397,3 +1397,62 @@ NEXT: 토스트가 콘텐츠를 덮는 문제, 홈 대시보드 밀도, 온보�
 design.md 기준으로 리뷰 가능.
 
 BLOCKER: none.
+
+---
+
+## 2026-09-21 — UX/QA 피드백 수용: 날짜·학기·동기화 정합성 (P0) + 화면 개선 (P1/P2)
+
+CONTEXT: 실사용자 워크플로우 감사 리포트 — 2026-09-21 기준
+9/20 마감 활동이 '마감임박 D-2', 상대시간 5분 전 vs 절대시간 9시간 전
+모순, 2025년 마감 LMS 항목이 현재 할 일·건수·검색에 혼입.
+
+DONE:
+- **P0-1 날짜 재계산**: `activities.ts` `liveStatus(a, now)` — 수집
+  시점 statusLabel/dday 대신 신청 기간+현재 시각으로 접수예정/접수중/
+  마감임박/마감 판정(D-n·오늘 마감·마감 라벨, 기간 없으면 스냅샷 유지).
+  activities 목록·상세·필터, home 슬라이드, notifs, search 라벨,
+  advisor 활동 답변 전부 liveStatus 경유.
+- **P0-2 시각 일치**: `catalog.ts` `useNow(30000)` 공유 훅 — 마운트
+  고정 `useState(() => Date.now())`를 lms/home/calendar/notifications/
+  page(notifNow)/search로 교체. SyncBand·ConnCard가 같은 `now`에서
+  relTime+절대시각 병기, stale >= 1일에 '오래된 데이터' 배지 + band
+  headline(stale 임계 7→1일), 지금 새로고침 disabled 사유 표기.
+- **P0-3 학기 경계**: `lms.ts` `currentSemesterStart(now)`(3/1·9/1
+  추정) + `isPast(dueTs, before)` + `courseIsPast`; pendingTasks/
+  submissionItems/bingeQueue/dueSoon에 `before` 파라미터 —
+  카탈로그 semester 우선, 없으면 현재 시각 추정. 마감 미기재는 과거로
+  추측하지 않음. lms.tsx: 지난 학기 과목 배지·항목 배지·몰아듣기·
+  제출·응시 보관 영역(details.lms-past), 카드 '남은 N건'은 현재 학기만
+  집계. notifs/reminderTargets/calendar/home/advisor/search에 before
+  배선. 검색 과목 hit도 '지난 학기' 라벨.
+- **P1-4 CTA 정합**: 학기 계획 버튼 '시간표에서 확인·담기', EnrolledStrip
+  요약 '계획에 담긴 수강 과목 N개'.
+- **P1-5 누락 필드 정확 표기**: home/notifs가 실제 비어 있는 필드만
+  '학과·입학연도'로 표기 + 단일 누락 시 profile/{dept|year} 딥링크,
+  profile.tsx focus prop으로 필드 자동 포커스+스크롤+힌트.
+- **P1-6 개인 일정 검증**: noValidate + 필드별 인라인 오류(aria-invalid,
+  role=alert, 포커스 이동), 실패 시 입력값·공식 일정 목록 보존.
+- **P1-7 매칭 경고**: lms 상단 lms-match-warn 카드(N과목 중 M과목
+  미매칭 + 졸업 계산 제외 명시) + 졸업 수강 중 스트립에 집계 경고.
+- **P1-8 과목 카드 계층**: catalog.ts roomLabel/deliveryLabel/
+  placeLabel — '온라인강좌 미래관B107' → 방식 온라인 + 강의실 분리,
+  이수구분 중복 제거. courses 상세 그리드·timetable 상세·분반 목록 적용.
+- **P1-9 졸업 안내**: 계산 대기 단계형 리스트(프로필/이수 과목/공식
+  규정) + '계산 대기'·'참고값' 표기, 미확정 개별 기준도 계산 대기.
+- **P2-10 홈 우선순위**: '오늘 처리할 일' 스트립 — 오늘/내일 마감
+  수업 + 마감임박 저장 활동 + 프로필 누락 최대 3개, 미확정 데이터는
+  긴급 표기 안 함.
+- **P2-11 검색 필터**: 범위 칩(전체/과목/활동·일정/수업 현황) +
+  '미완료만' 토글(done 플래그) + 현재 학기 안내 문구.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(activities liveStatus 7, catalog semesterStartTs/labels 2,
+lms 97/97 학기 경계 17, notifs 20/20 liveStatus 픽스처 갱신,
+search 30/30 지난 학기 제외·라벨), root+deploy 빌드 green,
+번들 마커 7종 확인, _verify_prod 전 엔드포인트 200.
+e2e 22/22 — 오늘 처리할 일, 지난 학기 분리(목록·집계·보관 영역·
+과목 배지), 상대+절대 동기화 일치, 매칭 경고, 검색 제외·칩,
+빈 개인 일정 인라인 오류+공식 일정 유지, advisor 지난 학기 미포함.
+
+BLOCKER: none. 라이브 version — _deploy 출력 잘림, verify_prod로
+정상 확인(엔드포인트 전부 200).

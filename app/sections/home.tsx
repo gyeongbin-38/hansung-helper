@@ -12,38 +12,118 @@ import {
 } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
-import { conflicts, type CourseSection } from '@/lib/data/catalog';
-import { dueSoon, pendingTasks } from '@/lib/data/lms';
-import { useActivities, useSchedule } from './catalog';
+import {
+  conflicts,
+  semesterStartTs,
+  type Catalog,
+  type CourseSection,
+} from '@/lib/data/catalog';
+import {
+  currentSemesterStart,
+  dueSoon,
+  pendingTasks,
+} from '@/lib/data/lms';
+import { liveStatus } from '@/lib/data/activities';
+import { useActivities, useNow, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
+
+type Urgent = { label: string; desc: string; route: string };
+
+/** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동 + 필수 입력.
+ *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
+function TodayStrip({
+  lmsDue,
+  acts,
+  saved,
+  missingProfile,
+  now,
+  go,
+}: {
+  lmsDue: { dueTs: number; kind: string; title: string; course: string }[];
+  acts: Parameters<typeof liveStatus>[0][];
+  saved: string[];
+  missingProfile: string[];
+  now: number;
+  go: (route: string) => void;
+}) {
+  const items: Urgent[] = [];
+  for (const t of lmsDue) {
+    const dd = Math.ceil((t.dueTs - now) / 86400000);
+    if (dd <= 1)
+      items.push({
+        label: `${t.kind} ${dd <= 0 ? '오늘' : '내일'} 마감`,
+        desc: `${t.title} — ${t.course}`,
+        route: 'lms',
+      });
+  }
+  for (const a of acts) {
+    const live = liveStatus(a, now);
+    if (live.status === 'closing' && saved.includes(a.id))
+      items.push({
+        label: `저장한 활동 ${live.dday ?? '마감임박'}`,
+        desc: a.title,
+        route: 'activities/' + a.id,
+      });
+  }
+  if (!items.length && missingProfile.length)
+    items.push({
+      label: '학적 정보 필요',
+      desc: `${missingProfile.join('·')}을(를) 입력하면 추천·졸업 계산이 정확해집니다`,
+      route: 'profile',
+    });
+  const top = items.slice(0, 3);
+  if (!top.length) return null;
+  return (
+    <section className="today-strip card pad" aria-label="오늘 처리할 일">
+      <div className="section-heading">
+        <h2>오늘 처리할 일</h2>
+        <span className="meta">확정된 마감 기준</span>
+      </div>
+      {top.map((t, i) => (
+        <button className="today-item" key={i} onClick={() => go(t.route)}>
+          <span className="badge">{t.label}</span>
+          <b>{t.desc}</b>
+          <ArrowUpRight size={16} />
+        </button>
+      ))}
+    </section>
+  );
+}
 
 export function Home({
   data,
   account,
   go,
   planned,
+  catalog,
 }: {
   data: Data;
   account: Account | null;
   go: (route: string) => void;
   planned: Planned;
+  catalog: Catalog | null;
 }) {
   const { snap: sched } = useSchedule();
   const { snap: acts } = useActivities();
   const [slide, setSlide] = useState(0);
-  const [now] = useState(() => Date.now());
+  const now = useNow(30000);
   const today = new Date().toISOString().slice(0, 10);
   const lmsSnap = data.lms;
-  const lmsDue = lmsSnap ? dueSoon(lmsSnap, now, 7) : [];
-  const lmsPending = lmsSnap ? pendingTasks(lmsSnap).length : 0;
+  // 학기 경계 — 지난 학기 항목은 현재 할 일·건수에서 제외한다
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const lmsDue = lmsSnap ? dueSoon(lmsSnap, now, 7, 7, before) : [];
+  const lmsPending = lmsSnap ? pendingTasks(lmsSnap, before).length : 0;
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
+  // 상태는 수집 시점 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
   const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
   const slides = (acts?.items ?? [])
-    .filter((a) => rank[a.status] !== undefined)
+    .filter((a) => rank[liveStatus(a, now).status] !== undefined)
     .sort(
       (a, b) =>
-        rank[a.status] - rank[b.status] ||
+        rank[liveStatus(a, now).status] - rank[liveStatus(b, now).status] ||
         (a.applyEnd ?? '9999').localeCompare(b.applyEnd ?? '9999'),
     )
     .slice(0, 5);
@@ -54,12 +134,19 @@ export function Home({
     .slice(0, 3);
   const hasConflict = planned.some((s) => conflicts(s, planned).length);
   const tasks: [string, string, string, string][] = [];
-  if (!data.dept || data.dept === '소속 미입력' || !data.year)
+  // 누락 필드를 실제로 비어 있는 것만 정확히 표기한다
+  const missingProfile = [
+    !data.dept || data.dept === '소속 미입력' ? '학과' : '',
+    !data.year ? '입학연도' : '',
+  ].filter(Boolean);
+  if (missingProfile.length)
     tasks.push([
       '01',
       '나의 학적 정보 채우기',
-      '학과·입학연도가 비어 있어요.',
-      'profile',
+      `${missingProfile.join('·')}이(가) 비어 있어요.`,
+      missingProfile.length === 1
+        ? `profile/${missingProfile[0] === '학과' ? 'dept' : 'year'}`
+        : 'profile',
     ]);
   if (hasConflict)
     tasks.push([
@@ -121,6 +208,14 @@ export function Home({
           </div>
         </div>
       </section>
+      <TodayStrip
+        lmsDue={lmsDue}
+        acts={acts?.items ?? []}
+        saved={data.saved}
+        missingProfile={missingProfile}
+        now={now}
+        go={go}
+      />
       {acts && slides.length > 0 && cur && (
         <section
           className="hero-carousel"
@@ -137,8 +232,10 @@ export function Home({
             )}
             <div className="hc-body">
               <span className="badge blue">
-                {cur.statusLabel}
-                {cur.dday ? ' · ' + cur.dday : ''}
+                {liveStatus(cur, now).label}
+                {liveStatus(cur, now).dday
+                  ? ' · ' + liveStatus(cur, now).dday
+                  : ''}
                 {cur.points != null ? ` · ${cur.points}P` : ''}
               </span>
               <h3>{cur.title}</h3>

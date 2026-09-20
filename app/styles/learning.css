@@ -1413,3 +1413,104 @@
     white-space: nowrap;
   }
 }
+
+/* ---------- 오늘 처리할 일 (홈 우선순위 스트립) ---------- */
+.today-strip .section-heading {
+  margin-bottom: 10px;
+}
+.today-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--nt-r-sm);
+  border: 1px solid var(--nt-hairline);
+  background: var(--nt-canvas);
+  cursor: pointer;
+}
+.today-item + .today-item {
+  margin-top: 8px;
+}
+.today-item:hover {
+  border-color: var(--nt-primary);
+}
+.today-item b {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+.today-item svg {
+  flex-shrink: 0;
+  color: var(--nt-stone);
+}
+
+/* ---------- 졸업 계산 대기 단계 ---------- */
+.grad-steps {
+  margin: 12px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--nt-slate);
+}
+.grad-steps li {
+  margin: 4px 0;
+}
+.grad-steps li.done {
+  color: var(--nt-stone);
+}
+
+/* ---------- LMS 카탈로그 매칭 경고 ---------- */
+.lms-match-warn {
+  border-left: 3px solid var(--nt-orange-deep, #c2510a);
+  margin: 14px 0 0;
+}
+.lms-match-warn b {
+  font-size: 14px;
+}
+.lms-match-warn .meta {
+  margin: 6px 0 0;
+}
+
+/* ---------- 지난 학기 보관 영역 ---------- */
+.lms-past {
+  margin-top: 14px;
+  border-top: 1px dashed var(--nt-hairline);
+  padding-top: 10px;
+}
+.lms-past > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--nt-stone);
+}
+.lms-task small .badge {
+  font-size: 10px;
+  padding: 0 6px;
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+
+/* ---------- 프로필 누락 힌트 / 폼 오류 ---------- */
+.profile-hint {
+  border-left: 3px solid var(--nt-primary);
+  padding-left: 10px;
+}
+.form-error {
+  color: var(--nt-error);
+  margin: 8px 0 0;
+}
+input[aria-invalid='true'] {
+  border-color: var(--nt-error);
+}
+
+/* ---------- 검색 범위 칩 ---------- */
+.search-scope {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

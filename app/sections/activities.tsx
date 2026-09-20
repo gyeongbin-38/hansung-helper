@@ -1,11 +1,12 @@
 'use client';
 import { Bookmark, ArrowUpRight, Search } from 'lucide-react';
 import type { Data } from './data';
-import { useActivities } from './catalog';
+import { useActivities, useNow } from './catalog';
 import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
   activityMatch,
+  liveStatus,
   type Activity,
 } from '@/lib/data/activities';
 
@@ -15,11 +16,13 @@ const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
 const period = (a: string | null, b: string | null) =>
   a || b ? `${fmt(a)} ~ ${fmt(b)}` : '기간 미정';
 
-function inTab(a: Activity, tab: string, saved: string[]) {
-  if (tab === '신청 가능') return a.status === 'open' || a.status === 'closing';
-  if (tab === '접수예정') return a.status === 'upcoming';
+// 상태는 스냅샷 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
+function inTab(a: Activity, tab: string, saved: string[], now: number) {
+  const st = liveStatus(a, now).status;
+  if (tab === '신청 가능') return st === 'open' || st === 'closing';
+  if (tab === '접수예정') return st === 'upcoming';
   if (tab === '운영·마감')
-    return a.status === 'running' || a.status === 'closed';
+    return st === 'running' || st === 'closed';
   if (tab === '저장한 활동') return saved.includes(a.id);
   return true;
 }
@@ -44,6 +47,7 @@ export function Activities({
   save: (id: string) => void;
 }) {
   const { snap, failed, retry } = useActivities();
+  const now = useNow(30000);
   const items = snap?.items ?? [];
   const a = items.find((x) => x.id === detail);
 
@@ -58,8 +62,10 @@ export function Activities({
         </button>
         <section className="card detail">
           <span className="badge blue">
-            {a.statusLabel}
-            {a.dday ? ' · ' + a.dday : ''}
+            {liveStatus(a, now).label}
+            {liveStatus(a, now).dday
+              ? ' · ' + liveStatus(a, now).dday
+              : ''}
           </span>
           <h2>{a.title}</h2>
           <p>{a.dept}에서 운영하는 비교과 프로그램입니다.</p>
@@ -123,7 +129,9 @@ export function Activities({
     );
 
   const shown = items.filter(
-    (x) => inTab(x, filter, data.saved) && activityMatch(x, query, koreanMatch),
+    (x) =>
+      inTab(x, filter, data.saved, now) &&
+      activityMatch(x, query, koreanMatch),
   );
   return (
     <>
@@ -175,7 +183,13 @@ export function Activities({
         <SkeletonCards />
       ) : shown.length ? (
         <>
-          <ActivityCards items={shown} data={data} go={go} save={save} />
+          <ActivityCards
+            items={shown}
+            data={data}
+            go={go}
+            save={save}
+            now={now}
+          />
           <p className="meta">
             공식 출처 hsportal · {snap.fetchedAt.slice(0, 10)} 수집{' '}
             {snap.itemCount}건 · 신청·승인은 학교 시스템에서 진행
@@ -205,15 +219,19 @@ function ActivityCards({
   data,
   go,
   save,
+  now,
 }: {
   items: Activity[];
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
+  now: number;
 }) {
   return (
     <div className="cards">
-      {items.map((a, i) => (
+      {items.map((a, i) => {
+        const live = liveStatus(a, now);
+        return (
         <article className="card activity" key={a.id}>
           <div
             className={'mini-art art' + (i % 6)}
@@ -227,9 +245,9 @@ function ActivityCards({
                 : undefined
             }
           >
-            <span>{a.statusLabel}</span>
+            <span>{live.label}</span>
             <strong>
-              {a.dday ?? (i + 1).toString().padStart(2, '0')}
+              {live.dday ?? (i + 1).toString().padStart(2, '0')}
               <ArrowUpRight size={34} strokeWidth={1.2} />
             </strong>
             <small>HANSUNG · {a.dept.slice(0, 12)}</small>
@@ -237,7 +255,7 @@ function ActivityCards({
           <div className="pad">
             <div className="between">
               <span className="badge">
-                {a.statusLabel}
+                {live.label}
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>
@@ -259,7 +277,7 @@ function ActivityCards({
             </h3>
             <p>{a.dept}</p>
             <small>
-              신청 {period(a.applyStart, a.applyEnd)} · {a.statusLabel}
+              신청 {period(a.applyStart, a.applyEnd)} · {live.label}
             </small>
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
@@ -268,7 +286,8 @@ function ActivityCards({
             </div>
           </div>
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }

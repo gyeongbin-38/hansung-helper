@@ -3,7 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { SignIn, Onboarding, type Account } from './account-flow';
 import { Logo } from './logo';
 import { menus, empty, type Data } from './sections/data';
-import { useCatalog, useActivities, useSchedule } from './sections/catalog';
+import {
+  useCatalog,
+  useActivities,
+  useSchedule,
+  useNow,
+} from './sections/catalog';
 import {
   Sidebar,
   Topbar,
@@ -25,7 +30,8 @@ import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
 import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
-import { validateLms } from '@/lib/data/lms';
+import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
@@ -63,7 +69,8 @@ export default function App() {
   const { catalog, failed: catalogFailed, retry: retryCatalog } = useCatalog();
   const { snap: actsSnap } = useActivities();
   const { snap: schedSnap } = useSchedule();
-  const [notifNow] = useState(() => Date.now());
+  // 벨 배지·패널의 마감 계산도 실제 시각을 따라가도록 주기 갱신
+  const notifNow = useNow(30000);
   // Browser storage is read after hydration to keep the initial server render stable.
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
@@ -310,7 +317,10 @@ export default function App() {
     )
       return;
     const fired = new Set(d.notifiedIds ?? []);
-    const timers = reminderTargets(d.lms, Date.now())
+    const before =
+      (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+      currentSemesterStart(Date.now());
+    const timers = reminderTargets(d.lms, Date.now(), undefined, undefined, before)
       .filter((r) => !fired.has(r.id))
       .map((r) =>
         setTimeout(() => {
@@ -327,7 +337,7 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms]);
+  }, [data.notifEnabled, data.lms, catalog]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
@@ -452,6 +462,9 @@ export default function App() {
     planned = (catalog?.sections ?? []).filter((s) =>
       data.planned.includes(s.id),
     );
+  const notifBefore =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(notifNow);
   const notifItems = deriveNotifs({
     account,
     data,
@@ -459,6 +472,7 @@ export default function App() {
     acts: actsSnap,
     sched: schedSnap,
     now: notifNow,
+    before: notifBefore,
   });
   const unread = notifItems.filter(
     (n) => !(data.readIds ?? []).includes(n.id),
@@ -564,7 +578,13 @@ export default function App() {
           />
           <AccountBar account={account} go={go} onConnect={exitDemo} />
           {section === 'home' ? (
-            <Home data={data} account={account} go={go} planned={planned} />
+            <Home
+              data={data}
+              account={account}
+              go={go}
+              planned={planned}
+              catalog={catalog}
+            />
           ) : section === 'activities' ? (
             <Activities
               detail={detail}
@@ -582,6 +602,7 @@ export default function App() {
               account={account}
               persist={persist}
               onOpenSurvey={() => setSurvey(true)}
+              focus={detail}
             />
           ) : section === 'graduation' ? (
             <Graduation

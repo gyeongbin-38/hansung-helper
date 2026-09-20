@@ -3,8 +3,17 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Bell, X } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
-import { useActivities, useSchedule } from './catalog';
-import type { CourseSection } from '@/lib/data/catalog';
+import {
+  useActivities,
+  useCatalog,
+  useNow,
+  useSchedule,
+} from './catalog';
+import {
+  semesterStartTs,
+  type CourseSection,
+} from '@/lib/data/catalog';
+import { currentSemesterStart } from '@/lib/data/lms';
 import { deriveNotifs, type NotifItem } from '@/lib/data/notifs';
 
 export function Notifications({
@@ -22,10 +31,14 @@ export function Notifications({
 }) {
   const { snap: acts } = useActivities();
   const { snap: sched } = useSchedule();
-  // 마운트 시점 기준으로 도출 — 알림 신선도는 세션 단위면 충분
-  const [now] = useState(() => Date.now());
+  const { catalog } = useCatalog();
+  // 주기 갱신 — 탭을 오래 열어 둬도 마감·상대시간이 실제 시각을 따라간다
+  const now = useNow(30000);
   const [cat, setCat] = useState('전체');
-  const items = deriveNotifs({ account, data, planned, acts, sched, now });
+  const before =
+    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
+    currentSemesterStart(now);
+  const items = deriveNotifs({ account, data, planned, acts, sched, now, before });
   const readIds = data.readIds ?? [];
 
   const cats = ['전체', ...new Set(items.map((i) => i.cat))];

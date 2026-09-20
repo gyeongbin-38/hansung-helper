@@ -158,6 +158,48 @@ export function parseProgramList(html: string): {
   return { items, pageTotal: total ? parseInt(total[1], 10) : 1 };
 }
 
+const DAY_MS = 86400000;
+const dayStart = (ts: number) => {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+const parseTs = (s: string | null) => {
+  const t = s ? Date.parse(s) : NaN;
+  return Number.isNaN(t) ? null : t;
+};
+
+export type LiveStatus = {
+  status: ActivityStatus;
+  label: string;
+  /** '오늘 마감' | 'D-n' | '마감' | null — 신청 마감 기준 캘린더 일수 */
+  dday: string | null;
+};
+
+/**
+ * 수집 시점에 굳은 status/statusLabel/dday 대신 신청 기간과 현재 시각으로
+ * 재계산한 상태 — 스냅샷이 오래돼도 마감 표시가 실제 날짜와 어긋나지 않게 한다.
+ * 신청 기간이 없으면 스냅샷 값을 그대로 쓴다(추측하지 않음).
+ * - 신청 시작 전 → 접수예정
+ * - 신청 기간 중 → 접수중, 마감 캘린더 7일 이내면 마감임박 + D-n/오늘 마감
+ * - 신청 마감 경과 → 마감
+ */
+export function liveStatus(a: Activity, now: number): LiveStatus {
+  const start = parseTs(a.applyStart);
+  const end = parseTs(a.applyEnd);
+  if (start === null && end === null)
+    return { status: a.status, label: a.statusLabel, dday: a.dday };
+  if (end !== null && now > end)
+    return { status: 'closed', label: '마감', dday: '마감' };
+  if (start !== null && now < start)
+    return { status: 'upcoming', label: '접수예정', dday: null };
+  const dd =
+    end !== null ? Math.round((dayStart(end) - dayStart(now)) / DAY_MS) : null;
+  const dday = dd === null ? null : dd <= 0 ? '오늘 마감' : `D-${dd}`;
+  return dd !== null && dd <= 7
+    ? { status: 'closing', label: '마감임박', dday }
+    : { status: 'open', label: '접수중', dday };
+}
+
 /** 수집 이상 감지 — 직전 스냅샷 대비 급감하면 의심. */
 export function isAnomalous(
   next: ActivitySnapshot,

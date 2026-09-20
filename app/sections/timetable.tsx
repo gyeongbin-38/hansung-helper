@@ -27,6 +27,7 @@ import {
   DAY_SHORT,
   daySummaries,
   fmtMin,
+  placeLabel,
   slotLabel,
   slotsLabel,
   type Catalog,
@@ -155,7 +156,7 @@ function EnrolledStrip({
   return (
     <details className="enrolled">
       <summary>
-        COSMOS 수강 {matches.length}과목 · 시간표 반영 {covered}개
+        COSMOS 수강 {matches.length}과목 · 계획에 담긴 수강 과목 {covered}개
       </summary>
       <div className="enrolled-rows">
         {matches.map(({ course, sections }) => {
@@ -717,7 +718,7 @@ export function Timetable({
                   </div>
                   <div>
                     <small>강의실</small>
-                    <b>{selected.room || '미정'}</b>
+                    <b>{placeLabel(selected)}</b>
                   </div>
                   <div>
                     <small>시간</small>

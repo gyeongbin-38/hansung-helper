@@ -1,5 +1,5 @@
 import { conflicts, type CourseSection } from './catalog.ts';
-import type { ActivitySnapshot } from './activities.ts';
+import { liveStatus, type ActivitySnapshot } from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
 import { dueSoon, type LmsSnapshot } from './lms.ts';
 
@@ -22,6 +22,8 @@ export type NotifInputs = {
   acts: ActivitySnapshot | null;
   sched: ScheduleSnapshot | null;
   now: number;
+  /** 학기 경계 — 주면 그 이전 마감의 지난 학기 항목은 알림에서 제외 */
+  before?: number | null;
 };
 
 const DAY = 86400000;
@@ -45,13 +47,14 @@ export function reminderTargets(
   now: number,
   leadMs = DAY,
   horizonDays = 7,
+  before?: number | null,
 ): Reminder[] {
   const out: Reminder[] = [];
   const dayStart = (ts: number) => {
     const d = new Date(ts);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   };
-  for (const t of dueSoon(lms, now, horizonDays)) {
+  for (const t of dueSoon(lms, now, horizonDays, horizonDays, before)) {
     if (t.dueTs <= now) continue; // 마감이 지난 항목은 울리지 않는다
     // 캘린더 날짜 차이 — 24시간 블록이 아니라 오늘/내일의 일반적 의미
     const dd = Math.round((dayStart(t.dueTs) - dayStart(now)) / DAY);
@@ -77,6 +80,7 @@ export function deriveNotifs({
   acts,
   sched,
   now,
+  before = null,
 }: NotifInputs): NotifItem[] {
   const in7 = now + 7 * DAY;
   const saved = data.saved ?? [];
@@ -111,13 +115,13 @@ export function deriveNotifs({
       route: 'timetable',
     });
 
-  // 활동 신청 마감 임박 (7일 이내) — 저장한 활동을 먼저 강조
+  // 활동 신청 마감 임박 (7일 이내) — 저장한 활동을 먼저 강조.
+  // 상태는 스냅샷 문자열이 아니라 신청 기간+현재 시각으로 재계산한다.
   const deadlines = (acts?.items ?? []).filter((a) => {
     if (!a.applyEnd) return false;
     const t = Date.parse(a.applyEnd);
-    return (
-      t >= now && t <= in7 && (a.status === 'open' || a.status === 'closing')
-    );
+    const st = liveStatus(a, now).status;
+    return t >= now && t <= in7 && (st === 'open' || st === 'closing');
   });
   deadlines.sort(
     (a, b) => Number(saved.includes(b.id)) - Number(saved.includes(a.id)),
@@ -125,20 +129,21 @@ export function deriveNotifs({
   for (const a of deadlines) {
     if (!a.applyEnd) continue;
     const isSaved = saved.includes(a.id);
+    const live = liveStatus(a, now);
     items.push({
       id: 'act-' + a.id,
       tone: isSaved ? 'purple' : 'orange',
       cat: '활동',
-      label: isSaved ? '저장한 활동' : a.statusLabel,
+      label: isSaved ? '저장한 활동' : live.label,
       title: a.title,
-      desc: `신청 마감 ${a.applyEnd.slice(0, 10)}${a.dday ? ` · ${a.dday}` : ''}`,
+      desc: `신청 마감 ${a.applyEnd.slice(0, 10)}${live.dday ? ` · ${live.dday}` : ''}`,
       route: 'activities/' + a.id,
     });
   }
 
-  // COSMOS LMS 마감 임박 (7일 이내 미완료, 최대 5건)
+  // COSMOS LMS 마감 임박 (7일 이내 미완료, 최대 5건) — 지난 학기 제외
   if (data.lms)
-    for (const t of dueSoon(data.lms, now, 7).slice(0, 5)) {
+    for (const t of dueSoon(data.lms, now, 7, 7, before).slice(0, 5)) {
       const dd = Math.ceil((t.dueTs - now) / DAY);
       items.push({
         // 마감 시각을 붙여 같은 과목·제목의 주차별 항목이 id를 공유하지 않게 한다
@@ -168,14 +173,18 @@ export function deriveNotifs({
       });
   }
 
-  // 프로필 미완성
-  if (!data.dept || data.dept === '소속 미입력' || !data.year)
+  // 프로필 미완성 — 실제로 비어 있는 필드만 정확히 표기한다
+  const missing = [
+    !data.dept || data.dept === '소속 미입력' ? '학과' : '',
+    !data.year ? '입학연도' : '',
+  ].filter(Boolean);
+  if (missing.length)
     items.push({
       id: 'profile',
       tone: 'purple',
       cat: '시스템',
       label: '정보 필요',
-      title: '학과·입학연도가 비어 있습니다.',
+      title: `${missing.join('·')}이(가) 비어 있습니다.`,
       desc: '채우면 과목 추천과 졸업 기준이 더 정확해집니다.',
       route: 'profile',
     });

@@ -5,6 +5,7 @@ import {
   parseProgramList,
   isAnomalous,
   activityMatch,
+  liveStatus,
 } from '../lib/data/activities.ts';
 import { koreanMatch } from '../lib/data/hangul.ts';
 import snapshot from '../lib/data/activities.json' with { type: 'json' };
@@ -99,4 +100,88 @@ test('activityMatch searches title/dept/status via koreanMatch', () => {
   const a = snapshot.items[0];
   assert.ok(activityMatch(a, a.title.slice(0, 4), koreanMatch));
   assert.ok(!activityMatch(a, 'zzzznomatch', koreanMatch));
+});
+
+// ── liveStatus — 신청 기간+현재 시각으로 상태 재계산 ─────────
+// QA 기준 시나리오: 2026-09-21 시점에 9/20 종료 활동이 '마감임박 D-2'로
+// 남으면 안 된다 — 스냅샷 문자열이 아니라 날짜로 판정해야 한다.
+const base = {
+  id: 'hs-t', key: 't', title: 't', dept: 'x',
+  status: 'closing', statusLabel: '마감임박', dday: 'D-2',
+  applyStart: null, applyEnd: null,
+  runStart: null, runEnd: null,
+  points: null, team: null, applicants: null, capacity: null,
+  certified: false, url: '', cover: null,
+};
+const NOW21 = Date.parse('2026-09-21T02:05:00+09:00');
+
+test('liveStatus: 신청 마감 경과 → 마감 (D-2 스냅샷 무시)', () => {
+  const a = {
+    ...base,
+    applyStart: '2026-09-14T00:00:00+09:00',
+    applyEnd: '2026-09-20T23:45:00+09:00',
+  };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'closed');
+  assert.equal(s.label, '마감');
+  assert.equal(s.dday, '마감');
+});
+
+test('liveStatus: 신청 시작 전 → 접수예정', () => {
+  const a = {
+    ...base,
+    status: 'open', statusLabel: '접수중',
+    applyStart: '2026-09-25T00:00:00+09:00',
+    applyEnd: '2026-10-05T23:59:00+09:00',
+  };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'upcoming');
+  assert.equal(s.label, '접수예정');
+});
+
+test('liveStatus: 접수 중 마감 7일 이내 → 마감임박 + D-n', () => {
+  const a = {
+    ...base,
+    applyStart: '2026-09-14T00:00:00+09:00',
+    applyEnd: '2026-09-25T23:59:00+09:00',
+  };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'closing');
+  assert.equal(s.label, '마감임박');
+  assert.equal(s.dday, 'D-4'); // 9/21 → 9/25 캘린더 4일
+});
+
+test('liveStatus: 마감 당일 → 오늘 마감', () => {
+  const a = {
+    ...base,
+    applyStart: '2026-09-14T00:00:00+09:00',
+    applyEnd: '2026-09-21T23:59:00+09:00',
+  };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'closing');
+  assert.equal(s.dday, '오늘 마감');
+});
+
+test('liveStatus: 접수 중 마감 7일 초과 → 접수중', () => {
+  const a = {
+    ...base,
+    applyStart: '2026-09-14T00:00:00+09:00',
+    applyEnd: '2026-10-20T23:59:00+09:00',
+  };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'open');
+  assert.equal(s.dday, 'D-29');
+});
+
+test('liveStatus: 신청 기간 없으면 스냅샷 값 유지(추측 금지)', () => {
+  const s = liveStatus(base, NOW21);
+  assert.equal(s.status, 'closing');
+  assert.equal(s.label, '마감임박');
+  assert.equal(s.dday, 'D-2');
+});
+
+test('liveStatus: 파싱 불가 날짜는 스냅샷 유지', () => {
+  const a = { ...base, applyStart: 'garbage', applyEnd: 'also-bad' };
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'closing');
 });

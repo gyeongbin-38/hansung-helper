@@ -146,6 +146,39 @@ export type LmsPending = {
   uncertain?: boolean;
 };
 
+/** now 기준 현재 학기 시작 — 3/1(1학기)·9/1(2학기) 중 가장 최근.
+ *  카탈로그 학기 문자열을 모를 때의 일반적 기본값. */
+export function currentSemesterStart(now: number): number {
+  const d = new Date(now);
+  const y = d.getFullYear();
+  const sep = new Date(y, 8, 1).getTime();
+  if (now >= sep) return sep;
+  const mar = new Date(y, 2, 1).getTime();
+  if (now >= mar) return mar;
+  return new Date(y - 1, 8, 1).getTime();
+}
+
+/** 마감 시각이 before보다 이전이면 지난 학기 항목.
+ *  마감 미기재(dueTs null)는 학기를 알 수 없으므로 현재로 간주한다(추측 금지). */
+export const isPast = (
+  dueTs: number | null,
+  before?: number | null,
+): boolean => before != null && dueTs !== null && dueTs < before;
+
+/** 과목의 마감이 모두 before 이전이면 지난 학기 과목 — 마감 미기재만 있으면 현재로 간주 */
+export function courseIsPast(
+  c: LmsCourse,
+  before?: number | null,
+): boolean {
+  if (before == null) return false;
+  const ts = [
+    ...c.vods.map((v) => parseDue(v.range ?? null)),
+    ...c.assigns.map((a) => parseDue(a.due ?? null)),
+    ...c.quizzes.map((q) => parseDue(q.due ?? null)),
+  ].filter((t): t is number => t !== null);
+  return ts.length > 0 && ts.every((t) => t < before);
+}
+
 /** 스냅샷 수집 후 경과 일수 — fetchedAt 파싱 불가면 null */
 export function staleDays(snap: LmsSnapshot, now: number): number | null {
   const t = Date.parse(snap.fetchedAt);
@@ -197,13 +230,20 @@ export function weekProgress(c: LmsCourse): WeekProgress[] {
   return [...map.values()].sort((a, b) => a.week - b.week);
 }
 
-/** 미완료 항목 평탄화 — 미수강 강의 + 미제출 과제 + 미응시 퀴즈 */
-export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
+/** 미완료 항목 평탄화 — 미수강 강의 + 미제출 과제 + 미응시 퀴즈.
+ *  before를 주면 그보다 이전에 끝난 지난 학기 항목은 제외한다. */
+export function pendingTasks(
+  snap: LmsSnapshot,
+  before?: number | null,
+): LmsPending[] {
   const out: LmsPending[] = [];
+  const push = (p: LmsPending) => {
+    if (!isPast(parseDue(p.due), before)) out.push(p);
+  };
   for (const c of snap.courses) {
     for (const v of c.vods)
       if (!v.attended)
-        out.push({
+        push({
           course: c.title,
           kind: '강의',
           title: v.title,
@@ -212,7 +252,7 @@ export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
         });
     for (const a of c.assigns)
       if (!a.submitted)
-        out.push({
+        push({
           course: c.title,
           kind: '과제',
           title: a.title,
@@ -221,7 +261,7 @@ export function pendingTasks(snap: LmsSnapshot): LmsPending[] {
         });
     for (const q of c.quizzes)
       if (!q.submitted)
-        out.push({
+        push({
           course: c.title,
           kind: '퀴즈',
           title: q.title,
@@ -245,13 +285,19 @@ export type SubmissionItem = {
   submitted: boolean;
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않음 */
   uncertain?: boolean;
+  /** 마감이 학기 시작(before)보다 이전 — 지난 학기 보관 영역용 */
+  past?: boolean;
 };
 
 /**
  * 전체 과제·퀴즈 — 제출 완료 항목 포함 (pendingTasks는 미완료만).
  * 정렬: 미완료·확인불가 먼저 → 마감 빠른 순 → 완료는 마감 빠른 순으로 뒤에.
+ * before를 주면 그보다 이전에 끝난 항목에 past 표시(현재와 분리용).
  */
-export function submissionItems(snap: LmsSnapshot): SubmissionItem[] {
+export function submissionItems(
+  snap: LmsSnapshot,
+  before?: number | null,
+): SubmissionItem[] {
   const out: SubmissionItem[] = [];
   for (const c of snap.courses) {
     for (const a of c.assigns)
@@ -264,6 +310,7 @@ export function submissionItems(snap: LmsSnapshot): SubmissionItem[] {
         due: a.due ?? null,
         dueTs: parseDue(a.due ?? null),
         submitted: a.submitted,
+        past: isPast(parseDue(a.due ?? null), before) || undefined,
       });
     for (const q of c.quizzes)
       out.push({
@@ -276,11 +323,12 @@ export function submissionItems(snap: LmsSnapshot): SubmissionItem[] {
         dueTs: parseDue(q.due ?? null),
         submitted: q.submitted,
         uncertain: q.uncertain,
+        past: isPast(parseDue(q.due ?? null), before) || undefined,
       });
   }
   return out.sort((a, b) => {
-    const pa = a.submitted ? 1 : 0;
-    const pb = b.submitted ? 1 : 0;
+    const pa = (a.past ? 1 : 0) * 2 + (a.submitted ? 1 : 0);
+    const pb = (b.past ? 1 : 0) * 2 + (b.submitted ? 1 : 0);
     if (pa !== pb) return pa - pb;
     if (a.dueTs === null && b.dueTs === null) return 0;
     if (a.dueTs === null) return 1;
@@ -304,6 +352,8 @@ export type BingeItem = {
   weeklyStatus?: string;
   /** 수강 기간 끝(마감) 시각 — 파싱 불가면 null */
   dueTs: number | null;
+  /** 마감이 학기 시작(before)보다 이전 — 지난 학기 보관 영역용 */
+  past?: boolean;
   /** 시청시간 'HH:mm[:ss]' (확장·콘솔 수집기만 제공) */
   watched?: string;
   /** 출석인정 요구시간 원문 */
@@ -313,8 +363,12 @@ export type BingeItem = {
 /**
  * 안 들은 온라인 강의 몰아듣기 큐 — 수강 기간 마감 빠른 순.
  * 기한을 알 수 없는 항목은 주차 오름차순으로 뒤에 둔다.
+ * before를 주면 그보다 이전에 끝난 항목에 past 표시(현재와 분리용).
  */
-export function bingeQueue(snap: LmsSnapshot): BingeItem[] {
+export function bingeQueue(
+  snap: LmsSnapshot,
+  before?: number | null,
+): BingeItem[] {
   const out: BingeItem[] = [];
   for (const c of snap.courses)
     for (const v of c.vods)
@@ -329,10 +383,14 @@ export function bingeQueue(snap: LmsSnapshot): BingeItem[] {
           status: v.status,
           weeklyStatus: v.weeklyStatus,
           dueTs: parseDue(v.range ?? null),
+          past: isPast(parseDue(v.range ?? null), before) || undefined,
           watched: v.watched,
           required: v.required,
         });
   return out.sort((a, b) => {
+    const pa = a.past ? 1 : 0;
+    const pb = b.past ? 1 : 0;
+    if (pa !== pb) return pa - pb;
     if (a.dueTs === null && b.dueTs === null)
       return (a.week ?? 99) - (b.week ?? 99);
     if (a.dueTs === null) return 1;
@@ -424,16 +482,18 @@ export function enrolledSectionIds(
 
 /** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외.
  *  마감이 pastDays일 이상 지난 항목도 제외 — 오래 지난 항목이
- *  다가오는 마감을 밀어내지 않게 한다. */
+ *  다가오는 마감을 밀어내지 않게 한다.
+ *  before(학기 경계)를 주면 그보다 이전에 끝난 항목도 제외한다. */
 export function dueSoon(
   snap: LmsSnapshot,
   now: number,
   days = 7,
   pastDays = 7,
+  before?: number | null,
 ): (LmsPending & { dueTs: number })[] {
   const limit = now + days * 86400e3;
   const floor = now - pastDays * 86400e3;
-  return pendingTasks(snap)
+  return pendingTasks(snap, before)
     .flatMap((t) => {
       const ts = parseDue(t.due);
       return ts !== null && ts >= floor && ts <= limit

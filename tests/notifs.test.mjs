@@ -107,12 +107,14 @@ items = deriveNotifs({
 });
 t('conflict notif', items.some((i) => i.id === 'conflict' && i.title.includes('2개')));
 
-// 마감 임박 — 7일 이내 + open/closing만
+// 마감 임박 — 7일 이내 + open/closing만. 상태는 스냅샷 문자열이 아니라
+// 신청 기간+현재 시각(liveStatus)으로 판정한다 — 'closed' 스냅샷이어도
+// 마감일이 지나지 않았으면 접수중으로 본다.
 const acts1 = snap([
   act('hs-saved', 'open', iso(NOW + 2 * DAY)), // 저장됨, 범위 내
   act('hs-plain', 'open', iso(NOW + 5 * DAY)), // 범위 내
   act('hs-far', 'open', iso(NOW + 30 * DAY)), // 범위 밖
-  act('hs-closed', 'closed', iso(NOW + 2 * DAY)), // closed 제외
+  act('hs-closed', 'open', iso(NOW - 1 * DAY)), // 마감 경과 → 제외
   act('hs-nodate', 'open', null), // applyEnd 없음 제외
 ]);
 items = deriveNotifs({
@@ -127,7 +129,7 @@ const actItems = items.filter((i) => i.id.startsWith('act-'));
 t('deadline window filters', actItems.length === 2);
 t('saved activity first', actItems[0].id === 'act-hs-saved');
 t('saved label + purple', actItems[0].label === '저장한 활동' && actItems[0].tone === 'purple');
-t('unsaved keeps statusLabel', actItems[1].label === '접수중' && actItems[1].tone === 'orange');
+t('unsaved uses live label', actItems[1].label === '마감임박' && actItems[1].tone === 'orange');
 
 // 학사일정 — 시작일이 오늘~+7일 (과거 하루 유예 포함)
 const sched1 = schedSnap([

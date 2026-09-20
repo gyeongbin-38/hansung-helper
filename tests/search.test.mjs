@@ -184,5 +184,37 @@ t('deadline word → all course tasks', dlHits.length === 5 && dlHits[0].label =
 hits = searchAll('언제까지', catalog, [], [], lmsTasks);
 t('pure question word → no hits', hits.length === 0);
 
+// 지난 학기 항목 — catalog.semester=2026-2 → 경계 2026-09-01
+const lmsMixed = [
+  {
+    id: '301',
+    title: '알고리즘',
+    vods: [],
+    assigns: [
+      { title: '2025 지난학기 과제', due: '2025-11-23 23:59', submitted: false },
+      { title: '2026 현재학기 과제', due: '2026-10-05 23:59', submitted: false },
+    ],
+    quizzes: [],
+  },
+];
+hits = searchAll('과제', catalog, [], [], lmsMixed);
+t('past-semester task excluded by default', !hits.some((h) => h.label === '2025 지난학기 과제'));
+t('current-semester task included', hits.some((h) => h.label === '2026 현재학기 과제'));
+t('lms task hit exposes done flag', hits.find((h) => h.label === '2026 현재학기 과제')?.done === false);
+
+// 지난 학기 과목 자체 hit은 '지난 학기' 라벨 (수강 중으로 위장하지 않음)
+const lmsOldCourse = [
+  {
+    id: '302',
+    title: '기초전공과목',
+    vods: [],
+    assigns: [{ title: 'x', due: '2025-11-01 23:59', submitted: false }],
+    quizzes: [],
+  },
+];
+hits = searchAll('기초전공과목', catalog, [], [], lmsOldCourse);
+const oldHit = hits.find((h) => h.route === 'lms/302');
+t('past course hit labelled 지난 학기', oldHit?.sub.includes('지난 학기') && !oldHit.sub.includes('수강 중'));
+
 console.log(`search: ${pass}/${pass + fail}`);
 process.exit(fail ? 1 : 0);
