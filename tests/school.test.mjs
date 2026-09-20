@@ -12,6 +12,22 @@ test('course parser keeps only same-school read-only course links and deduplicat
     },
   ]);
 });
+test('course parser flags .course_label_ec community courses', () => {
+  const html = `<ul class="my-course-lists"><li><span class="course_label_ec">커뮤니티</span><a href="/course/view.php?id=7">커뮤니티 수업</a></li><li><a href="/course/view.php?id=8">일반 수업</a></li></ul>`;
+  assert.deepEqual(parseCourses(html), [
+    {
+      id: '7',
+      name: '커뮤니티 수업',
+      url: 'https://learn.hansung.ac.kr/course/view.php?id=7',
+      community: true,
+    },
+    {
+      id: '8',
+      name: '일반 수업',
+      url: 'https://learn.hansung.ac.kr/course/view.php?id=8',
+    },
+  ]);
+});
 test('authentication upgrades legacy redirect and isolates per-host cookies', async () => {
   const original = globalThis.fetch,
     requests = [];

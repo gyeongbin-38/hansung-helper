@@ -536,8 +536,14 @@ blocking regressions.
     `validateLms` 검증 추가 (body 한도 30KB→200KB — 스냅샷 크기 대응).
   - `deriveNotifs` — LMS 마감 ≤7일 미완료 항목 알림(cat '수업', 최대 5).
   - `tests/lms.test.mjs` 21/21 — 검증/진행률/미완료/dueSoon/알림 도출.
-- **Out of scope**: 확장 설치·자동 수집(브라우저 확장은 후속 옵션),
-  LMS 로그인 자동화, 서버 측 COSMOS 요청, 돋부기 자체 배포.
+- **Done (2026-09-19)**: `extension/` — Chrome MV3 확장(돋부기 접근의
+  정식화). MAIN world content script가 LMS 페이지에 '학사도우미 수집'
+  버튼을 띄워 클릭 한 번으로 lms-data.json 다운로드. 실제 DOM 파서라
+  서버 정규식보다 견고 + 커뮤니티 과목 `.course_label_ec` 정상 감지 +
+  시청시간(watched)/요구시간(required) 수집. 서버 측도 보완: parseCourses
+  커뮤니티 감지 + 과목 유형별 출석부 URL 우선순위. `LmsVod.watched`/
+  `required` 필드 추가.
+- **Out of scope**: LMS 로그인 자동화, 돋부기 자체 배포.
 - **Note**: 셀렉터 계약은 dotbugi 소스(fetchCourseData/fetchAssign/
   fetchQuiz/fetchVodAttendance/fetchVodList/lmsKeywords)에서 확인한
   실제 COSMOS DOM 구조 기반 — 페이지 구조 변경 시 수집 실패로 표면화

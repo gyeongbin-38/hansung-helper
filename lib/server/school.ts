@@ -1,7 +1,13 @@
 import { collectLms } from './lms.ts';
 import type { LmsSnapshot } from '../data/lms.ts';
 
-export type SchoolCourse = { id: string; name: string; url: string };
+export type SchoolCourse = {
+  id: string;
+  name: string;
+  url: string;
+  /** .course_label_ec 커뮤니티 과목 — 출석부 URL 변형 선택에 사용 */
+  community?: boolean;
+};
 export type SchoolSnapshot = {
   portal: 'connected';
   lms: 'connected' | 'unavailable';
@@ -87,6 +93,14 @@ export function plainText(value: string) {
     .trim();
 }
 export function parseCourses(html: string): SchoolCourse[] {
+  // 커뮤니티 과목(course_label_ec) id 집합 — 같은 <li> 블록 안의
+  // course 링크 id를 매칭. 브라우저 셀렉터 .course_label_ec와 동일 계약.
+  const communityIds = new Set<string>();
+  for (const li of html.matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/gi)) {
+    if (!li[0].includes('course_label_ec')) continue;
+    const idm = li[0].match(/course\/view\.php\?[^"'<]*\bid=(\d+)/);
+    if (idm) communityIds.add(idm[1]);
+  }
   const found = new Map<string, SchoolCourse>();
   for (const match of html.matchAll(
     /<a\b[^>]*href=["']([^"']*\/course\/view\.php\?[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi,
@@ -107,6 +121,7 @@ export function parseCourses(html: string): SchoolCourse[] {
         id,
         name: name.slice(0, 200),
         url: `https://learn.hansung.ac.kr/course/view.php?id=${id}`,
+        ...(communityIds.has(id) ? { community: true } : {}),
       });
     }
   }

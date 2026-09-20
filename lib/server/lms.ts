@@ -254,7 +254,7 @@ export function parseVodRanges(
 /** 과목별 4개 페이지 수집 → LmsSnapshot. 부분 실패는 errors[]로 보존. */
 export async function collectLms(
   session: LmsSession,
-  courses: { id: string; name: string }[],
+  courses: { id: string; name: string; community?: boolean }[],
 ): Promise<LmsSnapshot> {
   const deadline = Date.now() + COLLECT_BUDGET_MS;
   // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
@@ -278,11 +278,18 @@ export async function collectLms(
     return h;
   };
 
-  const fetchVods = async (id: string) => {
-    const urls = [
-      `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
-      `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
-    ];
+  const fetchVods = async (id: string, community?: boolean) => {
+    // 커뮤니티 과목은 user_progress.php가 기본, 일반 과목은 _a가 기본 —
+    // 돋부기와 동일하게 과목 유형에 맞는 변형을 먼저 시도한다.
+    const urls = community
+      ? [
+          `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
+          `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
+        ]
+      : [
+          `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
+          `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
+        ];
     let lastErr: unknown;
     for (const u of urls) {
       try {
@@ -341,7 +348,7 @@ export async function collectLms(
         (value) => ({ status: 'fulfilled' as const, value }),
         (reason) => ({ status: 'rejected' as const, reason }),
       );
-    const vods = await settle(fetchVods(c.id));
+    const vods = await settle(fetchVods(c.id, c.community));
     const assigns = await settle(fetchAssigns(c.id));
     const quizzes = await settle(fetchQuizzes(c.id));
     const ranges = await settle(fetchRanges(c.id));
@@ -353,6 +360,7 @@ export async function collectLms(
     out.push({
       id: c.id,
       title: c.name,
+      ...(c.community ? { community: true } : {}),
       vods: (vods.status === 'fulfilled' ? vods.value : []).map((v) => ({
         ...v,
         range: rangeMap[v.title]?.range,

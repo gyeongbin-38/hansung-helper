@@ -27,6 +27,10 @@ export type LmsVod = {
   range?: string;
   /** LMS 강의 링크 */
   url?: string;
+  /** 시청시간 'HH:mm[:ss]' (확장 수집기만 제공) */
+  watched?: string;
+  /** 출석인정 요구시간 원문 (확장 수집기만 제공) */
+  required?: string;
 };
 
 export type LmsCourse = {
@@ -89,6 +93,8 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
             typeof t.weeklyStatus === 'string' ? t.weeklyStatus : undefined,
           range: typeof t.range === 'string' ? t.range : undefined,
           url: typeof t.url === 'string' ? t.url : undefined,
+          watched: typeof t.watched === 'string' ? t.watched : undefined,
+          required: typeof t.required === 'string' ? t.required : undefined,
         };
       });
     };
