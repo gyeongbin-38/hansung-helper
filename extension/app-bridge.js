@@ -1,29 +1,50 @@
-/**
- * 한성 학사 도우미 — 앱 페이지 브리지 (ISOLATED world)
- *
- * 앱 페이지(hansung-helper.workers.dev, 로컬 8787)에서 실행된다.
- * 1) storage의 마지막 수집 스냅샷을 즉시 페이지로 전달하고,
- * 2) 백그라운드에 'hsu-refresh'를 보내 LMS 탭에서 새 수집을 트리거한다.
- * 페이지와의 통신은 window.postMessage — 앱은 'hsu-lms-import' 타입만 받는다.
- */
+// 학사도우미 앱 ↔ 확장 브리지
+// 앱 도메인(프로덕션 + localhost)에서만 로드됨. 메시지 계약:
+//   → 앱: hsu-extension-ready {version}, hsu-lms-status {status|error},
+//         hsu-lms-import {payload}
+//   ← 앱: hsu-extension-ping, hsu-lms-refresh-request {force}
+// postMessage는 location.origin으로 제한(앱 자신만 수신), 외부 유입 없음.
 (() => {
   const post = (type, extra) =>
     window.postMessage({ type, ...extra }, location.origin);
 
-  // 마지막 저장 스냅샷 — 새 수집이 오기 전 즉시 표시용.
-  // React 리스너 등록을 기다려 약간 지연 후 전송.
-  // 30분 이내 성공 수집이면 새 수집을 트리거하지 않는다 — 앱을 자주
-  // 여닫아도 LMS를 반복해서 두드리지 않기 위함(백그라운드에도 5분 캐시).
-  const FRESH_MS = 30 * 60e3;
-  chrome.storage.local.get(['hsuLms', 'hsuLmsAt'], (r) => {
-    if (r.hsuLms)
-      setTimeout(() => post('hsu-lms-import', { payload: r.hsuLms }), 1200);
-    if (typeof r.hsuLmsAt === 'number' && Date.now() - r.hsuLmsAt < FRESH_MS)
-      return;
-    chrome.runtime.sendMessage({ type: 'hsu-refresh' }, (res) => {
-      if (chrome.runtime.lastError) return;
-      if (res?.payload) post('hsu-lms-import', { payload: res.payload });
-      else if (res?.error) post('hsu-lms-status', { error: res.error });
+  const ready = () =>
+    post('hsu-extension-ready', {
+      version: chrome.runtime.getManifest().version,
     });
+  ready();
+  // React 리스너가 늦게 붙는 경우 대비 한 번 더 통지
+  setTimeout(ready, 2000);
+
+  // 앱에서 시작/완료를 추적할 수 있게 수집 상태를 그대로 전달
+  const trigger = (force) => {
+    post('hsu-lms-status', { status: 'syncing' });
+    chrome.runtime.sendMessage({ type: 'hsu-refresh', force }, (res) => {
+      if (chrome.runtime.lastError) return;
+      if (res?.ok && res.payload) {
+        post('hsu-lms-status', { status: 'success' });
+        post('hsu-lms-import', { payload: res.payload });
+      } else {
+        post('hsu-lms-status', {
+          status: 'failed',
+          error: res?.error || 'refresh-failed',
+        });
+      }
+    });
+  };
+
+  // 저장된 스냅샷을 먼저 보내고, 최근 수집이 오래됐으면 백그라운드 수집
+  const FRESH_MS = 30 * 60 * 1000;
+  chrome.storage.local.get(['hsuLms', 'hsuLmsAt'], (r) => {
+    if (r.hsuLms) post('hsu-lms-import', { payload: r.hsuLms });
+    if (r.hsuLmsAt && Date.now() - r.hsuLmsAt < FRESH_MS) return;
+    setTimeout(() => trigger(false), 1200);
+  });
+
+  window.addEventListener('message', (e) => {
+    if (e.source !== window || e.origin !== location.origin) return;
+    if (e.data?.type === 'hsu-extension-ping') ready();
+    if (e.data?.type === 'hsu-lms-refresh-request')
+      trigger(e.data.force === true);
   });
 })();

@@ -6,39 +6,39 @@ end-of-run format. Next session: read this + BACKLOG.md first, verify
 
 ---
 
-## 2026-09-17 — loop iteration (Devin/Paseo session)
+## 2026-09-17 ��� loop iteration (Devin/Paseo session)
 
 DONE:
 - Consolidated the prior session's uncommitted work into commit b304e21
   (ISSUE-1/3/4 verified code: catalog, timetable builder, graduation v0,
   dept normalization, sections/styles split).
-- Verified ISSUE-4 as independent fresh session → PASS (unmatched dept
-  shows "학과 매칭 확인 필요", never wrong results).
+- Verified ISSUE-4 as independent fresh session �넂 PASS (unmatched dept
+  shows "�븰怨� 留ㅼ묶 �솗�씤 �븘�슂", never wrong results).
 - ISSUE-7 implemented: deleted unused starter kit (components/ ~90
   files, hooks/, components.json, lib/utils.ts) in both repos; pruned
   14 starter-only deps; root tsconfig now excludes published-personal/
   (it was silently type-checking the nested repo against root paths).
 - ISSUE-8 implemented: replaced 2 vacuous assertions with pinned
-  outcomes (AI융합 → unresolved; 융합 → exactly 2 candidates).
+  outcomes (AI�쑖�빀 �넂 unresolved; �쑖�빀 �넂 exactly 2 candidates).
 - ISSUE-2 implemented (snapshot variant): hsportal public list is
-  server-rendered → plain-HTTP crawler scripts/crawl-activities.mts →
-  lib/data/activities.json (39 items) → GET /api/activities →
+  server-rendered �넂 plain-HTTP crawler scripts/crawl-activities.mts �넂
+  lib/data/activities.json (39 items) �넂 GET /api/activities �넂
   activities.tsx rewired (real covers, status tabs, provenance).
 - ISSUE-11 implemented: advisor answers from real plan/catalog/
   activity data; free-text keyword search returns routable hits.
-- Fixed _sync.py: /XO /XN /XC meant it never copied modified files —
+- Fixed _sync.py: /XO /XN /XC meant it never copied modified files ���
   deploy repo was silently stale. Now /MIR mirroring. Also stopped
   cloudflared.exe leaking into the deploy repo.
 - Both repos committed; published-personal rebuilt independently.
 
-IN PROGRESS: nothing — working tree clean in both repos.
+IN PROGRESS: nothing ��� working tree clean in both repos.
 
 NEXT:
 1. Verify ISSUE-2, ISSUE-7, ISSUE-8, ISSUE-11 in a fresh session
    (verifier must not be this session).
-2. ISSUE-6 (dept×year rulesets + 수강중) — blocked on official 졸업
-   규정 data (needs-human input).
-3. ISSUE-10 — toolchain bumps with compat verification.
+2. ISSUE-6 (dept횞year rulesets + �닔媛뺤쨷) ��� blocked on official 議몄뾽
+   洹쒖젙 data (needs-human input).
+3. ISSUE-10 ��� toolchain bumps with compat verification.
 4. Re-run crawler periodically to refresh activities.json.
 
 BLOCKER: ISSUE-5 (remote D1 + deploy) and ISSUE-9 (stale root
@@ -50,7 +50,7 @@ TESTS: tsc, oxlint, build (both repos), catalog 4/4, school 5/5,
 graduation 4/4, ux-utils 24/24, activities 5/5, http-check PASS,
 account-db PASS.
 
-REPO SCOUT: none needed this run (plain HTTP sufficed for hsportal —
+REPO SCOUT: none needed this run (plain HTTP sufficed for hsportal ���
 Playwright rejected; recorded in ISSUE-2).
 
 VERIFICATION STATUS: ISSUE-2/7/8/11 await independent verification.
@@ -59,95 +59,95 @@ DEPENDENCIES/REPOS REVIEWED: none added; 14 removed (ISSUE-7).
 
 ---
 
-## 2026-09-17 — loop iteration 2 (verification + ISSUE-12)
+## 2026-09-17 ��� loop iteration 2 (verification + ISSUE-12)
 
 DONE:
-- Verified ISSUE-7 (starter-kit removal) → PASS: dirs gone, no imports,
+- Verified ISSUE-7 (starter-kit removal) �넂 PASS: dirs gone, no imports,
   deps minimal, gates green.
-- Verified ISSUE-8 (test assertions) → PASS: pins real outcomes.
-- Verified ISSUE-11 (data-driven advisor) → PASS; fixed minor nit:
-  failed activities fetch no longer shows "불러오는 중" forever.
-- Verified ISSUE-2 (activities pipeline) → **FAIL, then fixed**: cards
+- Verified ISSUE-8 (test assertions) �넂 PASS: pins real outcomes.
+- Verified ISSUE-11 (data-driven advisor) �넂 PASS; fixed minor nit:
+  failed activities fetch no longer shows "遺덈윭�삤�뒗 以�" forever.
+- Verified ISSUE-2 (activities pipeline) �넂 **FAIL, then fixed**: cards
   carry extra <time> elements outside date_layer (header run-time pair
-  + content duplicate), so positional extraction swapped 신청↔운영 on
-  26/39 rows — and the test pinned the bad value. Parser now maps
-  date_layer blocks by their 신청/운영 label; test corrected; regression
+  + content duplicate), so positional extraction swapped �떊泥��넄�슫�쁺 on
+  26/39 rows ��� and the test pinned the bad value. Parser now maps
+  date_layer blocks by their �떊泥�/�슫�쁺 label; test corrected; regression
   test added; snapshot re-crawled (37 items, all sane).
-- Implemented ISSUE-12: official 학사일정 ingestion —
+- Implemented ISSUE-12: official �븰�궗�씪�젙 ingestion ���
   lib/data/schedule.ts + scripts/crawl-schedule.mts (POST month/year2,
-  12 months of the academic year) → lib/data/schedule.json (73 events)
-  → GET /api/schedule → calendar.tsx shows upcoming official events
-  with 공식 학사일정 provenance. tests/schedule.test.mjs 4/4.
-- New findings logged: ISSUE-13 (derived notifications + 홈 할일 카운트
-  고정값), ISSUE-14 (_sync.py --check mode).
+  12 months of the academic year) �넂 lib/data/schedule.json (73 events)
+  �넂 GET /api/schedule �넂 calendar.tsx shows upcoming official events
+  with 怨듭떇 �븰�궗�씪�젙 provenance. tests/schedule.test.mjs 4/4.
+- New findings logged: ISSUE-13 (derived notifications + �솃 �븷�씪 移댁슫�듃
+  怨좎젙媛�), ISSUE-14 (_sync.py --check mode).
 - Both repos committed: f5dfe0d + cf23f56 (root), 277d171 + f6a5967
   (deploy).
 
-IN PROGRESS: nothing — working tree clean in both repos.
+IN PROGRESS: nothing ��� working tree clean in both repos.
 
 NEXT:
 1. Re-verify ISSUE-2 date fix + verify ISSUE-12 in a fresh session.
 2. ISSUE-13 (derived notifications, home task count), ISSUE-14
    (sync --check).
-3. ISSUE-6 still needs official 졸업 규정 data; ISSUE-5/9 need human.
+3. ISSUE-6 still needs official 議몄뾽 洹쒖젙 data; ISSUE-5/9 need human.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy) and ISSUE-9 need
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy) and ISSUE-9 need
 human/accounts.
 
 TESTS: tsc, oxlint, build (both repos), activities 6/6, schedule 4/4,
 catalog 4/4, school 5/5, graduation 4/4, ux-utils 24/24.
 
 REPO SCOUT: hansung.ac.kr/hansung/6096/subview.do is public, server-
-rendered, UTF-8 — plain HTTP POST suffices for month navigation.
+rendered, UTF-8 ��� plain HTTP POST suffices for month navigation.
 
 VERIFICATION STATUS: ISSUE-2 fix + ISSUE-12 await independent
 verification.
 
 ---
 
-## 2026-09-18 — loop iteration 3 (ISSUE-6 partial + 13 + 15 + 16)
+## 2026-09-18 ��� loop iteration 3 (ISSUE-6 partial + 13 + 15 + 16)
 
 DONE:
 - Recon'd spec gaps vs implementation (courses/graduation/calendar
   detail routes absent, hero carousel absent, topbar search = activities
   only, 4/6 survey answers unused, no max-credit constraint) and
-  confirmed ISSUE-6 is partially unblocked — the school publishes the
-  2016학번~ global baseline publicly (교과 130학점 + 비교과 800P,
-  학기/프로그램당 200P 상한 at hansung.ac.kr/hansung/6220/subview.do).
+  confirmed ISSUE-6 is partially unblocked ��� the school publishes the
+  2016�븰踰�~ global baseline publicly (援먭낵 130�븰�젏 + 鍮꾧탳怨� 800P,
+  �븰湲�/�봽濡쒓렇�옩�떦 200P �긽�븳 at hansung.ac.kr/hansung/6220/subview.do).
 - ISSUE-6 partial: GLOBAL_RULE_SOURCE provenance constant; DEFAULT_RULES
   now carry the official global baseline (130 credits + 800P, unit/
-  source fields added). evaluate() takes {admitYear, points} — baseline
+  source fields added). evaluate() takes {admitYear, points} ��� baseline
   applies only for 2016+, pre-2016 and missing points stay UNKNOWN,
-  dept-specific rules stay "확인 필요", user overrides still win.
+  dept-specific rules stay "�솗�씤 �븘�슂", user overrides still win.
   graduation.tsx renders unit-aware rows + official source link.
   tests 6/6.
-- ISSUE-15 implemented: recommend() now scores 우선목표 (졸업요건 충족
-  →필수 카테고리, 전공 심화→전필/전선, 진로 탐색→교양/타학과 개방) and
-  학기구성 (일정 여유→온라인/무시간대, 공강일 확보→기존 요일 보존,
-  고른 배치→요일 균형). 수업방식/평가방식 stay unscored — catalog has no
-  such metadata — and timetable rec panel now says so explicitly.
+- ISSUE-15 implemented: recommend() now scores �슦�꽑紐⑺몴 (議몄뾽�슂嫄� 異⑹”
+  �넂�븘�닔 移댄뀒怨좊━, �쟾怨� �떖�솕�넂�쟾�븘/�쟾�꽑, 吏꾨줈 �깘�깋�넂援먯뼇/����븰怨� 媛쒕갑) and
+  �븰湲곌뎄�꽦 (�씪�젙 �뿬�쑀�넂�삩�씪�씤/臾댁떆媛꾨��, 怨듦컯�씪 �솗蹂닳넂湲곗〈 �슂�씪 蹂댁〈,
+  怨좊Ⅸ 諛곗튂�넂�슂�씪 洹좏삎). �닔�뾽諛⑹떇/�룊媛�諛⑹떇 stay unscored ��� catalog has no
+  such metadata ��� and timetable rec panel now says so explicitly.
 - ISSUE-16 implemented: semester-plan warns (not blocks) when planned
   credits >21, labeled as a conservative threshold, not an official cap.
 - ISSUE-13 implemented: notifications derived from real state (planned
   conflicts, activity applyEnd within 7d, official schedule within 7d,
   incomplete profile, account disconnected) + category count badges;
   home tasks derived from actual state instead of hardcoded 3, official
-  schedule merged into "다가오는 일정" with provenance labels; empty-
+  schedule merged into "�떎媛��삤�뒗 �씪�젙" with provenance labels; empty-
   state shown when nothing outstanding. React Compiler purity:
   Date.now() moved to useState lazy init (mount-time, once).
 - Both repos synced + built; commit pending this entry.
 
-IN PROGRESS: nothing — gates all green.
+IN PROGRESS: nothing ��� gates all green.
 
 NEXT:
 1. Fresh-session verification: ISSUE-2 fix, ISSUE-12, ISSUE-6 partial,
    ISSUE-13, ISSUE-15, ISSUE-16.
 2. ISSUE-17 (hero carousel), ISSUE-18 (detail routes), ISSUE-19
    (global search), ISSUE-14 (sync --check).
-3. ISSUE-6 remainder: dept×year rulesets need per-dept official rule
-   pages collected/validated; 수강중 state still absent.
+3. ISSUE-6 remainder: dept횞year rulesets need per-dept official rule
+   pages collected/validated; �닔媛뺤쨷 state still absent.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy) and ISSUE-9 need
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy) and ISSUE-9 need
 human/accounts. Public deployment still predates all of this work.
 
 TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
@@ -155,7 +155,7 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 http-check PASS, account-db PASS.
 
 REPO SCOUT: none adopted this run (node-html-parser stays a candidate
-for crawler parsing — recorded earlier; Date.now purity forced a
+for crawler parsing ��� recorded earlier; Date.now purity forced a
 useState pattern, no dep needed).
 
 VERIFICATION STATUS: ISSUE-2 fix, ISSUE-12, ISSUE-6 partial, ISSUE-13,
@@ -163,52 +163,52 @@ ISSUE-15, ISSUE-16 await independent verification.
 
 ---
 
-## 2026-09-18 — loop iteration 4 (verification + 14 + 17 + 19)
+## 2026-09-18 ��� loop iteration 4 (verification + 14 + 17 + 19)
 
 DONE:
-- Verified ISSUE-2 date-label fix → PASS (label-based date_layer mapping,
-  regression test for missing 신청 layer, re-crawled snapshot sane).
-- Verified ISSUE-12 schedule pipeline → PASS (row parser, fnv ids,
+- Verified ISSUE-2 date-label fix �넂 PASS (label-based date_layer mapping,
+  regression test for missing �떊泥� layer, re-crawled snapshot sane).
+- Verified ISSUE-12 schedule pipeline �넂 PASS (row parser, fnv ids,
   anomaly guard, API + calendar UI provenance).
-- Verified ISSUE-6 partial → PASS (2016+ baseline applies, pre-2016 →
-  UNKNOWN, missing points → UNKNOWN, profile year/points inputs exist,
+- Verified ISSUE-6 partial �넂 PASS (2016+ baseline applies, pre-2016 �넂
+  UNKNOWN, missing points �넂 UNKNOWN, profile year/points inputs exist,
   official source link rendered).
-- Verified ISSUE-15 → PASS (우선목표/학기구성 scored; 수업방식·평가방식
+- Verified ISSUE-15 �넂 PASS (�슦�꽑紐⑺몴/�븰湲곌뎄�꽦 scored; �닔�뾽諛⑹떇쨌�룊媛�諛⑹떇
   explicitly disclosed as unscored).
-- Verified ISSUE-16 → PASS (21-credit soft warning, no fake official cap).
-- Verified ISSUE-13 → PASS **with two verifier-found bugs fixed**:
-  1. `read: boolean` made "모두 읽음" permanently mark all future
-     notifications read — now `readIds: string[]`; derivation extracted
+- Verified ISSUE-16 �넂 PASS (21-credit soft warning, no fake official cap).
+- Verified ISSUE-13 �넂 PASS **with two verifier-found bugs fixed**:
+  1. `read: boolean` made "紐⑤몢 �씫�쓬" permanently mark all future
+     notifications read ��� now `readIds: string[]`; derivation extracted
      to `deriveNotifs()` shared by the section and the Topbar bell dot
      (now shows real unread count). Profile schema + API validation +
      demo shape-check updated.
-  2. profile route rejected ruleOverrides >300 while the UI allows ≤2000
-     and 800P is the official target — cap raised to 2000.
-- ISSUE-14 implemented: `_sync.py --check` — robocopy /L list-only drift
+  2. profile route rejected ruleOverrides >300 while the UI allows �돞2000
+     and 800P is the official target ��� cap raised to 2000.
+- ISSUE-14 implemented: `_sync.py --check` ��� robocopy /L list-only drift
   detection, DRIFT report + exit 1 on mismatch. Detected the real
   6-file drift, then parity OK post-sync.
-- ISSUE-17 implemented: home hero carousel — top 5 actionable activities
-  (closing→open→upcoming, soonest deadline), manual prev/next +
+- ISSUE-17 implemented: home hero carousel ��� top 5 actionable activities
+  (closing�넂open�넂upcoming, soonest deadline), manual prev/next +
   position dots, cover/D-day/points/deadline, provenance line, hidden
   when snapshot empty. CSS .hero-carousel in home.css.
-- ISSUE-19 implemented: 통합 검색 — new `search` route, grouped results
+- ISSUE-19 implemented: �넻�빀 寃��깋 ��� new `search` route, grouped results
   (courses/activities/schedule, koreanMatch, cap 8 each), course rows
-  have "담기" buttons, activity → detail route, topbar placeholder
+  have "�떞湲�" buttons, activity �넂 detail route, topbar placeholder
   updated.
 - Both repos synced + built; commits pending this entry.
 
-IN PROGRESS: nothing — gates all green.
+IN PROGRESS: nothing ��� gates all green.
 
 NEXT:
 1. Fresh-session verification: ISSUE-13 readIds fix + override cap,
    ISSUE-14, ISSUE-17, ISSUE-19.
 2. ISSUE-18 (detail routes /courses/:id, /graduation/:id,
    /calendar/:id), ISSUE-10 (toolchain audit bumps).
-3. ISSUE-6 remainder: dept×year rulesets (per-dept official pages
-   exist, e.g. CSE/1564 — needs per-dept collection+validation),
-   수강중 state.
+3. ISSUE-6 remainder: dept횞year rulesets (per-dept official pages
+   exist, e.g. CSE/1564 ��� needs per-dept collection+validation),
+   �닔媛뺤쨷 state.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
 hosting.json) need human/accounts. Public deployment still predates
 all of this work.
 
@@ -216,38 +216,38 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 6/6, activities 6/6, schedule 4/4, ux-utils 24/24, build (both repos),
 http-check PASS, account-db PASS, sync --check parity OK.
 
-REPO SCOUT: none needed — carousel/search built from existing deps.
+REPO SCOUT: none needed ��� carousel/search built from existing deps.
 
 VERIFICATION STATUS: ISSUE-13 fixes, ISSUE-14, ISSUE-17, ISSUE-19
 await independent verification.
 
 ---
 
-## 2026-09-18 — loop iteration 6 (verification + 21 + 22 + 18-partial + 20-scout)
+## 2026-09-18 ��� loop iteration 6 (verification + 21 + 22 + 18-partial + 20-scout)
 
 DONE:
-- Verified ISSUE-13 readIds fix, ISSUE-14, ISSUE-17, ISSUE-19 → all PASS
+- Verified ISSUE-13 readIds fix, ISSUE-14, ISSUE-17, ISSUE-19 �넂 all PASS
   (code review: per-item read state consistent across schema/API/demo
   shape-check; sync --check live-verified with real drift then parity OK;
   carousel + unified search confirmed via review + gates).
 - ISSUE-21 implemented: advisor free-text search now includes official
-  schedule events — searchAll(query, catalog, activities, schedEvents),
-  koreanMatch on event titles, route 'calendar', `공식 학사일정` subtitle
+  schedule events ��� searchAll(query, catalog, activities, schedEvents),
+  koreanMatch on event titles, route 'calendar', `怨듭떇 �븰�궗�씪�젙` subtitle
   with dates. Limitation documented: title-substring matching only.
 - ISSUE-22 implemented: saved activities prioritized in deadline
-  notifications — sort puts data.saved first, purple tone + '저장한 활동'
+  notifications ��� sort puts data.saved first, purple tone + '����옣�븳 �솢�룞'
   label; unsaved keep status label. Prioritization, not restriction.
-- ISSUE-18 partially implemented: /courses/:id detail route — breadcrumb,
+- ISSUE-18 partially implemented: /courses/:id detail route ��� breadcrumb,
   full section metadata, plan/remove with conflict display, sibling
-  분반 list with add + swap-when-planned, timetable link, provenance
+  遺꾨컲 list with add + swap-when-planned, timetable link, provenance
   disclaimers. Course names in list + unified search link to detail.
   /graduation/:id + /calendar/:id remain in backlog.
 - ISSUE-20 explored: CSE dept page (CSE/1564/subview.do) confirmed to
   have a real admission-year-column rules table (UTF-8 server-rendered).
-  Blocker identified: no dept-link discovery path — college index pages
-  6082-6088 are nav chrome only; 6081 (대학·대학원) is a candidate dept
-  directory needing deeper parse; dept slug + 졸업요건 subview id differ
-  per dept → manual registry or per-dept nav crawl needed. Probe script
+  Blocker identified: no dept-link discovery path ��� college index pages
+  6082-6088 are nav chrome only; 6081 (����븰쨌����븰�썝) is a candidate dept
+  directory needing deeper parse; dept slug + 議몄뾽�슂嫄� subview id differ
+  per dept �넂 manual registry or per-dept nav crawl needed. Probe script
   kept at scripts/_probe-dept-rules.py (root-local, sync-excluded).
 - Gates all green; both repos synced (parity OK) + built; commits pending.
 
@@ -258,10 +258,10 @@ NEXT:
 2. ISSUE-18 remainder (/graduation/:id, /calendar/:id), ISSUE-10
    (toolchain audit bumps).
 3. ISSUE-20 implementation: dept directory discovery (6081 parse or
-   per-dept nav crawl) → dept registry → ruleset JSON for consistent-
+   per-dept nav crawl) �넂 dept registry �넂 ruleset JSON for consistent-
    format depts; unknown preserved for the rest.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
 hosting.json) need human/accounts. Public deployment still predates
 all of this work.
 
@@ -269,55 +269,55 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 6/6, activities 6/6, schedule 4/4, ux-utils 24/24, build (both repos),
 http-check PASS, account-db PASS, sync --check parity OK.
 
-REPO SCOUT: none needed — all three features built from existing deps.
+REPO SCOUT: none needed ��� all three features built from existing deps.
 
 VERIFICATION STATUS: ISSUE-21, ISSUE-22, ISSUE-18 (courses/:id) await
 independent verification.
 
 ---
 
-## 2026-09-18 — loop iteration 7 (test coverage + synonyms + 18-complete + 20-path)
+## 2026-09-18 ��� loop iteration 7 (test coverage + synonyms + 18-complete + 20-path)
 
 DONE:
-- Test coverage (improvement #4): extracted pure modules —
-  `searchAll` → `lib/data/search.ts`, `deriveNotifs` →
-  `lib/data/notifs.ts` (minimal structural input types, no lib→app deps),
-  `courseMatch` → `lib/data/catalog.ts` (domain function alongside
+- Test coverage (improvement #4): extracted pure modules ���
+  `searchAll` �넂 `lib/data/search.ts`, `deriveNotifs` �넂
+  `lib/data/notifs.ts` (minimal structural input types, no lib�넂app deps),
+  `courseMatch` �넂 `lib/data/catalog.ts` (domain function alongside
   conflicts/gradGroup; 4 importers updated). New suites:
-  `tests/search.test.mjs` 10/10, `tests/notifs.test.mjs` 11/11 —
+  `tests/search.test.mjs` 10/10, `tests/notifs.test.mjs` 11/11 ���
   deep-link routes, synonym matching, caps, ordering, saved-first
   deadline sort, window filters, conflict/profile/connection notifs.
-- Advisor synonyms (improvement #5): `SCHED_ALIASES` in search.ts —
-  schedule-query alias table (시험→중간·기말, 납부→등록, 휴학/복학,
-  졸업/학위, 방학/계절, 성적). Rule-based expansion, honestly scoped.
-- ISSUE-18 completed: `/graduation/:id` (rule detail — status,
+- Advisor synonyms (improvement #5): `SCHED_ALIASES` in search.ts ���
+  schedule-query alias table (�떆�뿕�넂以묎컙쨌湲곕쭚, �궔遺��넂�벑濡�, �쑕�븰/蹂듯븰,
+  議몄뾽/�븰�쐞, 諛⑺븰/怨꾩젅, �꽦�쟻). Rule-based expansion, honestly scoped.
+- ISSUE-18 completed: `/graduation/:id` (rule detail ��� status,
   progress, official-source vs uncollected-rule wording, override
   editor, points-rule input guidance, contributing completed/planned
   course breakdown; rule card titles link) and `/calendar/:id` (event
-  detail — title, range, collection date, official-page link,
+  detail ��� title, range, collection date, official-page link,
   breadcrumb; event titles link). Schedule hits in searchAll +
   search.tsx now deep-link `calendar/<id>`; advisor course hits
   deep-link `courses/<id>`. Shared `.title-link` class added
-  (globals.css) — replaces undefined `course-title`/`rule-link`
+  (globals.css) ��� replaces undefined `course-title`/`rule-link`
   classes so heading links inherit parent title styling.
-- ISSUE-20 path confirmed: 6081 (대학·대학원) → college slugs
+- ISSUE-20 path confirmed: 6081 (����븰쨌����븰�썝) �넂 college slugs
   (CreCon/Design/HmnArt/LibArt/SclScn/cncschool/futureplus/global)
-  → college home navs directly expose 학과소개 + 졸업요건 links
-  (CreCon 2772/2781/2791/2800, Design 트랙졸업요건 5108/5115/5122/5124,
-  HmnArt 5596 + 예술학부 트랙별). Registry builder + 학번-column table
-  parser is the remaining work — recorded in backlog.
+  �넂 college home navs directly expose �븰怨쇱냼媛� + 議몄뾽�슂嫄� links
+  (CreCon 2772/2781/2791/2800, Design �듃�옓議몄뾽�슂嫄� 5108/5115/5122/5124,
+  HmnArt 5596 + �삁�닠�븰遺� �듃�옓蹂�). Registry builder + �븰踰�-column table
+  parser is the remaining work ��� recorded in backlog.
 - Gates all green; both repos synced (parity OK) + built.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. Fresh-session verification: ISSUE-18 전 라우트, ISSUE-21/22,
-   추출/동의어/테스트 변경분.
-2. ISSUE-20 implementation: dept↔rules-page registry (nav 순서 쌍),
-   학번-컬럼 표 파서, ruleset JSON + 엔진 연동, 미수집 unknown 유지.
+1. Fresh-session verification: ISSUE-18 �쟾 �씪�슦�듃, ISSUE-21/22,
+   異붿텧/�룞�쓽�뼱/�뀒�뒪�듃 蹂�寃쎈텇.
+2. ISSUE-20 implementation: dept�넄rules-page registry (nav �닚�꽌 �뙇),
+   �븰踰�-而щ읆 �몴 �뙆�꽌, ruleset JSON + �뿏吏� �뿰�룞, 誘몄닔吏� unknown �쑀吏�.
 3. ISSUE-10 toolchain audit bumps.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
 hosting.json) need human/accounts. Public deployment still predates
 all of this work.
 
@@ -326,49 +326,49 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 notifs 11/11, build (both repos), http-check PASS, account-db PASS,
 sync --check parity OK.
 
-REPO SCOUT: none needed — all changes built from existing deps.
+REPO SCOUT: none needed ��� all changes built from existing deps.
 
 VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22, and
 the search/notifs extraction + synonym layer await independent
 verification.
 
-## 2026-09-18 — loop iteration 8 (ISSUE-20 pipeline: dept rulesets + UI)
+## 2026-09-18 ��� loop iteration 8 (ISSUE-20 pipeline: dept rulesets + UI)
 
 DONE:
-- ISSUE-20 partially implemented — 학과별 공식 졸업요건 수집 파이프라인:
-  - `lib/data/dept-rules.ts` — parseSitemapLinks / pairDeptRules
-    (두 갱신 경로: 학과명 라벨 + '학과 소개' URL 첫 라벨) /
-    extractRulesText (CMS `contentsEditHtml` 본문 격리, 제목-앵커
-    폴백) / extractAttachment / inferDeptLabel / isMultiDeptPage /
-    isRulesetAnomalous. 규정 문구는 **원문 그대로** — 수치 해석 없음.
-  - `scripts/crawl-dept-rules.mts` — 7개 사이트 슬러그 사이트맵 순회,
-    700ms 간격, 본문 없으면 이상감지로 제외, 전체 0건이면 기존 유지.
-  - `lib/data/dept-rules.json` — 19 rulesets (sourceUrl/fetchedAt 보존):
-    CreCon 4 (문콘은 hwp 첨부만), HmnArt 7, futureplus 1(multiDept),
-    CSE 1(컴퓨터공학부 — 카탈로그 미연결), global 6 전원 해석.
-    미수집·제외: Design 3(빈 본문), HmnArt 2(빈 본문),
-    SclScn(졸업요건 링크 자체 없음) — 지어내지 않음.
-  - `/api/dept-rules` 라우트 + `useDeptRules()` 훅 (스냅샷 패턴 동일).
-  - 졸업 섹션 UI: "내 학과 공식 졸업요건" 카드 — data.dept→카탈로그
-    해석→ruleset 매칭 시 원문 24줄+링크+수집일+첨부 안내; 수집 페이지
-    전체 인덱스 `<details>` (전체 학과 공통/문서 첨부/카탈로그 미연결
-    배지). "학교 공식 사정을 대체하지 않음" 문구 유지.
-- tests/dept-rules.test.mjs — 23/23 (사이트맵 파싱, 쌍 연결 양 경로,
-  본문 격리/폴백/빈 본문, 첨부 감지, 학과 추정, multiDept, 이상감지).
+- ISSUE-20 partially implemented ��� �븰怨쇰퀎 怨듭떇 議몄뾽�슂嫄� �닔吏� �뙆�씠�봽�씪�씤:
+  - `lib/data/dept-rules.ts` ��� parseSitemapLinks / pairDeptRules
+    (�몢 媛깆떊 寃쎈줈: �븰怨쇰챸 �씪踰� + '�븰怨� �냼媛�' URL 泥� �씪踰�) /
+    extractRulesText (CMS `contentsEditHtml` 蹂몃Ц 寃⑸━, �젣紐�-�빑而�
+    �뤃諛�) / extractAttachment / inferDeptLabel / isMultiDeptPage /
+    isRulesetAnomalous. 洹쒖젙 臾멸뎄�뒗 **�썝臾� 洹몃��濡�** ��� �닔移� �빐�꽍 �뾾�쓬.
+  - `scripts/crawl-dept-rules.mts` ��� 7媛� �궗�씠�듃 �뒳�윭洹� �궗�씠�듃留� �닚�쉶,
+    700ms 媛꾧꺽, 蹂몃Ц �뾾�쑝硫� �씠�긽媛먯��濡� �젣�쇅, �쟾泥� 0嫄댁씠硫� 湲곗〈 �쑀吏�.
+  - `lib/data/dept-rules.json` ��� 19 rulesets (sourceUrl/fetchedAt 蹂댁〈):
+    CreCon 4 (臾몄퐯��� hwp 泥⑤��留�), HmnArt 7, futureplus 1(multiDept),
+    CSE 1(而댄벂�꽣怨듯븰遺� ��� 移댄깉濡쒓렇 誘몄뿰寃�), global 6 �쟾�썝 �빐�꽍.
+    誘몄닔吏뫢룹젣�쇅: Design 3(鍮� 蹂몃Ц), HmnArt 2(鍮� 蹂몃Ц),
+    SclScn(議몄뾽�슂嫄� 留곹겕 �옄泥� �뾾�쓬) ��� 吏��뼱�궡吏� �븡�쓬.
+  - `/api/dept-rules` �씪�슦�듃 + `useDeptRules()` �썒 (�뒪�깄�꺑 �뙣�꽩 �룞�씪).
+  - 議몄뾽 �꽮�뀡 UI: "�궡 �븰怨� 怨듭떇 議몄뾽�슂嫄�" 移대뱶 ��� data.dept�넂移댄깉濡쒓렇
+    �빐�꽍�넂ruleset 留ㅼ묶 �떆 �썝臾� 24以�+留곹겕+�닔吏묒씪+泥⑤�� �븞�궡; �닔吏� �럹�씠吏�
+    �쟾泥� �씤�뜳�뒪 `<details>` (�쟾泥� �븰怨� 怨듯넻/臾몄꽌 泥⑤��/移댄깉濡쒓렇 誘몄뿰寃�
+    諛곗��). "�븰援� 怨듭떇 �궗�젙�쓣 ���泥댄븯吏� �븡�쓬" 臾멸뎄 �쑀吏�.
+- tests/dept-rules.test.mjs ��� 23/23 (�궗�씠�듃留� �뙆�떛, �뙇 �뿰寃� �뼇 寃쎈줈,
+  蹂몃Ц 寃⑸━/�뤃諛�/鍮� 蹂몃Ц, 泥⑤�� 媛먯��, �븰怨� 異붿젙, multiDept, �씠�긽媛먯��).
 - Gates all green; both repos synced (parity OK) + built.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. Fresh-session verification: ISSUE-18 전 라우트, ISSUE-21/22,
-   추출/동의어 변경분 + ISSUE-20 파이프라인·UI 카드.
-2. ISSUE-20 잔여: CSE형 학번-컬럼 표의 구조화 파싱(신뢰 가능 시에만
-   엔진 연동), Design/HmnArt 빈 본문 페이지 원인(이미지?) 확인,
-   SclScn 등 미수집 사이트 졸업규정 위치 탐색, multiDept 페이지의
-   학과별 분할.
+1. Fresh-session verification: ISSUE-18 �쟾 �씪�슦�듃, ISSUE-21/22,
+   異붿텧/�룞�쓽�뼱 蹂�寃쎈텇 + ISSUE-20 �뙆�씠�봽�씪�씤쨌UI 移대뱶.
+2. ISSUE-20 �옍�뿬: CSE�삎 �븰踰�-而щ읆 �몴�쓽 援ъ“�솕 �뙆�떛(�떊猶� 媛��뒫 �떆�뿉留�
+   �뿏吏� �뿰�룞), Design/HmnArt 鍮� 蹂몃Ц �럹�씠吏� �썝�씤(�씠誘몄��?) �솗�씤,
+   SclScn �벑 誘몄닔吏� �궗�씠�듃 議몄뾽洹쒖젙 �쐞移� �깘�깋, multiDept �럹�씠吏��쓽
+   �븰怨쇰퀎 遺꾪븷.
 3. ISSUE-10 toolchain audit bumps.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
 hosting.json) need human/accounts. Public deployment still predates
 all of this work.
 
@@ -377,47 +377,47 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 notifs 11/11, dept-rules 23/23, build (both repos), http-check PASS,
 account-db PASS, sync --check parity OK.
 
-REPO SCOUT: none needed — all changes built from existing deps.
+REPO SCOUT: none needed ��� all changes built from existing deps.
 
 VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22,
 search/notifs extraction + synonym layer, and the ISSUE-20 dept-rules
 pipeline (parser, crawler, snapshot, API, UI card) await independent
 verification.
 
-## 2026-09-18 — loop iteration 9 (ISSUE-20 yearTable parser + table UI)
+## 2026-09-18 ��� loop iteration 9 (ISSUE-20 yearTable parser + table UI)
 
 DONE:
 - Verified pending items by code review (dept-rules module, UI card,
-  crawler) — consistent with gates; full matrix re-run.
+  crawler) ��� consistent with gates; full matrix re-run.
 - ISSUE-20 yearTable parser implemented:
-  - `parseYearLabel` — '~ 15학번'→{to:2015}, '16학번'→{2016},
-    '17학번 ~23학번'→{2017–2023}, '24학번 ~'→{from:2024}; 학번 없으면 {}.
-  - `parseYearTable` — CMS 본문 컨테이너 내 <table> 탐색, 헤더 행의
-    학번 셀 위치로 라벨/연도 컬럼 분리, 셀은 **원문 보존**,
-    셀 수 불일치(colspan) 행 건너뜀, 유효 행 없으면 null.
-  - `yearColumnIndex` — 입학연도→해당 컬럼 (엔진 연동 준비물).
-  - `DeptRuleset.yearTable` 필드 추가, 크롤러 연결 (+학번표 로그).
-  - 실제 CSE/1564 검증: 4컬럼(~15/16/17~23/24~)×5행(총학점·캡스톤·
-    트랙수·GitHub·산학협력) 정확 파싱 — 공식 표와 일치 확인.
-- UI: 학과 규정 카드에 yearTable 있으면 실제 <table> 렌더링 +
-  표 셀/라벨과 동일한 라인은 중복 제외한 나머지 안내만 표시
-  (표 외 프로즈 보존).
+  - `parseYearLabel` ��� '~ 15�븰踰�'�넂{to:2015}, '16�븰踰�'�넂{2016},
+    '17�븰踰� ~23�븰踰�'�넂{2017���2023}, '24�븰踰� ~'�넂{from:2024}; �븰踰� �뾾�쑝硫� {}.
+  - `parseYearTable` ��� CMS 蹂몃Ц 而⑦뀒�씠�꼫 �궡 <table> �깘�깋, �뿤�뜑 �뻾�쓽
+    �븰踰� ��� �쐞移섎줈 �씪踰�/�뿰�룄 而щ읆 遺꾨━, ������ **�썝臾� 蹂댁〈**,
+    ��� �닔 遺덉씪移�(colspan) �뻾 嫄대꼫���, �쑀�슚 �뻾 �뾾�쑝硫� null.
+  - `yearColumnIndex` ��� �엯�븰�뿰�룄�넂�빐�떦 而щ읆 (�뿏吏� �뿰�룞 以�鍮꾨Ъ).
+  - `DeptRuleset.yearTable` �븘�뱶 異붽��, �겕濡ㅻ윭 �뿰寃� (+�븰踰덊몴 濡쒓렇).
+  - �떎�젣 CSE/1564 寃�利�: 4而щ읆(~15/16/17~23/24~)횞5�뻾(珥앺븰�젏쨌罹≪뒪�넠쨌
+    �듃�옓�닔쨌GitHub쨌�궛�븰�삊�젰) �젙�솗 �뙆�떛 ��� 怨듭떇 �몴��� �씪移� �솗�씤.
+- UI: �븰怨� 洹쒖젙 移대뱶�뿉 yearTable �엳�쑝硫� �떎�젣 <table> �젋�뜑留� +
+  �몴 ���/�씪踰④낵 �룞�씪�븳 �씪�씤��� 以묐났 �젣�쇅�븳 �굹癒몄�� �븞�궡留� �몴�떆
+  (�몴 �쇅 �봽濡쒖쫰 蹂댁〈).
 - tests: dept-rules 40/40 (parseYearLabel 5, parseYearTable 8,
-  yearColumnIndex 4 추가).
+  yearColumnIndex 4 異붽��).
 - Gates all green; both repos synced (parity OK) + built.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. Fresh-session verification: ISSUE-18, 21, 22, ISSUE-20 파이프라인
-   전체(파서·크롤러·스냅샷·API·UI 카드·yearTable).
-2. ISSUE-20 잔여: 컴퓨터공학부↔카탈로그 학과 매칭 확인(개편 여부,
-   공식 근거 필요 — 추정 연결 금지), Design/HmnArt 빈 본문 원인,
-   SclScn 규정 위치, multiDept 분할, yearTable→엔진 연동(해석된
-   학과 + 신뢰된 매핑 있을 때만).
+1. Fresh-session verification: ISSUE-18, 21, 22, ISSUE-20 �뙆�씠�봽�씪�씤
+   �쟾泥�(�뙆�꽌쨌�겕濡ㅻ윭쨌�뒪�깄�꺑쨌API쨌UI 移대뱶쨌yearTable).
+2. ISSUE-20 �옍�뿬: 而댄벂�꽣怨듯븰遺��넄移댄깉濡쒓렇 �븰怨� 留ㅼ묶 �솗�씤(媛쒗렪 �뿬遺�,
+   怨듭떇 洹쇨굅 �븘�슂 ��� 異붿젙 �뿰寃� 湲덉��), Design/HmnArt 鍮� 蹂몃Ц �썝�씤,
+   SclScn 洹쒖젙 �쐞移�, multiDept 遺꾪븷, yearTable�넂�뿏吏� �뿰�룞(�빐�꽍�맂
+   �븰怨� + �떊猶곕맂 留ㅽ븨 �엳�쓣 �븣留�).
 3. ISSUE-10 toolchain audit bumps.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 (stale root
 hosting.json) need human/accounts. Public deployment still predates
 all of this work.
 
@@ -426,890 +426,937 @@ TESTS: tsc clean, oxlint 0 err, catalog 4/4, school 5/5, graduation
 notifs 11/11, dept-rules 40/40, build (both repos), http-check PASS,
 account-db PASS, sync --check parity OK.
 
-REPO SCOUT: none needed — all changes built from existing deps.
+REPO SCOUT: none needed ��� all changes built from existing deps.
 
 VERIFICATION STATUS: ISSUE-18 (all routes), ISSUE-21, ISSUE-22,
 search/notifs extraction + synonym layer, ISSUE-20 dept-rules pipeline
-(parser·crawler·snapshot·API·UI card·yearTable parser) await
+(parser쨌crawler쨌snapshot쨌API쨌UI card쨌yearTable parser) await
 independent verification.
   
-## 2026-09-18 — loop iteration 10 (Devin/Paseo session)
+## 2026-09-18 ��� loop iteration 10 (Devin/Paseo session)
 
 DONE:
-- ISSUE-23 implemented — COSMOS LMS 수업 현황 연동 (돋부기 hs-shell/dotbugi
-  참조). 서버가 COSMOS 세션에 접근 불가 → 사용자 브라우저 안에서 수집하는
-  구조 채택 (외부 전송·로그인 자동화 없음).
-- `public/lms-collect.js` — 브라우저 수집 스크립트, `/lms-collect.js`
-  정적 제공. dotbugi 셀렉터 계약 기반: `.my-course-lists` 과목 목록,
+- ISSUE-23 implemented ��� COSMOS LMS �닔�뾽 �쁽�솴 �뿰�룞 (�룍遺�湲� hs-shell/dotbugi
+  李몄“). �꽌踰꾧�� COSMOS �꽭�뀡�뿉 �젒洹� 遺덇�� �넂 �궗�슜�옄 釉뚮씪�슦��� �븞�뿉�꽌 �닔吏묓븯�뒗
+  援ъ“ 梨꾪깮 (�쇅遺� �쟾�넚쨌濡쒓렇�씤 �옄�룞�솕 �뾾�쓬).
+- `public/lms-collect.js` ��� 釉뚮씪�슦��� �닔吏� �뒪�겕由쏀듃, `/lms-collect.js`
+  �젙�쟻 �젣怨�. dotbugi ����젆�꽣 怨꾩빟 湲곕컲: `.my-course-lists` 怨쇰ぉ 紐⑸줉,
   `mod/assign/index.php`(generaltable), `mod/quiz/index.php` +
-  `quizattemptsummary` 제출 판정, `report/ubcompletion/user_progress[_a].php`
-  출석부(thead 동적 컬럼 + rowspan 평탄화 + 일괄출석인정),
-  `course/view.php` VOD 링크/수강기간. `Promise.allSettled` 부분 실패
-  보존 + `errors` 필드. 출력 `lms-data.json` 다운로드.
-- `lib/data/lms.ts` — LmsSnapshot 타입 + validateLms(엄격 형식 검증),
-  courseProgress, pendingTasks, dueSoon(range 끝날짜 파싱).
-- `app/sections/lms.tsx` + '수업 현황' 사이드바 메뉴 — 3단계 수집 안내,
-  스크립트 복사 버튼/파일 링크, JSON 업로드(검증), 과목별 카드(강의
-  진행률 + 미완료 목록 + COSMOS 딥링크 + 부분 수집 고지), 7일 마감
-  임박, 데이터 삭제.
-- `Data.lms` 필드 + demo shape-check + account profile API에
-  `validateLms` 검증 + body 한도 30KB→200KB(스냅샷 크기 대응).
-- `deriveNotifs` — LMS 마감 ≤7일 미완료 알림(cat '수업', 최대 5건,
-  D-day 라벨).
+  `quizattemptsummary` �젣異� �뙋�젙, `report/ubcompletion/user_progress[_a].php`
+  異쒖꽍遺�(thead �룞�쟻 而щ읆 + rowspan �룊�깂�솕 + �씪愿꾩텧�꽍�씤�젙),
+  `course/view.php` VOD 留곹겕/�닔媛뺢린媛�. `Promise.allSettled` 遺�遺� �떎�뙣
+  蹂댁〈 + `errors` �븘�뱶. 異쒕젰 `lms-data.json` �떎�슫濡쒕뱶.
+- `lib/data/lms.ts` ��� LmsSnapshot ����엯 + validateLms(�뾼寃� �삎�떇 寃�利�),
+  courseProgress, pendingTasks, dueSoon(range �걹�궇吏� �뙆�떛).
+- `app/sections/lms.tsx` + '�닔�뾽 �쁽�솴' �궗�씠�뱶諛� 硫붾돱 ��� 3�떒怨� �닔吏� �븞�궡,
+  �뒪�겕由쏀듃 蹂듭궗 踰꾪듉/�뙆�씪 留곹겕, JSON �뾽濡쒕뱶(寃�利�), 怨쇰ぉ蹂� 移대뱶(媛뺤쓽
+  吏꾪뻾瑜� + 誘몄셿猷� 紐⑸줉 + COSMOS �뵦留곹겕 + 遺�遺� �닔吏� 怨좎��), 7�씪 留덇컧
+  �엫諛�, �뜲�씠�꽣 �궘�젣.
+- `Data.lms` �븘�뱶 + demo shape-check + account profile API�뿉
+  `validateLms` 寃�利� + body �븳�룄 30KB�넂200KB(�뒪�깄�꺑 �겕湲� ����쓳).
+- `deriveNotifs` ��� LMS 留덇컧 �돞7�씪 誘몄셿猷� �븣由�(cat '�닔�뾽', 理쒕�� 5嫄�,
+  D-day �씪踰�).
 - `tests/lms.test.mjs` 21/21.
 - Gates all green; both repos synced (parity OK) + built.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. Fresh-session verification: ISSUE-23 전체(수집 스크립트·검증·UI·
-   알림·API 한도) + 이전 needs-verification 잔여(ISSUE-18, 21, 22,
-   ISSUE-20 파이프라인).
-2. ISSUE-23 후속 후보: 북마클릿 형태, stale 경고, 시청시간(%) 표시,
-   캘린더 병합, advisor 검색에 LMS 과목 포함. 실제 COSMOS 계정으로
-   수집 스크립트 실동작 확인(needs-human — 로그인 필요).
-3. ISSUE-20 잔여(카탈로그 매칭·빈 본문·엔진 연동) + ISSUE-10.
+1. Fresh-session verification: ISSUE-23 �쟾泥�(�닔吏� �뒪�겕由쏀듃쨌寃�利씲톃I쨌
+   �븣由셋텮PI �븳�룄) + �씠�쟾 needs-verification �옍�뿬(ISSUE-18, 21, 22,
+   ISSUE-20 �뙆�씠�봽�씪�씤).
+2. ISSUE-23 �썑�냽 �썑蹂�: 遺곷쭏�겢由� �삎�깭, stale 寃쎄퀬, �떆泥��떆媛�(%) �몴�떆,
+   罹섎┛�뜑 蹂묓빀, advisor 寃��깋�뿉 LMS 怨쇰ぉ �룷�븿. �떎�젣 COSMOS 怨꾩젙�쑝濡�
+   �닔吏� �뒪�겕由쏀듃 �떎�룞�옉 �솗�씤(needs-human ��� 濡쒓렇�씤 �븘�슂).
+3. ISSUE-20 �옍�뿬(移댄깉濡쒓렇 留ㅼ묶쨌鍮� 蹂몃Ц쨌�뿏吏� �뿰�룞) + ISSUE-10.
 
-BLOCKER: unchanged — ISSUE-5 (remote D1 + deploy), ISSUE-9 need
-human/accounts. COSMOS 실계정 수집 검증도 사용자 로그인 필요.
+BLOCKER: unchanged ��� ISSUE-5 (remote D1 + deploy), ISSUE-9 need
+human/accounts. COSMOS �떎怨꾩젙 �닔吏� 寃�利앸룄 �궗�슜�옄 濡쒓렇�씤 �븘�슂.
 
 TESTS: tsc clean, oxlint 0 err, lms 21/21, catalog 4/4, school 5/5,
 notifs 11/11, search 10/10, dept-rules 40/40, build (both repos),
 http-check PASS, account-db PASS, sync --check parity OK.
 
-REPO SCOUT: none needed — 브라우저 표준 API만 사용(외부 의존성 없음).
+REPO SCOUT: none needed ��� 釉뚮씪�슦��� �몴以� API留� �궗�슜(�쇅遺� �쓽議댁꽦 �뾾�쓬).
 
-VERIFICATION STATUS: ISSUE-23 (collect script·validateLms·section UI·
-notifs 통합·profile API 검증/한도) awaits independent verification;
+VERIFICATION STATUS: ISSUE-23 (collect script쨌validateLms쨌section UI쨌
+notifs �넻�빀쨌profile API 寃�利�/�븳�룄) awaits independent verification;
 prior items (ISSUE-18, 21, 22, ISSUE-20) still pending.
 
 
 ---
 
-## 2026-09-18 — deploy + GitHub consolidation (user-directed session)
+## 2026-09-18 ��� deploy + GitHub consolidation (user-directed session)
 
 DONE:
-- GitHub push 완료: gyeongbin-38/hansung-helper (main source, master),
+- GitHub push �셿猷�: gyeongbin-38/hansung-helper (main source, master),
   gyeongbin-38/hansung-helper-deploy (deploy snapshot, master).
-- Deploy repo git history에서 scripts/cloudflared.exe (52MB) 제거 —
-  filter-branch 20 commits 재작성 + force push (GH001 경고 해소).
-- GitHub 정리: 빈 repo gyeongbin-38/- 삭제 (size 0, 커밋 없음),
-  hansung-helper → PUBLIC 전환 (팀원 collaborator 불필요),
-  hansung-helper-deploy private 유지.
-- Cloudflare 프로덕션 배포 ✅ (BE-6 완료): wrangler OAuth 로그인
-  (gyeongbinb38@gmail.com, account 49fee188…), 원격 D1 site-creator-d1
-  생성 (27aa326b-5433-4bcb-bc38-1b63bd66f67b, APAC), workers.dev
-  서브도메인 gyeongbin-38 등록, 워커 hansung-helper 배포 →
-  https://hansung-helper.gyeongbin-38.workers.dev (버전 02bc60c9).
-- 원격 D1 마이그레이션 적용 (3 테이블).
-- scripts/_deploy.py — 재배포 헬퍼: 생성 wrangler.json의 placeholder
-  DB ID + 워커명을 실값으로 패치 후 wrangler deploy (매 빌드 후 필수).
-- scripts/_verify_prod.py — 라이브 검증: /, /lms-collect.js,
-  /api/courses|schedule|dept-rules|activities, favicon 전부 200.
-- docs 갱신: team-tasks 공유 주소→프로덕션 URL + B-6 완료 표기,
-  backend-tasks BE-6 완료 섹션, AGENTS.md 프로덕션 섹션, BACKLOG
-  ISSUE-24 진행 기록.
+- Deploy repo git history�뿉�꽌 scripts/cloudflared.exe (52MB) �젣嫄� ���
+  filter-branch 20 commits �옱�옉�꽦 + force push (GH001 寃쎄퀬 �빐�냼).
+- GitHub �젙由�: 鍮� repo gyeongbin-38/- �궘�젣 (size 0, 而ㅻ컠 �뾾�쓬),
+  hansung-helper �넂 PUBLIC �쟾�솚 (����썝 collaborator 遺덊븘�슂),
+  hansung-helper-deploy private �쑀吏�.
+- Cloudflare �봽濡쒕뜒�뀡 諛고룷 �쐟 (BE-6 �셿猷�): wrangler OAuth 濡쒓렇�씤
+  (gyeongbinb38@gmail.com, account 49fee188���), �썝寃� D1 site-creator-d1
+  �깮�꽦 (27aa326b-5433-4bcb-bc38-1b63bd66f67b, APAC), workers.dev
+  �꽌釉뚮룄硫붿씤 gyeongbin-38 �벑濡�, �썙而� hansung-helper 諛고룷 �넂
+  https://hansung-helper.gyeongbin-38.workers.dev (踰꾩쟾 02bc60c9).
+- �썝寃� D1 留덉씠洹몃젅�씠�뀡 �쟻�슜 (3 �뀒�씠釉�).
+- scripts/_deploy.py ��� �옱諛고룷 �뿬�띁: �깮�꽦 wrangler.json�쓽 placeholder
+  DB ID + �썙而ㅻ챸�쓣 �떎媛믪쑝濡� �뙣移� �썑 wrangler deploy (留� 鍮뚮뱶 �썑 �븘�닔).
+- scripts/_verify_prod.py ��� �씪�씠釉� 寃�利�: /, /lms-collect.js,
+  /api/courses|schedule|dept-rules|activities, favicon �쟾遺� 200.
+- docs 媛깆떊: team-tasks 怨듭쑀 二쇱냼�넂�봽濡쒕뜒�뀡 URL + B-6 �셿猷� �몴湲�,
+  backend-tasks BE-6 �셿猷� �꽮�뀡, AGENTS.md �봽濡쒕뜒�뀡 �꽮�뀡, BACKLOG
+  ISSUE-24 吏꾪뻾 湲곕줉.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 원격 실계정 회원가입→프로필 저장→재로그인 수동 확인 (needs-human).
-2. COSMOS 실계정 수집 스크립트 실동작 확인 (G-1, needs-human).
-3. Fresh-session verification: ISSUE-23 전체 + 잔여 (18, 21, 22, 20).
-4. ISSUE-24 BE-1 서버 측 COSMOS 수집 (팀원 핸드오프 진행 상황 추적).
+1. �썝寃� �떎怨꾩젙 �쉶�썝媛��엯�넂�봽濡쒗븘 ����옣�넂�옱濡쒓렇�씤 �닔�룞 �솗�씤 (needs-human).
+2. COSMOS �떎怨꾩젙 �닔吏� �뒪�겕由쏀듃 �떎�룞�옉 �솗�씤 (G-1, needs-human).
+3. Fresh-session verification: ISSUE-23 �쟾泥� + �옍�뿬 (18, 21, 22, 20).
+4. ISSUE-24 BE-1 �꽌踰� 痢� COSMOS �닔吏� (����썝 �빖�뱶�삤�봽 吏꾪뻾 �긽�솴 異붿쟻).
 
-BLOCKER: 해소됨 — ISSUE-5/9 (remote D1 + deploy 권한) 완료. 잔여
-needs-human: 실계정 프로덕션 한 바퀴 + COSMOS 수집 실동작.
+BLOCKER: �빐�냼�맖 ��� ISSUE-5/9 (remote D1 + deploy 沅뚰븳) �셿猷�. �옍�뿬
+needs-human: �떎怨꾩젙 �봽濡쒕뜒�뀡 �븳 諛뷀�� + COSMOS �닔吏� �떎�룞�옉.
 
-TESTS: 배포 후 라이브 검증 PASS (_verify_prod.py 전체 200).
-빌드: published-personal npm run build green (lms-collect.js 포함).
+TESTS: 諛고룷 �썑 �씪�씠釉� 寃�利� PASS (_verify_prod.py �쟾泥� 200).
+鍮뚮뱶: published-personal npm run build green (lms-collect.js �룷�븿).
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 프로덕션 배포 + 원격 D1 마이그레이션은 라이브
-검증됨. 실계정 end-to-end (가입→저장→재로그인) + COSMOS 수집은
-사람 확인 대기. 이전 needs-verification 항목들 계류 중.
+VERIFICATION STATUS: �봽濡쒕뜒�뀡 諛고룷 + �썝寃� D1 留덉씠洹몃젅�씠�뀡��� �씪�씠釉�
+寃�利앸맖. �떎怨꾩젙 end-to-end (媛��엯�넂����옣�넂�옱濡쒓렇�씤) + COSMOS �닔吏묒��
+�궗�엺 �솗�씤 ���湲�. �씠�쟾 needs-verification �빆紐⑸뱾 怨꾨쪟 以�.
 
 
 ---
 
-## 2026-09-18 — BE-1 서버 측 COSMOS 수집 구현 (user-requested)
+## 2026-09-18 ��� BE-1 �꽌踰� 痢� COSMOS �닔吏� 援ы쁽 (user-requested)
 
 DONE:
-- 사용자 확인: COSMOS 연결은 이미 connectSchool에 존재(로그인 시
-  포털+LMS 세션 + 과목 목록 파싱) — BE-1 본격 구현.
-- `lib/server/lms.ts` 신규 — Workers DOM 없이 정규식으로 dotbugi
-  셀렉터 계약 포팅: parseAssigns/parseQuizList(generaltable c0~c3),
-  hasQuizAttempt(quizattemptsummary), parseProgress(thead 동적 컬럼
-  + 출석인정 요구시간 컬럼 제외 + rowspan/colspan 평탄화 + 일괄출석
-  인정), parseVodRanges(modtype_vod li·dimmed 제외·accesshide 제거),
-  collectLms(과목 순차 + 24s 예산 + allSettled 부분 실패 errors[]).
-  normDate는 년월일/年月日 양식 모두 지원(collector 확장).
-- `school.ts`: SchoolSnapshot.lmsData?: LmsSnapshot + connectSchool이
-  LMS 연결 성공 시 collectLms 호출(실패해도 로그인 유지).
-- `page.tsx`: accountData() — profile과 snapshot.lmsData 병합,
-  최신 fetchedAt 승자 (수동 가져오기가 최신이면 유지).
-- `scripts/cosmos-live.mts` — 실계정 연결 검증 도구(학번/비번
-  프롬프트 → connectSchool 실행 → 과목/수집 요약 + lms-data.json
-  저장; gitignore 처리됨).
-- `scripts/_run_tests.py` — 전체 테스트 매트릭스 러너.
-- 재배포: hansung-helper f4c193ce 라이브 (verify_prod 전체 200).
+- �궗�슜�옄 �솗�씤: COSMOS �뿰寃곗�� �씠誘� connectSchool�뿉 議댁옱(濡쒓렇�씤 �떆
+  �룷�꽭+LMS �꽭�뀡 + 怨쇰ぉ 紐⑸줉 �뙆�떛) ��� BE-1 蹂멸꺽 援ы쁽.
+- `lib/server/lms.ts` �떊洹� ��� Workers DOM �뾾�씠 �젙洹쒖떇�쑝濡� dotbugi
+  ����젆�꽣 怨꾩빟 �룷�똿: parseAssigns/parseQuizList(generaltable c0~c3),
+  hasQuizAttempt(quizattemptsummary), parseProgress(thead �룞�쟻 而щ읆
+  + 異쒖꽍�씤�젙 �슂援ъ떆媛� 而щ읆 �젣�쇅 + rowspan/colspan �룊�깂�솕 + �씪愿꾩텧�꽍
+  �씤�젙), parseVodRanges(modtype_vod li쨌dimmed �젣�쇅쨌accesshide �젣嫄�),
+  collectLms(怨쇰ぉ �닚李� + 24s �삁�궛 + allSettled 遺�遺� �떎�뙣 errors[]).
+  normDate�뒗 �뀈�썡�씪/亮닸쐢�뿥 �뼇�떇 紐⑤몢 吏��썝(collector �솗�옣).
+- `school.ts`: SchoolSnapshot.lmsData?: LmsSnapshot + connectSchool�씠
+  LMS �뿰寃� �꽦怨� �떆 collectLms �샇異�(�떎�뙣�빐�룄 濡쒓렇�씤 �쑀吏�).
+- `page.tsx`: accountData() ��� profile怨� snapshot.lmsData 蹂묓빀,
+  理쒖떊 fetchedAt �듅�옄 (�닔�룞 媛��졇�삤湲곌�� 理쒖떊�씠硫� �쑀吏�).
+- `scripts/cosmos-live.mts` ��� �떎怨꾩젙 �뿰寃� 寃�利� �룄援�(�븰踰�/鍮꾨쾲
+  �봽濡ы봽�듃 �넂 connectSchool �떎�뻾 �넂 怨쇰ぉ/�닔吏� �슂�빟 + lms-data.json
+  ����옣; gitignore 泥섎━�맖).
+- `scripts/_run_tests.py` ��� �쟾泥� �뀒�뒪�듃 留ㅽ듃由��뒪 �윭�꼫.
+- �옱諛고룷: hansung-helper f4c193ce �씪�씠釉� (verify_prod �쟾泥� 200).
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 실계정 end-to-end: cosmos-live.mts로 실제 학번 검증(needs-human —
-  자격증명). 셀렉터 불일치 발견 시 파서 보정.
-2. 프로덕션 실계정 한 바퀴(가입→저장→재로그인→수업 현황 자동 채움).
-3. needs-verification: ISSUE-23 + BE-1 + 잔여(18, 21, 22, 20).
-4. 로그인 지연 관찰 — 수집 예산 24s가 UX에 주는 영향 검토(과목 많을
-  때 ~15-25s). 필요하면 ctx.waitUntil 비동기 수집 설계(BE-2와 연계).
+1. �떎怨꾩젙 end-to-end: cosmos-live.mts濡� �떎�젣 �븰踰� 寃�利�(needs-human ���
+  �옄寃⑹쬆紐�). ����젆�꽣 遺덉씪移� 諛쒓껄 �떆 �뙆�꽌 蹂댁젙.
+2. �봽濡쒕뜒�뀡 �떎怨꾩젙 �븳 諛뷀��(媛��엯�넂����옣�넂�옱濡쒓렇�씤�넂�닔�뾽 �쁽�솴 �옄�룞 梨꾩��).
+3. needs-verification: ISSUE-23 + BE-1 + �옍�뿬(18, 21, 22, 20).
+4. 濡쒓렇�씤 吏��뿰 愿�李� ��� �닔吏� �삁�궛 24s媛� UX�뿉 二쇰뒗 �쁺�뼢 寃��넗(怨쇰ぉ 留롮쓣
+  �븣 ~15-25s). �븘�슂�븯硫� ctx.waitUntil 鍮꾨룞湲� �닔吏� �꽕怨�(BE-2��� �뿰怨�).
 
-BLOCKER: 실계정 검증만 남음 — credentials는 사용자만 보유.
+BLOCKER: �떎怨꾩젙 寃�利앸쭔 �궓�쓬 ��� credentials�뒗 �궗�슜�옄留� 蹂댁쑀.
 
-TESTS: lms-server 35/35, 전체 매트릭스 11파일 OK(_run_tests.py),
+TESTS: lms-server 35/35, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK(_run_tests.py),
 tsc clean, oxlint 0 err, root+deploy build green, prod verify PASS.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: BE-1 파서는 fixture 테스트로 검증됐으나 실제
-COSMOS 페이지 대비 검증 미완 — 실계정 확인 전까지 needs-verification.
+VERIFICATION STATUS: BE-1 �뙆�꽌�뒗 fixture �뀒�뒪�듃濡� 寃�利앸릱�쑝�굹 �떎�젣
+COSMOS �럹�씠吏� ���鍮� 寃�利� 誘몄셿 ��� �떎怨꾩젙 �솗�씤 �쟾源뚯�� needs-verification.
 
 
 ---
 
-## 2026-09-18 — 로그인 지연 비동기화 + 브랜드/로딩/PWA 개선 (user-requested)
+## 2026-09-18 ��� 濡쒓렇�씤 吏��뿰 鍮꾨룞湲고솕 + 釉뚮옖�뱶/濡쒕뵫/PWA 媛쒖꽑 (user-requested)
 
 DONE:
-- 로그인 지연 해소(BE-2 선행): `connectSchool`에 `deferLms` 옵션 추가 —
-  포털+LMS 인증까지만 동기로 끝내고 상세 수집은 클로저로 이관.
-  `login/route.ts`가 `cloudflare:workers` `waitUntil`로 수집 후
-  `json_patch`로 `snapshot.lmsData` 병합 — `checkedAt` 가드로 지연
-  쓰기가 새 로그인 스냅샷을 덮지 않게 방지. 기존 호출자는 동기 수집 유지.
-  `page.tsx`는 `lms==='connected' && !data.lms`일 때 `/api/account`를
-  6s 후 8s 간격 ×8회 폴링, 최신 `fetchedAt`만 반영. `lms.tsx`에
-  `serverCollecting` "서버에서 수집 중입니다…" 상태.
-- 스켈레톤 로딩: `app/sections/skeleton.tsx` 신규(SkeletonCards/
+- 濡쒓렇�씤 吏��뿰 �빐�냼(BE-2 �꽑�뻾): `connectSchool`�뿉 `deferLms` �샃�뀡 異붽�� ���
+  �룷�꽭+LMS �씤利앷퉴吏�留� �룞湲곕줈 �걹�궡怨� �긽�꽭 �닔吏묒�� �겢濡쒖��濡� �씠愿�.
+  `login/route.ts`媛� `cloudflare:workers` `waitUntil`濡� �닔吏� �썑
+  `json_patch`濡� `snapshot.lmsData` 蹂묓빀 ��� `checkedAt` 媛��뱶濡� 吏��뿰
+  �벐湲곌�� �깉 濡쒓렇�씤 �뒪�깄�꺑�쓣 �뜮吏� �븡寃� 諛⑹��. 湲곗〈 �샇異쒖옄�뒗 �룞湲� �닔吏� �쑀吏�.
+  `page.tsx`�뒗 `lms==='connected' && !data.lms`�씪 �븣 `/api/account`瑜�
+  6s �썑 8s 媛꾧꺽 횞8�쉶 �뤃留�, 理쒖떊 `fetchedAt`留� 諛섏쁺. `lms.tsx`�뿉
+  `serverCollecting` "�꽌踰꾩뿉�꽌 �닔吏� 以묒엯�땲�떎���" �긽�깭.
+- �뒪耳덈젅�넠 濡쒕뵫: `app/sections/skeleton.tsx` �떊洹�(SkeletonCards/
   SkeletonRows/SkeletonDetail, `<output>` status role + sr-only +
-  reduced-motion 대응) + globals.css `.sk-*` 프리미티브. 적용:
-  courses 목록/상세, activities, calendar 목록/상세, timetable 과목
-  목록 — 텍스트 "불러오는 중" 대체, 실패·빈 상태는 유지.
-- 브랜드 로고 "학사모×나침반": public/logo.svg(그라디언트 타일),
-  favicon.svg 교체(템플릿 파란 아이콘 제거), logo-mark.svg,
-  `app/logo.tsx`(`currentColor` 공용 컴포넌트) — 사이드바·로그인
-  3곳의 Lucide GraduationCap 대체.
+  reduced-motion ����쓳) + globals.css `.sk-*` �봽由щ�명떚釉�. �쟻�슜:
+  courses 紐⑸줉/�긽�꽭, activities, calendar 紐⑸줉/�긽�꽭, timetable 怨쇰ぉ
+  紐⑸줉 ��� �뀓�뒪�듃 "遺덈윭�삤�뒗 以�" ���泥�, �떎�뙣쨌鍮� �긽�깭�뒗 �쑀吏�.
+- 釉뚮옖�뱶 濡쒓퀬 "�븰�궗紐㉲쀫굹移⑤컲": public/logo.svg(洹몃씪�뵒�뼵�듃 ����씪),
+  favicon.svg 援먯껜(�뀥�뵆由� �뙆��� �븘�씠肄� �젣嫄�), logo-mark.svg,
+  `app/logo.tsx`(`currentColor` 怨듭슜 而댄룷�꼳�듃) ��� �궗�씠�뱶諛붋룸줈洹몄씤
+  3怨녹쓽 Lucide GraduationCap ���泥�.
 - PWA/OG: manifest.webmanifest(standalone, theme #5645d4, 192/512/
-  maskable 아이콘), apple-touch-icon.png 180, og.png 1200×630(네이비
-  배경+로고타일+한글 타이포, `scripts/_gen_brand_assets.mjs`로 생성 —
-  sharp는 --no-save 로컬 전용). layout.tsx: metadataBase, icons.apple,
-  manifest, appleWebApp, openGraph + `export const viewport`로
-  theme-color. wrangler dev 실서빙에서 태그 출력 확인(OG/트위터 카드
-  자동 채움 포함).
-- 프린트: globals.css `@media print` — 사이드바/상단바/과목 목록/추천
-  패널/버튼류 숨기고 시간표 그리드만 출력, 블록 색상은
-  print-color-adjust로 보존.
-- ISSUE-23 후속 2건: `staleDays(snap, now)` + 수집 7일 경과 시
-  `.lms-stale` 배너(다시 가져오기 버튼). advisor 자유질문
-  `searchAll`에 LMS 수강 과목 포함(5번째 인자, 합산 cap 10, route
-  'lms', 'COSMOS 수업 현황 · 수강 중' 부제) + 근거 문구에 COSMOS 표기.
-- ISSUE-21/22 구현 리뷰: 코드가 Done 스펙과 일치함 확인(테스트 커버
-  존재) — 독립 검증 라벨은 별 세션 필요로 유지.
-- `published-personal` 동기화 + 독립 빌드 green + 사용자 승인 후
-  `_deploy.py` 재배포 — hansung-helper version 567e6236 라이브,
-  신규 에셋 15개 업로드(로고/favicon/manifest/icons/og.png).
-  `_verify_prod.py` 전체 200 + 라이브 HTML에 OG/theme-color/manifest/
-  apple-touch 태그 출력 확인.
+  maskable �븘�씠肄�), apple-touch-icon.png 180, og.png 1200횞630(�꽕�씠鍮�
+  諛곌꼍+濡쒓퀬����씪+�븳湲� ����씠�룷, `scripts/_gen_brand_assets.mjs`濡� �깮�꽦 ���
+  sharp�뒗 --no-save 濡쒖뺄 �쟾�슜). layout.tsx: metadataBase, icons.apple,
+  manifest, appleWebApp, openGraph + `export const viewport`濡�
+  theme-color. wrangler dev �떎�꽌鍮숈뿉�꽌 �깭洹� 異쒕젰 �솗�씤(OG/�듃�쐞�꽣 移대뱶
+  �옄�룞 梨꾩�� �룷�븿).
+- �봽由고듃: globals.css `@media print` ��� �궗�씠�뱶諛�/�긽�떒諛�/怨쇰ぉ 紐⑸줉/異붿쿇
+  �뙣�꼸/踰꾪듉瑜� �닲湲곌퀬 �떆媛꾪몴 洹몃━�뱶留� 異쒕젰, 釉붾줉 �깋�긽���
+  print-color-adjust濡� 蹂댁〈.
+- ISSUE-23 �썑�냽 2嫄�: `staleDays(snap, now)` + �닔吏� 7�씪 寃쎄낵 �떆
+  `.lms-stale` 諛곕꼫(�떎�떆 媛��졇�삤湲� 踰꾪듉). advisor �옄�쑀吏덈Ц
+  `searchAll`�뿉 LMS �닔媛� 怨쇰ぉ �룷�븿(5踰덉㎏ �씤�옄, �빀�궛 cap 10, route
+  'lms', 'COSMOS �닔�뾽 �쁽�솴 쨌 �닔媛� 以�' 遺��젣) + 洹쇨굅 臾멸뎄�뿉 COSMOS �몴湲�.
+- ISSUE-21/22 援ы쁽 由щ럭: 肄붾뱶媛� Done �뒪�럺怨� �씪移섑븿 �솗�씤(�뀒�뒪�듃 而ㅻ쾭
+  議댁옱) ��� �룆由� 寃�利� �씪踰⑥�� 蹂� �꽭�뀡 �븘�슂濡� �쑀吏�.
+- `published-personal` �룞湲고솕 + �룆由� 鍮뚮뱶 green + �궗�슜�옄 �듅�씤 �썑
+  `_deploy.py` �옱諛고룷 ��� hansung-helper version 567e6236 �씪�씠釉�,
+  �떊洹� �뿉�뀑 15媛� �뾽濡쒕뱶(濡쒓퀬/favicon/manifest/icons/og.png).
+  `_verify_prod.py` �쟾泥� 200 + �씪�씠釉� HTML�뿉 OG/theme-color/manifest/
+  apple-touch �깭洹� 異쒕젰 �솗�씤.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 실계정 end-to-end: cosmos-live.mts 실학번 검증 + 프로덕션
-   가입→재로그인→waitUntil 수집 도착 관찰(needs-human).
-2. 잔여: ISSUE-20 yearTable→졸업엔진 연동, ISSUE-6 ruleset 선택+
-   in-progress, BE-3 공개 스냅샷 D1 이관, 알림 패널/토스트 큐 등
-   디자인 스펙 §13 항목.
+1. �떎怨꾩젙 end-to-end: cosmos-live.mts �떎�븰踰� 寃�利� + �봽濡쒕뜒�뀡
+   媛��엯�넂�옱濡쒓렇�씤�넂waitUntil �닔吏� �룄李� 愿�李�(needs-human).
+2. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏� �뿰�룞, ISSUE-6 ruleset �꽑�깮+
+   in-progress, BE-3 怨듦컻 �뒪�깄�꺑 D1 �씠愿�, �븣由� �뙣�꼸/�넗�뒪�듃 �걧 �벑
+   �뵒�옄�씤 �뒪�럺 짠13 �빆紐�.
 
-BLOCKER: 실계정 검증(credentials)은 사용자 영역.
+BLOCKER: �떎怨꾩젙 寃�利�(credentials)��� �궗�슜�옄 �쁺�뿭.
 
-TESTS: 전체 매트릭스 11파일 OK(_run_tests.py — school deferLms 테스트
-포함 6/6, search 14/14, lms 25/25), tsc clean, oxlint 0 err,
-root+published-personal build green, 로컬 dev 실서빙 메타태그 확인.
+TESTS: �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK(_run_tests.py ��� school deferLms �뀒�뒪�듃
+�룷�븿 6/6, search 14/14, lms 25/25), tsc clean, oxlint 0 err,
+root+published-personal build green, 濡쒖뺄 dev �떎�꽌鍮� 硫뷀���깭洹� �솗�씤.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: deferLms는 mocked fetch 테스트로 검증 —
-waitUntil 실동작은 프로덕션/실계정에서 미검증. 스켈레톤·PWA·프린트는
-빌드+실서빙 확인. ISSUE-21/22는 구현 리뷰+기존 테스트 확인 수준 —
-independent verification 라벨은 fresh session 필요.
+VERIFICATION STATUS: deferLms�뒗 mocked fetch �뀒�뒪�듃濡� 寃�利� ���
+waitUntil �떎�룞�옉��� �봽濡쒕뜒�뀡/�떎怨꾩젙�뿉�꽌 誘멸��利�. �뒪耳덈젅�넠쨌PWA쨌�봽由고듃�뒗
+鍮뚮뱶+�떎�꽌鍮� �솗�씤. ISSUE-21/22�뒗 援ы쁽 由щ럭+湲곗〈 �뀒�뒪�듃 �솗�씤 �닔以� ���
+independent verification �씪踰⑥�� fresh session �븘�슂.
 
 ---
 
-## 2026-09-19 — 실계정 프로덕션 검증 + 병렬 수집 버그 수정 (user-requested)
+## 2026-09-19 ��� �떎怨꾩젙 �봽濡쒕뜒�뀡 寃�利� + 蹂묐젹 �닔吏� 踰꾧렇 �닔�젙 (user-requested)
 
 DONE:
-- 실계정(학번 25•••37) end-to-end 검증 완료 — 로컬 Node connectSchool
-  18s 수집 성공(vod 45/55, 과제 7, 퀴즈 4), 프로덕션 waitUntil 경로
-  lmsData 도착 확인(응답 5.1s → 수집 완료 ~31s, 폴링으로 승격).
-- 프로덕션 수집 0건 버그 수정: 같은 Moodle 세션으로의 병렬 요청
-  (Promise.allSettled ×4/과목)이 리다이렉트/빈 페이지를 유발 —
-  PHP 세션 락 직렬화 특성. `collectLms`를 과목 내 완전 직렬화로 변경
-  + 퀴즈 상세도 직렬. 재배포 후 vod 55·과제 7·퀴즈 4로 로컬과 정확히
-  일치(errors 전부 비어있음).
-- `collectLms` `html()` 헬퍼가 응답을 검증: 비-200이거나
-  /login/logout.php 마커 없으면 [lms] fetch 로그+throw → 세션 만료/
-  리다이렉트를 빈 결과로 삼키지 않고 errors[]로 표면화. fetchVods는
-  모든 URL 요청 실패 시 throw(=vod 오류), 표 없는 정상 페이지는
-  빈 결과 유지로 구분.
-- COLLECT_BUDGET_MS 24000→60000 (직렬화로 수집 시간 증가 대응 —
-  waitUntil 내라 응답 지연과 무관).
-- 임시 [lms] 로깅 정리: 로그인 성공 경로 로그 제거, 실패 진단만 유지
-  (connect failed + fetch 비정상 — 상태/호스트만, 개인정보 없음).
-- tests/lms-server.test.mjs +4: fixture에 logout 마커 추가, 세션 만료
-  →errors 표면화, 표 없음→정상 빈 결과 회귀 커버 (40/40).
-- 원격 D1 조회 헬퍼 scripts/_d1q.mjs — wrangler 직접 spawn으로
-  Windows 인용 문제 우회(쿼리 결과 JSON 반환).
-- 재배포: version 27d739a4 라이브.
+- �떎怨꾩젙(�븰踰� 25��™�™��37) end-to-end 寃�利� �셿猷� ��� 濡쒖뺄 Node connectSchool
+  18s �닔吏� �꽦怨�(vod 45/55, 怨쇱젣 7, ��댁쫰 4), �봽濡쒕뜒�뀡 waitUntil 寃쎈줈
+  lmsData �룄李� �솗�씤(�쓳�떟 5.1s �넂 �닔吏� �셿猷� ~31s, �뤃留곸쑝濡� �듅寃�).
+- �봽濡쒕뜒�뀡 �닔吏� 0嫄� 踰꾧렇 �닔�젙: 媛숈�� Moodle �꽭�뀡�쑝濡쒖쓽 蹂묐젹 �슂泥�
+  (Promise.allSettled 횞4/怨쇰ぉ)�씠 由щ떎�씠�젆�듃/鍮� �럹�씠吏�瑜� �쑀諛� ���
+  PHP �꽭�뀡 �씫 吏곷젹�솕 �듅�꽦. `collectLms`瑜� 怨쇰ぉ �궡 �셿�쟾 吏곷젹�솕濡� 蹂�寃�
+  + ��댁쫰 �긽�꽭�룄 吏곷젹. �옱諛고룷 �썑 vod 55쨌怨쇱젣 7쨌��댁쫰 4濡� 濡쒖뺄怨� �젙�솗�엳
+  �씪移�(errors �쟾遺� 鍮꾩뼱�엳�쓬).
+- `collectLms` `html()` �뿬�띁媛� �쓳�떟�쓣 寃�利�: 鍮�-200�씠嫄곕굹
+  /login/logout.php 留덉빱 �뾾�쑝硫� [lms] fetch 濡쒓렇+throw �넂 �꽭�뀡 留뚮즺/
+  由щ떎�씠�젆�듃瑜� 鍮� 寃곌낵濡� �궪�궎吏� �븡怨� errors[]濡� �몴硫댄솕. fetchVods�뒗
+  紐⑤뱺 URL �슂泥� �떎�뙣 �떆 throw(=vod �삤瑜�), �몴 �뾾�뒗 �젙�긽 �럹�씠吏��뒗
+  鍮� 寃곌낵 �쑀吏�濡� 援щ텇.
+- COLLECT_BUDGET_MS 24000�넂60000 (吏곷젹�솕濡� �닔吏� �떆媛� 利앷�� ����쓳 ���
+  waitUntil �궡�씪 �쓳�떟 吏��뿰怨� 臾닿��).
+- �엫�떆 [lms] 濡쒓퉭 �젙由�: 濡쒓렇�씤 �꽦怨� 寃쎈줈 濡쒓렇 �젣嫄�, �떎�뙣 吏꾨떒留� �쑀吏�
+  (connect failed + fetch 鍮꾩젙�긽 ��� �긽�깭/�샇�뒪�듃留�, 媛쒖씤�젙蹂� �뾾�쓬).
+- tests/lms-server.test.mjs +4: fixture�뿉 logout 留덉빱 異붽��, �꽭�뀡 留뚮즺
+  �넂errors �몴硫댄솕, �몴 �뾾�쓬�넂�젙�긽 鍮� 寃곌낵 �쉶洹� 而ㅻ쾭 (40/40).
+- �썝寃� D1 議고쉶 �뿬�띁 scripts/_d1q.mjs ��� wrangler 吏곸젒 spawn�쑝濡�
+  Windows �씤�슜 臾몄젣 �슦�쉶(荑쇰━ 寃곌낵 JSON 諛섑솚).
+- �옱諛고룷: version 27d739a4 �씪�씠釉�.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 잔여: ISSUE-20 yearTable→졸업엔진 연동, ISSUE-6 ruleset 선택+
-   in-progress, BE-3 공개 스냅샷 D1 이관, 알림 패널/토스트 큐 등
-   디자인 스펙 §13 항목.
-2. 다른 계정에서도 동일 수집 경로가 동작하는지 관찰(추가 실계정 발생 시).
+1. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏� �뿰�룞, ISSUE-6 ruleset �꽑�깮+
+   in-progress, BE-3 怨듦컻 �뒪�깄�꺑 D1 �씠愿�, �븣由� �뙣�꼸/�넗�뒪�듃 �걧 �벑
+   �뵒�옄�씤 �뒪�럺 짠13 �빆紐�.
+2. �떎瑜� 怨꾩젙�뿉�꽌�룄 �룞�씪 �닔吏� 寃쎈줈媛� �룞�옉�븯�뒗吏� 愿�李�(異붽�� �떎怨꾩젙 諛쒖깮 �떆).
 
-BLOCKER: none — 실계정 검증 완료.
+BLOCKER: none ��� �떎怨꾩젙 寃�利� �셿猷�.
 
 TESTS: tsc clean, oxlint 0 err, school 6/6, lms-server 40/40,
-root+published-personal build green, 프로덕션 실계정 e2e PASS
-(45/55 vod = 로컬과 동일).
+root+published-personal build green, �봽濡쒕뜒�뀡 �떎怨꾩젙 e2e PASS
+(45/55 vod = 濡쒖뺄怨� �룞�씪).
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: waitUntil 비동기 수집 + 직렬화 수집이 프로덕션
-실계정에서 검증됨. ISSUE-21/22는 여전히 fresh-session 독립 검증 필요.
+VERIFICATION STATUS: waitUntil 鍮꾨룞湲� �닔吏� + 吏곷젹�솕 �닔吏묒씠 �봽濡쒕뜒�뀡
+�떎怨꾩젙�뿉�꽌 寃�利앸맖. ISSUE-21/22�뒗 �뿬�쟾�엳 fresh-session �룆由� 寃�利� �븘�슂.
 
 ---
 
-## 2026-09-19 — LMS 실데이터 활용 + 알림 패널 (user-requested 자율)
+## 2026-09-19 ��� LMS �떎�뜲�씠�꽣 �솢�슜 + �븣由� �뙣�꼸 (user-requested �옄�쑉)
 
 DONE:
-- 홈 "이번 주 수업" 위젯(home.tsx): `dueSoon(data.lms, now, 7)` 상위 4건을
-  D-day 칩 + COSMOS 딥링크로 표시. 마감 없으면 미완료 건수 안내,
-  `pendingTasks` 0이면 섹션 미렌더. 하단 "학습 일정" 카드도 LMS 데이터
-  유무 분기로 갱신(미수집 안내문 제거).
-- 캘린더 "수업 마감" 병합(calendar.tsx): `dueSoon(lms, now, 14)` 최대
-  8건을 공식 일정 아래 수업 카테고리로 표시 — COSMOS 수집일·과목·kind
-  병기, data.lms 없으면 미렌더.
-- 알림 슬라이드오버(spec §8): 벨 클릭이 페이지 이동 대신 우측
-  `<dialog>` 패널 — 분류 칩 필터(aria-pressed), 읽지 않음 카운트,
-  모두 읽음, 항목 이동 시 패널 닫힘, Esc/스크림 닫기, 전체 알림함 링크.
-  Topbar에 `onBell` prop 추가, page.tsx가 notifItems를 한 번만 도출해
-  배지·패널이 공유. `.notif-panel` CSS — `<dialog>` UA 스타일 리셋 +
-  축소 애니메이션(reduced-motion 대응).
-- `NotifRow`로 알림 행 마크업 공용화(알림함 페이지·패널 동일 사용).
-- 재배포: version d5f85822 라이브.
+- �솃 "�씠踰� 二� �닔�뾽" �쐞�젽(home.tsx): `dueSoon(data.lms, now, 7)` �긽�쐞 4嫄댁쓣
+  D-day 移� + COSMOS �뵦留곹겕濡� �몴�떆. 留덇컧 �뾾�쑝硫� 誘몄셿猷� 嫄댁닔 �븞�궡,
+  `pendingTasks` 0�씠硫� �꽮�뀡 誘몃젋�뜑. �븯�떒 "�븰�뒿 �씪�젙" 移대뱶�룄 LMS �뜲�씠�꽣
+  �쑀臾� 遺꾧린濡� 媛깆떊(誘몄닔吏� �븞�궡臾� �젣嫄�).
+- 罹섎┛�뜑 "�닔�뾽 留덇컧" 蹂묓빀(calendar.tsx): `dueSoon(lms, now, 14)` 理쒕��
+  8嫄댁쓣 怨듭떇 �씪�젙 �븘�옒 �닔�뾽 移댄뀒怨좊━濡� �몴�떆 ��� COSMOS �닔吏묒씪쨌怨쇰ぉ쨌kind
+  蹂묎린, data.lms �뾾�쑝硫� 誘몃젋�뜑.
+- �븣由� �뒳�씪�씠�뱶�삤踰�(spec 짠8): 踰� �겢由��씠 �럹�씠吏� �씠�룞 ����떊 �슦痢�
+  `<dialog>` �뙣�꼸 ��� 遺꾨쪟 移� �븘�꽣(aria-pressed), �씫吏� �븡�쓬 移댁슫�듃,
+  紐⑤몢 �씫�쓬, �빆紐� �씠�룞 �떆 �뙣�꼸 �떕�옒, Esc/�뒪�겕由� �떕湲�, �쟾泥� �븣由쇳븿 留곹겕.
+  Topbar�뿉 `onBell` prop 異붽��, page.tsx媛� notifItems瑜� �븳 踰덈쭔 �룄異쒗빐
+  諛곗��쨌�뙣�꼸�씠 怨듭쑀. `.notif-panel` CSS ��� `<dialog>` UA �뒪����씪 由ъ뀑 +
+  異뺤냼 �븷�땲硫붿씠�뀡(reduced-motion ����쓳).
+- `NotifRow`濡� �븣由� �뻾 留덊겕�뾽 怨듭슜�솕(�븣由쇳븿 �럹�씠吏�쨌�뙣�꼸 �룞�씪 �궗�슜).
+- �옱諛고룷: version d5f85822 �씪�씠釉�.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, BE-3 D1 이관,
-   토스트 큐, 수강 과목→시간표 연동, 에러 재시도 표준화 등
-   (사용자 리스트업 문서의 A/B/C/D 항목).
-2. needs-verification 큐는 fresh-session 독립 검증 필요.
+1. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏�, ISSUE-6, BE-3 D1 �씠愿�,
+   �넗�뒪�듃 �걧, �닔媛� 怨쇰ぉ�넂�떆媛꾪몴 �뿰�룞, �뿉�윭 �옱�떆�룄 �몴以��솕 �벑
+   (�궗�슜�옄 由ъ뒪�듃�뾽 臾몄꽌�쓽 A/B/C/D �빆紐�).
+2. needs-verification �걧�뒗 fresh-session �룆由� 寃�利� �븘�슂.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(lms-server 40/40, search 14/14, notifs 11/11), root+deploy 빌드 green.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(lms-server 40/40, search 14/14, notifs 11/11), root+deploy 鍮뚮뱶 green.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트 수준 — 실기기
-시각 확인은 미수행. 기존 검증 라벨 상태 불변.
+VERIFICATION STATUS: �떊洹� UI 3嫄댁�� 鍮뚮뱶+����엯+由고듃 �닔以� ��� �떎湲곌린
+�떆媛� �솗�씤��� 誘몄닔�뻾. 湲곗〈 寃�利� �씪踰� �긽�깭 遺덈��.
 
 ---
 
-## 2026-09-19 — 에러 재시도 표준화 + 토스트 큐 + 주차별 진도 (user-requested 자율)
+## 2026-09-19 ��� �뿉�윭 �옱�떆�룄 �몴以��솕 + �넗�뒪�듃 �걧 + 二쇱감蹂� 吏꾨룄 (user-requested �옄�쑉)
 
 DONE:
-- C15 API 실패 재시도 표준화(spec §13): catalog.ts 4개 훅
-  (useCatalog/useActivities/useSchedule/useDeptRules)에 retry() 추가 —
-  실패 시 모듈 캐시는 loader가 비우므로 재호출=실제 재요청, tick 상태로
-  effect 재실행, unmount 가드 유지. skeleton.tsx에 공용 `RetryButton`
-  ("다시 시도" link 버튼) 추가. 배선: courses(상세+헤드), timetable
-  (헤드+목록), activities(empty-small에 hsportal 링크와 병기),
-  calendar(목록+상세 2곳). advisor 텍스트 답변·graduation의 deptRules
-  은닉(graceful)은 표시 대상 아님 — 현행 유지.
-- C14 토스트 큐(spec §8): chrome.tsx에 `useToasts` 훅 + `ToastStack`
-  컴포넌트. 동일 문구 푸시는 병합(×N 배지, 타이머 재시작 — v 버전 키로
-  타이머 교체), 동시 표시 최근 3개(slice -TOAST_MAX), 항목별 5초 자동
-  닫힘+개별 닫기. `.toast`를 `.toast-stack` 고정 컨테이너의 플렉스
-  아이템으로 변경, 모바일·print 규칙 동기화. push(msg) 시그니처라
-  기존 notify=setToast 호출처 무변경.
-- A4 LMS 주차별 vod 진도(lms.tsx): lib/data/lms.ts에 `weekProgress(c)`
-  추가 — vod.week 그룹화(미기재 항목 제외, 주차를 지어내지 않음),
-  주차 오름차순, done/total + 첫 항목 range. 과목 카드 details 안에
-  `.lms-weeks` 그리드 — 주차·분수·미니 progress-track·기간 축약
-  (MM-DD ~ MM-DD), 완료 주차는 mint 틴트. week 없는 과목은 미렌더.
-- 재배포: version 097ac9ad 라이브, _verify_prod 전 엔드포인트 200.
+- C15 API �떎�뙣 �옱�떆�룄 �몴以��솕(spec 짠13): catalog.ts 4媛� �썒
+  (useCatalog/useActivities/useSchedule/useDeptRules)�뿉 retry() 異붽�� ���
+  �떎�뙣 �떆 紐⑤뱢 罹먯떆�뒗 loader媛� 鍮꾩슦誘�濡� �옱�샇異�=�떎�젣 �옱�슂泥�, tick �긽�깭濡�
+  effect �옱�떎�뻾, unmount 媛��뱶 �쑀吏�. skeleton.tsx�뿉 怨듭슜 `RetryButton`
+  ("�떎�떆 �떆�룄" link 踰꾪듉) 異붽��. 諛곗꽑: courses(�긽�꽭+�뿤�뱶), timetable
+  (�뿤�뱶+紐⑸줉), activities(empty-small�뿉 hsportal 留곹겕��� 蹂묎린),
+  calendar(紐⑸줉+�긽�꽭 2怨�). advisor �뀓�뒪�듃 �떟蹂�쨌graduation�쓽 deptRules
+  ����땳(graceful)��� �몴�떆 ����긽 �븘�떂 ��� �쁽�뻾 �쑀吏�.
+- C14 �넗�뒪�듃 �걧(spec 짠8): chrome.tsx�뿉 `useToasts` �썒 + `ToastStack`
+  而댄룷�꼳�듃. �룞�씪 臾멸뎄 �뫖�떆�뒗 蹂묓빀(횞N 諛곗��, ����씠癒� �옱�떆�옉 ��� v 踰꾩쟾 �궎濡�
+  ����씠癒� 援먯껜), �룞�떆 �몴�떆 理쒓렐 3媛�(slice -TOAST_MAX), �빆紐⑸퀎 5珥� �옄�룞
+  �떕�옒+媛쒕퀎 �떕湲�. `.toast`瑜� `.toast-stack` 怨좎젙 而⑦뀒�씠�꼫�쓽 �뵆�젆�뒪
+  �븘�씠�뀥�쑝濡� 蹂�寃�, 紐⑤컮�씪쨌print 洹쒖튃 �룞湲고솕. push(msg) �떆洹몃땲泥섎씪
+  湲곗〈 notify=setToast �샇異쒖쿂 臾대��寃�.
+- A4 LMS 二쇱감蹂� vod 吏꾨룄(lms.tsx): lib/data/lms.ts�뿉 `weekProgress(c)`
+  異붽�� ��� vod.week 洹몃９�솕(誘멸린�옱 �빆紐� �젣�쇅, 二쇱감瑜� 吏��뼱�궡吏� �븡�쓬),
+  二쇱감 �삤由꾩감�닚, done/total + 泥� �빆紐� range. 怨쇰ぉ 移대뱶 details �븞�뿉
+  `.lms-weeks` 洹몃━�뱶 ��� 二쇱감쨌遺꾩닔쨌誘몃땲 progress-track쨌湲곌컙 異뺤빟
+  (MM-DD ~ MM-DD), �셿猷� 二쇱감�뒗 mint �떞�듃. week �뾾�뒗 怨쇰ぉ��� 誘몃젋�뜑.
+- �옱諛고룷: version 097ac9ad �씪�씠釉�, _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, BE-3 D1 이관,
-   수강 과목→시간표 연동(A3), LMS 부분수집 재시도 UX, 사이드바 축약,
-   설정 화면/접근성 항목 등.
-2. needs-verification 큐는 fresh-session 독립 검증 필요.
+1. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏�, ISSUE-6, BE-3 D1 �씠愿�,
+   �닔媛� 怨쇰ぉ�넂�떆媛꾪몴 �뿰�룞(A3), LMS 遺�遺꾩닔吏� �옱�떆�룄 UX, �궗�씠�뱶諛� 異뺤빟,
+   �꽕�젙 �솕硫�/�젒洹쇱꽦 �빆紐� �벑.
+2. needs-verification �걧�뒗 fresh-session �룆由� 寃�利� �븘�슂.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(lms 31/31 — weekProgress +6건), root+deploy 빌드 green.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(lms 31/31 ��� weekProgress +6嫄�), root+deploy 鍮뚮뱶 green.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 신규 UI 3건은 빌드+타입+린트+단위테스트 수준 —
-실기기 시각 확인 미수행. 기존 검증 라벨 상태 불변.
+VERIFICATION STATUS: �떊洹� UI 3嫄댁�� 鍮뚮뱶+����엯+由고듃+�떒�쐞�뀒�뒪�듃 �닔以� ���
+�떎湲곌린 �떆媛� �솗�씤 誘몄닔�뻾. 湲곗〈 寃�利� �씪踰� �긽�깭 遺덈��.
 
 ---
 
-## 2026-09-19 — 스케일 감사 + BE-3 공개 스냅샷 D1 이관 (user-requested, 1000+ 사용자 전제)
+## 2026-09-19 ��� �뒪耳��씪 媛먯궗 + BE-3 怨듦컻 �뒪�깄�꺑 D1 �씠愿� (user-requested, 1000+ �궗�슜�옄 �쟾�젣)
 
 DONE:
-- 계정 인프라 보안/스케일 감사 — 코드 리뷰로 확인된 기존 방어:
-  `__Host-` 쿠키(Secure/HttpOnly/SameSite=Lax), 세션 토큰 SHA-256 해시
-  저장·24h 만료·로그아웃 시 서버 삭제, 모든 변경 요청에
-  Origin+JSON content-type CSRF 검사, 로그인 레이트리밋 이중화
-  (IP 20회·계정 3회/15분, 해시 키), 모든 계정 응답 no-store/private
-  +Vary:Cookie, 프로필 PUT 200KB 캡+필드별 엄격 검증, 비밀번호
-  미저장·사용 후 즉시 폐기, 학번 해시+마스킹. 공개 API 4종에
-  max-age=300 캐시 헤더 이미 존재. 수정 필요 사항 없음 판정.
-- BE-3 구현 — 공개 스냅샷(courses/activities/schedule/dept-rules)을
-  D1 `public_snapshots(kind,part,payload,fetched_at,updated_at)`로 이관:
-  - `lib/server/snapshots.ts` `snapshotGet(kind, bundled, bundledAt)` —
-    D1 행이 번들보다 새롭거나 같으면 D1 페이로드를 원문 서빙, 아니면
-    번들 JSON 폴백. D1 미바인딩/오류/깨진 페이로드도 번들 폴백.
-    아이솔레이트 내 60초 캐시로 D1 읽기 최소화.
-  - D1 문장 크기 제한(SQLITE_TOOBIG, 213KB 단일 INSERT 실패) 대응:
-    페이로드를 60K자 part 청크로 분할 저장, 읽기 시 ORDER BY part로
-    재조립. gzip 대비 SQL로 내용 직접 조회 가능한 장점.
-  - `scripts/_publish_snapshots.mjs` — 4개 JSON 형식 검증(필수 키) 후
-    DROP/CREATE + DELETE+INSERT를 `--file`로 remote D1에 게시.
-    **크롤러→게시만으로 재배포 없이 데이터 갱신** 경로 확보.
-  - 4개 라우트를 snapshotGet 호출로 전환, 헤더 동일(max-age=300).
-  - drizzle/0001_public_snapshots.sql 스키마 기록(게시 스크립트가
-    DROP/CREATE하므로 수동 적용 불필요), AGENTS.md 운영 문서 갱신.
-- 재배포: version 627c5e1a 라이브. remote D1에 courses 4part 등
-  7행 게시 확인(_d1q.mjs), _verify_prod 전 엔드포인트 200 —
-  응답 바이트가 파일 원본과 일치(번들은 compact 재직렬화라 약간 작았음).
+- 怨꾩젙 �씤�봽�씪 蹂댁븞/�뒪耳��씪 媛먯궗 ��� 肄붾뱶 由щ럭濡� �솗�씤�맂 湲곗〈 諛⑹뼱:
+  `__Host-` 荑좏궎(Secure/HttpOnly/SameSite=Lax), �꽭�뀡 �넗�겙 SHA-256 �빐�떆
+  ����옣쨌24h 留뚮즺쨌濡쒓렇�븘�썐 �떆 �꽌踰� �궘�젣, 紐⑤뱺 蹂�寃� �슂泥��뿉
+  Origin+JSON content-type CSRF 寃��궗, 濡쒓렇�씤 �젅�씠�듃由щ컠 �씠以묓솕
+  (IP 20�쉶쨌怨꾩젙 3�쉶/15遺�, �빐�떆 �궎), 紐⑤뱺 怨꾩젙 �쓳�떟 no-store/private
+  +Vary:Cookie, �봽濡쒗븘 PUT 200KB 罹�+�븘�뱶蹂� �뾼寃� 寃�利�, 鍮꾨��踰덊샇
+  誘몄���옣쨌�궗�슜 �썑 利됱떆 �룓湲�, �븰踰� �빐�떆+留덉뒪�궧. 怨듦컻 API 4醫낆뿉
+  max-age=300 罹먯떆 �뿤�뜑 �씠誘� 議댁옱. �닔�젙 �븘�슂 �궗�빆 �뾾�쓬 �뙋�젙.
+- BE-3 援ы쁽 ��� 怨듦컻 �뒪�깄�꺑(courses/activities/schedule/dept-rules)�쓣
+  D1 `public_snapshots(kind,part,payload,fetched_at,updated_at)`濡� �씠愿�:
+  - `lib/server/snapshots.ts` `snapshotGet(kind, bundled, bundledAt)` ���
+    D1 �뻾�씠 踰덈뱾蹂대떎 �깉濡�嫄곕굹 媛숈쑝硫� D1 �럹�씠濡쒕뱶瑜� �썝臾� �꽌鍮�, �븘�땲硫�
+    踰덈뱾 JSON �뤃諛�. D1 誘몃컮�씤�뵫/�삤瑜�/源⑥쭊 �럹�씠濡쒕뱶�룄 踰덈뱾 �뤃諛�.
+    �븘�씠�넄�젅�씠�듃 �궡 60珥� 罹먯떆濡� D1 �씫湲� 理쒖냼�솕.
+  - D1 臾몄옣 �겕湲� �젣�븳(SQLITE_TOOBIG, 213KB �떒�씪 INSERT �떎�뙣) ����쓳:
+    �럹�씠濡쒕뱶瑜� 60K�옄 part 泥��겕濡� 遺꾪븷 ����옣, �씫湲� �떆 ORDER BY part濡�
+    �옱議곕┰. gzip ���鍮� SQL濡� �궡�슜 吏곸젒 議고쉶 媛��뒫�븳 �옣�젏.
+  - `scripts/_publish_snapshots.mjs` ��� 4媛� JSON �삎�떇 寃�利�(�븘�닔 �궎) �썑
+    DROP/CREATE + DELETE+INSERT瑜� `--file`濡� remote D1�뿉 寃뚯떆.
+    **�겕濡ㅻ윭�넂寃뚯떆留뚯쑝濡� �옱諛고룷 �뾾�씠 �뜲�씠�꽣 媛깆떊** 寃쎈줈 �솗蹂�.
+  - 4媛� �씪�슦�듃瑜� snapshotGet �샇異쒕줈 �쟾�솚, �뿤�뜑 �룞�씪(max-age=300).
+  - drizzle/0001_public_snapshots.sql �뒪�궎留� 湲곕줉(寃뚯떆 �뒪�겕由쏀듃媛�
+    DROP/CREATE�븯誘�濡� �닔�룞 �쟻�슜 遺덊븘�슂), AGENTS.md �슫�쁺 臾몄꽌 媛깆떊.
+- �옱諛고룷: version 627c5e1a �씪�씠釉�. remote D1�뿉 courses 4part �벑
+  7�뻾 寃뚯떆 �솗�씤(_d1q.mjs), _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200 ���
+  �쓳�떟 諛붿씠�듃媛� �뙆�씪 �썝蹂멸낵 �씪移�(踰덈뱾��� compact �옱吏곷젹�솕�씪 �빟媛� �옉�븯�쓬).
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, A3 수강 과목→시간표
-   연동, LMS 부분수집 재시도 UX, 사이드바 축약, 설정 화면/접근성.
-2. 스냅샷 자동 갱신(크론)은 Worker→학교 도달성 검증이 선행 필요 —
-   hsportal/hansung.ac.kr이 CF IP를 허용하는지 미확인.
-3. needs-verification 큐는 fresh-session 독립 검증 필요.
+1. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏�, ISSUE-6, A3 �닔媛� 怨쇰ぉ�넂�떆媛꾪몴
+   �뿰�룞, LMS 遺�遺꾩닔吏� �옱�떆�룄 UX, �궗�씠�뱶諛� 異뺤빟, �꽕�젙 �솕硫�/�젒洹쇱꽦.
+2. �뒪�깄�꺑 �옄�룞 媛깆떊(�겕濡�)��� Worker�넂�븰援� �룄�떖�꽦 寃�利앹씠 �꽑�뻾 �븘�슂 ���
+   hsportal/hansung.ac.kr�씠 CF IP瑜� �뿀�슜�븯�뒗吏� 誘명솗�씤.
+3. needs-verification �걧�뒗 fresh-session �룆由� 寃�利� �븘�슂.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err(44파일), root+deploy 빌드 green,
-_verify_prod 200 전체, remote D1 게시·조회 실측 확인.
+TESTS: tsc clean, oxlint 0 err(44�뙆�씪), root+deploy 鍮뚮뱶 green,
+_verify_prod 200 �쟾泥�, remote D1 寃뚯떆쨌議고쉶 �떎痢� �솗�씤.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: D1 경로는 행 존재+fetched_at 비교 로직+응답
-바이트 일치로 확인(페이로드 동일 시 경로 구분 불가 — 코드 경로상
-D1 우선 확실). 실사용 트래픽 하의 캐시 동작은 미관측.
+VERIFICATION STATUS: D1 寃쎈줈�뒗 �뻾 議댁옱+fetched_at 鍮꾧탳 濡쒖쭅+�쓳�떟
+諛붿씠�듃 �씪移섎줈 �솗�씤(�럹�씠濡쒕뱶 �룞�씪 �떆 寃쎈줈 援щ텇 遺덇�� ��� 肄붾뱶 寃쎈줈�긽
+D1 �슦�꽑 �솗�떎). �떎�궗�슜 �듃�옒�뵿 �븯�쓽 罹먯떆 �룞�옉��� 誘멸��痢�.
 
 ---
 
-## 2026-09-19 — A3 COSMOS 수강 과목 → 시간표 연동 (user-requested)
+## 2026-09-19 ��� A3 COSMOS �닔媛� 怨쇰ぉ �넂 �떆媛꾪몴 �뿰�룞 (user-requested)
 
 DONE:
 - `lib/data/lms.ts` `matchEnrollment(lms, catalog)` + `EnrolledMatch`
-  타입 추가. normTitle 정규화(괄호/대괄호 장식·학기 라벨·공백 제거,
-  소문자)로 카탈로그 과목명 인덱스 구성 — fuzzy/추정 매칭 없이
-  결정론적, 동명 과목은 분반 전체를 sections[]로 반환(임의 분반
-  배정 안 함), 매칭 없으면 빈 배열(미매칭 유지, 지어내지 않음).
-- `app/sections/timetable.tsx` `EnrolledStrip` — builder 헤드 아래
-  `<details>` 스트립. 요약 "COSMOS 수강 N과목 · 시간표 반영 M개",
-  과목별 상태: 매칭 없음(카탈로그에 없는 과목) / 이미 계획에 있음
-  (badge green) / 미반영("분반 N개 보기" → 카탈로그 정식명으로
-  setQ 필터). 수집 시점 스냅샷임을 명시하는 meta 문구 포함.
-- `learning.css` `.enrolled*` 스타일 추가.
-- tests/lms.test.mjs +4 (35/35): 정확 매칭·장식 제거·미매칭 빈 배열·
-  전 과목 반환 순서.
-- 재배포: version 7a77b266 라이브, _verify_prod 전 엔드포인트 200.
+  ����엯 異붽��. normTitle �젙洹쒗솕(愿꾪샇/���愿꾪샇 �옣�떇쨌�븰湲� �씪踰㉱룰났諛� �젣嫄�,
+  �냼臾몄옄)濡� 移댄깉濡쒓렇 怨쇰ぉ紐� �씤�뜳�뒪 援ъ꽦 ��� fuzzy/異붿젙 留ㅼ묶 �뾾�씠
+  寃곗젙濡좎쟻, �룞紐� 怨쇰ぉ��� 遺꾨컲 �쟾泥대�� sections[]濡� 諛섑솚(�엫�쓽 遺꾨컲
+  諛곗젙 �븞 �븿), 留ㅼ묶 �뾾�쑝硫� 鍮� 諛곗뿴(誘몃ℓ移� �쑀吏�, 吏��뼱�궡吏� �븡�쓬).
+- `app/sections/timetable.tsx` `EnrolledStrip` ��� builder �뿤�뱶 �븘�옒
+  `<details>` �뒪�듃由�. �슂�빟 "COSMOS �닔媛� N怨쇰ぉ 쨌 �떆媛꾪몴 諛섏쁺 M媛�",
+  怨쇰ぉ蹂� �긽�깭: 留ㅼ묶 �뾾�쓬(移댄깉濡쒓렇�뿉 �뾾�뒗 怨쇰ぉ) / �씠誘� 怨꾪쉷�뿉 �엳�쓬
+  (badge green) / 誘몃컲�쁺("遺꾨컲 N媛� 蹂닿린" �넂 移댄깉濡쒓렇 �젙�떇紐낆쑝濡�
+  setQ �븘�꽣). �닔吏� �떆�젏 �뒪�깄�꺑�엫�쓣 紐낆떆�븯�뒗 meta 臾멸뎄 �룷�븿.
+- `learning.css` `.enrolled*` �뒪����씪 異붽��.
+- tests/lms.test.mjs +4 (35/35): �젙�솗 留ㅼ묶쨌�옣�떇 �젣嫄걔룸�몃ℓ移� 鍮� 諛곗뿴쨌
+  �쟾 怨쇰ぉ 諛섑솚 �닚�꽌.
+- �옱諛고룷: version 7a77b266 �씪�씠釉�, _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 잔여: ISSUE-20 yearTable→졸업엔진, ISSUE-6, LMS 부분수집 재시도
-   UX, 사이드바 축약, 설정 화면/접근성 항목 등.
-2. 스냅샷 자동 갱신(크론)은 Worker→학교 도달성 검증 선행 필요.
-3. needs-verification 큐는 fresh-session 독립 검증 필요.
+1. �옍�뿬: ISSUE-20 yearTable�넂議몄뾽�뿏吏�, ISSUE-6, LMS 遺�遺꾩닔吏� �옱�떆�룄
+   UX, �궗�씠�뱶諛� 異뺤빟, �꽕�젙 �솕硫�/�젒洹쇱꽦 �빆紐� �벑.
+2. �뒪�깄�꺑 �옄�룞 媛깆떊(�겕濡�)��� Worker�넂�븰援� �룄�떖�꽦 寃�利� �꽑�뻾 �븘�슂.
+3. needs-verification �걧�뒗 fresh-session �룆由� 寃�利� �븘�슂.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(lms 38/38 — matchEnrollment +7건), root+deploy 빌드 green,
-_verify_prod 200 전체.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(lms 38/38 ��� matchEnrollment +7嫄�), root+deploy 鍮뚮뱶 green,
+_verify_prod 200 �쟾泥�.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 실계정 Playwright e2e로 확인 완료 —
-스트립 렌더(7과목), 알고리즘 7·선형대수 1·머신러닝 4분반 매칭,
-"분반 보기" 클릭 시 검색어=카탈로그 정식명·학과 필터=전체로
-초기화되어 분반 목록 표시. 미매칭 4과목은 "카탈로그에 없는
-과목"으로 정직 표시(인류문명과지구환경·데이터통신·빅데이터기초·
-커뮤니티 — 2026-2 카탈로그에 해당 명칭 없음).
+VERIFICATION STATUS: �떎怨꾩젙 Playwright e2e濡� �솗�씤 �셿猷� ���
+�뒪�듃由� �젋�뜑(7怨쇰ぉ), �븣怨좊━利� 7쨌�꽑�삎����닔 1쨌癒몄떊�윭�떇 4遺꾨컲 留ㅼ묶,
+"遺꾨컲 蹂닿린" �겢由� �떆 寃��깋�뼱=移댄깉濡쒓렇 �젙�떇紐끒룻븰怨� �븘�꽣=�쟾泥대줈
+珥덇린�솕�릺�뼱 遺꾨컲 紐⑸줉 �몴�떆. 誘몃ℓ移� 4怨쇰ぉ��� "移댄깉濡쒓렇�뿉 �뾾�뒗
+怨쇰ぉ"�쑝濡� �젙吏� �몴�떆(�씤瑜섎Ц紐낃낵吏�援ы솚寃승룸뜲�씠�꽣�넻�떊쨌鍮낅뜲�씠�꽣湲곗큹쨌
+而ㅻ�ㅻ땲�떚 ��� 2026-2 移댄깉濡쒓렇�뿉 �빐�떦 紐낆묶 �뾾�쓬).
 
-POST-DEPLOY FIXES (같은 날 후속):
-- 배포 누락 발견·수정: `_deploy.py`는 빌드 없이 기존 dist를
-  배포함 — `_build_pub.py` 미실행으로 A3 코드 없는 번들이
-  라이브됐다가 재빌드·재배포로 수정. **교훈: 배포 전
-  _build_pub.py 필수 — dist/client 번들에 신규 문자열 grep으로
-  확인 습관화.**
-- 실데이터로 매칭 로직 수정: 실제 Moodle fullname 형식은
-  "교과(오프라인) 학부 과목명[분반] 교수명" — 초기 exact-match는
-  전부 미매칭. `lmsKey`가 카테고리 토큰(교과/비교과/커뮤니티/
-  학부/대학원/대학/전공/교양, 공백 구분, JS `\b`는 한글에
-  무효라 공백 경계 사용)·분반 괄호를 제거하고, 카탈로그
-  과목명의 접두어 매칭(최장 이름 우선 — 자료구조및실습 vs
-  자료구조 모호 해소)으로 전환.
-- "분반 보기" 콜백이 학과 필터를 '전체'로 재설정 — 기본값
-  "내 학과 위주"가 목록을 실제 제한하므로 타 학과 분반이
-  가려지는 문제 방지.
-- 관찰: 짧은 간격 반복 로그인 시 "코스모스 조회 실패" 발생 —
-  Moodle 측 연결 실패로 추정, 실패 상태 UI·재로그인 안내는
-  정상 동작 확인.
+POST-DEPLOY FIXES (媛숈�� �궇 �썑�냽):
+- 諛고룷 �늻�씫 諛쒓껄쨌�닔�젙: `_deploy.py`�뒗 鍮뚮뱶 �뾾�씠 湲곗〈 dist瑜�
+  諛고룷�븿 ��� `_build_pub.py` 誘몄떎�뻾�쑝濡� A3 肄붾뱶 �뾾�뒗 踰덈뱾�씠
+  �씪�씠釉뚮릱�떎媛� �옱鍮뚮뱶쨌�옱諛고룷濡� �닔�젙. **援먰썕: 諛고룷 �쟾
+  _build_pub.py �븘�닔 ��� dist/client 踰덈뱾�뿉 �떊洹� 臾몄옄�뿴 grep�쑝濡�
+  �솗�씤 �뒿愿��솕.**
+- �떎�뜲�씠�꽣濡� 留ㅼ묶 濡쒖쭅 �닔�젙: �떎�젣 Moodle fullname �삎�떇���
+  "援먭낵(�삤�봽�씪�씤) �븰遺� 怨쇰ぉ紐�[遺꾨컲] 援먯닔紐�" ��� 珥덇린 exact-match�뒗
+  �쟾遺� 誘몃ℓ移�. `lmsKey`媛� 移댄뀒怨좊━ �넗�겙(援먭낵/鍮꾧탳怨�/而ㅻ�ㅻ땲�떚/
+  �븰遺�/����븰�썝/����븰/�쟾怨�/援먯뼇, 怨듬갚 援щ텇, JS `\b`�뒗 �븳湲��뿉
+  臾댄슚�씪 怨듬갚 寃쎄퀎 �궗�슜)쨌遺꾨컲 愿꾪샇瑜� �젣嫄고븯怨�, 移댄깉濡쒓렇
+  怨쇰ぉ紐낆쓽 �젒�몢�뼱 留ㅼ묶(理쒖옣 �씠由� �슦�꽑 ��� �옄猷뚭뎄議곕컦�떎�뒿 vs
+  �옄猷뚭뎄議� 紐⑦샇 �빐�냼)�쑝濡� �쟾�솚.
+- "遺꾨컲 蹂닿린" 肄쒕갚�씠 �븰怨� �븘�꽣瑜� '�쟾泥�'濡� �옱�꽕�젙 ��� 湲곕낯媛�
+  "�궡 �븰怨� �쐞二�"媛� 紐⑸줉�쓣 �떎�젣 �젣�븳�븯誘�濡� ��� �븰怨� 遺꾨컲�씠
+  媛��젮吏��뒗 臾몄젣 諛⑹��.
+- 愿�李�: 吏㏃�� 媛꾧꺽 諛섎났 濡쒓렇�씤 �떆 "肄붿뒪紐⑥뒪 議고쉶 �떎�뙣" 諛쒖깮 ���
+  Moodle 痢� �뿰寃� �떎�뙣濡� 異붿젙, �떎�뙣 �긽�깭 UI쨌�옱濡쒓렇�씤 �븞�궡�뒗
+  �젙�긽 �룞�옉 �솗�씤.
 
 ---
 
-## 2026-09-19 — LMS 수집 상태·실패 복구·갱신 반영 (user-audited priority)
+## 2026-09-19 ��� LMS �닔吏� �긽�깭쨌�떎�뙣 蹂듦뎄쨌媛깆떊 諛섏쁺 (user-audited priority)
 
 DONE:
-- **수집 상태 마커**: `SchoolSnapshot`에 `lmsPending`(지연 수집 진행)/
-  `lmsFailedAt`(실패 시각) 추가. 로그인·재수집 라우트가 저장 직전
-  `lmsPending=true` 설정 → 지연 수집 성공 시 `json_patch`로
-  `lmsData` 기록+`lmsPending:null` 해제, 실패 시 `lmsFailedAt` 기록
-  + 실패 로그. `checkedAt` 가드 유지 — 이전 waitUntil 쓰기가 새
-  스냅샷을 덮지 않음. 비지연 경로(connectSchool 동기 수집) 실패도
-  `lmsFailedAt` 기록.
-- **무한 "수집 중" 수정**: 이전엔 지연 수집 실패를 아무것도 기록하지
-  않아 `lms='connected'`+lmsData 없음이 영구 지속됐음. 이제 실패
-  마커로 종료 상태 표현 — 클라이언트 폴링은 `lmsPending` 기준으로
-  시작하고 성공·실패 모두에서 종료. 마커 도입 전 스냅샷(connected인데
-  lmsData·pending 없음)도 실패로 분류. 수집 예산+5분 초과 pending은
-  워커 중도 종료로 간주해 세션 내에서도 실패 전환(타이머 상태).
-- **갱신 반영 수정**: 폴링이 `!data.lms` 조건이라 기존 데이터가 있으면
-  새 수집 결과를 못 받던 문제 — `snapshot.lmsData`를 항상 최신
-  fetchedAt 기준으로 `data.lms`에 병합하는 별도 이펙트로 분리.
-  로그인 응답·지연 완료·재수집 결과 모두 같은 경로로 반영.
-- **재수집 경로(BE-2 1차)**: `POST /api/account/lms-refresh` — 세션
-  인증 후 입력 학번 해시가 계정 id와 일치해야 함(타인 계정 불가),
-  `refresh:` 3회/15분 레이트리밋, `connectSchool` 재실행으로 서버
-  수집. 비밀번호는 검증 후 즉시 폐기·미저장. 새 수집 실패 시 이전
-  lmsData 보존(로그인 라우트도 동일). UI `RefreshForm` — 수업 현황
-  섹션에서 학번+비밀번호 재입력으로 재수집, 마스킹 학번 힌트 표시.
-- **퀴즈 미응시 오인 수정**: 상세 페이지 fetch 실패가 `submitted:false`
-  로 단정되던 것 → `uncertain:true`+`errors:['quiz-check']`로 표현.
-  `LmsTask`/`LmsPending`에 `uncertain` 필드, `pendingTasks` 전달,
-  `validateLms` 보존, UI "응시 여부 확인 실패" 라벨. 브라우저 수집기
-  (public/lms-collect.js)도 동일 의미로 수정.
-- **`dueSoon` 과거 하한**: 기존 상한만 있어 오래 지난 미완료가 최신
-  마감을 밀어냈음 → `pastDays=7` 하한 추가(마감 지남 표시는 유지하되
-  7일 이상 지난 항목 제외). 홈·캘린더·알림 도출 모두 동일 적용.
-- **UI 상태 구분**: 수업 현황 빈 상태가 수집 중/수집 실패/COSMOS 연결
-  실패를 구분해 표시, snap 있으면 배너로 표현. "다시 가져오기" 버튼이
-  실은 파일 업로드였던 것 → "파일로 가져오기"로 정정 + 서버 재수집은
-  별도 RefreshForm. `c.errors` 코드 한글 라벨화(vod→강의 등). 사이드바
-  (chrome.tsx)·설정(settings.tsx) 연결 상태가 pending/failed/데이터
-  유무를 구분 표시 — settings 초록 배지는 lmsData 있고 실패 없을 때만.
-- 문서 정합: backend-tasks.md의 BE-1(검증 완료 표기)·BE-2(재인증 방식
-  구현)·BE-3(완료) 갱신, 아키텍처 사실의 LMS 수집·공개 스냅샷 설명을
-  현재 구현(D1 우선+폴백, 서버 수집+마커)으로 정정. BACKLOG.md
-  ISSUE-24 진행 상황 갱신.
+- **�닔吏� �긽�깭 留덉빱**: `SchoolSnapshot`�뿉 `lmsPending`(吏��뿰 �닔吏� 吏꾪뻾)/
+  `lmsFailedAt`(�떎�뙣 �떆媛�) 異붽��. 濡쒓렇�씤쨌�옱�닔吏� �씪�슦�듃媛� ����옣 吏곸쟾
+  `lmsPending=true` �꽕�젙 �넂 吏��뿰 �닔吏� �꽦怨� �떆 `json_patch`濡�
+  `lmsData` 湲곕줉+`lmsPending:null` �빐�젣, �떎�뙣 �떆 `lmsFailedAt` 湲곕줉
+  + �떎�뙣 濡쒓렇. `checkedAt` 媛��뱶 �쑀吏� ��� �씠�쟾 waitUntil �벐湲곌�� �깉
+  �뒪�깄�꺑�쓣 �뜮吏� �븡�쓬. 鍮꾩���뿰 寃쎈줈(connectSchool �룞湲� �닔吏�) �떎�뙣�룄
+  `lmsFailedAt` 湲곕줉.
+- **臾댄븳 "�닔吏� 以�" �닔�젙**: �씠�쟾�뿏 吏��뿰 �닔吏� �떎�뙣瑜� �븘臾닿쾬�룄 湲곕줉�븯吏�
+  �븡�븘 `lms='connected'`+lmsData �뾾�쓬�씠 �쁺援� 吏��냽�릱�쓬. �씠�젣 �떎�뙣
+  留덉빱濡� 醫낅즺 �긽�깭 �몴�쁽 ��� �겢�씪�씠�뼵�듃 �뤃留곸�� `lmsPending` 湲곗���쑝濡�
+  �떆�옉�븯怨� �꽦怨돠룹떎�뙣 紐⑤몢�뿉�꽌 醫낅즺. 留덉빱 �룄�엯 �쟾 �뒪�깄�꺑(connected�씤�뜲
+  lmsData쨌pending �뾾�쓬)�룄 �떎�뙣濡� 遺꾨쪟. �닔吏� �삁�궛+5遺� 珥덇낵 pending���
+  �썙而� 以묐룄 醫낅즺濡� 媛꾩＜�빐 �꽭�뀡 �궡�뿉�꽌�룄 �떎�뙣 �쟾�솚(����씠癒� �긽�깭).
+- **媛깆떊 諛섏쁺 �닔�젙**: �뤃留곸씠 `!data.lms` 議곌굔�씠�씪 湲곗〈 �뜲�씠�꽣媛� �엳�쑝硫�
+  �깉 �닔吏� 寃곌낵瑜� 紐� 諛쏅뜕 臾몄젣 ��� `snapshot.lmsData`瑜� �빆�긽 理쒖떊
+  fetchedAt 湲곗���쑝濡� `data.lms`�뿉 蹂묓빀�븯�뒗 蹂꾨룄 �씠�럺�듃濡� 遺꾨━.
+  濡쒓렇�씤 �쓳�떟쨌吏��뿰 �셿猷뙿룹옱�닔吏� 寃곌낵 紐⑤몢 媛숈�� 寃쎈줈濡� 諛섏쁺.
+- **�옱�닔吏� 寃쎈줈(BE-2 1李�)**: `POST /api/account/lms-refresh` ��� �꽭�뀡
+  �씤利� �썑 �엯�젰 �븰踰� �빐�떆媛� 怨꾩젙 id��� �씪移섑빐�빞 �븿(����씤 怨꾩젙 遺덇��),
+  `refresh:` 3�쉶/15遺� �젅�씠�듃由щ컠, `connectSchool` �옱�떎�뻾�쑝濡� �꽌踰�
+  �닔吏�. 鍮꾨��踰덊샇�뒗 寃�利� �썑 利됱떆 �룓湲걔룸�몄���옣. �깉 �닔吏� �떎�뙣 �떆 �씠�쟾
+  lmsData 蹂댁〈(濡쒓렇�씤 �씪�슦�듃�룄 �룞�씪). UI `RefreshForm` ��� �닔�뾽 �쁽�솴
+  �꽮�뀡�뿉�꽌 �븰踰�+鍮꾨��踰덊샇 �옱�엯�젰�쑝濡� �옱�닔吏�, 留덉뒪�궧 �븰踰� �엺�듃 �몴�떆.
+- **��댁쫰 誘몄쓳�떆 �삤�씤 �닔�젙**: �긽�꽭 �럹�씠吏� fetch �떎�뙣媛� `submitted:false`
+  濡� �떒�젙�릺�뜕 寃� �넂 `uncertain:true`+`errors:['quiz-check']`濡� �몴�쁽.
+  `LmsTask`/`LmsPending`�뿉 `uncertain` �븘�뱶, `pendingTasks` �쟾�떖,
+  `validateLms` 蹂댁〈, UI "�쓳�떆 �뿬遺� �솗�씤 �떎�뙣" �씪踰�. 釉뚮씪�슦��� �닔吏묎린
+  (public/lms-collect.js)�룄 �룞�씪 �쓽誘몃줈 �닔�젙.
+- **`dueSoon` 怨쇨굅 �븯�븳**: 湲곗〈 �긽�븳留� �엳�뼱 �삤�옒 吏��궃 誘몄셿猷뚭�� 理쒖떊
+  留덇컧�쓣 諛��뼱�깉�쓬 �넂 `pastDays=7` �븯�븳 異붽��(留덇컧 吏��궓 �몴�떆�뒗 �쑀吏��븯�릺
+  7�씪 �씠�긽 吏��궃 �빆紐� �젣�쇅). �솃쨌罹섎┛�뜑쨌�븣由� �룄異� 紐⑤몢 �룞�씪 �쟻�슜.
+- **UI �긽�깭 援щ텇**: �닔�뾽 �쁽�솴 鍮� �긽�깭媛� �닔吏� 以�/�닔吏� �떎�뙣/COSMOS �뿰寃�
+  �떎�뙣瑜� 援щ텇�빐 �몴�떆, snap �엳�쑝硫� 諛곕꼫濡� �몴�쁽. "�떎�떆 媛��졇�삤湲�" 踰꾪듉�씠
+  �떎��� �뙆�씪 �뾽濡쒕뱶����뜕 寃� �넂 "�뙆�씪濡� 媛��졇�삤湲�"濡� �젙�젙 + �꽌踰� �옱�닔吏묒��
+  蹂꾨룄 RefreshForm. `c.errors` 肄붾뱶 �븳湲� �씪踰⑦솕(vod�넂媛뺤쓽 �벑). �궗�씠�뱶諛�
+  (chrome.tsx)쨌�꽕�젙(settings.tsx) �뿰寃� �긽�깭媛� pending/failed/�뜲�씠�꽣
+  �쑀臾대�� 援щ텇 �몴�떆 ��� settings 珥덈줉 諛곗���뒗 lmsData �엳怨� �떎�뙣 �뾾�쓣 �븣留�.
+- 臾몄꽌 �젙�빀: backend-tasks.md�쓽 BE-1(寃�利� �셿猷� �몴湲�)쨌BE-2(�옱�씤利� 諛⑹떇
+  援ы쁽)쨌BE-3(�셿猷�) 媛깆떊, �븘�궎�뀓泥� �궗�떎�쓽 LMS �닔吏뫢룰났媛� �뒪�깄�꺑 �꽕紐낆쓣
+  �쁽�옱 援ы쁽(D1 �슦�꽑+�뤃諛�, �꽌踰� �닔吏�+留덉빱)�쑝濡� �젙�젙. BACKLOG.md
+  ISSUE-24 吏꾪뻾 �긽�솴 媛깆떊.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. npm audit high 10·low 1 — react-server-dom-webpack이 직접 의존성,
-   GHSA-wx67-qw84-cm4g 범위라 배포 경로 영향 확인 후 호환 패치.
-2. EnrolledStrip에서 매칭 분반을 바로 계획에 담는 액션(현재는 필터만).
-3. 졸업: 신뢰할 학과↔ruleset 매핑 먼저, 검증된 학과부터 엔진 연결.
-   yearTable은 19개 중 1개뿐(dept null이라 현재 매칭 제외) — 전 학과
-   확대 금지, 확인 필요 유지.
-4. LMS 과제·퀴즈·마감 검색(advisor), 알림 예약.
-5. 수집 실패율 관측(현재 console.log만), 스냅샷 크론(Worker→학교
-   도달성 검증 선행).
+1. npm audit high 10쨌low 1 ��� react-server-dom-webpack�씠 吏곸젒 �쓽議댁꽦,
+   GHSA-wx67-qw84-cm4g 踰붿쐞�씪 諛고룷 寃쎈줈 �쁺�뼢 �솗�씤 �썑 �샇�솚 �뙣移�.
+2. EnrolledStrip�뿉�꽌 留ㅼ묶 遺꾨컲�쓣 諛붾줈 怨꾪쉷�뿉 �떞�뒗 �븸�뀡(�쁽�옱�뒗 �븘�꽣留�).
+3. 議몄뾽: �떊猶고븷 �븰怨쇄넄ruleset 留ㅽ븨 癒쇱��, 寃�利앸맂 �븰怨쇰���꽣 �뿏吏� �뿰寃�.
+   yearTable��� 19媛� 以� 1媛쒕퓧(dept null�씠�씪 �쁽�옱 留ㅼ묶 �젣�쇅) ��� �쟾 �븰怨�
+   �솗��� 湲덉��, �솗�씤 �븘�슂 �쑀吏�.
+4. LMS 怨쇱젣쨌��댁쫰쨌留덇컧 寃��깋(advisor), �븣由� �삁�빟.
+5. �닔吏� �떎�뙣�쑉 愿�痢�(�쁽�옱 console.log留�), �뒪�깄�꺑 �겕濡�(Worker�넂�븰援�
+   �룄�떖�꽦 寃�利� �꽑�뻾).
 
 BLOCKER: none.
 
-TESTS: 전체 매트릭스 11파일 OK — lms.test 46/46(+8: dueSoon 과거
-하한·uncertain 전달), lms-server.test 47/47(+7: 퀴즈 상세 실패→
-uncertain/quiz-check, 목록 실패→quiz). tsc clean, oxlint 0 err,
-root+deploy 빌드 green.
+TESTS: �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK ��� lms.test 46/46(+8: dueSoon 怨쇨굅
+�븯�븳쨌uncertain �쟾�떖), lms-server.test 47/47(+7: ��댁쫰 �긽�꽭 �떎�뙣�넂
+uncertain/quiz-check, 紐⑸줉 �떎�뙣�넂quiz). tsc clean, oxlint 0 err,
+root+deploy 鍮뚮뱶 green.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 단위 테스트로 마커·uncertain·dueSoon 하한 확인.
-실계정 e2e로 재수집 폼·실패 상태 렌더는 미검증(배포는 됨 —
-실패 상태는 실제 장애 시에만 자연 발생). 라이브 version e645c64f,
-_verify_prod 전 엔드포인트 200.
+VERIFICATION STATUS: �떒�쐞 �뀒�뒪�듃濡� 留덉빱쨌uncertain쨌dueSoon �븯�븳 �솗�씤.
+�떎怨꾩젙 e2e濡� �옱�닔吏� �뤌쨌�떎�뙣 �긽�깭 �젋�뜑�뒗 誘멸��利�(諛고룷�뒗 �맖 ���
+�떎�뙣 �긽�깭�뒗 �떎�젣 �옣�븷 �떆�뿉留� �옄�뿰 諛쒖깮). �씪�씠釉� version e645c64f,
+_verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
 
 ---
 
-## 2026-09-19 — 취약점 감사·패치 (ISSUE-10, user-audited priority 2)
+## 2026-09-19 ��� 痍⑥빟�젏 媛먯궗쨌�뙣移� (ISSUE-10, user-audited priority 2)
 
 DONE:
-- `npm audit` 재실행: high 10·low 1 확인(이전 기록 "전부 빌드 도구"
-  은 부정확 — `react-server-dom-webpack`은 직접 의존성+배포 번들
-  포함이라 배포 경로 해당. GHSA-wx67-qw84-cm4g Server Functions
-  DoS; 앱에 'use server'는 없음).
-- 경로별 영향 분류: 배포 경로 = react-server-dom-webpack만.
-  dev/build 경로 = vite(dev server), esbuild(dev on Windows),
-  miniflare+undici+ws+sharp(로컬 에뮬레이션), image-size(vinext
-  빌드 파싱), wrangler(배포 도구).
-- 수동 호환 범프(audit fix --force 아님, peer 제약 추적):
-  react/react-dom/react-server-dom-webpack 19.2.6→19.3.0,
-  vinext 1.0.0-beta.5→beta.10(peer @vitejs/plugin-rsc ^0.5.34 →
-  0.5.35로 동반), vite 8.0.13→8.3.0,
-  @cloudflare/vite-plugin 1.37.1→1.56.0(peer wrangler ^4.135.0 →
-  4.135.0로 동반, 그 peerOptional @cloudflare/workers-types
-  5.20260919.1로 동반), @types/react(-dom) 19.3.0.
-- 결과: `npm audit` **0 vulnerabilities**, install 양쪽 성공.
+- `npm audit` �옱�떎�뻾: high 10쨌low 1 �솗�씤(�씠�쟾 湲곕줉 "�쟾遺� 鍮뚮뱶 �룄援�"
+  ��� 遺��젙�솗 ��� `react-server-dom-webpack`��� 吏곸젒 �쓽議댁꽦+諛고룷 踰덈뱾
+  �룷�븿�씠�씪 諛고룷 寃쎈줈 �빐�떦. GHSA-wx67-qw84-cm4g Server Functions
+  DoS; �빋�뿉 'use server'�뒗 �뾾�쓬).
+- 寃쎈줈蹂� �쁺�뼢 遺꾨쪟: 諛고룷 寃쎈줈 = react-server-dom-webpack留�.
+  dev/build 寃쎈줈 = vite(dev server), esbuild(dev on Windows),
+  miniflare+undici+ws+sharp(濡쒖뺄 �뿉裕щ젅�씠�뀡), image-size(vinext
+  鍮뚮뱶 �뙆�떛), wrangler(諛고룷 �룄援�).
+- �닔�룞 �샇�솚 踰뷀봽(audit fix --force �븘�떂, peer �젣�빟 異붿쟻):
+  react/react-dom/react-server-dom-webpack 19.2.6�넂19.3.0,
+  vinext 1.0.0-beta.5�넂beta.10(peer @vitejs/plugin-rsc ^0.5.34 �넂
+  0.5.35濡� �룞諛�), vite 8.0.13�넂8.3.0,
+  @cloudflare/vite-plugin 1.37.1�넂1.56.0(peer wrangler ^4.135.0 �넂
+  4.135.0濡� �룞諛�, 洹� peerOptional @cloudflare/workers-types
+  5.20260919.1濡� �룞諛�), @types/react(-dom) 19.3.0.
+- 寃곌낵: `npm audit` **0 vulnerabilities**, install �뼇履� �꽦怨�.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. EnrolledStrip 매칭 분반 직접 담기.
-2. 졸업 ruleset 매핑 → 검증 학과만 엔진 연결.
-3. LMS 과제·마감 검색(advisor), 알림 예약.
-4. 나머지: 수집 실패율 관측, 스냅샷 크론(도달성 검증 선행),
-   사이드바 축약, 접근성 설정, needs-verification 큐.
+1. EnrolledStrip 留ㅼ묶 遺꾨컲 吏곸젒 �떞湲�.
+2. 議몄뾽 ruleset 留ㅽ븨 �넂 寃�利� �븰怨쇰쭔 �뿏吏� �뿰寃�.
+3. LMS 怨쇱젣쨌留덇컧 寃��깋(advisor), �븣由� �삁�빟.
+4. �굹癒몄��: �닔吏� �떎�뙣�쑉 愿�痢�, �뒪�깄�꺑 �겕濡�(�룄�떖�꽦 寃�利� �꽑�뻾),
+   �궗�씠�뱶諛� 異뺤빟, �젒洹쇱꽦 �꽕�젙, needs-verification �걧.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(lms 46/46, lms-server 47/47), root 빌드 green, deploy 빌드 green,
-_verify_prod 전 엔드포인트 200. 라이브 version ec3280d1 — 새 툴체인
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(lms 46/46, lms-server 47/47), root 鍮뚮뱶 green, deploy 鍮뚮뱶 green,
+_verify_prod �쟾 �뿏�뱶�룷�씤�듃 200. �씪�씠釉� version ec3280d1 ��� �깉 �댋泥댁씤
 (vinext beta.10 + react 19.3 + vite 8.3 + cf-vite-plugin 1.56 +
-wrangler 4.135)으로 프로덕션 동작 확인.
+wrangler 4.135)�쑝濡� �봽濡쒕뜒�뀡 �룞�옉 �솗�씤.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 새 툴체인으로 빌드·테스트·배포·공개 엔드포인트
-검증 완료. RSC 렌더 경로(react 19.3)의 실계정 브라우저 e2e는
-미수행 — 다음 시각 검증 라운드에서 확인 권장.
+VERIFICATION STATUS: �깉 �댋泥댁씤�쑝濡� 鍮뚮뱶쨌�뀒�뒪�듃쨌諛고룷쨌怨듦컻 �뿏�뱶�룷�씤�듃
+寃�利� �셿猷�. RSC �젋�뜑 寃쎈줈(react 19.3)�쓽 �떎怨꾩젙 釉뚮씪�슦��� e2e�뒗
+誘몄닔�뻾 ��� �떎�쓬 �떆媛� 寃�利� �씪�슫�뱶�뿉�꽌 �솗�씤 沅뚯옣.
 
 ---
 
-## 2026-09-19 — EnrolledStrip 분반 직접 담기 (user-audited priority 3)
+## 2026-09-19 ��� EnrolledStrip 遺꾨컲 吏곸젒 �떞湲� (user-audited priority 3)
 
 DONE:
-- `tryAdd`를 boolean 반환으로 변경 — 성공 시에만 분반 선택 목록을
-  닫도록(충돌·중복·이수 실패 시 선택지 유지).
-- `EnrolledStrip`에 `onAdd` prop + 분반 선택 UI: 분반 1개 과목은
-  "담기" 즉시 추가, 다분반 과목은 "담기" 토글로 분반 목록
-  (분반·교수·시간) 표시 후 선택 추가 — 충돌 검사·이수 검사·
-  동일 과목 중복 검사는 기존 tryAdd 경로 그대로(notify로 실패
-  원인 표시). "분반 N개 보기" 필터 경로도 유지.
-- `.enrolled-item/.enrolled-actions/.enrolled-pick` 스타일 추가 —
-  행 내부를 item(row+선택지) 구조로 재구성.
+- `tryAdd`瑜� boolean 諛섑솚�쑝濡� 蹂�寃� ��� �꽦怨� �떆�뿉留� 遺꾨컲 �꽑�깮 紐⑸줉�쓣
+  �떕�룄濡�(異⑸룎쨌以묐났쨌�씠�닔 �떎�뙣 �떆 �꽑�깮吏� �쑀吏�).
+- `EnrolledStrip`�뿉 `onAdd` prop + 遺꾨컲 �꽑�깮 UI: 遺꾨컲 1媛� 怨쇰ぉ���
+  "�떞湲�" 利됱떆 異붽��, �떎遺꾨컲 怨쇰ぉ��� "�떞湲�" �넗湲�濡� 遺꾨컲 紐⑸줉
+  (遺꾨컲쨌援먯닔쨌�떆媛�) �몴�떆 �썑 �꽑�깮 異붽�� ��� 異⑸룎 寃��궗쨌�씠�닔 寃��궗쨌
+  �룞�씪 怨쇰ぉ 以묐났 寃��궗�뒗 湲곗〈 tryAdd 寃쎈줈 洹몃��濡�(notify濡� �떎�뙣
+  �썝�씤 �몴�떆). "遺꾨컲 N媛� 蹂닿린" �븘�꽣 寃쎈줈�룄 �쑀吏�.
+- `.enrolled-item/.enrolled-actions/.enrolled-pick` �뒪����씪 異붽�� ���
+  �뻾 �궡遺�瑜� item(row+�꽑�깮吏�) 援ъ“濡� �옱援ъ꽦.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 졸업 ruleset 매핑 → 검증 학과만 엔진 연결(yearTable 1개뿐,
-   dept null — 전 학과 확대 금지).
-2. LMS 과제·마감 검색(advisor), 알림 예약.
-3. 나머지: 수집 실패율 관측, 스냅샷 크론, 사이드바 축약,
-   접근성, needs-verification 큐.
+1. 議몄뾽 ruleset 留ㅽ븨 �넂 寃�利� �븰怨쇰쭔 �뿏吏� �뿰寃�(yearTable 1媛쒕퓧,
+   dept null ��� �쟾 �븰怨� �솗��� 湲덉��).
+2. LMS 怨쇱젣쨌留덇컧 寃��깋(advisor), �븣由� �삁�빟.
+3. �굹癒몄��: �닔吏� �떎�뙣�쑉 愿�痢�, �뒪�깄�꺑 �겕濡�, �궗�씠�뱶諛� 異뺤빟,
+   �젒洹쇱꽦, needs-verification �걧.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK,
-root+deploy 빌드 green, _verify_prod 전 엔드포인트 200.
-라이브 version 82a2ceda.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK,
+root+deploy 鍮뚮뱶 green, _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
+�씪�씠釉� version 82a2ceda.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 코드·빌드·배포 검증. 담기 버튼·분반 선택
-목록의 실계정 브라우저 확인은 미수행 — react 19.3 렌더와 함께
-다음 e2e 라운드에서 확인 권장.
+VERIFICATION STATUS: 肄붾뱶쨌鍮뚮뱶쨌諛고룷 寃�利�. �떞湲� 踰꾪듉쨌遺꾨컲 �꽑�깮
+紐⑸줉�쓽 �떎怨꾩젙 釉뚮씪�슦��� �솗�씤��� 誘몄닔�뻾 ��� react 19.3 �젋�뜑��� �븿猿�
+�떎�쓬 e2e �씪�슫�뱶�뿉�꽌 �솗�씤 沅뚯옣.
 
 ---
 
-## 2026-09-19 — 졸업 ruleset 매핑 정규화 + 검증 학과 엔진 연결 (user-audited priority 4)
+## 2026-09-19 ��� 議몄뾽 ruleset 留ㅽ븨 �젙洹쒗솕 + 寃�利� �븰怨� �뿏吏� �뿰寃� (user-audited priority 4)
 
 DONE:
-- **매핑 검증(조사)**: 19 rulesets 중 yearTable은 컴퓨터공학부(CSE) 1개뿐,
-  `dept: null`이던 원인은 카탈로그 개설 단위명 차이. 입학처 모집요강·
-  CSE 사이트·카탈로그 교차 확인으로 검증: 컴퓨터공학부 =
-  {IT응용시스템공학과(K191, 공통 교과), 모바일소프트웨어트랙(V021),
-  빅데이터트랙(V022)}. 산학협력 프로젝트 각주의 과목명이 카탈로그 트랙
-  개설과 일치해 매핑 확실. 웹공학·디지털콘텐츠가상현실 트랙은 2026-2
-  카탈로그에 개설 단위가 없어 미등록.
+- **留ㅽ븨 寃�利�(議곗궗)**: 19 rulesets 以� yearTable��� 而댄벂�꽣怨듯븰遺�(CSE) 1媛쒕퓧,
+  `dept: null`�씠�뜕 �썝�씤��� 移댄깉濡쒓렇 媛쒖꽕 �떒�쐞紐� 李⑥씠. �엯�븰泥� 紐⑥쭛�슂媛빧�
+  CSE �궗�씠�듃쨌移댄깉濡쒓렇 援먯감 �솗�씤�쑝濡� 寃�利�: 而댄벂�꽣怨듯븰遺� =
+  {IT�쓳�슜�떆�뒪�뀥怨듯븰怨�(K191, 怨듯넻 援먭낵), 紐⑤컮�씪�냼�봽�듃�썾�뼱�듃�옓(V021),
+  鍮낅뜲�씠�꽣�듃�옓(V022)}. �궛�븰�삊�젰 �봽濡쒖젥�듃 媛곸＜�쓽 怨쇰ぉ紐낆씠 移댄깉濡쒓렇 �듃�옓
+  媛쒖꽕怨� �씪移섑빐 留ㅽ븨 �솗�떎. �쎒怨듯븰쨌�뵒吏��꽭肄섑뀗痢좉���긽�쁽�떎 �듃�옓��� 2026-2
+  移댄깉濡쒓렇�뿉 媛쒖꽕 �떒�쐞媛� �뾾�뼱 誘몃벑濡�.
 - **`lib/data/dept-rules.ts`**:
-  - `RULESET_DEPT_FAMILY` — 수집 학과명↔카탈로그 학과 수동 검증 매핑
-    (검증된 것만 등록, 현재 컴퓨터공학부 1건).
-  - `rulesetMatchesDept(r, userDept, pool)` — ①수집 해석 dept 포함
-    ②deptLabel 정규화 일치 ③검증 패밀리(단일 확정 풀에서만 — 모호한
-    candidates 풀에는 규정을 붙이지 않음). 어느 쪽도 아니면 매칭 안 함.
-  - `deptRuleTargets(ruleset, admitYear)` — yearTable 학번 컬럼 해석:
-    '취득/이수/졸업 학점' 행에서 교과 학점→total, 비교과 Npt→points
-    ('140학점' 베어 형태도 총 취득 학점으로 해석). 나머지 V/숫자 셀은
-    `conditions[]`(원문 라벨+셀, 권장 표기 감지)로 원문 보존 — 자동
-    집계하지 않음. 컬럼 없으면 null(추측 금지).
-- **`lib/data/graduation.ts`**: `evaluate` opts에 `deptTargets` 추가 —
-  우선순위 사용자 override > 학과 규정 > 전역 기준. `RuleResult.
-  requiredSource`('override'|'dept'|'global')로 required 출처 추적.
-  학과 기준이 있으면 pre-2016 학번도 공식값 확정 가능(컴퓨터공학부
-  ~15학번 총 140학점).
-- **`app/sections/graduation.tsx`**: myRules를 rulesetMatchesDept로
-  교체(컴퓨터공학부 입력·트랙 학과 입력·IT응용시스템공학과 입력 모두
-  CSE 규정과 연결). deptTargets → evaluate 연결. 학번 컬럼 표 하이라이트
-  (.my-col), "내 학번 기준" 조건 체크리스트(필수/권장 배지 + 자동 집계
-  안 함 고지), 입학연도 미입력/컬럼 부재 안내. requiredSource=dept일 때
-  카드 노트·상세 출처를 학과 규정표(컬럼 라벨·원문 링크·수집일)로 표시,
-  인트로에 "내 학과 규정표 반영" 배지.
-- **`progress.css`**: `.dept-conds` 체크리스트·`.my-col` 스타일.
-- 미검증 학과는 여전히 엔진 미연결 — yearTable이 있는 ruleset만 이
-  경로를 탄다. 나머지 18개는 원문 표시만(기존 동작).
+  - `RULESET_DEPT_FAMILY` ��� �닔吏� �븰怨쇰챸�넄移댄깉濡쒓렇 �븰怨� �닔�룞 寃�利� 留ㅽ븨
+    (寃�利앸맂 寃껊쭔 �벑濡�, �쁽�옱 而댄벂�꽣怨듯븰遺� 1嫄�).
+  - `rulesetMatchesDept(r, userDept, pool)` ��� �몺�닔吏� �빐�꽍 dept �룷�븿
+    �몼deptLabel �젙洹쒗솕 �씪移� �몾寃�利� �뙣諛�由�(�떒�씪 �솗�젙 ����뿉�꽌留� ��� 紐⑦샇�븳
+    candidates ����뿉�뒗 洹쒖젙�쓣 遺숈씠吏� �븡�쓬). �뼱�뒓 履쎈룄 �븘�땲硫� 留ㅼ묶 �븞 �븿.
+  - `deptRuleTargets(ruleset, admitYear)` ��� yearTable �븰踰� 而щ읆 �빐�꽍:
+    '痍⑤뱷/�씠�닔/議몄뾽 �븰�젏' �뻾�뿉�꽌 援먭낵 �븰�젏�넂total, 鍮꾧탳怨� Npt�넂points
+    ('140�븰�젏' 踰좎뼱 �삎�깭�룄 珥� 痍⑤뱷 �븰�젏�쑝濡� �빐�꽍). �굹癒몄�� V/�닽�옄 ������
+    `conditions[]`(�썝臾� �씪踰�+���, 沅뚯옣 �몴湲� 媛먯��)濡� �썝臾� 蹂댁〈 ��� �옄�룞
+    吏묎퀎�븯吏� �븡�쓬. 而щ읆 �뾾�쑝硫� null(異붿륫 湲덉��).
+- **`lib/data/graduation.ts`**: `evaluate` opts�뿉 `deptTargets` 異붽�� ���
+  �슦�꽑�닚�쐞 �궗�슜�옄 override > �븰怨� 洹쒖젙 > �쟾�뿭 湲곗��. `RuleResult.
+  requiredSource`('override'|'dept'|'global')濡� required 異쒖쿂 異붿쟻.
+  �븰怨� 湲곗���씠 �엳�쑝硫� pre-2016 �븰踰덈룄 怨듭떇媛� �솗�젙 媛��뒫(而댄벂�꽣怨듯븰遺�
+  ~15�븰踰� 珥� 140�븰�젏).
+- **`app/sections/graduation.tsx`**: myRules瑜� rulesetMatchesDept濡�
+  援먯껜(而댄벂�꽣怨듯븰遺� �엯�젰쨌�듃�옓 �븰怨� �엯�젰쨌IT�쓳�슜�떆�뒪�뀥怨듯븰怨� �엯�젰 紐⑤몢
+  CSE 洹쒖젙怨� �뿰寃�). deptTargets �넂 evaluate �뿰寃�. �븰踰� 而щ읆 �몴 �븯�씠�씪�씠�듃
+  (.my-col), "�궡 �븰踰� 湲곗��" 議곌굔 泥댄겕由ъ뒪�듃(�븘�닔/沅뚯옣 諛곗�� + �옄�룞 吏묎퀎
+  �븞 �븿 怨좎��), �엯�븰�뿰�룄 誘몄엯�젰/而щ읆 遺��옱 �븞�궡. requiredSource=dept�씪 �븣
+  移대뱶 �끂�듃쨌�긽�꽭 異쒖쿂瑜� �븰怨� 洹쒖젙�몴(而щ읆 �씪踰㉱룹썝臾� 留곹겕쨌�닔吏묒씪)濡� �몴�떆,
+  �씤�듃濡쒖뿉 "�궡 �븰怨� 洹쒖젙�몴 諛섏쁺" 諛곗��.
+- **`progress.css`**: `.dept-conds` 泥댄겕由ъ뒪�듃쨌`.my-col` �뒪����씪.
+- 誘멸��利� �븰怨쇰뒗 �뿬�쟾�엳 �뿏吏� 誘몄뿰寃� ��� yearTable�씠 �엳�뒗 ruleset留� �씠
+  寃쎈줈瑜� �깂�떎. �굹癒몄�� 18媛쒕뒗 �썝臾� �몴�떆留�(湲곗〈 �룞�옉).
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. LMS 과제·마감 검색(advisor), 알림 예약.
-2. 나머지: 수집 실패율 관측, 스냅샷 크론(도달성 검증 선행),
-   사이드바 축약, 접근성 설정, needs-verification 큐.
-3. 수집 공백(Design 빈 본문, SclScn 링크 없음)은 크롤러 개선 과제로.
+1. LMS 怨쇱젣쨌留덇컧 寃��깋(advisor), �븣由� �삁�빟.
+2. �굹癒몄��: �닔吏� �떎�뙣�쑉 愿�痢�, �뒪�깄�꺑 �겕濡�(�룄�떖�꽦 寃�利� �꽑�뻾),
+   �궗�씠�뱶諛� 異뺤빟, �젒洹쇱꽦 �꽕�젙, needs-verification �걧.
+3. �닔吏� 怨듬갚(Design 鍮� 蹂몃Ц, SclScn 留곹겕 �뾾�쓬)��� �겕濡ㅻ윭 媛쒖꽑 怨쇱젣濡�.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(dept-rules 61/61 — 매칭 7 + targets 11 신규, graduation 10/10 — 
-deptTargets 4 신규), root+deploy 빌드 green, _verify_prod 전 엔드포인트
-200. 라이브 version 22e2a286.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(dept-rules 61/61 ��� 留ㅼ묶 7 + targets 11 �떊洹�, graduation 10/10 ��� 
+deptTargets 4 �떊洹�), root+deploy 鍮뚮뱶 green, _verify_prod �쟾 �뿏�뱶�룷�씤�듃
+200. �씪�씠釉� version 22e2a286.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 엔진 해석·매칭은 단위 테스트로 검증. 실계정
-브라우저에서 컴퓨터공학부 프로필로 규정 카드·학번 컬럼 하이라이트·
-조건 체크리스트 렌더 확인은 미수행 — 다음 e2e 라운드 권장.
+VERIFICATION STATUS: �뿏吏� �빐�꽍쨌留ㅼ묶��� �떒�쐞 �뀒�뒪�듃濡� 寃�利�. �떎怨꾩젙
+釉뚮씪�슦����뿉�꽌 而댄벂�꽣怨듯븰遺� �봽濡쒗븘濡� 洹쒖젙 移대뱶쨌�븰踰� 而щ읆 �븯�씠�씪�씠�듃쨌
+議곌굔 泥댄겕由ъ뒪�듃 �젋�뜑 �솗�씤��� 誘몄닔�뻾 ��� �떎�쓬 e2e �씪�슫�뱶 沅뚯옣.
 
 ---
 
-## 2026-09-19 — 코드 감사 기반 개선 라운드 (사용자 요청 "개선점 더 찾아봐")
+## 2026-09-19 ��� 肄붾뱶 媛먯궗 湲곕컲 媛쒖꽑 �씪�슫�뱶 (�궗�슜�옄 �슂泥� "媛쒖꽑�젏 �뜑 李얠븘遊�")
 
 DONE:
-- **데이터 정확도**:
-  - `dept.ts`: `CANDIDATE_ALIASES` 추가 — '컴퓨터공학부'(공식 학부명, 카탈로그
-    개설 단위 아님) 입력 시 검증 패밀리 {IT응용시스템공학과, 모바일소프트웨어
-    트랙, 빅데이터트랙}를 candidates로 반환. 이전엔 학과 필터·추천이 무력화.
-  - `dept-rules.ts`: CREDIT_ROW를 '졸업 학점/취득 학점' 행으로 한정('전공 이수
-    학점' 행이 total로 오입되는 잠재 버그 차단), NO_REQ에 '해당없음/없음'
-    추가, `deptRuleTargets`가 `columnIndex` 직접 반환(라벨 재검색 제거).
-  - `graduation.ts`: 이수 완료 코드는 planned 집계에서 제외 — 이수 목록에
-    옮겨도 계획에 남아있으면 earned+planned 이중 집계되던 버그 수정.
-- **일관성**:
-  - `planBlockReason` 공통 가드로 담기 검증 통합 — courses/timetable/
-    search 3곳의 중복 검사 제거, 검색 결과 '담기'도 충돌·중복·이수 검사 +
-    토스트(이전엔 plan() 직행).
-  - `uncertain`(응시 확인 실패) 마커 누락 3곳 추가 — lms DueSoonList,
-    home 마감 위젯, calendar 수업 마감.
-  - ERROR_LABELS에 'timeout' → '수집 시간 초과' 한글화.
-  - 알림함 페이지 분류 배지를 실제 필터 버튼으로(패널과 동일), 선택 분류
-    빈 상태 문구 분기. 알림 id에 dueTs 접미(동명 주차별 퀴즈 충돌 방지),
-    지난 마감 '마감 지남' 라벨.
-  - `myRules`를 richness( yearTable>lines>attachment ) 최선 매칭으로 —
-    같은 학과 첨부전용 페이지가 본문 규정을 가리던 문제.
-  - `/api/dept-rules` 로드 실패 시 규정 카드가 조용히 사라지던 것 →
-    실패 표시 + 재시도 버튼.
-- **소규모**: vite.config JSON import 속성 추가, recommend 루프 내
-  plannedDays/dayLoad 재계산 호이스트, login/profile/lms-refresh 라우트
-  JSON 비객체 입력 400 가드 보강, data.ts lms-collect 주석 정정.
+- **�뜲�씠�꽣 �젙�솗�룄**:
+  - `dept.ts`: `CANDIDATE_ALIASES` 異붽�� ��� '而댄벂�꽣怨듯븰遺�'(怨듭떇 �븰遺�紐�, 移댄깉濡쒓렇
+    媛쒖꽕 �떒�쐞 �븘�떂) �엯�젰 �떆 寃�利� �뙣諛�由� {IT�쓳�슜�떆�뒪�뀥怨듯븰怨�, 紐⑤컮�씪�냼�봽�듃�썾�뼱
+    �듃�옓, 鍮낅뜲�씠�꽣�듃�옓}瑜� candidates濡� 諛섑솚. �씠�쟾�뿏 �븰怨� �븘�꽣쨌異붿쿇�씠 臾대젰�솕.
+  - `dept-rules.ts`: CREDIT_ROW瑜� '議몄뾽 �븰�젏/痍⑤뱷 �븰�젏' �뻾�쑝濡� �븳�젙('�쟾怨� �씠�닔
+    �븰�젏' �뻾�씠 total濡� �삤�엯�릺�뒗 �옞�옱 踰꾧렇 李⑤떒), NO_REQ�뿉 '�빐�떦�뾾�쓬/�뾾�쓬'
+    異붽��, `deptRuleTargets`媛� `columnIndex` 吏곸젒 諛섑솚(�씪踰� �옱寃��깋 �젣嫄�).
+  - `graduation.ts`: �씠�닔 �셿猷� 肄붾뱶�뒗 planned 吏묎퀎�뿉�꽌 �젣�쇅 ��� �씠�닔 紐⑸줉�뿉
+    �삷寃⑤룄 怨꾪쉷�뿉 �궓�븘�엳�쑝硫� earned+planned �씠以� 吏묎퀎�릺�뜕 踰꾧렇 �닔�젙.
+- **�씪愿��꽦**:
+  - `planBlockReason` 怨듯넻 媛��뱶濡� �떞湲� 寃�利� �넻�빀 ��� courses/timetable/
+    search 3怨녹쓽 以묐났 寃��궗 �젣嫄�, 寃��깋 寃곌낵 '�떞湲�'�룄 異⑸룎쨌以묐났쨌�씠�닔 寃��궗 +
+    �넗�뒪�듃(�씠�쟾�뿏 plan() 吏곹뻾).
+  - `uncertain`(�쓳�떆 �솗�씤 �떎�뙣) 留덉빱 �늻�씫 3怨� 異붽�� ��� lms DueSoonList,
+    home 留덇컧 �쐞�젽, calendar �닔�뾽 留덇컧.
+  - ERROR_LABELS�뿉 'timeout' �넂 '�닔吏� �떆媛� 珥덇낵' �븳湲��솕.
+  - �븣由쇳븿 �럹�씠吏� 遺꾨쪟 諛곗��瑜� �떎�젣 �븘�꽣 踰꾪듉�쑝濡�(�뙣�꼸怨� �룞�씪), �꽑�깮 遺꾨쪟
+    鍮� �긽�깭 臾멸뎄 遺꾧린. �븣由� id�뿉 dueTs �젒誘�(�룞紐� 二쇱감蹂� ��댁쫰 異⑸룎 諛⑹��),
+    吏��궃 留덇컧 '留덇컧 吏��궓' �씪踰�.
+  - `myRules`瑜� richness( yearTable>lines>attachment ) 理쒖꽑 留ㅼ묶�쑝濡� ���
+    媛숈�� �븰怨� 泥⑤���쟾�슜 �럹�씠吏�媛� 蹂몃Ц 洹쒖젙�쓣 媛�由щ뜕 臾몄젣.
+  - `/api/dept-rules` 濡쒕뱶 �떎�뙣 �떆 洹쒖젙 移대뱶媛� 議곗슜�엳 �궗�씪吏��뜕 寃� �넂
+    �떎�뙣 �몴�떆 + �옱�떆�룄 踰꾪듉.
+- **�냼洹쒕え**: vite.config JSON import �냽�꽦 異붽��, recommend 猷⑦봽 �궡
+  plannedDays/dayLoad �옱怨꾩궛 �샇�씠�뒪�듃, login/profile/lms-refresh �씪�슦�듃
+  JSON 鍮꾧컼泥� �엯�젰 400 媛��뱶 蹂닿컯, data.ts lms-collect 二쇱꽍 �젙�젙.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. LMS 과제·마감 검색(advisor), 알림 예약, 수강중 상태 — 기능 갭 후보.
-2. 실계정 브라우저 e2e: 검색 담기 차단 토스트, 알림 분류 필터,
-   문콘형 학과 규정 카드, 컴퓨터공학부 입력 시 학과 후보 표시.
-3. 나머지 18개 규정 yearTable 커버리지(크롤러 개선).
+1. LMS 怨쇱젣쨌留덇컧 寃��깋(advisor), �븣由� �삁�빟, �닔媛뺤쨷 �긽�깭 ��� 湲곕뒫 媛� �썑蹂�.
+2. �떎怨꾩젙 釉뚮씪�슦��� e2e: 寃��깋 �떞湲� 李⑤떒 �넗�뒪�듃, �븣由� 遺꾨쪟 �븘�꽣,
+   臾몄퐯�삎 �븰怨� 洹쒖젙 移대뱶, 而댄벂�꽣怨듯븰遺� �엯�젰 �떆 �븰怨� �썑蹂� �몴�떆.
+3. �굹癒몄�� 18媛� 洹쒖젙 yearTable 而ㅻ쾭由ъ��(�겕濡ㅻ윭 媛쒖꽑).
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(dept-rules 66/66 — columnIndex·NO_REQ·세부 학점행 5 신규,
-graduation 11/11 — 계획 중복집계 1 신규, ux-utils 26/26 —
-컴퓨터공학부 패밀리 2 신규), root+deploy 빌드 green, 번들 신규 코드
-마커 확인 후 배포, _verify_prod 전 엔드포인트 200.
-라이브 version 903d603c.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(dept-rules 66/66 ��� columnIndex쨌NO_REQ쨌�꽭遺� �븰�젏�뻾 5 �떊洹�,
+graduation 11/11 ��� 怨꾪쉷 以묐났吏묎퀎 1 �떊洹�, ux-utils 26/26 ���
+而댄벂�꽣怨듯븰遺� �뙣諛�由� 2 �떊洹�), root+deploy 鍮뚮뱶 green, 踰덈뱾 �떊洹� 肄붾뱶
+留덉빱 �솗�씤 �썑 諛고룷, _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
+�씪�씠釉� version 903d603c.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 단위 테스트·빌드·배포 검증 완료. UI 동작
-(필터 버튼, 토스트, 하이라이트)의 실계정 브라우저 확인은 미수행.
+VERIFICATION STATUS: �떒�쐞 �뀒�뒪�듃쨌鍮뚮뱶쨌諛고룷 寃�利� �셿猷�. UI �룞�옉
+(�븘�꽣 踰꾪듉, �넗�뒪�듃, �븯�씠�씪�씠�듃)�쓽 �떎怨꾩젙 釉뚮씪�슦��� �솗�씤��� 誘몄닔�뻾.
 
 ---
 
-## 2026-09-19 — LMS 과제·마감 검색 + advisor 이번 주 마감 (감사 후속)
+## 2026-09-19 ��� LMS 怨쇱젣쨌留덇컧 寃��깋 + advisor �씠踰� 二� 留덇컧 (媛먯궗 �썑�냽)
 
 DONE:
-- **`lib/data/search.ts`**: `lmsTaskSearch()` 신규 — LMS 개별
-  항목(강의·과제·퀴즈)을 자유질문에서 검색. 종류어 필터
-  (과제/숙제, 퀴즈/쪽지시험, 강의/동영상/vod/수업), 토큰 끝 질문
-  어미·조사 제거('알고리즘은'→'알고리즘', '언제까지'→drop, 1자 잔여는
-  과도 절단으로 보고 원형 유지), 마감 의도어(마감/데드라인/기한/제출)
-  = 종류 무관 전 항목. 미완료→마감(범위면 끝)순 정렬, 상태는
-  완료/미완료/응시 여부 확인 실패로 구분 표기. 결과는 `lms/{id}` 딥링크.
-- **`searchAll`**: LMS 블록을 개별 항목(cap 10) → 과목 제목(cap 12)
-  순으로 확장. 과목 hit도 `lms/{id}`로.
-- **`lms.tsx`**: `LmsSection`에 `detail` prop — CourseCard에
-  `id="lms-c-{id}"` + forceOpen, useEffect로 scrollIntoView.
-- **`search.tsx`**: 글로벌 검색에 '수업 현황' 그룹 추가(과제·퀴즈·
-  강의 항목 + 과목, cap 8) — 이전엔 LMS를 아예 검색하지 않았음.
-- **`advisor.tsx`**: "이번 주에 뭐 해야 해?" 칩 — `dueSoon`(7일)으로
-  마감 요약 + uncertain 퀴즈는 COSMOS 직접 확인 안내, 수집일 기준
-  명시. 빈 결과 문구에 수업 항목 포함, placeholder에 예시 추가.
-- **`lms.ts`**: `parseDue` export(검색 정렬에서 재사용).
-- **`page.tsx`**: LmsSection에 detail 배선.
+- **`lib/data/search.ts`**: `lmsTaskSearch()` �떊洹� ��� LMS 媛쒕퀎
+  �빆紐�(媛뺤쓽쨌怨쇱젣쨌��댁쫰)�쓣 �옄�쑀吏덈Ц�뿉�꽌 寃��깋. 醫낅쪟�뼱 �븘�꽣
+  (怨쇱젣/�닕�젣, ��댁쫰/履쎌���떆�뿕, 媛뺤쓽/�룞�쁺�긽/vod/�닔�뾽), �넗�겙 �걹 吏덈Ц
+  �뼱誘맞룹“�궗 �젣嫄�('�븣怨좊━利섏��'�넂'�븣怨좊━利�', '�뼵�젣源뚯��'�넂drop, 1�옄 �옍�뿬�뒗
+  怨쇰룄 �젅�떒�쑝濡� 蹂닿퀬 �썝�삎 �쑀吏�), 留덇컧 �쓽�룄�뼱(留덇컧/�뜲�뱶�씪�씤/湲고븳/�젣異�)
+  = 醫낅쪟 臾닿�� �쟾 �빆紐�. 誘몄셿猷뚢넂留덇컧(踰붿쐞硫� �걹)�닚 �젙�젹, �긽�깭�뒗
+  �셿猷�/誘몄셿猷�/�쓳�떆 �뿬遺� �솗�씤 �떎�뙣濡� 援щ텇 �몴湲�. 寃곌낵�뒗 `lms/{id}` �뵦留곹겕.
+- **`searchAll`**: LMS 釉붾줉�쓣 媛쒕퀎 �빆紐�(cap 10) �넂 怨쇰ぉ �젣紐�(cap 12)
+  �닚�쑝濡� �솗�옣. 怨쇰ぉ hit�룄 `lms/{id}`濡�.
+- **`lms.tsx`**: `LmsSection`�뿉 `detail` prop ��� CourseCard�뿉
+  `id="lms-c-{id}"` + forceOpen, useEffect濡� scrollIntoView.
+- **`search.tsx`**: 湲�濡쒕쾶 寃��깋�뿉 '�닔�뾽 �쁽�솴' 洹몃９ 異붽��(怨쇱젣쨌��댁쫰쨌
+  媛뺤쓽 �빆紐� + 怨쇰ぉ, cap 8) ��� �씠�쟾�뿏 LMS瑜� �븘�삁 寃��깋�븯吏� �븡�븯�쓬.
+- **`advisor.tsx`**: "�씠踰� 二쇱뿉 萸� �빐�빞 �빐?" 移� ��� `dueSoon`(7�씪)�쑝濡�
+  留덇컧 �슂�빟 + uncertain ��댁쫰�뒗 COSMOS 吏곸젒 �솗�씤 �븞�궡, �닔吏묒씪 湲곗��
+  紐낆떆. 鍮� 寃곌낵 臾멸뎄�뿉 �닔�뾽 �빆紐� �룷�븿, placeholder�뿉 �삁�떆 異붽��.
+- **`lms.ts`**: `parseDue` export(寃��깋 �젙�젹�뿉�꽌 �옱�궗�슜).
+- **`page.tsx`**: LmsSection�뿉 detail 諛곗꽑.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 실계정 e2e: '알고리즘 과제 언제까지' → task hit → lms/{id} 카드
-   펼침·스크롤, advisor 주간 마감 칩.
-2. 알림 예약(푸시 인프라 필요), 수강중 상태(LMS에 학점·코드 없어
-   제목 매칭만으로는 부정확 — 보류 유지), 나머지 18개 규정 수집.
+1. �떎怨꾩젙 e2e: '�븣怨좊━利� 怨쇱젣 �뼵�젣源뚯��' �넂 task hit �넂 lms/{id} 移대뱶
+   �렯移㉱룹뒪�겕濡�, advisor 二쇨컙 留덇컧 移�.
+2. �븣由� �삁�빟(�뫖�떆 �씤�봽�씪 �븘�슂), �닔媛뺤쨷 �긽�깭(LMS�뿉 �븰�젏쨌肄붾뱶 �뾾�뼱
+   �젣紐� 留ㅼ묶留뚯쑝濡쒕뒗 遺��젙�솗 ��� 蹂대쪟 �쑀吏�), �굹癒몄�� 18媛� 洹쒖젙 �닔吏�.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(search 26/26 — task 검색 12 신규: 종류 필터·질문 어미·마감 의도·
-초성·정렬·uncertain·순수 질문어 무매칭), root+deploy 빌드 green,
-번들 마커 확인, _verify_prod 전 엔드포인트 200.
-라이브 version 38e0db29.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(search 26/26 ��� task 寃��깋 12 �떊洹�: 醫낅쪟 �븘�꽣쨌吏덈Ц �뼱誘맞룸쭏媛� �쓽�룄쨌
+珥덉꽦쨌�젙�젹쨌uncertain쨌�닚�닔 吏덈Ц�뼱 臾대ℓ移�), root+deploy 鍮뚮뱶 green,
+踰덈뱾 留덉빱 �솗�씤, _verify_prod �쟾 �뿏�뱶�룷�씤�듃 200.
+�씪�씠釉� version 38e0db29.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 매칭 로직은 단위 테스트로 검증. 딥링크
-펼침·스크롤과 advisor 칩의 실계정 브라우저 확인은 미수행.
+VERIFICATION STATUS: 留ㅼ묶 濡쒖쭅��� �떒�쐞 �뀒�뒪�듃濡� 寃�利�. �뵦留곹겕
+�렯移㉱룹뒪�겕濡ㅺ낵 advisor 移⑹쓽 �떎怨꾩젙 釉뚮씪�슦��� �솗�씤��� 誘몄닔�뻾.
 
 ---
 
-## 2026-09-20 — 남은 후보 일괄 처리 (수강중 배지 + 규정 이미지 + 알림 예약 + e2e)
+## 2026-09-20 ��� �궓��� �썑蹂� �씪愿� 泥섎━ (�닔媛뺤쨷 諛곗�� + 洹쒖젙 �씠誘몄�� + �븣由� �삁�빟 + e2e)
 
 DONE:
-- **수강중 상태(표시 전용)**: `lms.ts`에 `enrolledSectionIds()` 추가
-  (matchEnrollment → 카탈로그 분반 id 집합). courses 목록·상세 카드에
-  '수강 중' 배지 + 툴팁(이름 매칭 기반, 공식 확인은 학교 시스템).
-  graduation에 '현재 수강 중' 정보 스트립 — COSMOS 스냅샷 출처·이름
-  매칭 한계·졸업 학점 미반영 명시. 학점 집계에는 일절 미반영.
-- **규정 커버리지(이미지 게시)**: Design 3개·역사문화큐레이션·역사콘텐츠
-  트랙 등 규정이 본문 이미지로만 게시된 페이지를 수집하도록 개선.
-  `dept-rules.ts`에 `extractContentImage()` — `_contentBuilder` 아티클
-  우선 스캔(없으면 contentsEditHtml~body), footer_logo/배너/아이콘 등
-  노이즈 필터, 상대경로 절대화 + alt 보존. `isRulesetAnomalous`가
-  image를 첨부와 동일하게 정상 간주. `DeptRuleset.image` 타입 추가.
-  크롤러 재실행 → ruleset 19→24개(Design 3 + 역사 트랙 2 신규 수집).
-  graduation.tsx에 이미지 규정 카드(공식 이미지 인라인 + 원문 링크),
-  규정 인덱스에 '이미지 공개' 배지, richness 점수에 image 반영.
-  `.rules-image` 스타일.
-  - 조사 결과: SclScn은 사이트맵에 졸업 링크 자체가 없음(학교 측 공백),
-    무용 전공 1줄 규정은 실제 정식 문구(파서 정상), Design 3개 트랙
-    페이지는 학교가 동일한 패션마케팅 이미지를 게시(원본 데이터 오류 —
-    수집된 이미지+원문 링크로 그대로 표시하는 것이 정직한 처리).
-- **브라우저 마감 알림(푸시 없이 가능한 범위)**: `notifs.ts`에
-  `reminderTargets()` — 미래 LMS 마감을 24h 전·당일에 울리는 예약 대상
-  도출(캘린더 날짜 기준 오늘/내일/D-n 라벨, uncertain 표기, 알림함 id
-  형식 공유). page.tsx에 예약 이펙트 — notifEnabled + granted + lms가
-  있을 때 setTimeout 예약, 발송분은 data.notifiedIds에 기록(최근 200
-  유지)해 중복 발송 방지. dataRef로 타이머 안에서도 최신 data 접근.
-  notifications.tsx에 '마감 브라우저 알림' 설정 블록 — opt-in 토글,
-  requestPermission 연결, 미지원/차단 상태 안내, '앱(탭)이 열려 있을
-  때만 울림 — 백그라운드 푸시 미지원' 한계 명시. Data에 notifiedIds·
-  notifEnabled 추가(데모 복원 가드 포함).
-- **e2e(데모 모드, Playwright)**: localStorage 시드(컴퓨터공학부+알고
-  리즘/머신러닝 LMS) 후 14항목 검증 전부 통과 — 수강 중 배지, 글로벌
-  검색 수업 현황 그룹+과제 항목, lms/c1 딥링크 자동 펼침·스크롤,
-  advisor '이번 주에 뭐 해야 해?' 마감 응답, 졸업 현재 수강 중 스트립,
-  CSE 학번표 카드, 이미지 공개 배지, 알림 설정 표시, LMS 알림 항목,
-  opt-in 토글, 한계 고지 문구. (headless는 Notification.permission이
-  denied 고정이라 granted shim으로 검증 — 실제 브라우저 권한 흐름은
-  앱 코드 경로와 동일)
+- **�닔媛뺤쨷 �긽�깭(�몴�떆 �쟾�슜)**: `lms.ts`�뿉 `enrolledSectionIds()` 異붽��
+  (matchEnrollment �넂 移댄깉濡쒓렇 遺꾨컲 id 吏묓빀). courses 紐⑸줉쨌�긽�꽭 移대뱶�뿉
+  '�닔媛� 以�' 諛곗�� + �댋�똻(�씠由� 留ㅼ묶 湲곕컲, 怨듭떇 �솗�씤��� �븰援� �떆�뒪�뀥).
+  graduation�뿉 '�쁽�옱 �닔媛� 以�' �젙蹂� �뒪�듃由� ��� COSMOS �뒪�깄�꺑 異쒖쿂쨌�씠由�
+  留ㅼ묶 �븳怨꽷룹「�뾽 �븰�젏 誘몃컲�쁺 紐낆떆. �븰�젏 吏묎퀎�뿉�뒗 �씪�젅 誘몃컲�쁺.
+- **洹쒖젙 而ㅻ쾭由ъ��(�씠誘몄�� 寃뚯떆)**: Design 3媛쑣룹뿭�궗臾명솕�걧�젅�씠�뀡쨌�뿭�궗肄섑뀗痢�
+  �듃�옓 �벑 洹쒖젙�씠 蹂몃Ц �씠誘몄��濡쒕쭔 寃뚯떆�맂 �럹�씠吏�瑜� �닔吏묓븯�룄濡� 媛쒖꽑.
+  `dept-rules.ts`�뿉 `extractContentImage()` ��� `_contentBuilder` �븘�떚�겢
+  �슦�꽑 �뒪罹�(�뾾�쑝硫� contentsEditHtml~body), footer_logo/諛곕꼫/�븘�씠肄� �벑
+  �끂�씠利� �븘�꽣, �긽���寃쎈줈 �젅����솕 + alt 蹂댁〈. `isRulesetAnomalous`媛�
+  image瑜� 泥⑤����� �룞�씪�븯寃� �젙�긽 媛꾩＜. `DeptRuleset.image` ����엯 異붽��.
+  �겕濡ㅻ윭 �옱�떎�뻾 �넂 ruleset 19�넂24媛�(Design 3 + �뿭�궗 �듃�옓 2 �떊洹� �닔吏�).
+  graduation.tsx�뿉 �씠誘몄�� 洹쒖젙 移대뱶(怨듭떇 �씠誘몄�� �씤�씪�씤 + �썝臾� 留곹겕),
+  洹쒖젙 �씤�뜳�뒪�뿉 '�씠誘몄�� 怨듦컻' 諛곗��, richness �젏�닔�뿉 image 諛섏쁺.
+  `.rules-image` �뒪����씪.
+  - 議곗궗 寃곌낵: SclScn��� �궗�씠�듃留듭뿉 議몄뾽 留곹겕 �옄泥닿�� �뾾�쓬(�븰援� 痢� 怨듬갚),
+    臾댁슜 �쟾怨� 1以� 洹쒖젙��� �떎�젣 �젙�떇 臾멸뎄(�뙆�꽌 �젙�긽), Design 3媛� �듃�옓
+    �럹�씠吏��뒗 �븰援먭�� �룞�씪�븳 �뙣�뀡留덉���똿 �씠誘몄��瑜� 寃뚯떆(�썝蹂� �뜲�씠�꽣 �삤瑜� ���
+    �닔吏묐맂 �씠誘몄��+�썝臾� 留곹겕濡� 洹몃��濡� �몴�떆�븯�뒗 寃껋씠 �젙吏곹븳 泥섎━).
+- **釉뚮씪�슦��� 留덇컧 �븣由�(�뫖�떆 �뾾�씠 媛��뒫�븳 踰붿쐞)**: `notifs.ts`�뿉
+  `reminderTargets()` ��� 誘몃옒 LMS 留덇컧�쓣 24h �쟾쨌�떦�씪�뿉 �슱由щ뒗 �삁�빟 ����긽
+  �룄異�(罹섎┛�뜑 �궇吏� 湲곗�� �삤�뒛/�궡�씪/D-n �씪踰�, uncertain �몴湲�, �븣由쇳븿 id
+  �삎�떇 怨듭쑀). page.tsx�뿉 �삁�빟 �씠�럺�듃 ��� notifEnabled + granted + lms媛�
+  �엳�쓣 �븣 setTimeout �삁�빟, 諛쒖넚遺꾩�� data.notifiedIds�뿉 湲곕줉(理쒓렐 200
+  �쑀吏�)�빐 以묐났 諛쒖넚 諛⑹��. dataRef濡� ����씠癒� �븞�뿉�꽌�룄 理쒖떊 data �젒洹�.
+  notifications.tsx�뿉 '留덇컧 釉뚮씪�슦��� �븣由�' �꽕�젙 釉붾줉 ��� opt-in �넗湲�,
+  requestPermission �뿰寃�, 誘몄���썝/李⑤떒 �긽�깭 �븞�궡, '�빋(�꺆)�씠 �뿴�젮 �엳�쓣
+  �븣留� �슱由� ��� 諛깃렇�씪�슫�뱶 �뫖�떆 誘몄���썝' �븳怨� 紐낆떆. Data�뿉 notifiedIds쨌
+  notifEnabled 異붽��(�뜲紐� 蹂듭썝 媛��뱶 �룷�븿).
+- **e2e(�뜲紐� 紐⑤뱶, Playwright)**: localStorage �떆�뱶(而댄벂�꽣怨듯븰遺�+�븣怨�
+  由ъ쬁/癒몄떊�윭�떇 LMS) �썑 14�빆紐� 寃�利� �쟾遺� �넻怨� ��� �닔媛� 以� 諛곗��, 湲�濡쒕쾶
+  寃��깋 �닔�뾽 �쁽�솴 洹몃９+怨쇱젣 �빆紐�, lms/c1 �뵦留곹겕 �옄�룞 �렯移㉱룹뒪�겕濡�,
+  advisor '�씠踰� 二쇱뿉 萸� �빐�빞 �빐?' 留덇컧 �쓳�떟, 議몄뾽 �쁽�옱 �닔媛� 以� �뒪�듃由�,
+  CSE �븰踰덊몴 移대뱶, �씠誘몄�� 怨듦컻 諛곗��, �븣由� �꽕�젙 �몴�떆, LMS �븣由� �빆紐�,
+  opt-in �넗湲�, �븳怨� 怨좎�� 臾멸뎄. (headless�뒗 Notification.permission�씠
+  denied 怨좎젙�씠�씪 granted shim�쑝濡� 寃�利� ��� �떎�젣 釉뚮씪�슦��� 沅뚰븳 �쓲由꾩��
+  �빋 肄붾뱶 寃쎈줈��� �룞�씪)
 
 IN PROGRESS: nothing.
 
 NEXT:
-- 없음(사용자 지정 후보 전부 처리). 잔여 큰 과제: 백그라운드 푸시
-  (VAPID+서비스워커+구독 저장 인프라 필요), SclScn 졸업요건은 학교
-  사이트 공백으로 수집 불가.
+- �뾾�쓬(�궗�슜�옄 吏��젙 �썑蹂� �쟾遺� 泥섎━). �옍�뿬 �겙 怨쇱젣: 諛깃렇�씪�슫�뱶 �뫖�떆
+  (VAPID+�꽌鍮꾩뒪�썙而�+援щ룆 ����옣 �씤�봽�씪 �븘�슂), SclScn 議몄뾽�슂嫄댁�� �븰援�
+  �궗�씠�듃 怨듬갚�쑝濡� �닔吏� 遺덇��.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(dept-rules 74/74 — 이미지 추출·노이즈 필터·article 스코프 8 신규,
-notifs 20/20 — reminderTargets 9 신규, lms 48/48 — enrolledSectionIds
-포함), root+deploy 빌드 green, 번들 마커 5종 확인, _verify_prod 전
-엔드포인트 200, /api/dept-rules 라이브 24개·이미지 6건 확인.
-e2e 14/14. 라이브 version 46543064.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(dept-rules 74/74 ��� �씠誘몄�� 異붿텧쨌�끂�씠利� �븘�꽣쨌article �뒪肄뷀봽 8 �떊洹�,
+notifs 20/20 ��� reminderTargets 9 �떊洹�, lms 48/48 ��� enrolledSectionIds
+�룷�븿), root+deploy 鍮뚮뱶 green, 踰덈뱾 留덉빱 5醫� �솗�씤, _verify_prod �쟾
+�뿏�뱶�룷�씤�듃 200, /api/dept-rules �씪�씠釉� 24媛쑣룹씠誘몄�� 6嫄� �솗�씤.
+e2e 14/14. �씪�씠釉� version 46543064.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 단위 테스트·빌드·배포·데모 e2e 완료. 실계정
-브라우저 확인은 데모로 대체(로그인 경로만 미검증). 브라우저 알림의
-실제 OS 알림 발송은 headless라 시각 확인 불가 — 예약·토글·한계 고지
-로직만 검증됨.
+VERIFICATION STATUS: �떒�쐞 �뀒�뒪�듃쨌鍮뚮뱶쨌諛고룷쨌�뜲紐� e2e �셿猷�. �떎怨꾩젙
+釉뚮씪�슦��� �솗�씤��� �뜲紐⑤줈 ���泥�(濡쒓렇�씤 寃쎈줈留� 誘멸��利�). 釉뚮씪�슦��� �븣由쇱쓽
+�떎�젣 OS �븣由� 諛쒖넚��� headless�씪 �떆媛� �솗�씤 遺덇�� ��� �삁�빟쨌�넗湲�쨌�븳怨� 怨좎��
+濡쒖쭅留� 寃�利앸맖.
 
 ---
 
-## 2026-09-20 — LMS 제출·응시 현황 + 강의 몰아듣기 (사용자 요청)
+## 2026-09-20 ��� LMS �젣異쑣룹쓳�떆 �쁽�솴 + 媛뺤쓽 紐곗븘�뱽湲� (�궗�슜�옄 �슂泥�)
 
 DONE:
-- **`lib/data/lms.ts`**: `SubmissionItem` + `submissionItems(snap)` —
-  전 과목의 과제·퀴즈를 완료 포함 통합 목록으로(기존 CourseCard는
-  미완료만 표시). 미제출/미응시·uncertain을 앞에, 완료를 뒤에, 각
-  그룹은 마감(parseDue, 범위면 끝)순. `BingeItem` + `bingeQueue(snap)`
-  — 미시청 VOD만 수강 기간 마감 빠른 순 큐, 무기한은 주차순으로 뒤에.
-  주차·기간 원문·출석 상태·weeklyStatus·강의 url 보존.
-- **`app/sections/lms.tsx`**: 뷰 탭 3개(role=tablist/tab,
-  aria-selected) — 과목별/몰아듣기/제출·응시. `BingeView`(안 들은 강의
-  n건, COSMOS에서 시청 안내 문구), `SubmissionsView`(제출 완료/응시
-  완료/미제출/미응시/응시 여부 확인 실패 배지 — uncertain을 확정
-  미응시로 표기하지 않음, COSMOS 원문 링크). `detail` 딥링크 변경 시
-  렌더 단계 상태 조정 패턴으로 과목별 뷰 복귀(effect 내 setState는
-  react-compiler 린트 오류라 제거), 스크롤 이펙트는 유지.
+- **`lib/data/lms.ts`**: `SubmissionItem` + `submissionItems(snap)` ���
+  �쟾 怨쇰ぉ�쓽 怨쇱젣쨌��댁쫰瑜� �셿猷� �룷�븿 �넻�빀 紐⑸줉�쑝濡�(湲곗〈 CourseCard�뒗
+  誘몄셿猷뚮쭔 �몴�떆). 誘몄젣異�/誘몄쓳�떆쨌uncertain�쓣 �븵�뿉, �셿猷뚮�� �뮘�뿉, 媛�
+  洹몃９��� 留덇컧(parseDue, 踰붿쐞硫� �걹)�닚. `BingeItem` + `bingeQueue(snap)`
+  ��� 誘몄떆泥� VOD留� �닔媛� 湲곌컙 留덇컧 鍮좊Ⅸ �닚 �걧, 臾닿린�븳��� 二쇱감�닚�쑝濡� �뮘�뿉.
+  二쇱감쨌湲곌컙 �썝臾맞룹텧�꽍 �긽�깭쨌weeklyStatus쨌媛뺤쓽 url 蹂댁〈.
+- **`app/sections/lms.tsx`**: 酉� �꺆 3媛�(role=tablist/tab,
+  aria-selected) ��� 怨쇰ぉ蹂�/紐곗븘�뱽湲�/�젣異쑣룹쓳�떆. `BingeView`(�븞 �뱾��� 媛뺤쓽
+  n嫄�, COSMOS�뿉�꽌 �떆泥� �븞�궡 臾멸뎄), `SubmissionsView`(�젣異� �셿猷�/�쓳�떆
+  �셿猷�/誘몄젣異�/誘몄쓳�떆/�쓳�떆 �뿬遺� �솗�씤 �떎�뙣 諛곗�� ��� uncertain�쓣 �솗�젙
+  誘몄쓳�떆濡� �몴湲고븯吏� �븡�쓬, COSMOS �썝臾� 留곹겕). `detail` �뵦留곹겕 蹂�寃� �떆
+  �젋�뜑 �떒怨� �긽�깭 議곗젙 �뙣�꽩�쑝濡� 怨쇰ぉ蹂� 酉� 蹂듦��(effect �궡 setState�뒗
+  react-compiler 由고듃 �삤瑜섎씪 �젣嫄�), �뒪�겕濡� �씠�럺�듃�뒗 �쑀吏�.
 - **`learning.css`**: `.lms-tabs` flex, `.lms-task .badge:last-child`
-  우측 정렬.
+  �슦痢� �젙�젹.
 
 IN PROGRESS: nothing.
 
 NEXT:
-1. 실계정 e2e로 세 탭 렌더 확인(데모 17/17로 대체 검증됨).
-2. 백그라운드 푸시(인프라 필요) — 유일한 잔여 큰 과제.
+1. �떎怨꾩젙 e2e濡� �꽭 �꺆 �젋�뜑 �솗�씤(�뜲紐� 17/17濡� ���泥� 寃�利앸맖).
+2. 諛깃렇�씪�슫�뱶 �뫖�떆(�씤�봽�씪 �븘�슂) ��� �쑀�씪�븳 �옍�뿬 �겙 怨쇱젣.
 
 BLOCKER: none.
 
-TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
-(lms 62/62 — submissionItems·bingeQueue 14 신규: 완료 포함, 미완료
-우선 정렬, dueTs 파싱, uncertain 보존, 미시청만, 기한순, 무기한
-주차순, 출석 제외), root+deploy 빌드 green, 번들 마커 6종 확인,
-_verify_prod 전 엔드포인트 200. e2e 17/17.
-라이브 version ecaf4437.
+TESTS: tsc clean, oxlint 0 err, �쟾泥� 留ㅽ듃由��뒪 11�뙆�씪 OK
+(lms 62/62 ��� submissionItems쨌bingeQueue 14 �떊洹�: �셿猷� �룷�븿, 誘몄셿猷�
+�슦�꽑 �젙�젹, dueTs �뙆�떛, uncertain 蹂댁〈, 誘몄떆泥�留�, 湲고븳�닚, 臾닿린�븳
+二쇱감�닚, 異쒖꽍 �젣�쇅), root+deploy 鍮뚮뱶 green, 踰덈뱾 留덉빱 6醫� �솗�씤,
+_verify_prod �쟾 �뿏�뱶�룷�씤�듃 200. e2e 17/17.
+�씪�씠釉� version ecaf4437.
 
 REPO SCOUT: none.
 
-VERIFICATION STATUS: 단위 테스트·빌드·배포·데모 e2e(탭 전환, 큐
-표시, 상태 배지, 완료 항목, 딥링크 복귀) 완료. 실계정 확인 미수행.
-'몰아듣기'는 우선순위 큐+COSMOS 링크이며 자동 재생·출석 조작이
-아님을 UI에 명시.
+VERIFICATION STATUS: �떒�쐞 �뀒�뒪�듃쨌鍮뚮뱶쨌諛고룷쨌�뜲紐� e2e(�꺆 �쟾�솚, �걧
+�몴�떆, �긽�깭 諛곗��, �셿猷� �빆紐�, �뵦留곹겕 蹂듦��) �셿猷�. �떎怨꾩젙 �솗�씤 誘몄닔�뻾.
+'紐곗븘�뱽湲�'�뒗 �슦�꽑�닚�쐞 �걧+COSMOS 留곹겕�씠硫� �옄�룞 �옱�깮쨌異쒖꽍 議곗옉�씠
+�븘�떂�쓣 UI�뿉 紐낆떆.
   
 ---  
   
-## 2026-09-19 ? COSMOS ũ�� Ȯ�� ������ + Ŀ�´�Ƽ ���� ���� (user-requested) 
+## 2026-09-19 ? COSMOS 크롬 확장 수집기 + 커뮤니티 과목 수정 (user-requested)
+
+---
+
+## 2026-09-21 — LMS 동기화 상태 단일화 + 수업 현황 UI 리디자인 (user-requested)
+
+CONTEXT: 개선 루프 — 확장↔앱 프로토콜 정식화, fetchedAt 단일 시각 근거,
+F12 우선 안내 제거, Notion 계열 토큰 기준 LMS 화면 재설계.
+
+DONE:
+- `extension/app-bridge.js` — 프로토콜 정식화. 발신 `hsu-extension-ready`
+  (버전, 2초 재통지) / `hsu-lms-status`(syncing/success/failed+error) /
+  `hsu-lms-import`, 수신 `hsu-extension-ping` / `hsu-lms-refresh-request{force}`.
+  전부 location.origin 한정 postMessage.
+- `extension/background.js` — `hsu-refresh`에 force 플래그: 5분 단기
+  캐시 우회하되 inflight 공유 유지. manifest v0.4.0.
+- `app/page.tsx` — ext 상태(idle/syncing/success/login-required/failed)
+  단일화, ready/status/import 수신(origin 검증 유지), ping 발신으로
+  리스너 경합 해소, 수집 무응답 2분 타임아웃→failed, visible 전용
+  15분 갱신 루프(1분 tick + visibilitychange 재개 시 fetchedAt stale
+  판정), 수동 새로고침 requestLmsRefresh(force).
+- `lib/data/lms.ts` — `LmsSnapshot.diag{coursesVia,pagePath,scanned}`
+  추가 + validateLms 통과 보존(조건부 스프레드로 undefined 키 방지),
+  `relTime()` 상대 시각 헬퍼.
+- `app/sections/lms.tsx` — 전면 재설계. SyncBand(navy, 상태 도트,
+  relTime 마지막 동기화, 과목/남은 항목/수집 경로/자동 갱신 간격,
+  CTA: 지금 새로고침·COSMOS 로그인), band 판정 단일화
+  (syncing>login>failed>setup>stale>fresh), lms-grid 2열(메인 탭 +
+  사이드 마감 임박/연결 관리), ConnCard(동기화 상태·경로·진단·
+  마지막 오류·카탈로그 매칭 실패 과목 노출 + 3종 수집 수단),
+  SetupGuide(확장 설치 우선, F12 지침 제거 — 스크립트는 details),
+  항목 유형 pastel 행(t-vod/t-assign/t-quiz).
+- `app/styles/learning.css` — band/grid/guide/conn/pastel 스타일,
+  모바일 단일 열 접기, band-pulse/spin 제한 애니메이션.
+- `tests/lms.test.mjs` — 실계정 7과목 익명 fixture(diag·weeklyStatus·
+  watched/required·uncertain·community·quiz-check) + relTime 단위 +
+  weekProgress — 15 신규 단언, 78/78.
+
+VERIFIED: node --check 확장 3파일+lms-collect.js, tsc clean,
+oxlint 0 err, 전체 매트릭스 11파일 OK(lms 78/78, lms-server 47/47),
+root+deploy 빌드 green, _verify_prod 전 엔드포인트 200, parity OK.
+라이브 version e9fd6ef2.
+
+NEXT: 실계정 Chrome e2e(확장 로드→자동 수집→밴드 상태 전이 확인)는
+사람 검증 필요 — diag.coursesVia로 셀렉터 실측 가능. 설정 화면에
+hsuLmsErr 노출은 ConnCard '마지막 오류'로 1차 커버.
+
+BLOCKER: none.

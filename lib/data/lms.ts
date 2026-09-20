@@ -49,6 +49,12 @@ export type LmsSnapshot = {
   source: 'cosmos-lms';
   fetchedAt: string;
   courses: LmsCourse[];
+  /** 수집 진단 메타 — 어떤 셀렉터 경로로 과목을 찾았는지 기록(확장·콘솔 수집기) */
+  diag?: {
+    coursesVia?: string;
+    pagePath?: string;
+    scanned?: number;
+  };
 };
 
 /** 수집 JSON 검증 — 형식이 맞지 않으면 null (부분 보정 없이 거부) */
@@ -111,10 +117,22 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
         : undefined,
     });
   }
+  const d = s.diag as Record<string, unknown> | undefined;
   return {
     source: 'cosmos-lms',
     fetchedAt: typeof s.fetchedAt === 'string' ? s.fetchedAt : '',
     courses,
+    ...(d && typeof d === 'object'
+      ? {
+          diag: {
+            ...(typeof d.coursesVia === 'string'
+              ? { coursesVia: d.coursesVia }
+              : {}),
+            ...(typeof d.pagePath === 'string' ? { pagePath: d.pagePath } : {}),
+            ...(typeof d.scanned === 'number' ? { scanned: d.scanned } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -133,6 +151,19 @@ export function staleDays(snap: LmsSnapshot, now: number): number | null {
   const t = Date.parse(snap.fetchedAt);
   if (Number.isNaN(t)) return null;
   return Math.max(0, Math.floor((now - t) / 86400000));
+}
+
+/** ISO 시각 → '방금/N분 전/N시간 전/N일 전' 상대 표기. 파싱 불가면 '시각 미상'. */
+export function relTime(iso: string, now: number): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '시각 미상';
+  const s = Math.max(0, Math.floor((now - t) / 1000));
+  if (s < 60) return '방금';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  return `${Math.floor(h / 24)}일 전`;
 }
 
 /** 과목별 수강 진행 (온라인 강의 기준) */

@@ -1071,3 +1071,290 @@
     align-items: flex-start;
   }
 }
+
+/* ---------- sync status band (navy structural region) ---------- */
+.lms-band {
+  background: var(--nt-navy);
+  border-radius: var(--nt-r-lg);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: var(--nt-on-dark);
+}
+.band-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 240px;
+  flex: 1 1 300px;
+}
+.band-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--nt-r-pill);
+  margin-top: 7px;
+  flex-shrink: 0;
+  background: var(--nt-muted);
+}
+.band-fresh .band-dot {
+  background: var(--nt-green);
+}
+.band-syncing .band-dot {
+  background: var(--nt-tint-sky);
+  animation: band-pulse 1.6s var(--nt-ease) infinite;
+}
+.band-login .band-dot,
+.band-stale .band-dot {
+  background: var(--nt-yellow);
+}
+.band-failed .band-dot {
+  background: var(--nt-error);
+}
+.band-setup .band-dot {
+  background: var(--nt-purple-300);
+}
+@keyframes band-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.lms-band h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--nt-on-dark);
+  margin: 0;
+}
+.lms-band .band-main p {
+  color: var(--nt-on-dark-muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+.band-metrics {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.band-metrics > div {
+  display: flex;
+  flex-direction: column;
+}
+.band-metrics dt {
+  font-size: 11px;
+  color: var(--nt-on-dark-muted);
+  letter-spacing: 0.2px;
+}
+.band-metrics dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nt-on-dark);
+  white-space: nowrap;
+}
+.band-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.band-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: var(--nt-r-md);
+  background: var(--nt-on-dark);
+  color: var(--nt-navy);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  transition: background-color 0.15s var(--nt-ease);
+}
+.band-cta:hover:not(:disabled) {
+  background: var(--nt-tint-sky);
+}
+.band-cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.band-cta .spin {
+  animation: lms-spin 1s linear infinite;
+}
+@keyframes lms-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.band-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--nt-on-dark-muted);
+  font-size: 13px;
+}
+.band-link:hover {
+  color: var(--nt-on-dark);
+}
+
+/* ---------- asymmetric workspace grid ---------- */
+.lms-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.lms-side {
+  display: grid;
+  gap: 20px;
+}
+@media (max-width: 999px) {
+  .lms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- setup guide ---------- */
+.lms-guide-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.lms-guide-head svg {
+  color: var(--nt-primary);
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.lms-guide-head h2 {
+  margin: 0;
+}
+.lms-guide-head .meta {
+  margin: 6px 0 0;
+}
+.lms-manual {
+  margin-top: 14px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  padding: 10px 14px;
+  background: var(--nt-surface-soft);
+}
+.lms-manual > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nt-slate);
+  list-style: none;
+}
+.lms-manual > summary::-webkit-details-marker {
+  display: none;
+}
+.lms-manual > summary::after {
+  content: '열기';
+  float: right;
+  font-size: 12px;
+  color: var(--nt-stone);
+}
+.lms-manual[open] > summary::after {
+  content: '닫기';
+}
+.lms-manual .meta {
+  margin: 10px 0 0;
+}
+
+/* ---------- connection management card ---------- */
+.lms-conn h3 {
+  margin: 0 0 12px;
+}
+.conn-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.conn-rows > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+.conn-rows dt {
+  font-size: 12px;
+  color: var(--nt-stone);
+}
+.conn-rows dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--nt-charcoal);
+  word-break: break-word;
+}
+.conn-warn {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--nt-orange-deep);
+}
+.conn-err {
+  color: var(--nt-error);
+}
+.lms-conn-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.lms-conn-actions .primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+}
+.lms-conn-actions .meta {
+  margin: 0;
+  font-size: 13px;
+}
+.lms-conn .lms-refresh {
+  margin-top: 0;
+}
+
+/* ---------- pastel task rows: 항목 유형별 구분 ---------- */
+.lms-task {
+  border-radius: var(--nt-r-sm);
+  padding: 7px 10px;
+}
+.lms-task.t-vod {
+  background: var(--nt-tint-sky);
+}
+.lms-task.t-assign {
+  background: var(--nt-tint-peach);
+}
+.lms-task.t-quiz {
+  background: var(--nt-tint-lavender);
+}
+.lms-task.t-none {
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+.lms-task.t-none + .lms-task.t-none {
+  margin-top: -4px;
+}
+@media (max-width: 767px) {
+  .lms-band {
+    padding: 16px 18px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .band-metrics {
+    gap: 16px;
+  }
+  .band-actions {
+    justify-content: flex-start;
+  }
+}

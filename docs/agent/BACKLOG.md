@@ -577,6 +577,28 @@ blocking regressions.
   완료 포함 통합 현황, uncertain은 확정 미응시와 구분)와 '몰아듣기'
   (`bingeQueue`: 미시청 강의 기한순 큐 + COSMOS 링크, 자동 재생/
   출석 조작 아님).
+- **Done (2026-09-21, v0.4.0 + UI 리디자인)**: 확장↔앱 프로토콜 정식화
+  + 동기화 상태 단일화 + LMS 화면 재설계.
+  - 브리지 계약: `hsu-extension-ready`(버전, ping 재요청 가능),
+    `hsu-lms-status`(syncing/success/login-required/failed+error),
+    `hsu-lms-import`, 앱→확장 `hsu-lms-refresh-request{force}` —
+    전부 origin 검증 + validateLms 통과분만 반영.
+  - page.tsx: ext 상태 단일화 + 수집 타임아웃(2분 무응답→failed)
+    + visible 전용 15분 갱신 루프(visibilitychange로 중지/재개,
+    fetchedAt 기준 stale 판정) + 수동 새로고침 force(5분 캐시
+    우회, inflight 공유 유지).
+  - `LmsSnapshot.diag` 타입+검증 통과 보존(coursesVia/pagePath/
+    scanned) — 수집 경로·진단을 제품 UI에서 확인 가능.
+  - lms.tsx 재설계: navy 동기화 상태 밴드(상태 도트·마지막 동기화
+    relTime·과목 수·남은 항목·수집 경로·자동 갱신 간격·CTA),
+    asymmetric 2열 그리드(메인 탭 뷰 + 사이드 마감 임박/연결 관리),
+    연결 관리 카드(동기화 상태·경로·진단·마지막 오류·카탈로그 매칭
+    실패 과목 노출 + 확장/서버/파일 수집 수단), 확장 우선 설치 안내
+    (F12 지침 제거, 스크립트는 details 보조 수단), 항목 유형별
+    pastel 행(강의 sky/과제 peach/퀴즈 lavender), 모바일 단일 열.
+  - 테스트: 실계정 7과목 형태 익명 fixture(diag/weeklyStatus/
+    watched/required/uncertain/community/quiz-check) + relTime
+    단위 — lms.test 78/78.
 
 ## ISSUE-24 — BE 업무 패키지 (팀원 핸드오프)
 

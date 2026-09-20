@@ -11,11 +11,14 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
+import type { Catalog } from '@/lib/data/catalog';
 import {
   bingeQueue,
   courseProgress,
   dueSoon,
+  matchEnrollment,
   pendingTasks,
+  relTime,
   staleDays,
   submissionItems,
   validateLms,
@@ -68,8 +71,10 @@ function TaskRow({
 }) {
   const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
   const dd = ts !== null && !Number.isNaN(ts) ? Math.ceil((ts - now) / DAY) : null;
+  const tint =
+    kind === '과제' ? 't-assign' : kind === '퀴즈' ? 't-quiz' : 't-vod';
   return (
-    <div className="lms-task">
+    <div className={`lms-task ${tint}`}>
       <span className={`badge ${kind === '과제' ? 'orange' : kind === '퀴즈' ? 'purple' : 'blue'}`}>
         {kind}
       </span>
@@ -229,7 +234,7 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
   const overdue = b.dueTs !== null && b.dueTs <= now;
   const dd = b.dueTs !== null ? Math.ceil((b.dueTs - now) / DAY) : null;
   return (
-    <div className="lms-task">
+    <div className="lms-task t-vod">
       <span className={'badge ' + (overdue ? 'orange' : 'blue')}>
         {b.week ? `${b.week}주차` : '강의'}
       </span>
@@ -298,7 +303,7 @@ function BingeView({ snap, now }: { snap: LmsSnapshot; now: number }) {
 function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
   const dd = s.dueTs !== null ? Math.ceil((s.dueTs - now) / DAY) : null;
   return (
-    <div className="lms-task">
+    <div className={`lms-task ${s.kind === '과제' ? 't-assign' : 't-quiz'}`}>
       <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
         {s.kind}
       </span>
@@ -358,6 +363,23 @@ function SubmissionsView({ snap, now }: { snap: LmsSnapshot; now: number }) {
   );
 }
 
+/** 확장 프로그램 동기화 상태 — page.tsx의 브리지 이벤트로 갱신된다 */
+export type ExtSync = {
+  installed: boolean;
+  version?: string;
+  status: 'idle' | 'syncing' | 'success' | 'login-required' | 'failed';
+  error?: string;
+};
+
+/** 스냅샷의 수집 경로 표시명 — diag가 있는 수집은 브라우저(확장·콘솔) */
+const viaLabel = (snap?: LmsSnapshot) => {
+  const v = snap?.diag?.coursesVia;
+  if (v === 'dashboard') return '브라우저 수집';
+  if (v === 'link-scan') return '브라우저 수집(링크 스캔)';
+  if (snap?.diag) return '브라우저 수집';
+  return snap ? '서버·파일 수집' : '아직 없음';
+};
+
 export function LmsSection({
   data,
   persist,
@@ -368,6 +390,9 @@ export function LmsSection({
   studentMask,
   onAccount,
   detail,
+  ext,
+  onExtRefresh,
+  catalog,
 }: {
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
@@ -384,6 +409,12 @@ export function LmsSection({
   onAccount?: (account: Account) => void;
   /** 검색·advisor 딥링크의 과목 id — 해당 카드를 펼치고 스크롤 */
   detail?: string;
+  /** 확장 프로그램 브리지 상태 */
+  ext?: ExtSync;
+  /** 확장 수집 즉시 실행 요청 — 미설치면 상위에서 무시된다 */
+  onExtRefresh?: () => void;
+  /** 개설강의 카탈로그 — LMS 과목 매칭 진단용 */
+  catalog?: Catalog | null;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
@@ -393,6 +424,38 @@ export function LmsSection({
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
+  const extStatus: ExtSync = ext ?? { installed: false, status: 'idle' };
+  const syncing = !!serverCollecting || extStatus.status === 'syncing';
+  const pendCount = snap ? pendingTasks(snap).length : 0;
+
+  // 단일 동기화 상태 — 밴드와 연결 관리가 같은 판정을 본다
+  const band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh' =
+    syncing
+      ? 'syncing'
+      : extStatus.status === 'login-required'
+        ? 'login'
+        : extStatus.status === 'failed' || collectFailed || lmsUnavailable
+          ? 'failed'
+          : !snap
+            ? 'setup'
+            : stale !== null && stale >= 7
+              ? 'stale'
+              : 'fresh';
+  const lastError =
+    extStatus.status === 'failed'
+      ? extStatus.error
+      : lmsUnavailable
+        ? 'COSMOS 접속 실패'
+        : collectFailed
+          ? '서버 수집 미완료'
+          : undefined;
+
+  // 카탈로그 매칭 진단 — 이름이 다른 과목은 조용히 넘기지 않고 집계한다
+  const unmatched = snap && catalog
+    ? matchEnrollment(snap, catalog)
+        .filter((m) => m.sections.length === 0)
+        .map((m) => m.course.title)
+    : [];
 
   // 딥링크가 바뀌면 과목별 뷰로 돌아간다 — 대상 카드는 그 뷰에만 있다
   // (렌더 중 상태 조정 패턴 — effect 내 setState 대신)
@@ -438,150 +501,33 @@ export function LmsSection({
 
   return (
     <>
-      <section className="card pad">
-        <div className="between">
-          <h2>COSMOS 수업 현황</h2>
-          <a className="link" href={LMS_BASE} target="_blank" rel="noreferrer">
-            COSMOS 열기 <ArrowUpRight size={16} />
-          </a>
-        </div>
-        <p className="meta">
-          학교 LMS(COSMOS)의 수강 상태를 가져와 한눈에 봅니다. 앱이 COSMOS에 직접
-          접속할 수 없어, 브라우저에서 수집 스크립트를 실행한 뒤 결과 파일을
-          가져오는 방식입니다. 로그인 정보는 본인 브라우저 안에서만 사용되며
-          어디에도 전송되지 않습니다.
-        </p>
-        {snap && (
-          <p className="meta">
-            {snap.fetchedAt ? `${snap.fetchedAt.slice(0, 10)} 수집` : '수집일 미상'}
-            {' · '}
-            {snap.courses.length}개 과목 · 데이터는 수집 시점 기준이며 이후 변경은
-            재수집해야 반영됩니다.
-          </p>
-        )}
-        {serverCollecting && snap && (
-          <p className="meta">
-            서버에서 최신 데이터를 수집하고 있습니다. 완료되면 자동으로
-            반영됩니다.
-          </p>
-        )}
-        {collectFailed && snap && (
-          <p className="lms-stale">
-            최근 서버 수집이 완료되지 못했습니다. 아래는 이전 수집 데이터입니다.
-          </p>
-        )}
-        {lmsUnavailable && snap && (
-          <p className="lms-stale">
-            이번 연결에서 COSMOS 접속에 실패했습니다. 아래는 이전 수집
-            데이터입니다.
-          </p>
-        )}
-        {stale !== null && stale >= 7 && (
-          <p className="lms-stale">
-            수집한 지 {stale}일 지났습니다. 최신 상태가 아닐 수 있습니다.
-          </p>
-        )}
-        {canRefresh && (
-          <RefreshForm
-            studentMask={studentMask!}
-            onAccount={onAccount!}
-            notify={notify}
-            busy={serverCollecting}
-          />
-        )}
-        <ol className="lms-steps">
-          <li>
-            <a className="link" href={LMS_BASE} target="_blank" rel="noreferrer">
-              learn.hansung.ac.kr
-            </a>
-            에 로그인하고 내 강의실(대시보드)로 이동
-          </li>
-          <li>
-            F12 → Console 탭을 열고 수집 스크립트를 붙여넣은 뒤 Enter
-            <span className="lms-script-actions">
-              <button className="secondary" onClick={() => void copyScript()} disabled={copying}>
-                <Copy size={14} /> {copying ? '복사 중…' : '스크립트 복사'}
-              </button>
-              <a className="secondary" href="/lms-collect.js" target="_blank" rel="noreferrer">
-                <Download size={14} /> 스크립트 파일
-              </a>
-            </span>
-          </li>
-          <li>
-            다운로드된 <code>lms-data.json</code>을 여기에 업로드
-            <span className="lms-script-actions">
-              <button className="primary" onClick={() => fileRef.current?.click()}>
-                <Upload size={14} /> 파일 가져오기
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json,.json"
-                hidden
-                onChange={async (e) => {
-                  const f = e.currentTarget.files?.[0];
-                  if (f) await importJson(await f.text());
-                  e.currentTarget.value = '';
-                }}
-              />
-            </span>
-          </li>
-        </ol>
-        {err && <p className="lms-error">{err}</p>}
-      </section>
+      <SyncBand
+        band={band}
+        snap={snap}
+        now={now}
+        pending={pendCount}
+        error={lastError}
+        extInstalled={extStatus.installed}
+        serverCollecting={serverCollecting}
+        onExtRefresh={onExtRefresh}
+      />
 
-      {!snap && (
-        <section className="card pad">
-          <div className="empty-small">
-            <MonitorPlay size={30} />
-            <h3>
-              {serverCollecting
-                ? '서버에서 수집 중입니다…'
-                : collectFailed
-                  ? '서버 수집이 완료되지 못했습니다.'
-                  : lmsUnavailable
-                    ? 'COSMOS에 접속하지 못했습니다.'
-                    : '아직 수업 데이터가 없습니다.'}
-            </h3>
-            <p>
-              {serverCollecting
-                ? '학교 계정 연결로 COSMOS 수업 현황을 수집하고 있습니다. 완료되면 이 화면에 자동으로 표시됩니다(보통 1분 이내).'
-                : collectFailed
-                  ? '학교 계정 연결은 유지되어 있습니다. 위의 재수집으로 다시 시도하거나, COSMOS 상태를 확인한 뒤 잠시 후 시도해 주세요.'
-                  : lmsUnavailable
-                    ? '학교 계정 연결은 됐지만 COSMOS 로그인에 실패했습니다. 위의 재수집으로 다시 시도하거나, 아래 수동 수집을 이용해 주세요.'
-                    : '위 순서대로 수집하면 수강한 강의·남은 강의·미제출 과제·미응시 퀴즈를 여기서 확인할 수 있습니다.'}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {snap && (
-        <>
-          <section className="card pad">
-            <div className="between">
-              <h2>마감 임박</h2>
-              <div className="lms-actions">
-                <button className="secondary" onClick={() => fileRef.current?.click()}>
-                  <Upload size={14} /> 파일로 가져오기
-                </button>
-                <button
-                  className="secondary"
-                  onClick={async () =>
-                    await persist(
-                      { ...data, lms: undefined },
-                      '수업 현황 데이터를 삭제했습니다.',
-                    )
-                  }
-                >
-                  <Trash2 size={14} /> 데이터 삭제
-                </button>
-              </div>
-            </div>
-            <DueSoonList snap={snap} now={now} />
-          </section>
-
-          <section className="card pad">
+      {!snap ? (
+        <SetupGuide
+          band={band}
+          copying={copying}
+          copyScript={copyScript}
+          onImport={() => fileRef.current?.click()}
+          err={err}
+          canRefresh={canRefresh}
+          studentMask={studentMask}
+          onAccount={onAccount}
+          notify={notify}
+          busy={serverCollecting}
+        />
+      ) : (
+        <div className="lms-grid">
+          <section className="card pad lms-main">
             <div className="between">
               <div className="lms-tabs" role="tablist" aria-label="수업 현황 보기">
                 <button
@@ -610,7 +556,7 @@ export function LmsSection({
                 </button>
               </div>
               <small className="meta">
-                남은 항목 {pendingTasks(snap).length}건
+                남은 항목 {pendCount}건
               </small>
             </div>
             {view === 'courses' && (
@@ -628,9 +574,419 @@ export function LmsSection({
             {view === 'binge' && <BingeView snap={snap} now={now} />}
             {view === 'submit' && <SubmissionsView snap={snap} now={now} />}
           </section>
-        </>
+
+          <aside className="lms-side">
+            <section className="card pad">
+              <h3>마감 임박</h3>
+              <DueSoonList snap={snap} now={now} />
+            </section>
+            <ConnCard
+              snap={snap}
+              now={now}
+              ext={extStatus}
+              syncing={syncing}
+              lastError={lastError}
+              unmatched={unmatched}
+              catalogReady={!!catalog}
+              canRefresh={canRefresh}
+              studentMask={studentMask}
+              onAccount={onAccount}
+              notify={notify}
+              busy={serverCollecting}
+              onExtRefresh={onExtRefresh}
+              onImport={() => fileRef.current?.click()}
+              onDelete={async () =>
+                await persist(
+                  { ...data, lms: undefined },
+                  '수업 현황 데이터를 삭제했습니다.',
+                )
+              }
+              err={err}
+            />
+          </aside>
+        </div>
       )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={async (e) => {
+          const f = e.currentTarget.files?.[0];
+          if (f) await importJson(await f.text());
+          e.currentTarget.value = '';
+        }}
+      />
     </>
+  );
+}
+
+/** 상단 동기화 상태 밴드 — 현재 상태·마지막 동기화·남은 항목·경로를 한눈에 */
+function SyncBand({
+  band,
+  snap,
+  now,
+  pending,
+  error,
+  extInstalled,
+  serverCollecting,
+  onExtRefresh,
+}: {
+  band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh';
+  snap?: LmsSnapshot;
+  now: number;
+  pending: number;
+  error?: string;
+  extInstalled: boolean;
+  serverCollecting?: boolean;
+  onExtRefresh?: () => void;
+}) {
+  const head: Record<typeof band, { t: string; d: string }> = {
+    syncing: {
+      t: '수업 현황을 수집하고 있습니다',
+      d: serverCollecting
+        ? '학교 계정으로 서버에서 COSMOS를 수집 중입니다. 완료되면 자동으로 반영됩니다.'
+        : '확장 프로그램이 COSMOS에서 최신 데이터를 가져오고 있습니다.',
+    },
+    login: {
+      t: 'COSMOS 로그인이 필요합니다',
+      d: 'learn.hansung.ac.kr에 로그인하면 자동 수집이 재개됩니다.',
+    },
+    failed: {
+      t: '마지막 수집에 실패했습니다',
+      d: snap
+        ? '아래는 이전에 수집된 데이터입니다. 다시 시도해 주세요.'
+        : '아직 표시할 데이터가 없습니다. 다시 시도해 주세요.',
+    },
+    setup: {
+      t: 'COSMOS 수업 현황을 연결하세요',
+      d: '강의 수강·과제·퀴즈·출석을 한 화면에서 확인할 수 있습니다.',
+    },
+    stale: {
+      t: '수집된 지 오래된 데이터입니다',
+      d: 'COSMOS에서 변경된 내용은 재수집해야 반영됩니다.',
+    },
+    fresh: {
+      t: '최신 상태입니다',
+      d: '데이터는 수집 시점 기준입니다. 이후 변경은 다음 수집에 반영됩니다.',
+    },
+  };
+  const info = head[band];
+  return (
+    <section className={`lms-band band-${band}`} aria-live="polite">
+      <div className="band-main">
+        <span className="band-dot" aria-hidden="true" />
+        <div>
+          <h2>{info.t}</h2>
+          <p>
+            {info.d}
+            {band === 'failed' && error ? ` 오류: ${error}` : ''}
+          </p>
+        </div>
+      </div>
+      {snap && (
+        <dl className="band-metrics">
+          <div>
+            <dt>과목</dt>
+            <dd>{snap.courses.length}</dd>
+          </div>
+          <div>
+            <dt>남은 항목</dt>
+            <dd>{pending}</dd>
+          </div>
+          <div>
+            <dt>마지막 동기화</dt>
+            <dd>{relTime(snap.fetchedAt, now)}</dd>
+          </div>
+          <div>
+            <dt>수집 경로</dt>
+            <dd>{viaLabel(snap)}</dd>
+          </div>
+          <div>
+            <dt>자동 갱신</dt>
+            <dd>{extInstalled ? '15분 간격' : '확장 설치 시'}</dd>
+          </div>
+        </dl>
+      )}
+      <div className="band-actions">
+        {band === 'login' ? (
+          <a
+            className="band-cta"
+            href={`${LMS_BASE}/login/`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            COSMOS 로그인 <ArrowUpRight size={15} />
+          </a>
+        ) : (
+          <button
+            className="band-cta"
+            onClick={onExtRefresh}
+            disabled={!extInstalled || band === 'syncing'}
+            title={
+              extInstalled
+                ? '확장 프로그램으로 즉시 수집'
+                : '확장 프로그램 설치 시 사용할 수 있습니다'
+            }
+          >
+            <RefreshCw size={15} className={band === 'syncing' ? 'spin' : ''} />
+            {band === 'syncing' ? '수집 중…' : '지금 새로고침'}
+          </button>
+        )}
+        <a
+          className="band-link"
+          href={LMS_BASE}
+          target="_blank"
+          rel="noreferrer"
+        >
+          COSMOS 열기 <ArrowUpRight size={14} />
+        </a>
+      </div>
+    </section>
+  );
+}
+
+/** 데이터가 없을 때의 설정 가이드 — 확장 우선, 스크립트는 보조 수단 */
+function SetupGuide({
+  band,
+  copying,
+  copyScript,
+  onImport,
+  err,
+  canRefresh,
+  studentMask,
+  onAccount,
+  notify,
+  busy,
+}: {
+  band: string;
+  copying: boolean;
+  copyScript: () => Promise<void>;
+  onImport: () => void;
+  err: string;
+  canRefresh: boolean;
+  studentMask?: string;
+  onAccount?: (account: Account) => void;
+  notify?: (msg: string) => void;
+  busy?: boolean;
+}) {
+  return (
+    <section className="card pad">
+      <div className="lms-guide-head">
+        <MonitorPlay size={26} />
+        <div>
+          <h2>수업 현황 가져오기</h2>
+          <p className="meta">
+            수집은 본인 브라우저 안에서만 이뤄지며 로그인 정보는 어디에도
+            전송되지 않습니다.
+          </p>
+        </div>
+      </div>
+      <ol className="lms-steps">
+        <li>
+          <b>확장 프로그램 설치(권장)</b> — chrome://extensions에서 개발자 모드를
+          켜고 <code>압축해제된 확장 프로그램 로드</code>로 프로젝트의{' '}
+          <code>extension/</code> 폴더를 선택합니다. 한 번만 하면 됩니다.
+        </li>
+        <li>
+          <a className="link" href={LMS_BASE} target="_blank" rel="noreferrer">
+            learn.hansung.ac.kr
+          </a>
+          에 로그인하고 내 강의실(대시보드)을 열어 둡니다.
+        </li>
+        <li>
+          이 페이지를 새로고침하면 수집이 자동으로 시작되고, 이후 15분 간격으로
+          최신 상태가 반영됩니다.
+        </li>
+      </ol>
+      {canRefresh && (
+        <RefreshForm
+          studentMask={studentMask!}
+          onAccount={onAccount!}
+          notify={notify}
+          busy={busy}
+        />
+      )}
+      <details className="lms-manual">
+        <summary>확장 없이 수동으로 가져오기</summary>
+        <p className="meta">
+          확장을 설치할 수 없는 환경에서는 COSMOS 페이지의 개발자 도구 콘솔에서
+          수집 스크립트를 실행해 결과 파일을 가져올 수 있습니다.
+        </p>
+        <div className="lms-script-actions">
+          <button
+            className="secondary"
+            onClick={() => void copyScript()}
+            disabled={copying}
+          >
+            <Copy size={14} /> {copying ? '복사 중…' : '스크립트 복사'}
+          </button>
+          <a
+            className="secondary"
+            href="/lms-collect.js"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Download size={14} /> 스크립트 파일
+          </a>
+          <button className="secondary" onClick={onImport}>
+            <Upload size={14} /> lms-data.json 가져오기
+          </button>
+        </div>
+      </details>
+      {band === 'failed' && (
+        <p className="lms-stale">
+          마지막 수집이 완료되지 못했습니다. COSMOS 로그인 상태를 확인한 뒤 다시
+          시도해 주세요.
+        </p>
+      )}
+      {err && <p className="lms-error">{err}</p>}
+    </section>
+  );
+}
+
+/** 연결 관리 — 동기화 상태·수집 경로·진단·수동 수단을 한 카드에 모은다 */
+function ConnCard({
+  snap,
+  now,
+  ext,
+  syncing,
+  lastError,
+  unmatched,
+  catalogReady,
+  canRefresh,
+  studentMask,
+  onAccount,
+  notify,
+  busy,
+  onExtRefresh,
+  onImport,
+  onDelete,
+  err,
+}: {
+  snap: LmsSnapshot;
+  now: number;
+  ext: ExtSync;
+  syncing: boolean;
+  lastError?: string;
+  unmatched: string[];
+  catalogReady: boolean;
+  canRefresh: boolean;
+  studentMask?: string;
+  onAccount?: (account: Account) => void;
+  notify?: (msg: string) => void;
+  busy?: boolean;
+  onExtRefresh?: () => void;
+  onImport: () => void;
+  onDelete: () => Promise<boolean>;
+  err: string;
+}) {
+  const d = snap.diag;
+  return (
+    <section className="card pad lms-conn">
+      <h3>연결 관리</h3>
+      <dl className="conn-rows">
+        <div>
+          <dt>동기화 상태</dt>
+          <dd>
+            {syncing
+              ? '수집 중'
+              : ext.status === 'login-required'
+                ? '로그인 필요'
+                : ext.status === 'failed'
+                  ? '실패'
+                  : '정상'}
+          </dd>
+        </div>
+        <div>
+          <dt>마지막 동기화</dt>
+          <dd>
+            {snap.fetchedAt ? relTime(snap.fetchedAt, now) : '없음'}
+            {snap.fetchedAt ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})` : ''}
+          </dd>
+        </div>
+        <div>
+          <dt>수집 경로</dt>
+          <dd>{viaLabel(snap)}</dd>
+        </div>
+        <div>
+          <dt>확장 프로그램</dt>
+          <dd>
+            {ext.installed
+              ? `설치됨${ext.version ? ` v${ext.version}` : ''} · 15분 간격 자동 수집`
+              : '미설치 · 설치하면 자동 수집'}
+          </dd>
+        </div>
+        {d && (
+          <div>
+            <dt>수집 진단</dt>
+            <dd>
+              {[
+                d.coursesVia ? `경로 ${d.coursesVia}` : '',
+                d.pagePath ? `페이지 ${d.pagePath}` : '',
+                typeof d.scanned === 'number' ? `스캔 ${d.scanned}` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </dd>
+          </div>
+        )}
+        {catalogReady && (
+          <div>
+            <dt>카탈로그 매칭</dt>
+            <dd>
+              {snap.courses.length - unmatched.length}/{snap.courses.length} 과목
+              {unmatched.length > 0 && (
+                <small className="conn-warn">
+                  매칭 안 됨: {unmatched.slice(0, 3).join(', ')}
+                  {unmatched.length > 3 ? ` 외 ${unmatched.length - 3}` : ''}
+                  {' '}(이름이 카탈로그와 달라 연결되지 않았습니다)
+                </small>
+              )}
+            </dd>
+          </div>
+        )}
+        {lastError && (
+          <div>
+            <dt>마지막 오류</dt>
+            <dd className="conn-err">{lastError}</dd>
+          </div>
+        )}
+      </dl>
+      <div className="lms-conn-actions">
+        {ext.installed ? (
+          <button
+            className="primary"
+            onClick={onExtRefresh}
+            disabled={syncing}
+          >
+            <RefreshCw size={14} /> {syncing ? '수집 중…' : '지금 새로고침'}
+          </button>
+        ) : (
+          <p className="meta">
+            확장 프로그램을 설치하면 여기서 바로 수집할 수 있습니다.
+          </p>
+        )}
+        {canRefresh && (
+          <RefreshForm
+            studentMask={studentMask!}
+            onAccount={onAccount!}
+            notify={notify}
+            busy={busy}
+          />
+        )}
+        <div className="lms-script-actions">
+          <button className="secondary" onClick={onImport}>
+            <Upload size={14} /> 파일로 가져오기
+          </button>
+          <button className="secondary" onClick={() => void onDelete()}>
+            <Trash2 size={14} /> 데이터 삭제
+          </button>
+        </div>
+      </div>
+      {err && <p className="lms-error">{err}</p>}
+    </section>
   );
 }
 
@@ -741,7 +1097,10 @@ function DueSoonList({ snap, now }: { snap: LmsSnapshot; now: number }) {
   return (
     <div className="lms-tasks">
       {soon.slice(0, 10).map((t, i) => (
-        <div className="lms-task" key={i}>
+        <div
+          className={`lms-task ${t.kind === '과제' ? 't-assign' : t.kind === '퀴즈' ? 't-quiz' : 't-vod'}`}
+          key={i}
+        >
           <span className={`badge ${t.kind === '과제' ? 'orange' : t.kind === '퀴즈' ? 'purple' : 'blue'}`}>
             {t.kind}
           </span>

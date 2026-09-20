@@ -9,6 +9,7 @@ import {
   enrolledSectionIds,
   submissionItems,
   bingeQueue,
+  relTime,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -289,6 +290,121 @@ t('notifs: lms 없으면 수업 알림 없음', !deriveNotifs({
   sched: null,
   now: NOW,
 }).some((n) => n.cat === '수업'));
+
+// ── 실계정 수집 형태 (7과목, diag 포함) ─────────────────────
+// 실제 lms-data.json의 구조를 익명화해 반영 — 진단 필드·주차 상태·
+// 시청시간·uncertain 퀴즈·커뮤니티 과목이 검증을 통과하는지 확인.
+const live = {
+  source: 'cosmos-lms',
+  fetchedAt: '2026-09-17T11:30:00.000Z',
+  diag: { coursesVia: 'link-scan', pagePath: '/my/', scanned: 14 },
+  courses: [
+    {
+      id: '46668',
+      title: 'HSU AI 활용 커뮤니티',
+      prof: '운영팀',
+      community: true,
+      vods: [],
+      assigns: [],
+      quizzes: [],
+    },
+    {
+      id: '46001',
+      title: '교과(온라인) 학부 데이터분석[01] 김교수',
+      prof: '김교수',
+      vods: [
+        {
+          title: '1주차 강의',
+          week: 1,
+          status: '출석',
+          attended: true,
+          weeklyStatus: '6/6',
+          range: '2026-09-01 00:00 ~ 2026-09-07 23:59',
+          watched: '42:10',
+          required: '40:00',
+          url: 'https://learn.hansung.ac.kr/mod/vod/view.php?id=11',
+        },
+        {
+          title: '2주차 강의',
+          week: 2,
+          status: '결석',
+          attended: false,
+          weeklyStatus: '4/8',
+          range: '2026-09-08 00:00 ~ 2026-09-14 23:59',
+          watched: '12:00',
+          required: '38:00',
+          url: 'https://learn.hansung.ac.kr/mod/vod/view.php?id=12',
+        },
+      ],
+      assigns: [
+        {
+          title: '중간 레포트',
+          url: 'https://learn.hansung.ac.kr/mod/assign/view.php?id=21',
+          due: '2026-09-20 23:59',
+          submitted: false,
+        },
+        {
+          title: '예습 퀴즈 대체 과제',
+          url: 'https://learn.hansung.ac.kr/mod/assign/view.php?id=22',
+          due: '2026-09-10 23:59',
+          submitted: true,
+        },
+      ],
+      quizzes: [
+        {
+          title: '2주차 퀴즈',
+          url: 'https://learn.hansung.ac.kr/mod/quiz/view.php?id=31',
+          due: '2026-09-19 23:59',
+          submitted: false,
+          uncertain: true,
+        },
+      ],
+      errors: ['quiz-check'],
+    },
+    {
+      id: '46002',
+      title: '교과(오프라인) 학부 알고리즘[A] 이교수',
+      prof: '이교수',
+      vods: [
+        {
+          title: '보강 영상',
+          attended: false,
+          range: '2026-09-15 00:00 ~ 2026-09-21 23:59',
+          url: 'https://learn.hansung.ac.kr/mod/vod/view.php?id=41',
+        },
+      ],
+      assigns: [],
+      quizzes: [
+        {
+          title: '쪽지 시험',
+          url: 'https://learn.hansung.ac.kr/mod/quiz/view.php?id=42',
+          submitted: true,
+        },
+      ],
+    },
+    { id: '46003', title: '캡스톤디자인', prof: '박교수', vods: [], assigns: [], quizzes: [] },
+    { id: '46004', title: '웹 프로그래밍', vods: [], assigns: [], quizzes: [] },
+    { id: '46005', title: '운영체제', prof: '최교수', vods: [], assigns: [], quizzes: [] },
+    { id: '46006', title: '진로 탐색', vods: [], assigns: [], quizzes: [] },
+  ],
+};
+const lv = validateLms(JSON.parse(JSON.stringify(live)));
+t('live: 7과목 통과', lv !== null && lv.courses.length === 7);
+t('live: diag 보존', lv.diag?.coursesVia === 'link-scan' && lv.diag.pagePath === '/my/' && lv.diag.scanned === 14);
+t('live: community 보존', lv.courses[0].community === true);
+t('live: 시청·요구시간 보존', lv.courses[1].vods[0].watched === '42:10' && lv.courses[1].vods[0].required === '40:00');
+t('live: weeklyStatus 보존', lv.courses[1].vods[1].weeklyStatus === '4/8');
+t('live: uncertain 퀴즈는 미응시 아님', lv.courses[1].quizzes[0].uncertain === true && lv.courses[1].quizzes[0].submitted === false);
+t('live: quiz-check 오류 보존', lv.courses[1].errors?.includes('quiz-check') === true);
+t('live: 남은 항목 집계', pendingTasks(lv).length === 4); // 미수강 강의 2 + 중간 레포트 + uncertain 퀴즈
+t('live: uncertain도 pending에 포함(확인 필요)', pendingTasks(lv).some((p) => p.title === '2주차 퀴즈' && p.uncertain === true));
+t('live: 제출 항목 구분', submissionItems(lv).length === 4);
+t('live: relTime 단위', relTime('2026-09-17T11:29:40.000Z', Date.parse('2026-09-17T11:30:00.000Z')) === '방금');
+t('live: relTime 분', relTime('2026-09-17T11:15:00.000Z', Date.parse('2026-09-17T11:30:00.000Z')) === '15분 전');
+t('live: relTime 시간·일', relTime('2026-09-17T08:30:00.000Z', Date.parse('2026-09-17T11:30:00.000Z')) === '3시간 전' && relTime('2026-09-15T11:30:00.000Z', Date.parse('2026-09-17T11:30:00.000Z')) === '2일 전');
+t('live: relTime 파싱 불가', relTime('not-a-date', NOW) === '시각 미상');
+const lwp = weekProgress(lv.courses[1]);
+t('live: 주차 진행', lwp.length === 2 && lwp[0].done === 1 && lwp[1].done === 0 && lwp[1].total === 1);
 
 console.log(`lms.test: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

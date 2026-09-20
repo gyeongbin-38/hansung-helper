@@ -117,7 +117,9 @@ async function requestCollect(opts) {
     'hsuLmsAt',
     'hsuLms',
   ]);
-  if (hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
+  // force=true(앱의 명시적 새로고침·주기 갱신)면 단기 캐시를 건너뛰되
+  // 진행 중 수집은 그대로 공유한다.
+  if (!opts.force && hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
     return { payload: hsuLms, cached: true };
   // 'known': 과거 성공 수집이 있는(COSMOS 사용자인) 경우에만 탭 생성 —
   // 한 번도 수집한 적 없는 브라우저에 무작위 탭을 띄우지 않기 위함.
@@ -139,7 +141,7 @@ async function requestCollect(opts) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'hsu-refresh') {
-    requestCollect({ createTab: true })
+    requestCollect({ createTab: true, force: msg.force === true })
       .then(sendResponse)
       .catch((e) => sendResponse({ error: String(e?.message ?? e) }));
     return true; // 비동기 sendResponse

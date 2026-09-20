@@ -181,27 +181,81 @@ export default function App() {
   dataRef.current = data;
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
-  // 확장 프로그램(extension/)이 보내는 LMS 스냅샷 수신 — 앱을 열 때마다
-  // 백그라운드 수집 결과가 postMessage로 도착한다. 형식 검증 후 더 최신
-  // fetchedAt일 때만 저장한다.
+  // 확장 프로그램(extension/) ↔ 앱 브리지 프로토콜:
+  //   수신 hsu-extension-ready / hsu-lms-status / hsu-lms-import
+  //   발신 hsu-extension-ping / hsu-lms-refresh-request
+  // 상태는 ext 한 곳에 모으고 fetchedAt만 데이터 시각의 근거로 쓴다.
+  const [ext, setExt] = useState<{
+    installed: boolean;
+    version?: string;
+    status: 'idle' | 'syncing' | 'success' | 'login-required' | 'failed';
+    error?: string;
+  }>({ installed: false, status: 'idle' });
+  const extRef = useRef(ext);
+  extRef.current = ext;
+  const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestLmsRefresh = (force: boolean) => {
+    if (!extRef.current.installed) return;
+    setExt((p) => ({ ...p, status: 'syncing', error: undefined }));
+    if (syncTimeout.current) clearTimeout(syncTimeout.current);
+    // 수집은 과목당 최대 수십 초 — 응답 없음 2분이면 실패로 간주
+    syncTimeout.current = setTimeout(
+      () =>
+        setExt((p) =>
+          p.status === 'syncing'
+            ? { ...p, status: 'failed', error: '수집 시간이 초과됐습니다.' }
+            : p,
+        ),
+      120e3,
+    );
+    window.postMessage(
+      { type: 'hsu-lms-refresh-request', force },
+      location.origin,
+    );
+  };
   useEffect(() => {
+    const endSync = (patch: Partial<typeof ext>) => {
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      setExt((p) => ({ ...p, ...patch }));
+    };
     const onMsg = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== location.origin) return;
       const d = e.data as
-        | { type?: string; payload?: unknown; error?: string }
+        | {
+            type?: string;
+            payload?: unknown;
+            status?: string;
+            error?: string;
+            version?: string;
+          }
         | null
         | undefined;
+      if (d?.type === 'hsu-extension-ready') {
+        setExt((p) => ({
+          ...p,
+          installed: true,
+          version:
+            typeof d.version === 'string' ? d.version : p.version,
+        }));
+        return;
+      }
       if (d?.type === 'hsu-lms-status') {
-        // COSMOS 미로그인 등 — 데이터가 없을 때만 한 번 안내.
-        if (d.error === 'cosmos-login-required' && !dataRef.current.lms)
-          setToast(
-            'COSMOS(learn.hansung.ac.kr)에 로그인하면 수업 현황이 자동으로 업데이트됩니다.',
-          );
+        if (d.status === 'syncing')
+          setExt((p) => ({ ...p, status: 'syncing', error: undefined }));
+        else if (d.status === 'success') endSync({ status: 'success' });
+        else if (d.error === 'cosmos-login-required')
+          endSync({ status: 'login-required' });
+        else
+          endSync({
+            status: 'failed',
+            error: typeof d.error === 'string' ? d.error : '알 수 없는 오류',
+          });
         return;
       }
       if (d?.type !== 'hsu-lms-import' || !d.payload) return;
       const valid = validateLms(d.payload);
       if (!valid) return;
+      endSync({ status: 'success' });
       const cur = dataRef.current;
       if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) return;
       void persistRef.current?.(
@@ -210,8 +264,41 @@ export default function App() {
       );
     };
     addEventListener('message', onMsg);
-    return () => removeEventListener('message', onMsg);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setToast는 안정 함수
+    // content script가 리스너보다 먼저 ready를 보냈을 수 있으므로 능동 확인
+    window.postMessage({ type: 'hsu-extension-ping' }, location.origin);
+    const reping = setTimeout(
+      () =>
+        window.postMessage({ type: 'hsu-extension-ping' }, location.origin),
+      2500,
+    );
+    return () => {
+      removeEventListener('message', onMsg);
+      clearTimeout(reping);
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs와 안정 상태만 사용
+  }, []);
+  // 앱이 열려 있고 보이는 동안 15분마다 확장 수집을 요청한다. hidden이면
+  // 돌지 않고, 다시 보일 때 fetchedAt 기준으로 오래됐을 때만 즉시 요청 —
+  // 백그라운드 5분 캐시·진행 중 공유와 함께 중복 수집을 막는다.
+  useEffect(() => {
+    const REFRESH_MS = 15 * 60e3;
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return;
+      const s = extRef.current;
+      if (!s.installed || s.status === 'syncing') return;
+      const at = dataRef.current.lms?.fetchedAt;
+      const t = at ? Date.parse(at) : NaN;
+      if (Number.isNaN(t) || Date.now() - t >= REFRESH_MS)
+        requestLmsRefresh(false);
+    };
+    const iv = setInterval(tick, 60e3);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', tick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs만 사용
   }, []);
   useEffect(() => {
     const d = data;
@@ -553,6 +640,9 @@ export default function App() {
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               studentMask={account?.studentMask}
               onAccount={setAccount}
+              ext={ext}
+              onExtRefresh={() => requestLmsRefresh(true)}
+              catalog={catalog}
             />
           ) : section === 'advisor' ? (
             <Advisor
