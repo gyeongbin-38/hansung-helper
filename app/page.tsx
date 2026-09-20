@@ -25,6 +25,7 @@ import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
 import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
+import { validateLms } from '@/lib/data/lms';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
@@ -178,6 +179,40 @@ export default function App() {
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
   dataRef.current = data;
+  const persistRef = useRef<typeof persist | null>(null);
+  persistRef.current = persist;
+  // 확장 프로그램(extension/)이 보내는 LMS 스냅샷 수신 — 앱을 열 때마다
+  // 백그라운드 수집 결과가 postMessage로 도착한다. 형식 검증 후 더 최신
+  // fetchedAt일 때만 저장한다.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.source !== window) return;
+      const d = e.data as
+        | { type?: string; payload?: unknown; error?: string }
+        | null
+        | undefined;
+      if (d?.type === 'hsu-lms-status') {
+        // COSMOS 미로그인 등 — 데이터가 없을 때만 한 번 안내.
+        if (d.error === 'cosmos-login-required' && !dataRef.current.lms)
+          setToast(
+            'COSMOS(learn.hansung.ac.kr)에 로그인하면 수업 현황이 자동으로 업데이트됩니다.',
+          );
+        return;
+      }
+      if (d?.type !== 'hsu-lms-import' || !d.payload) return;
+      const valid = validateLms(d.payload);
+      if (!valid) return;
+      const cur = dataRef.current;
+      if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) return;
+      void persistRef.current?.(
+        { ...cur, lms: valid },
+        '확장 프로그램이 최신 수업 현황을 가져왔습니다.',
+      );
+    };
+    addEventListener('message', onMsg);
+    return () => removeEventListener('message', onMsg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setToast는 안정 함수
+  }, []);
   useEffect(() => {
     const d = data;
     if (

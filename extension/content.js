@@ -350,6 +350,10 @@
     document.body.appendChild(btn);
   }
 
+  // background 서비스 워커가 executeScript(MAIN)로 호출하는 진입점 —
+  // 앱이 열릴 때/주기 수집에서 이 함수로 전체 수집을 실행한다.
+  window.__hsCollect = collect;
+
   if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', injectButton);
   else injectButton();

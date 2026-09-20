@@ -543,6 +543,11 @@ blocking regressions.
   시청시간(watched)/요구시간(required) 수집. 서버 측도 보완: parseCourses
   커뮤니티 감지 + 과목 유형별 출석부 URL 우선순위. `LmsVod.watched`/
   `required` 필드 추가.
+- **Done (2026-09-19, v0.2.0)**: 확장 자동 수집 — 앱을 열면 background
+  서비스 워커가 LMS 탭(없으면 비활성 생성)에서 `__hsCollect`를 실행해
+  postMessage로 앱에 전달, page.tsx가 validateLms 후 persist로 저장.
+  alarms 4h 주기 수집 + storage 마지막 스냅샷 즉시 표시. COSMOS 미로그인
+  시 'cosmos-login-required' 상태 메시지 → 데이터 없을 때만 안내 토스트.
 - **Out of scope**: LMS 로그인 자동화, 돋부기 자체 배포.
 - **Note**: 셀렉터 계약은 dotbugi 소스(fetchCourseData/fetchAssign/
   fetchQuiz/fetchVodAttendance/fetchVodList/lmsKeywords)에서 확인한
