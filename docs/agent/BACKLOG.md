@@ -143,9 +143,12 @@ blocking regressions.
 - **Status**: partially implemented — 전역 기준 부분 **verified**
   (2026-09-18: 2016+ 적용·pre-2016 unknown·포인트 미입력 unknown·
   프로필 year/points 입력 경로·출처 링크 확인). 학과별 ruleset은
-  2026-09-19부터 검증된 1개 학과(컴퓨터공학부 yearTable)만 엔진 연결
-  — ISSUE-20 Engine 연동 참조. 잔여: 다른 학과 ruleset 수집·검증,
-  수강중 상태.
+  검증된 1개 학과(컴퓨터공학부 yearTable)만 엔진 연결
+  — ISSUE-20 Engine 연동 참조. 수강중 상태는 2026-09-20부터
+  표시 전용으로 구현(LMS 학점·코드 부재로 집계 미반영 — 이름 매칭
+  기반 '수강 중' 배지 + 졸업 '현재 수강 중' 정보 스트립).
+  잔여: 다른 학과 ruleset 수집·검증, 수강중의 공식 이수 상태 연동
+  (COSMOS에 학점·코드 데이터가 없어 추가 소스 필요).
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
@@ -408,8 +411,9 @@ blocking regressions.
 ## ISSUE-20 — 학과별 졸업 규정 수집 파이프라인 (ISSUE-6 잔여)
 
 - **Status**: partially implemented — needs-verification (2026-09-19:
-  학번표→엔진 연결을 검증된 1개 학과에 한정해 구현). 잔여: 수집 공백
-  학과(Design 빈 본문·SclScn 링크 없음), 다른 학과의 학번표 포맷 확인.
+  학번표→엔진 연결을 검증된 1개 학과에 한정해 구현. 2026-09-20: 이미지
+  게시 규정 수집으로 Design·역사 트랙 커버). 잔여: 다른 학과의 학번표
+  포맷 확인, SclScn(학교 사이트에 졸업 링크 없음 — 수집 불가).
 - **Engine 연동 (2026-09-19)**: `rulesetMatchesDept`(dept 해석·라벨 일치·
   `RULESET_DEPT_FAMILY` 검증 매핑 — 현재 컴퓨터공학부
   →{IT응용시스템공학과, 모바일소프트웨어트랙, 빅데이터트랙} 1건, 입학처
@@ -461,12 +465,16 @@ blocking regressions.
   스냅샷 저장, 카드 UI에 실제 표 렌더링(표 셀과 동일한 라인은
   중복 제외). tests 40/40. 엔진 연동은 미해석 학과(컴퓨터공학부)
   해소 후 — 현재는 구조화 데이터 보존 단계.
-- **수집 현황**: CreCon 4(문콘은 hwp 첨부만), HmnArt 7, futureplus 1
-  (다학과 공통 페이지 → multiDept), CSE 1(컴퓨터공학부 — 카탈로그
-  미연결, 추정: AI·소프트웨어로 개편?), global 6 전원 해석.
-  미수집: Design 3(본문 빈 페이지 — 이미지/JS 렌더?), HmnArt 2
-  (역사문화큐레이션/역사콘텐츠 — 빈 본문), SclScn(사이트에 졸업요건
-  링크 자체 없음). 모두 지어내지 않고 제외.
+- **수집 현황 (2026-09-20 재수집 — 24 rulesets)**: CreCon 4(문콘은
+  hwp 첨부+규정 이미지), HmnArt 9, futureplus 1(multiDept), CSE 1
+  (컴퓨터공학부 — 패밀리 매핑으로 엔진 연결), global 6 전원 해석,
+  Design 3. **이미지 게시 규정 수집**: `extractContentImage`가
+  `_contentBuilder` 아티클 내 콘텐츠 이미지를 절대 URL+alt로 수집
+  (footer_logo 등 노이즈 필터). 이미지 규정 6건 — 문콘(이미지+첨부),
+  Design 3(트랙별 졸업인증 요건 — 학교가 3페이지에 동일한 패션마케팅
+  이미지를 게시한 원본 오류, 그대로 표시), 역사문화큐레이션·역사콘텐츠.
+  미수집: SclScn(사이트에 졸업요건 링크 자체 없음 — 학교 측 공백).
+  무용 전공 1줄 규정은 실제 정식 문구로 파서 정상.
 - **Next step**: 학과↔졸업요건 페이지 쌍을 nav 순서(학과소개 뒤
   졸업요건)로 연결하는 레지스트리 빌더 → 각 규정 페이지의 학번-컬럼
   표 파서 → ruleset JSON + 엔진 연동. 미수집 학과 unknown 유지.
@@ -536,7 +544,12 @@ blocking regressions.
   (조용한 오류 아님). 수집 시점 스냅샷 — 이후 LMS 변경은 재수집 필요.
 - **Follow-up candidates**: 북마클릿 형태(콘솔 붙여넣기 대체), 수집
   주기 알림(stale 경고), 강의별 시청 시간(%) 표시, 학사일정/캘린더에
-  LMS 마감 병합, advisor 검색에 LMS 과목 포함.
+  LMS 마감 병합, ~~advisor 검색에 LMS 과목 포함~~(2026-09-19 완료).
+- **Done (2026-09-20)**: 브라우저 마감 알림 — `reminderTargets()`로
+  미래 마감 24h 전·당일 OS 알림 예약(opt-in, `notifiedIds` 중복 방지).
+  앱이 열려 있을 때만 동작 — 백그라운드 푸시는 VAPID+서비스워커+
+  구독 저장 인프라가 필요한 별도 과제. `enrolledSectionIds`로 LMS
+  과목↔카탈로그 이름 매칭 '수강 중' 배지(표시 전용, 집계 미반영).
 
 ## ISSUE-24 — BE 업무 패키지 (팀원 핸드오프)
 

@@ -1200,3 +1200,69 @@ REPO SCOUT: none.
 
 VERIFICATION STATUS: 매칭 로직은 단위 테스트로 검증. 딥링크
 펼침·스크롤과 advisor 칩의 실계정 브라우저 확인은 미수행.
+
+---
+
+## 2026-09-20 — 남은 후보 일괄 처리 (수강중 배지 + 규정 이미지 + 알림 예약 + e2e)
+
+DONE:
+- **수강중 상태(표시 전용)**: `lms.ts`에 `enrolledSectionIds()` 추가
+  (matchEnrollment → 카탈로그 분반 id 집합). courses 목록·상세 카드에
+  '수강 중' 배지 + 툴팁(이름 매칭 기반, 공식 확인은 학교 시스템).
+  graduation에 '현재 수강 중' 정보 스트립 — COSMOS 스냅샷 출처·이름
+  매칭 한계·졸업 학점 미반영 명시. 학점 집계에는 일절 미반영.
+- **규정 커버리지(이미지 게시)**: Design 3개·역사문화큐레이션·역사콘텐츠
+  트랙 등 규정이 본문 이미지로만 게시된 페이지를 수집하도록 개선.
+  `dept-rules.ts`에 `extractContentImage()` — `_contentBuilder` 아티클
+  우선 스캔(없으면 contentsEditHtml~body), footer_logo/배너/아이콘 등
+  노이즈 필터, 상대경로 절대화 + alt 보존. `isRulesetAnomalous`가
+  image를 첨부와 동일하게 정상 간주. `DeptRuleset.image` 타입 추가.
+  크롤러 재실행 → ruleset 19→24개(Design 3 + 역사 트랙 2 신규 수집).
+  graduation.tsx에 이미지 규정 카드(공식 이미지 인라인 + 원문 링크),
+  규정 인덱스에 '이미지 공개' 배지, richness 점수에 image 반영.
+  `.rules-image` 스타일.
+  - 조사 결과: SclScn은 사이트맵에 졸업 링크 자체가 없음(학교 측 공백),
+    무용 전공 1줄 규정은 실제 정식 문구(파서 정상), Design 3개 트랙
+    페이지는 학교가 동일한 패션마케팅 이미지를 게시(원본 데이터 오류 —
+    수집된 이미지+원문 링크로 그대로 표시하는 것이 정직한 처리).
+- **브라우저 마감 알림(푸시 없이 가능한 범위)**: `notifs.ts`에
+  `reminderTargets()` — 미래 LMS 마감을 24h 전·당일에 울리는 예약 대상
+  도출(캘린더 날짜 기준 오늘/내일/D-n 라벨, uncertain 표기, 알림함 id
+  형식 공유). page.tsx에 예약 이펙트 — notifEnabled + granted + lms가
+  있을 때 setTimeout 예약, 발송분은 data.notifiedIds에 기록(최근 200
+  유지)해 중복 발송 방지. dataRef로 타이머 안에서도 최신 data 접근.
+  notifications.tsx에 '마감 브라우저 알림' 설정 블록 — opt-in 토글,
+  requestPermission 연결, 미지원/차단 상태 안내, '앱(탭)이 열려 있을
+  때만 울림 — 백그라운드 푸시 미지원' 한계 명시. Data에 notifiedIds·
+  notifEnabled 추가(데모 복원 가드 포함).
+- **e2e(데모 모드, Playwright)**: localStorage 시드(컴퓨터공학부+알고
+  리즘/머신러닝 LMS) 후 14항목 검증 전부 통과 — 수강 중 배지, 글로벌
+  검색 수업 현황 그룹+과제 항목, lms/c1 딥링크 자동 펼침·스크롤,
+  advisor '이번 주에 뭐 해야 해?' 마감 응답, 졸업 현재 수강 중 스트립,
+  CSE 학번표 카드, 이미지 공개 배지, 알림 설정 표시, LMS 알림 항목,
+  opt-in 토글, 한계 고지 문구. (headless는 Notification.permission이
+  denied 고정이라 granted shim으로 검증 — 실제 브라우저 권한 흐름은
+  앱 코드 경로와 동일)
+
+IN PROGRESS: nothing.
+
+NEXT:
+- 없음(사용자 지정 후보 전부 처리). 잔여 큰 과제: 백그라운드 푸시
+  (VAPID+서비스워커+구독 저장 인프라 필요), SclScn 졸업요건은 학교
+  사이트 공백으로 수집 불가.
+
+BLOCKER: none.
+
+TESTS: tsc clean, oxlint 0 err, 전체 매트릭스 11파일 OK
+(dept-rules 74/74 — 이미지 추출·노이즈 필터·article 스코프 8 신규,
+notifs 20/20 — reminderTargets 9 신규, lms 48/48 — enrolledSectionIds
+포함), root+deploy 빌드 green, 번들 마커 5종 확인, _verify_prod 전
+엔드포인트 200, /api/dept-rules 라이브 24개·이미지 6건 확인.
+e2e 14/14. 라이브 version 46543064.
+
+REPO SCOUT: none.
+
+VERIFICATION STATUS: 단위 테스트·빌드·배포·데모 e2e 완료. 실계정
+브라우저 확인은 데모로 대체(로그인 경로만 미검증). 브라우저 알림의
+실제 OS 알림 발송은 headless라 시각 확인 불가 — 예약·토글·한계 고지
+로직만 검증됨.

@@ -265,6 +265,18 @@ export function matchEnrollment(
   });
 }
 
+/** COSMOS 수강 과목과 이름이 매칭된 카탈로그 분반 id 집합 — 표시용.
+ *  이름 매칭만으로는 이수 확정이 아니므로 졸업 집계에는 쓰지 않는다. */
+export function enrolledSectionIds(
+  lms: LmsSnapshot,
+  catalog: Catalog,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const m of matchEnrollment(lms, catalog))
+    for (const s of m.sections) ids.add(s.id);
+  return ids;
+}
+
 /** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외.
  *  마감이 pastDays일 이상 지난 항목도 제외 — 오래 지난 항목이
  *  다가오는 마감을 밀어내지 않게 한다. */

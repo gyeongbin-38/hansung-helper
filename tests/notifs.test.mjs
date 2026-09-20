@@ -1,4 +1,5 @@
-import { deriveNotifs } from '../lib/data/notifs.ts';
+import { deriveNotifs, reminderTargets } from '../lib/data/notifs.ts';
+import { parseDue } from '../lib/data/lms.ts';
 
 let pass = 0;
 let fail = 0;
@@ -145,6 +146,57 @@ items = deriveNotifs({
 const schItems = items.filter((i) => i.id.startsWith('sch-'));
 t('schedule window', schItems.length === 2);
 t('schedule provenance label', schItems.every((i) => i.label === '공식 일정'));
+
+// --- reminderTargets: 브라우저 마감 알림 예약 ---
+const lmsSnap = (courses) => ({
+  source: 'cosmos-lms',
+  fetchedAt: '2026-09-18',
+  courses,
+});
+const course = (id, title, assigns = [], quizzes = [], vods = []) => ({
+  id,
+  title,
+  vods,
+  assigns,
+  quizzes,
+});
+const task = (title, due, submitted = false, uncertain) => ({
+  title,
+  due,
+  submitted,
+  uncertain,
+});
+const dueStr = (ts) => {
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+const lms1 = lmsSnap([
+  course('c1', '알고리즘', [
+    task('D+3 과제', dueStr(NOW + 3 * DAY)),
+    task('당일 과제', dueStr(NOW + 5 * 36e5)), // 오늘 중 5시간 뒤
+    task('지난 과제', dueStr(NOW - 2 * DAY)),
+    task('완료 과제', dueStr(NOW + DAY), true),
+  ]),
+  course('c2', '머신러닝', [task('먼 과제', dueStr(NOW + 30 * DAY))]),
+]);
+const rem = reminderTargets(lms1, NOW);
+t('reminder: 미래·미완료만', rem.length === 2);
+t('reminder: 캘린더 D-3', rem.some((r) => r.title.startsWith('D-3 마감')));
+t('reminder: 당일은 오늘 마감', rem.some((r) => r.title.startsWith('오늘 마감')));
+const d3 = rem.find((r) => r.title.startsWith('D-3'));
+t('reminder: fireAt=due-24h', d3.fireAt === parseDue(dueStr(NOW + 3 * DAY)) - DAY);
+t('reminder: 임박은 즉시', rem.find((r) => r.title.startsWith('오늘')).fireAt === NOW);
+t('reminder: 정렬 fireAt asc', rem.every((r, i) => !i || r.fireAt >= rem[i - 1].fireAt));
+t('reminder: id lms- 형식', rem.every((r) => r.id.startsWith('lms-')));
+
+const lms2 = lmsSnap([
+  course('c1', '퀴즈과목', [], [task('2주차 퀴즈', dueStr(NOW + DAY), false, true)]),
+]);
+const rem2 = reminderTargets(lms2, NOW);
+t('reminder: uncertain 표기', rem2.length === 1 && rem2[0].body.includes('응시 여부 확인 실패'));
+t('reminder: 내일 마감', rem2[0].title.startsWith('내일 마감'));
 
 console.log(`notifs: ${pass}/${pass + fail}`);
 process.exit(fail ? 1 : 0);

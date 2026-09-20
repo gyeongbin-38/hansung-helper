@@ -82,8 +82,66 @@ export function Notifications({
           <p>{cat === '전체' ? '도착한 알림이 없어요.' : '이 분류의 알림이 없어요.'}</p>
         </div>
       )}
-      <p className="notif-foot">푸시 알림은 발송되지 않습니다.</p>
+      <DeadlineNotifSetting
+        enabled={!!data.notifEnabled}
+        onChange={async (on) => {
+          if (!on) {
+            await persist(
+              { ...data, notifEnabled: false },
+              '마감 알림을 껐습니다.',
+            );
+            return;
+          }
+          const perm = await Notification.requestPermission();
+          if (perm !== 'granted') return;
+          await persist(
+            { ...data, notifEnabled: true },
+            '마감 알림을 켰습니다 — 이 페이지가 열려 있는 동안 울립니다.',
+          );
+        }}
+      />
     </section>
+  );
+}
+
+/** 브라우저 마감 알림 설정 — 푸시 인프라가 없어 앱이 열려 있을 때만 울리는
+ *  제한을 명시한다. 권한 거부·미지원 상태도 안내한다. */
+function DeadlineNotifSetting({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (on: boolean) => Promise<void>;
+}) {
+  const supported = typeof Notification !== 'undefined';
+  const denied = supported && Notification.permission === 'denied';
+  return (
+    <div className="notif-native">
+      <div className="between">
+        <div>
+          <b>마감 브라우저 알림</b>
+          <p className="notif-sub">
+            수업 마감 24시간 전·당일에 운영체제 알림을 표시합니다.
+          </p>
+        </div>
+        {supported && !denied && (
+          <button
+            className={'badge' + (enabled ? ' sel' : '')}
+            aria-pressed={enabled}
+            onClick={() => void onChange(!enabled)}
+          >
+            {enabled ? '켜짐' : '꺼짐'}
+          </button>
+        )}
+      </div>
+      <p className="notif-foot">
+        {!supported
+          ? '이 브라우저는 알림을 지원하지 않습니다.'
+          : denied
+            ? '브라우저에서 알림이 차단되어 있습니다 — 주소창 왼쪽 아이콘에서 허용으로 바꿀 수 있습니다.'
+            : '앱(탭)이 열려 있을 때만 울립니다 — 탭을 닫으면 알림이 오지 않습니다. 백그라운드 푸시는 지원하지 않습니다.'}
+      </p>
+    </div>
   );
 }
 

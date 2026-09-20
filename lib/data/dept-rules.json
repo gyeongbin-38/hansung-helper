@@ -1,15 +1,19 @@
 {
   "source": "hansung-dept-pages",
   "sourceUrl": "https://www.hansung.ac.kr/sitemap/{slug}/view.do",
-  "fetchedAt": "2026-09-18T04:28:54.983Z",
-  "itemCount": 19,
+  "fetchedAt": "2026-09-20T05:00:52.101Z",
+  "itemCount": 24,
   "items": [
     {
       "deptLabel": "문학문화콘텐츠학과",
       "dept": "문학문화콘텐츠학과",
       "url": "https://www.hansung.ac.kr/CreCon/2772/subview.do",
       "lines": [],
-      "attachment": "첨부 문서"
+      "attachment": "첨부 문서",
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/CreCon/images/temp_1778745430477100.jpg",
+        "alt": "문학문화콘텐츠학과 졸업요건"
+      }
     },
     {
       "deptLabel": "AI응용학과",
@@ -73,6 +77,39 @@
         "- 종합설계프로젝트 I, II 이수"
       ],
       "attachment": null
+    },
+    {
+      "deptLabel": "글로벌패션산업학부",
+      "dept": null,
+      "url": "https://www.hansung.ac.kr/Design/5108/subview.do",
+      "lines": [],
+      "attachment": null,
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/Design/images/sub/temp_1622012362091100.jpg",
+        "alt": "패션마케팅트랙 졸업인증 요건"
+      }
+    },
+    {
+      "deptLabel": "패션디자인트랙",
+      "dept": "패션디자인트랙",
+      "url": "https://www.hansung.ac.kr/Design/5115/subview.do",
+      "lines": [],
+      "attachment": null,
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/Design/images/sub/temp_1622012362091100.jpg",
+        "alt": "패션마케팅트랙 졸업인증 요건"
+      }
+    },
+    {
+      "deptLabel": "패션크리에이티브디렉션트랙",
+      "dept": "패션크리에이티브디렉션트랙",
+      "url": "https://www.hansung.ac.kr/Design/5122/subview.do",
+      "lines": [],
+      "attachment": null,
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/Design/images/sub/temp_1622012362091100.jpg",
+        "alt": "패션마케팅트랙 졸업인증 요건"
+      }
     },
     {
       "deptLabel": "문학문화콘텐츠트랙",
@@ -277,6 +314,28 @@
         "포인트를 포함한다"
       ],
       "attachment": null
+    },
+    {
+      "deptLabel": "역사문화큐레이션트랙",
+      "dept": "역사문화큐레이션트랙",
+      "url": "https://www.hansung.ac.kr/HmnArt/5632/subview.do",
+      "lines": [],
+      "attachment": null,
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/HmnArt/images/temp_1764728878736100.jpg",
+        "alt": "역사문화큐레이션트랙 졸업요건"
+      }
+    },
+    {
+      "deptLabel": "역사콘텐츠트랙",
+      "dept": "역사콘텐츠트랙",
+      "url": "https://www.hansung.ac.kr/HmnArt/5639/subview.do",
+      "lines": [],
+      "attachment": null,
+      "image": {
+        "src": "https://www.hansung.ac.kr/sites/HmnArt/images/temp_1764729174269100.png",
+        "alt": "1"
+      }
     },
     {
       "deptLabel": "영미문화콘텐츠트랙",

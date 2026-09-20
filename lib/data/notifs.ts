@@ -26,6 +26,46 @@ export type NotifInputs = {
 
 const DAY = 86400000;
 
+export type Reminder = {
+  /** 알림함 항목과 같은 id 형식 — notifiedIds로 중복 발송 방지 */
+  id: string;
+  /** 발송 시각 (ms epoch) */
+  fireAt: number;
+  title: string;
+  body: string;
+};
+
+/**
+ * 브라우저 알림 예약 대상 — 앞으로의 LMS 마감을 leadMs(기본 24h) 전에 울린다.
+ * lead 시점이 이미 지난 임박 항목은 fireAt=now로 즉시 발송 대상이 된다.
+ * 앱이 열려 있는 동안만 유효(푸시 인프라 없음) — notifiedIds로 중복 발송 방지.
+ */
+export function reminderTargets(
+  lms: LmsSnapshot,
+  now: number,
+  leadMs = DAY,
+  horizonDays = 7,
+): Reminder[] {
+  const out: Reminder[] = [];
+  const dayStart = (ts: number) => {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  for (const t of dueSoon(lms, now, horizonDays)) {
+    if (t.dueTs <= now) continue; // 마감이 지난 항목은 울리지 않는다
+    // 캘린더 날짜 차이 — 24시간 블록이 아니라 오늘/내일의 일반적 의미
+    const dd = Math.round((dayStart(t.dueTs) - dayStart(now)) / DAY);
+    const when = dd <= 0 ? '오늘 마감' : dd === 1 ? '내일 마감' : `D-${dd} 마감`;
+    out.push({
+      id: `lms-${t.course}-${t.kind}-${t.title}-${t.dueTs}`.slice(0, 120),
+      fireAt: Math.max(now, t.dueTs - leadMs),
+      title: `${when}: ${t.title}`,
+      body: `${t.course} · ${t.kind}${t.uncertain ? ' (응시 여부 확인 실패)' : ''}`,
+    });
+  }
+  return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
+}
+
 /**
  * 실제 상태에서 도출되는 알림 목록 — Topbar 벨 배지와 알림함이 공유한다.
  * now는 호출자가 주입한다(render 순수성).

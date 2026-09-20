@@ -248,6 +248,15 @@
   color: var(--nt-steel);
   font-size: 12.5px;
 }
+.rules-image {
+  margin: 10px 0 14px;
+}
+.rules-image img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--nt-line);
+  border-radius: 10px;
+}
 
 /* ---------- AI 상담 ---------- */
 .advisor {

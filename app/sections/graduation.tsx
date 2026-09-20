@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
+import { matchEnrollment } from '@/lib/data/lms';
 import {
   deptRuleTargets,
   rulesetMatchesDept,
@@ -43,7 +44,8 @@ export function Graduation({
     const richness = (r: (typeof deptRules.items)[number]) =>
       (r.yearTable ? 1e6 : 0) +
       r.lines.length * 100 +
-      (r.attachment ? 1 : 0);
+      (r.attachment ? 1 : 0) +
+      (r.image ? 1 : 0);
     const matches = deptRules.items
       .filter((r) => rulesetMatchesDept(r, data.dept, pool))
       .sort((a, b) => richness(b) - richness(a));
@@ -57,6 +59,11 @@ export function Graduation({
   }, [myRules, data.year]);
   // 규정표에서 내 학번 컬럼 위치 — 하이라이트용
   const myColIdx = deptTargets?.columnIndex ?? -1;
+  // COSMOS 수강 과목 — 이름 매칭만으로는 이수 미확정이므로 표시 전용
+  const enrolled = useMemo(
+    () => (data.lms && catalog ? matchEnrollment(data.lms, catalog) : []),
+    [data.lms, catalog],
+  );
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
     const pts = parseInt(data.points, 10);
@@ -336,6 +343,29 @@ export function Graduation({
         </button>
       </div>
 
+      {enrolled.length > 0 && (
+        <section className="card pad">
+          <div className="between">
+            <h3>현재 수강 중</h3>
+            <span className="badge blue">COSMOS 수업 현황</span>
+          </div>
+          <p className="meta">
+            수집 스냅샷 기준 수강 중인 과목입니다 — 이름 매칭만으로는 이수
+            확정이 아니므로 졸업 학점 계산에는 포함하지 않습니다.
+          </p>
+          <ul className="rule-lines">
+            {enrolled.map((m) => (
+              <li key={m.course.id}>
+                {m.course.title}
+                {m.sections.length
+                  ? ` — 카탈로그 매칭: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
+                  : ' — 카탈로그 매칭 없음'}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {myRules && (
         <section className="card pad dept-rules">
           <div className="between">
@@ -439,6 +469,21 @@ export function Graduation({
               링크에서 확인하세요.
             </p>
           )}
+          {myRules.image && (
+            <div className="rules-image">
+              <p className="meta">
+                규정이 이미지로 게시돼 있습니다 — 학과 공식 이미지 원본입니다.
+              </p>
+              <a href={myRules.image.src} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line next/no-img-element -- 외부 학교 이미지, next/image 없음 */}
+                <img
+                  src={myRules.image.src}
+                  alt={myRules.image.alt ?? '학과 졸업요건 이미지'}
+                  loading="lazy"
+                />
+              </a>
+            </div>
+          )}
           <a
             className="link"
             href={myRules.url}
@@ -473,6 +518,7 @@ export function Graduation({
                 </a>
                 {r.multiDept && <span className="badge">전체 학과 공통</span>}
                 {r.attachment && <span className="badge">문서 첨부</span>}
+                {r.image && <span className="badge">이미지 공개</span>}
                 {!r.dept && !r.multiDept && (
                   <span className="badge orange">카탈로그 미연결</span>
                 )}

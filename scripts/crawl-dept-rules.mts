@@ -11,6 +11,7 @@
 import { writeFile } from 'node:fs/promises';
 import {
   extractAttachment,
+  extractContentImage,
   extractRulesText,
   inferDeptLabel,
   isMultiDeptPage,
@@ -87,6 +88,7 @@ for (const slug of SLUGS) {
         url,
         lines,
         attachment: extractAttachment(html),
+        image: extractContentImage(html) ?? undefined,
         multiDept: multi || undefined,
         yearTable: parseYearTable(html) ?? undefined,
       };
@@ -97,7 +99,7 @@ for (const slug of SLUGS) {
       } else {
         items.push(ruleset);
         console.log(
-          `  ${deptLabel || '(학과 미확정)'} -> ${ruleset.dept ?? '(미해석)'}: ${lines.length}줄${ruleset.attachment ? ' +첨부' : ''}${ruleset.yearTable ? ' +학번표' : ''}`,
+          `  ${deptLabel || '(학과 미확정)'} -> ${ruleset.dept ?? '(미해석)'}: ${lines.length}줄${ruleset.attachment ? ' +첨부' : ''}${ruleset.image ? ' +이미지' : ''}${ruleset.yearTable ? ' +학번표' : ''}`,
         );
       }
     } catch (e) {

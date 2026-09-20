@@ -24,7 +24,7 @@ import { CalendarSection } from './sections/calendar';
 import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
-import { deriveNotifs } from '@/lib/data/notifs';
+import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
@@ -174,6 +174,38 @@ export default function App() {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
   }, [survey]);
+  // 브라우저 마감 알림 — opt-in + 권한 부여된 경우에만, 앱이 열려 있는 동안
+  // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  useEffect(() => {
+    const d = data;
+    if (
+      !d.notifEnabled ||
+      !d.lms ||
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    )
+      return;
+    const fired = new Set(d.notifiedIds ?? []);
+    const timers = reminderTargets(d.lms, Date.now())
+      .filter((r) => !fired.has(r.id))
+      .map((r) =>
+        setTimeout(() => {
+          new Notification(r.title, { body: r.body });
+          const cur = dataRef.current;
+          void persist(
+            {
+              ...cur,
+              notifiedIds: [...(cur.notifiedIds ?? []), r.id].slice(-200),
+            },
+            '',
+          );
+        }, Math.max(0, r.fireAt - Date.now())),
+      );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
+  }, [data.notifEnabled, data.lms]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
@@ -355,6 +387,8 @@ export default function App() {
                   (d.ruleOverrides === undefined ||
                     (d.ruleOverrides && typeof d.ruleOverrides === 'object')) &&
                   (d.readIds === undefined || Array.isArray(d.readIds)) &&
+                  (d.notifiedIds === undefined ||
+                    Array.isArray(d.notifiedIds)) &&
                   (d.lms === undefined || typeof d.lms === 'object')
                 )
                   setData({ ...empty, ...d });

@@ -23,6 +23,8 @@ export type DeptRuleset = {
   lines: string[];
   /** 본문이 문서 첨부(hwp/pdf)로만 제공될 때 파일 라벨 */
   attachment?: string | null;
+  /** 본문이 콘텐츠 이미지(규정표 그림)로만 제공될 때 이미지 정보 */
+  image?: { src: string; alt?: string };
   /** 본문이 여러 학과 규정을 나열하는 공통 안내 페이지 */
   multiDept?: boolean;
   /** 학번-컬럼 규정 표가 파싱된 경우의 구조화 데이터 */
@@ -38,6 +40,9 @@ export type DeptRulesSnapshot = {
 };
 
 export type SitemapLink = { url: string; label: string };
+
+/** 학교 사이트 호스트 — 상대 이미지 경로의 절대 URL 변환용 */
+const HOST = 'https://www.hansung.ac.kr';
 
 /** 사이트맵 HTML에서 (url, 라벨) 링크를 순서대로 추출한다. */
 export function parseSitemapLinks(html: string, slug: string): SitemapLink[] {
@@ -201,12 +206,48 @@ export function extractAttachment(html: string): string | null {
 }
 
 /**
+ * 본문 컨테이너 안의 콘텐츠 이미지 감지 — 규정이 텍스트가 아니라
+ * 이미지로 게시된 페이지(예: Design 학부 졸업인증 요건 JPG).
+ * 첫 번째 콘텐츠 이미지의 절대 URL과 alt를 반환한다.
+ */
+export function extractContentImage(
+  html: string,
+): { src: string; alt?: string } | null {
+  // 콘텐츠 빌더 아티클 우선, 없으면 본문 컨테이너~body 끝 — 노이즈는 필터로 제거
+  const scope =
+    html.match(
+      /<article[^>]*id="_contentBuilder"[^>]*>([\s\S]*?)<\/article>/i,
+    )?.[1] ??
+    html.match(
+      /<div[^>]*id="contentsEditHtml"[^>]*>([\s\S]*)<\/body/i,
+    )?.[1];
+  if (!scope) return null;
+  const NOISE = /logo|footer|btn_|button|icon|bullet|banner|sns|share/i;
+  const imgRe = /<img\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = imgRe.exec(scope))) {
+    const tag = m[0];
+    const src = tag.match(/\bsrc="([^"]+)"/i)?.[1];
+    if (!src) continue;
+    const alt = tag.match(/\balt="([^"]*)"/i)?.[1];
+    if (NOISE.test(src) || (alt && /한성대학교/.test(alt))) continue;
+    return {
+      src: src.startsWith('http')
+        ? src
+        : `${HOST}${src.startsWith('/') ? '' : '/'}${src}`,
+      alt: alt ? decodeEntities(alt).trim() || undefined : undefined,
+    };
+  }
+  return null;
+}
+
+/**
  * 수집 결과 이상 감지 — 의미 있는 규정 문구가 하나도 없으면 실패.
  * 한 줄짜리 정식 규정(예: '창작발표회 2회, 졸업작품')도 유효하므로 0 기준.
- * 첨부 문서가 있는 ruleset은 "공식 문서 참고" 케이스로 정상 간주.
+ * 첨부 문서·본문 이미지가 있는 ruleset은 "공식 문서/이미지 참고" 케이스로 정상 간주.
  */
 export function isRulesetAnomalous(ruleset: DeptRuleset): boolean {
-  if (ruleset.attachment) return false;
+  if (ruleset.attachment || ruleset.image) return false;
   const meaningful = ruleset.lines.filter(
     (l) => l.length >= 6 && /[가-힣]/.test(l),
   );

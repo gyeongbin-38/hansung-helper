@@ -12,6 +12,7 @@ import {
 import { catGroup, deptMatches, planBlockReason } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
+import { enrolledSectionIds } from '@/lib/data/lms';
 import type { Data } from './data';
 
 const LIMIT = 60;
@@ -90,6 +91,12 @@ export function Courses({
       (catalog?.sections ?? []).filter((s) => data.planned.includes(s.id)),
     [catalog, data.planned],
   );
+  // COSMOS 수강 과목과 이름이 매칭된 분반 — 이수 확정이 아닌 표시용
+  const enrolled = useMemo(
+    () =>
+      data.lms && catalog ? enrolledSectionIds(data.lms, catalog) : null,
+    [data.lms, catalog],
+  );
   function toggle(s: CourseSection) {
     if (data.planned.includes(s.id)) return plan(s.id);
     const blocked = planBlockReason(s, data, plannedSecs);
@@ -145,6 +152,14 @@ export function Courses({
         <section className="card detail">
           <div className="course-badges">
             {added && <span className="badge purple">계획에 담김</span>}
+            {enrolled?.has(s.id) && (
+              <span
+                className="badge blue"
+                title="COSMOS 수업 현황과 과목명이 일치 — 이수 여부는 학교 시스템 기준"
+              >
+                수강 중
+              </span>
+            )}
             <span className="badge">{s.category}</span>
             {s.online && <span className="badge blue">온라인</span>}
             {s.cross && <span className="badge green">교차가능</span>}
@@ -334,6 +349,14 @@ export function Courses({
                 </span>
                 <div className="course-badges">
                   {added && <span className="badge purple">계획에 담김</span>}
+                  {enrolled?.has(s.id) && (
+                    <span
+                      className="badge blue"
+                      title="COSMOS 수업 현황과 과목명이 일치 — 이수 여부는 학교 시스템 기준"
+                    >
+                      수강 중
+                    </span>
+                  )}
                   <span className="badge">{s.category}</span>
                   {s.online && <span className="badge blue">온라인</span>}
                   {s.cross && <span className="badge green">교차가능</span>}

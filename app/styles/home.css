@@ -592,6 +592,20 @@
   color: var(--nt-stone);
   margin: 16px 0 0;
 }
+.notif-native {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--nt-line);
+}
+.notif-native b {
+  font-size: 13.5px;
+}
+.notif-native .notif-sub {
+  margin: 2px 0 0;
+}
+.notif-native .notif-foot {
+  margin-top: 8px;
+}
 
 @media (max-width: 1199px) {
   .stats {

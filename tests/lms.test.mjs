@@ -6,6 +6,7 @@ import {
   staleDays,
   weekProgress,
   matchEnrollment,
+  enrolledSectionIds,
 } from '../lib/data/lms.ts';
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
@@ -157,6 +158,11 @@ t('match: 모든 과목 반환', em.length === 8);
 t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
 t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
 t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
+
+// ── enrolledSectionIds ──────────────────────────────────────
+const eids = enrolledSectionIds(lmsMatch, catalog2);
+t('enrolled: 매칭된 분반 id 집합', eids.size === 6 && eids.has('a1') && eids.has('a2') && eids.has('b1') && eids.has('c1') && eids.has('c2') && eids.has('d1'));
+t('enrolled: 미매칭 과목 제외', !eids.has('x1') && eids.size === 6);
 
 // ── pendingTasks ────────────────────────────────────────────
 const pend = pendingTasks(snap);

@@ -2,6 +2,7 @@
 import {
   deptRuleTargets,
   extractAttachment,
+  extractContentImage,
   extractRulesText,
   inferDeptLabel,
   isMultiDeptPage,
@@ -97,6 +98,27 @@ t('extract: 폴백 앵커', exF[0] === 'AI응용학과 졸업요건' && exF.incl
 // --- extractAttachment ---
 t('attach: hwp 라벨', extractAttachment(`<a href="/file/x.hwp">졸업요건 안내.hwp</a>`) === '졸업요건 안내.hwp');
 t('attach: 없으면 null', extractAttachment('<p>본문</p>') === null);
+
+// --- extractContentImage (Design형 이미지 게시 규정) ---
+const IMG_PAGE = `
+<div id="contentsEditHtml">
+<article id="_contentBuilder">
+<div class="_obj _objHtml"><div class="center">
+<img class="imageInfo" src="/sites/Design/images/sub/temp_1.jpg" alt="패션마케팅트랙 졸업인증 요건">
+</div></div>
+</article>
+</div></body>`;
+const cimg = extractContentImage(IMG_PAGE);
+t('image: src 절대화', cimg?.src === 'https://www.hansung.ac.kr/sites/Design/images/sub/temp_1.jpg');
+t('image: alt 보존', cimg?.alt === '패션마케팅트랙 졸업인증 요건');
+t('image: article 컨테이너 직접 매칭', extractContentImage(`<article id="_contentBuilder"><img src="/a/b.jpg" alt=""></article></body>`)?.src === 'https://www.hansung.ac.kr/a/b.jpg');
+t('image: 컨테이너 밖 img 무시', extractContentImage(`<img src="/sites/x/nav.jpg"><div id="contentsEditHtml"><p>텍스트</p></div></body>`) === null);
+t('image: img 없으면 null', extractContentImage('<div id="contentsEditHtml"><p>텍스트</p></div></body>') === null);
+// 푸터 로고 노이즈 필터 — 실제 규정 이미지만 선택
+const FOOTER_PAGE = `<article id="_contentBuilder"><img src="/sites/x/footer_logo.png" alt="한성대학교"><img src="/sites/x/rule.jpg" alt="규정"></article></body>`;
+t('image: 푸터 로고 건너뜀', extractContentImage(FOOTER_PAGE)?.src.endsWith('/rule.jpg'));
+t('image: 로고만 있으면 null', extractContentImage(`<article id="_contentBuilder"><img src="/footer_logo.png" alt="한성대학교"></article></body>`) === null);
+t('anomaly: 이미지 규정은 유효', !isRulesetAnomalous({ deptLabel: 'x', dept: null, url: 'u', lines: [], image: { src: 'https://www.hansung.ac.kr/a.jpg' } }));
 
 // --- inferDeptLabel / isMultiDeptPage / isRulesetAnomalous ---
 t('infer: 학과명 추정', inferDeptLabel(['~ 15학번', '컴퓨터공학부', '이수 학점']) === '컴퓨터공학부');
