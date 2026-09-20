@@ -37,6 +37,8 @@ function TodayStrip({
   acts,
   saved,
   missingProfile,
+  missingLabel,
+  profileRoute,
   now,
   go,
 }: {
@@ -44,6 +46,8 @@ function TodayStrip({
   acts: Parameters<typeof liveStatus>[0][];
   saved: string[];
   missingProfile: string[];
+  missingLabel: string;
+  profileRoute: string;
   now: number;
   go: (route: string) => void;
 }) {
@@ -69,8 +73,8 @@ function TodayStrip({
   if (!items.length && missingProfile.length)
     items.push({
       label: '학적 정보 필요',
-      desc: `${missingProfile.join('·')}을(를) 입력하면 추천·졸업 계산이 정확해집니다`,
-      route: 'profile',
+      desc: `${missingLabel}를 입력하면 추천·졸업 계산이 정확해집니다`,
+      route: profileRoute,
     });
   const top = items.slice(0, 3);
   if (!top.length) return null;
@@ -139,14 +143,21 @@ export function Home({
     !data.dept || data.dept === '소속 미입력' ? '학과' : '',
     !data.year ? '입학연도' : '',
   ].filter(Boolean);
+  const missingKeys = [
+    !data.dept || data.dept === '소속 미입력' ? 'dept' : '',
+    !data.year ? 'year' : '',
+  ].filter(Boolean);
+  // CTA는 항상 첫 누락 필드로 딥링크 — 내 정보에서 해당 칸에 포커스된다
+  const profileRoute = missingKeys.length
+    ? `profile/${missingKeys[0]}`
+    : 'profile';
+  const missingLabel = missingProfile.join('와 ');
   if (missingProfile.length)
     tasks.push([
       '01',
       '나의 학적 정보 채우기',
-      `${missingProfile.join('·')}이(가) 비어 있어요.`,
-      missingProfile.length === 1
-        ? `profile/${missingProfile[0] === '학과' ? 'dept' : 'year'}`
-        : 'profile',
+      `${missingLabel}가 비어 있어요.`,
+      profileRoute,
     ]);
   if (hasConflict)
     tasks.push([
@@ -213,6 +224,8 @@ export function Home({
         acts={acts?.items ?? []}
         saved={data.saved}
         missingProfile={missingProfile}
+        missingLabel={missingLabel}
+        profileRoute={profileRoute}
         now={now}
         go={go}
       />

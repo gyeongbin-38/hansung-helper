@@ -184,9 +184,9 @@ export function deriveNotifs({
       tone: 'purple',
       cat: '시스템',
       label: '정보 필요',
-      title: `${missing.join('·')}이(가) 비어 있습니다.`,
+      title: `${missing.join('와 ')}가 비어 있습니다.`,
       desc: '채우면 과목 추천과 졸업 기준이 더 정확해집니다.',
-      route: 'profile',
+      route: `profile/${missing[0] === '학과' ? 'dept' : 'year'}`,
     });
 
   return items;

@@ -312,6 +312,9 @@ blocking regressions.
   `deriveNotifs()`로 추출해 Topbar 벨이 실제 unread 수 반영. profile
   route의 ruleOverrides 상한 300→2000 (UI ≤2000, 800P 공식 목표와
   불일치였음). 프로필 스키마·API 검증·데모 shape-check 전파.
+- **Follow-up (2026-09-21)**: 프로필 누락 CTA·알림이 항상 첫 누락 필드로
+  딥링크(profile/dept|year) → 해당 입력 자동 포커스. 누락 2개일 때도
+  동작(이전엔 단일 누락만). 조사 조합 '학과와 입학연도를/가'로 정정.
 
 ## ISSUE-15 — 설문 선호 추천 반영 + 미반영 항목 명시
 

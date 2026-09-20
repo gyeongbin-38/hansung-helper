@@ -1455,4 +1455,33 @@ e2e 22/22 — 오늘 처리할 일, 지난 학기 분리(목록·집계·보관 
 빈 개인 일정 인라인 오류+공식 일정 유지, advisor 지난 학기 미포함.
 
 BLOCKER: none. 라이브 version — _deploy 출력 잘림, verify_prod로
-정상 확인(엔드포인트 전부 200).
+정상 확인(엔드포인트 전부 200). 라이브 version da13afbb.
+
+---
+
+## 2026-09-21 — 재검증 후속: 프로필 포커스 딥링크 + 조사 문구 (user-audited)
+
+CONTEXT: 프로덕션 재검증에서 발견 — 홈 CTA 클릭 후 입력 필드 자동
+포커스 미동작(focusCount=0), '학과·입학연도을(를)' 어색한 조사 조합.
+
+CAUSE: 체험 모드는 dept·year 둘 다 누락 → '나의 학적 정보 채우기'가
+`length===1` 조건 밖이라 평문 'profile'로 이동(focusField=null).
+'학적 정보 필요' 스트립도 항상 평문 'profile'. 단일 누락(실계정
+감사 케이스)만 딥링크됐던 상태.
+
+DONE:
+- `home.tsx` — missingKeys + profileRoute 도출, 누락 개수와 무관하게
+  첫 누락 필드로 딥링크(profile/dept|year). TodayStrip에도 같은
+  라우트 전달 — '학적 정보 필요' 클릭 시에도 포커스.
+- `notifs.ts` — 프로필 미완성 알림도 첫 누락 필드 딥링크.
+- 문구: join('와 ') + '를 입력하면'/'가 비어 있어요' — '학과와
+  입학연도를 입력하면…', '학과와 입학연도가 비어 있어요.'로 정정
+  (알림 동일). myDept 등 자유 입력 인용부의 '을(를)'는 받침 불명이라
+  유지(따옴표 인용 형태).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 OK, 양쪽 빌드 green,
+번들 마커 확인, _verify_prod 전 엔드포인트 200. 포커스 e2e 7/7 —
+'나의 학적 정보 채우기'·'학적 정보 필요' 클릭 → #profile/dept →
+input[name=dept] 실제 포커스, 조사 패턴 부재 확인.
+
+BLOCKER: none. 라이브 version af79e547.
