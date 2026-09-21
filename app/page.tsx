@@ -561,6 +561,10 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.lmsMatch === undefined ||
+                    (d.lmsMatch &&
+                      typeof d.lmsMatch === 'object' &&
+                      !Array.isArray(d.lmsMatch))) &&
                   (d.lms === undefined || typeof d.lms === 'object')
                 )
                   setData({ ...empty, ...d });

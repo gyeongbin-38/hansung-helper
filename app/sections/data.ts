@@ -51,6 +51,8 @@ export type Data = {
   notifEnabled?: boolean;
   /** COSMOS LMS 수집 스냅샷 (/lms-collect.js 콘솔 스크립트 또는 서버 수집 결과물) */
   lms?: LmsSnapshot;
+  /** 수업 현황의 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore'(수업 아님) */
+  lmsMatch?: Record<string, string>;
   consent: boolean;
 };
 export const empty: Data = {

@@ -418,6 +418,10 @@ export type EnrolledMatch = {
   course: LmsCourse;
   /** 카탈로그에서 이름이 매칭된 분반들 — 없으면 빈 배열 */
   sections: CourseSection[];
+  /** 사용자가 수업 현황에서 직접 연결한 매칭 (lmsMatch override) */
+  manual?: boolean;
+  /** 사용자가 '해당 과목 없음'으로 제외한 과목 — 매칭 경고에서 빠진다 */
+  ignored?: boolean;
 };
 
 /** 과목명 정규화 — 학기 표기·괄호 장식·공백을 제거해 이름 비교에 사용 */
@@ -444,13 +448,23 @@ const lmsKey = (title: string) =>
 /** LMS 수강 과목 ↔ 개설강의 카탈로그 이름 매칭 — 수강 정보를 지어내지 않고
  *  이름이 일치하는 분반만 반환한다(매칭 없으면 빈 배열).
  *  카탈로그 과목명이 LMS 제목의 접두어인 경우 매칭으로 보고, 여러 이름이
- *  겹치면 가장 구체적인(가장 긴) 이름의 분반만 반환한다. */
+ *  겹치면 가장 구체적인(가장 긴) 이름의 분반만 반환한다.
+ *  overrides(사용자 보정)는 자동 매칭보다 우선한다: 'ignore'는 제외,
+ *  분반 id는 같은 과목 코드의 분반 전체로 확장된다. 카탈로그 재생성으로
+ *  사라진 id를 가리키는 보정값은 자동 매칭으로 되돌린다. */
 export function matchEnrollment(
   lms: LmsSnapshot,
   catalog: Catalog,
+  overrides?: Record<string, string>,
 ): EnrolledMatch[] {
   const byName = new Map<string, CourseSection[]>();
+  const byId = new Map<string, CourseSection>();
+  const byCode = new Map<string, CourseSection[]>();
   for (const s of catalog.sections) {
+    byId.set(s.id, s);
+    const byC = byCode.get(s.code) ?? [];
+    byC.push(s);
+    byCode.set(s.code, byC);
     const k = normTitle(s.name);
     if (!k) continue;
     const arr = byName.get(k) ?? [];
@@ -458,6 +472,17 @@ export function matchEnrollment(
     byName.set(k, arr);
   }
   return lms.courses.map((course) => {
+    const ov = overrides?.[course.id];
+    if (ov === 'ignore') return { course, sections: [], ignored: true };
+    if (ov) {
+      const sec = byId.get(ov);
+      if (sec)
+        return {
+          course,
+          sections: byCode.get(sec.code) ?? [sec],
+          manual: true,
+        };
+    }
     const key = lmsKey(course.title);
     if (!key) return { course, sections: [] };
     let best = '';
@@ -473,11 +498,110 @@ export function matchEnrollment(
 export function enrolledSectionIds(
   lms: LmsSnapshot,
   catalog: Catalog,
+  overrides?: Record<string, string>,
 ): Set<string> {
   const ids = new Set<string>();
-  for (const m of matchEnrollment(lms, catalog))
+  for (const m of matchEnrollment(lms, catalog, overrides))
     for (const s of m.sections) ids.add(s.id);
   return ids;
+}
+
+export type MatchCandidate = {
+  /** 과목 코드 — 같은 코드의 분반들이 한 후보로 묶인다 */
+  code: string;
+  name: string;
+  dept: string;
+  credits: number;
+  sectionCount: number;
+  /** override 저장에 쓰는 대표 분반 id */
+  sectionId: string;
+  /** 사용자에게 보이는 근거 — '이름 유사' '교수 일치' '분반 일치' */
+  why: string[];
+  score: number;
+};
+
+/** 정규화 문자열 두 개의 Dice bigram 유사도(0~1) — 짧은 과목명 비교용 */
+const diceSim = (a: string, b: string): number => {
+  if (!a || !b || a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+  const grams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const g = s.slice(i, i + 2);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+  };
+  const A = grams(a);
+  const B = grams(b);
+  let inter = 0;
+  for (const [g, n] of A) inter += Math.min(n, B.get(g) ?? 0);
+  return (2 * inter) / (a.length - 1 + b.length - 1);
+};
+
+/** LMS '[A]'·'[01]' 분반 표기 → 카탈로그 section 값과 비교 가능한 형태 */
+const sectKey = (raw: string | undefined): string => {
+  if (!raw) return '';
+  const s = raw.trim().toUpperCase();
+  return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s;
+};
+
+/** 매칭에 실패한 LMS 과목의 보정 후보 — 과목 코드 단위로 묶어 제안한다.
+ *  이름 유사도가 없으면 후보에서 제외하고, 교수·분반 일치는 보조 근거로
+ *  점수를 올린다. 사용자가 최종 승인하므로 자동 확정은 하지 않는다. */
+export function suggestMatchCandidates(
+  course: LmsCourse,
+  catalog: Catalog,
+  limit = 5,
+): MatchCandidate[] {
+  const key = lmsKey(course.title);
+  if (!key) return [];
+  const profKey = course.prof ? normTitle(course.prof) : '';
+  // LMS 제목 끝에 붙는 교수명을 떼면 과목 본체가 남는다
+  const body = profKey ? key.replace(profKey, '') : key;
+  if (!body) return [];
+  const lmsSect = sectKey(course.title.match(/\[([^\]]{1,4})\]/)?.[1]);
+  const byCode = new Map<string, MatchCandidate>();
+  for (const s of catalog.sections) {
+    const nk = normTitle(s.name);
+    if (!nk) continue;
+    const why: string[] = [];
+    let score = 0;
+    if (body.startsWith(nk) || nk.startsWith(body)) {
+      score += 5;
+      why.push('이름 포함');
+    } else {
+      const sim = diceSim(body, nk);
+      if (sim >= 0.55) {
+        score += 3;
+        why.push('이름 유사');
+      } else if (sim >= 0.4) score += 1;
+      else continue;
+    }
+    if (profKey && normTitle(s.professor) === profKey) {
+      score += 3;
+      why.push('교수 일치');
+    }
+    if (lmsSect && sectKey(s.section) === lmsSect) {
+      score += 1;
+      why.push('분반 일치');
+    }
+    const cur = byCode.get(s.code);
+    if (!cur || score > cur.score)
+      byCode.set(s.code, {
+        code: s.code,
+        name: s.name,
+        dept: s.dept,
+        credits: s.credits,
+        sectionCount: 1,
+        sectionId: s.id,
+        why,
+        score,
+      });
+    else cur.sectionCount += 1;
+  }
+  return [...byCode.values()]
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, limit);
 }
 
 /** 마감 N일 이내 미완료 항목 — 마감 빠른 순. 마감 미기재 항목은 제외.

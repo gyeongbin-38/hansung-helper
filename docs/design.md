@@ -8,9 +8,9 @@
 
 - canvas `#ffffff` / surface `#f6f5f4` / surface-soft `#fafaf9`
 - hairline `#e5e3df` / hairline-strong `#c8c4be`
-- ink `#1a1a1a` / charcoal `#37352f` / slate `#5d5b54` / steel `#787671` / muted `#bbb8b1`
+- ink `#1a1a1a` / charcoal `#37352f` / slate `#5d5b54` / steel `#6f6c66` / stone `#736f68` / muted `#8a867e`
 - primary `#5645d4` / pressed `#4534b3` / deep `#3a2a99`
-- navy `#0a1530` / navy-mid `#1a2a52` / link `#0075de`
+- navy `#0a1530` / navy-mid `#1a2a52` / link `#0068c4` / link-pressed `#005bab`
 - pastel tints: peach `#ffe8d4` rose `#fde0ec` mint `#d9f3e1` lavender `#e6e0f5` sky `#dcecfa` yellow `#fef7d6` cream `#f8f5e8`
 - 버튼·입력 radius 8px, 카드 12px, pill은 배지·탭만
 - 본문 Pretendard/Inter/system-ui 16px/1.55, 제목 600, 버튼 14px/1.3
@@ -76,5 +76,10 @@ Chrome + CDP로 프로덕션에 데모 LMS 데이터를 주입해 홈/LMS 3탭/�
 - 주의: `shell.css`는 `globals.css`에서 `@import`로 앞에 들어가므로
   `.icon` 같은 공통 클래스를 미디어쿼리로 끌 때는
   `.sidebar .side-collapse`처럼 상위 스코프로 특이도를 올려야 한다.
+- 텍스트 토큰은 AA(4.5:1) 기준으로 교정됐다 — `steel/stone`은
+  surface 위에서도 통과하고, `muted`는 placeholder 전용으로 둔다.
+  `link`는 `#0068c4`로 낮춰 surface 위에서도 통과한다.
+- 노출 카피의 `—`는 전부 정리했다 — 라벨·수식어는 `·`, 문장 경계는
+  마침표로 통일한다(주석·JSDoc은 자유).
 - 남은 폴리시 후보: 토스트가 콘텐츠를 덮는 문제, 과목 카드 내부
   섹션 여백 리듬, 홈 대시보드 밀도 재조정, 온보딩 히어로 비주얼.

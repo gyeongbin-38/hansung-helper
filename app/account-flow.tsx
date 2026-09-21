@@ -23,6 +23,8 @@ export type Profile = {
   semester?: string;
   graduationTarget?: string;
   onboardingStep?: number;
+  /** 수업 현황 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore' */
+  lmsMatch?: Record<string, string>;
 };
 export type Account = {
   profile: Partial<Profile>;

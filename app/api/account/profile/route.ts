@@ -140,6 +140,25 @@ export async function PUT(request: Request) {
       )
         ? input.actPrefs
         : [];
+    const lmsMatch: Record<string, string> = {};
+    if (input.lmsMatch && typeof input.lmsMatch === 'object') {
+      const entries = Object.entries(
+        input.lmsMatch as Record<string, unknown>,
+      );
+      if (entries.length > 200)
+        return json({ error: '매칭 보정 항목이 너무 많습니다.' }, 400);
+      for (const [k, v] of entries) {
+        if (
+          k.length > 40 ||
+          typeof v !== 'string' ||
+          v.length > 60 ||
+          (v !== 'ignore' && !/^[\w-]+$/.test(v))
+        )
+          return json({ error: '매칭 보정 형식을 확인해 주세요.' }, 400);
+        lmsMatch[k] = v;
+      }
+    }
+    profile.lmsMatch = lmsMatch;
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);
       if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);

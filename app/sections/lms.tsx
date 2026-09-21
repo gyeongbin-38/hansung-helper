@@ -26,9 +26,11 @@ import {
   relTime,
   staleDays,
   submissionItems,
+  suggestMatchCandidates,
   validateLms,
   weekProgress,
   type BingeItem,
+  type EnrolledMatch,
   type LmsCourse,
   type LmsSnapshot,
   type SubmissionItem,
@@ -543,12 +545,15 @@ export function LmsSection({
           ? '서버 수집 미완료'
           : undefined;
 
-  // 카탈로그 매칭 진단 — 이름이 다른 과목은 조용히 넘기지 않고 집계한다
-  const unmatched = snap && catalog
-    ? matchEnrollment(snap, catalog)
-        .filter((m) => m.sections.length === 0)
-        .map((m) => m.course.title)
-    : [];
+  // 카탈로그 매칭 진단 — 이름이 다른 과목은 조용히 넘기지 않고 집계한다.
+  // data.lmsMatch의 사용자 보정(직접 연결·제외)을 자동 매칭 위에 적용한다.
+  const matches =
+    snap && catalog ? matchEnrollment(snap, catalog, data.lmsMatch) : [];
+  const matchPending = matches.filter(
+    (m) => !m.sections.length && !m.ignored,
+  );
+  const matchManual = matches.filter((m) => m.manual);
+  const matchIgnored = matches.filter((m) => m.ignored);
 
   // 딥링크가 바뀌면 과목별 뷰로 돌아간다 — 대상 카드는 그 뷰에만 있다
   // (렌더 중 상태 조정 패턴 — effect 내 setState 대신)

@@ -1594,3 +1594,35 @@ CDP 캡처: 비교과 설문 1/5 배지·문항 렌더, 취향 추천 탭 맞춤
 확인 — stale 배포 방지 절차 적용.
 
 BLOCKER: 없음. 라이브 51f4f8b8-5ce6-4f1d-89d1-a5d79abbc8a4.
+
+2026-09-21 — 접근성·카피 감사 라운드(Vercel/antislop/critique 기준)
+
+TRIGGER: 사용자 지정 스킬 조합(redesign-existing-projects + ui-ux-pro-max
++ critique + web-design-guidelines + polish + antislop)으로 정적·스크린샷
+감사를 수행.
+
+DONE:
+- Hard Gate 대비 위반 수정 — 텍스트 토큰을 AA로 교정: stone
+  #a4a097→#736f68(5.0/4.6), steel #787671→#6f6c66(5.2/4.8),
+  link #0075de→#0068c4(5.6/5.1). muted #bbb8b1→#8a867e(3.6)는
+  placeholder 전용으로 제한하고 .footnote는 stone으로 이동.
+  .toast>svg는 green→green-deep. 45+ 텍스트 사용처는 토큰 레벨
+  수정으로 일괄 커버.
+- 노출 카피 em dash 전면 정리(30+곳) — 라벨·수식어는 `·`, 문장
+  경계는 마침표로 통일(aria-label·title·OG alt 포함). 주석·JSDoc·
+  dept-rules의 NO_REQ 파싱 표는 유지.
+- 모바일 드로어 Escape 닫기 추가(notifications 패널과 동일 패턴).
+- .sidebar에 overflow-y:auto+overscroll-behavior:contain(짧은 뷰포트
+  클리핑 방지), .notif-panel-list에 overscroll-behavior:contain.
+- button,a에 touch-action:manipulation(dbl-tap 줌 방지 — 드래그
+  핸들의 touch-action:none은 클래스 특이도로 유지).
+- .detail-cover에 aspect-ratio:16/5 — 장식 커버의 CLS 방지(공식
+  규정 이미지 .rules-image는 전체 표시 필요로 유지).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK, 사이드바 e2e
+15/15 재통과(회귀 없음), 양쪽 빌드 green. Playwright 스크린샷
+감사(desktop 확장/레일, activities, graduation, search, settings,
+mobile 홈·드로어)로 대비 개선·레이아웃 육안 확인. 배포 후 라이브
+CSS에 신규 토큰 4종 마커 확인.
+
+BLOCKER: 없음. 라이브 f4661e13-0dd0-4cc6-9cf5-23773089c4d7.
