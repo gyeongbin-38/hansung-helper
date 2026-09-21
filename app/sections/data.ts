@@ -16,7 +16,7 @@ export const menus = [
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
   ['lms', '수업 현황', MonitorPlay],
-  ['advisor', 'AI 상담', Sparkles],
+  ['advisor', '학사 안내', Sparkles],
   ['graduation', '졸업요건', GraduationCap],
   ['semester-plan', '학기별 계획', Layers],
   ['courses', '과목 추천', BookOpen],
@@ -35,6 +35,9 @@ export type Data = {
   points: string;
   saved: string[];
   planned: string[];
+  /** 시간표 시나리오 — 'A'|'B'|'C' → 카탈로그 section.id 배열.
+   *  planned는 현재 작업 중인 안이며, 시나리오는 저장·불러오기로만 연결된다 */
+  plans?: Record<string, string[]>;
   completed: Completed[];
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];

@@ -749,3 +749,28 @@ blocking regressions.
   - 홈 태스크: actPrefs 미설정 시 '비교과 취향 설문하기' → activities.
 - **Follow-ups**: 설문 답변을 AI 상담·알림 개인화에도 연결(ISSUE-15
   후속), 추천 근거를 카드에 상시 노출할지 여부, 설문 완료율 계측 없음.
+
+## ISSUE-27 — 시간표 시나리오 저장 + LMS 수동 매칭 + 온보딩 이수 단계
+
+- **Status**: **verified** (2026-09-21 — tsc/oxlint/매트릭스/양쪽 빌드/
+  _verify_prod 통과, 프로덕션 CDP 캡처로 시나리오 슬롯 렌더 확인,
+  라이브 ae91c70d)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 시간표를 단일 planned에서 시나리오 비교로 확장하고,
+  LMS 과목명 매칭 실패를 사용자가 수동 보정할 수 있게 하며, 온보딩에
+  이수 과목 입력 단계를 추가한다 (ISSUE-1/ISSUE-23 후속).
+- **Resolution**:
+  - `plans: Record<string,string[]>` — 안 A/B/C 슬롯 카드(과목 수·
+    학점·공강 일수 요약, 불러오기/덮어쓰기/삭제). 현재 planned와
+    슬롯이 서로 덮어쓰지 않음을 콜백 분리로 보장. "개인 계획이며
+    공식 수강신청과는 별개" 문구 유지.
+  - `lmsMatch: Record<string,string>` — 'ignore' 또는 카탈로그 분반
+    id. matchEnrollment overrides가 자동 매칭보다 우선. lms/courses/
+    graduation 3곳이 동일 매핑을 소비해 불일치 없음. 서버·클라이언트
+    양쪽 shape 검증.
+  - 온보딩 stage 1 — 카탈로그 검색으로 이수 과목 추가(진급 계산의
+    기초 데이터). 진행 단계 7→8.
+  - 홈 '이번 주 마감' — LMS dueSoon + 활동 마감 + 학사일정 통합.
+- **Follow-ups**: 시나리오 이름 자유 입력(현재 A/B/C 고정), 시나리오
+  간 과목 diff 뷰, lmsMatch 매핑의 신뢰도 표시(수동=확정/자동=추정),
+  온보딩 이수 단계의 학점 자동 합산 표시.

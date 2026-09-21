@@ -19,6 +19,7 @@ import {
 import {
   currentSemesterStart,
   dueSoon,
+  matchEnrollment,
   pendingTasks,
 } from '@/lib/data/lms';
 import { liveStatus } from '@/lib/data/activities';
@@ -118,6 +119,59 @@ export function Home({
     currentSemesterStart(now);
   const lmsDue = lmsSnap ? dueSoon(lmsSnap, now, 7, 7, before) : [];
   const lmsPending = lmsSnap ? pendingTasks(lmsSnap, before).length : 0;
+  // 매칭 미확정 과목 수 — '해당 없음'으로 사용자가 제외한 과목은 위험 신호에서 뺀다
+  const lmsUnmatched =
+    lmsSnap && catalog
+      ? matchEnrollment(lmsSnap, catalog, data.lmsMatch).filter(
+          (m) => !m.sections.length && !m.ignored,
+        ).length
+      : 0;
+  // 이번 주 마감 — 수업 과제·퀴즈 + 저장한 비교과 마감 + 학사일정을 D-day 하나로 통합
+  type WeekItem = {
+    dday: number;
+    kind: string;
+    title: string;
+    sub: string;
+    url?: string;
+    route: string;
+  };
+  const week: WeekItem[] = lmsDue.map((t) => ({
+    dday: Math.ceil((t.dueTs - now) / 86400000),
+    kind: t.kind,
+    title: t.title,
+    sub: t.course + (t.uncertain ? ' · 응시 여부 확인 실패' : ''),
+    url: t.url,
+    route: 'lms',
+  }));
+  for (const a of acts?.items ?? []) {
+    if (!data.saved.includes(a.id) || !a.applyEnd) continue;
+    const dd = Math.ceil(
+      (Date.parse(a.applyEnd.slice(0, 10) + 'T23:59:59') - now) / 86400000,
+    );
+    if (dd >= 0 && dd <= 7)
+      week.push({
+        dday: dd,
+        kind: '비교과',
+        title: a.title,
+        sub: a.dept + (a.points != null ? ` · ${a.points}P` : ''),
+        route: 'activities/' + a.id,
+      });
+  }
+  for (const e of sched?.items ?? []) {
+    const dd = Math.ceil(
+      (Date.parse((e.end ?? e.start).slice(0, 10) + 'T23:59:59') - now) /
+        86400000,
+    );
+    if (dd >= 0 && dd <= 7)
+      week.push({
+        dday: dd,
+        kind: '학사일정',
+        title: e.title,
+        sub: 'hansung.ac.kr 공식 일정',
+        route: 'calendar',
+      });
+  }
+  week.sort((a, b) => a.dday - b.dday);
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
   // 상태는 수집 시점 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
   const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
@@ -157,12 +211,12 @@ export function Home({
       `${missingLabel}가 비어 있어요.`,
       profileRoute,
     ]);
-  if (hasConflict)
+  if (lmsUnmatched)
     tasks.push([
       '02',
-      '시간표 충돌 조정하기',
-      '계획한 과목의 시간이 겹쳐요.',
-      'timetable',
+      `수집된 수업 ${lmsUnmatched}과목 매칭 확인`,
+      '개설강의와 연결하면 수강 추정과 시간표 표시가 정확해져요.',
+      'lms',
     ]);
   if (!(data.completed ?? []).length)
     tasks.push([
@@ -171,12 +225,19 @@ export function Home({
       '이수한 과목이 없어 졸업 계산이 대기 중이에요.',
       'graduation',
     ]);
-  if (!planned.length)
+  else if (!data.credits)
+    tasks.push([
+      '03',
+      '총 이수학점 입력하기',
+      '이수학점이 비어 있어 졸업 진행률이 미확정이에요.',
+      'graduation',
+    ]);
+  if (hasConflict)
     tasks.push([
       '04',
-      '다음 학기 그려보기',
-      '관심 과목을 계획에 담아보세요.',
-      'courses',
+      '시간표 충돌 조정하기',
+      '계획한 과목의 시간이 겹쳐요.',
+      'timetable',
     ]);
   if (!data.prefs.length)
     tasks.push([
@@ -192,7 +253,11 @@ export function Home({
       '활동 목록에서 맞춤 추천을 받아보세요.',
       'activities',
     ]);
-  const shownTasks = tasks.slice(0, 3);
+  const shownTasks = tasks.slice(0, 4);
+  const plannedCredits = planned.reduce((n, s) => n + s.credits, 0);
+  const conflictCount = planned.filter(
+    (s) => conflicts(s, planned).length,
+  ).length;
   return (
     <>
       <section className="home-summary">
@@ -223,6 +288,144 @@ export function Home({
         now={now}
         go={go}
       />
+      {week.length > 0 && (
+        <section>
+          <div className="section-heading">
+            <h2>
+              이번 주 마감 <span className="count">{week.length}</span>
+            </h2>
+            <button className="link" onClick={() => go('lms')}>
+              수업 현황 <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="card pad week-list">
+            {week.slice(0, 5).map((t, i) => (
+              <button
+                className="event-line as-link"
+                key={i}
+                onClick={() => go(t.route)}
+              >
+                <span className="event-date">
+                  <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
+                  <small>{t.kind}</small>
+                </span>
+                <div>
+                  <b>
+                    {t.url ? (
+                      <a
+                        className="link title-link"
+                        href={t.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {t.title}
+                      </a>
+                    ) : (
+                      t.title
+                    )}
+                  </b>
+                  <small>{t.sub}</small>
+                </div>
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </button>
+            ))}
+            {week.length > 5 && (
+              <p className="meta">외 {week.length - 5}건</p>
+            )}
+            <p className="meta">
+              {lmsSnap
+                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집 · `
+                : ''}
+              {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
+            </p>
+          </div>
+        </section>
+      )}
+      {!week.length && lmsSnap != null && lmsPending > 0 && (
+        <section>
+          <div className="card pad">
+            <p className="meta">
+              7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
+              있어요.
+            </p>
+          </div>
+        </section>
+      )}
+      <section>
+        <div className="section-heading">
+          <h2>
+            내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
+          </h2>
+          <span>입력·확인이 필요한 항목</span>
+        </div>
+        {shownTasks.length ? (
+          <div className="tasks">
+            {shownTasks.map(([n, t, d, r]) => (
+              <button className="task card" key={t} onClick={() => go(r)}>
+                <span className="task-num">{n}</span>
+                <span>
+                  <b>{t}</b>
+                  <small>{d}</small>
+                </span>
+                <ArrowUpRight size={19} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-small card">
+            <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
+          </div>
+        )}
+      </section>
+      <section className="card pad">
+        <div className="section-heading">
+          <h2>다음 학기 계획</h2>
+          <button className="link" onClick={() => go('timetable')}>
+            시간표 <ArrowRight size={16} />
+          </button>
+        </div>
+        {planned.length ? (
+          <>
+            <div className="plan-stats">
+              <div>
+                <b>{planned.length}</b>
+                <small>담은 과목</small>
+              </div>
+              <div>
+                <b>{plannedCredits}</b>
+                <small>계획 학점</small>
+              </div>
+              <div>
+                <b className={conflictCount ? 'warn' : ''}>
+                  {conflictCount ? `${conflictCount}건` : '없음'}
+                </b>
+                <small>시간 충돌</small>
+              </div>
+            </div>
+            <div className="plan-list">
+              {planned.slice(0, 4).map((s) => (
+                <span className="badge" key={s.id}>
+                  {s.name} {s.section}
+                </span>
+              ))}
+              {planned.length > 4 && (
+                <span className="badge">외 {planned.length - 4}과목</span>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="meta">
+              아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
+              학기를 미리 그려보세요.
+            </p>
+            <button className="link" onClick={() => go('courses')}>
+              과목 둘러보기 <ArrowUpRight size={15} />
+            </button>
+          </>
+        )}
+      </section>
       {acts && slides.length > 0 && cur && (
         <section
           className="hero-carousel"
@@ -295,119 +498,6 @@ export function Home({
           </p>
         </section>
       )}
-      {account && (
-        <section>
-          <div className="section-heading">
-            <h2>코스모스 강의</h2>
-            <a
-              className="link"
-              href="https://learn.hansung.ac.kr/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              코스모스 열기 <ArrowUpRight size={16} />
-            </a>
-          </div>
-          <div className="live-courses">
-            {account.snapshot.courses.slice(0, 4).map((c) => (
-              <article className="live-course" key={c.id}>
-                <span className="badge blue">코스모스 조회</span>
-                <h3>{c.name}</h3>
-                <a href={c.url} target="_blank" rel="noreferrer">
-                  강의실 열기 <ArrowUpRight size={16} />
-                </a>
-              </article>
-            ))}
-          </div>
-          {!account.snapshot.courses.length && (
-            <p>확인된 강의가 없습니다. 코스모스에서 직접 확인해 주세요.</p>
-          )}
-          <p className="meta">{account.snapshot.courseScope}</p>
-        </section>
-      )}
-      {lmsSnap && (lmsDue.length > 0 || lmsPending > 0) && (
-        <section>
-          <div className="section-heading">
-            <h2>
-              이번 주 수업 <span className="count">{lmsDue.length}</span>
-            </h2>
-            <button className="link" onClick={() => go('lms')}>
-              수업 현황 <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="card pad week-list">
-            {lmsDue.slice(0, 4).map((t, i) => {
-              const dd = Math.ceil((t.dueTs - now) / 86400000);
-              return (
-                <div className="event-line" key={i}>
-                  <span className="event-date">
-                    <b>{dd <= 0 ? '지남' : `D-${dd}`}</b>
-                    <small>{t.kind}</small>
-                  </span>
-                  <div>
-                    <b>
-                      {t.url ? (
-                        <a
-                          className="link title-link"
-                          href={t.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t.title}
-                        </a>
-                      ) : (
-                        t.title
-                      )}
-                    </b>
-                    <small>
-                      {t.course}
-                      {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
-                    </small>
-                  </div>
-                </div>
-              );
-            })}
-            {!lmsDue.length && (
-              <p className="meta">
-                7일 이내 마감은 없어요. 미완료 항목 {lmsPending}건이 남아
-                있어요.
-              </p>
-            )}
-            {lmsDue.length > 4 && (
-              <p className="meta">외 {lmsDue.length - 4}건 · 수업 현황에서 확인</p>
-            )}
-            <p className="meta">
-              COSMOS {lmsSnap.fetchedAt.slice(0, 10)} 수집 기준
-            </p>
-          </div>
-        </section>
-      )}
-      <section>
-        <div className="section-heading">
-          <h2>
-            지금 할 일 <span className="count">{shownTasks.length}</span>
-          </h2>
-          <span>하나씩, 차근차근</span>
-        </div>
-        {shownTasks.length ? (
-          <div className="tasks">
-            {shownTasks.map(([n, t, d, r]) => (
-              <button className="task card" key={t} onClick={() => go(r)}>
-                <span className="task-num">{n}</span>
-                <span>
-                  <b>{t}</b>
-                  <small>{d}</small>
-                </span>
-                <ArrowUpRight size={19} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-small card">
-            <p>지금 처리할 일이 없어요. 잘 준비되고 있습니다.</p>
-          </div>
-        )}
-      </section>
       <section>
         <div className="section-heading">
           <h2>나의 학사 현황</h2>
@@ -496,26 +586,47 @@ export function Home({
           )}
         </section>
         <section className="card pad">
-          <span className="badge">학습 일정</span>
-          <h2>수업의 흐름도 놓치지 않도록</h2>
-          {lmsSnap ? (
+          <div className="section-heading">
+            <h2>코스모스 강의</h2>
+            <a
+              className="link"
+              href="https://learn.hansung.ac.kr/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              코스모스 열기 <ArrowUpRight size={15} />
+            </a>
+          </div>
+          {account && account.snapshot.courses.length ? (
             <>
-              <p>
-                COSMOS에서 확인한 수업 {lmsSnap.courses.length}개 과목의 강의
-                수강·과제·퀴즈 현황을 수업 현황에서 볼 수 있어요.
-              </p>
-              <button className="link" onClick={() => go('lms')}>
-                수업 현황 열기 <ArrowUpRight size={16} />
-              </button>
+              {account.snapshot.courses.slice(0, 5).map((c) => (
+                <div className="event-line" key={c.id}>
+                  <div>
+                    <b>
+                      <a
+                        className="link title-link"
+                        href={c.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {c.name}
+                      </a>
+                    </b>
+                    <small>코스모스 조회</small>
+                  </div>
+                </div>
+              ))}
+              <p className="meta">{account.snapshot.courseScope}</p>
             </>
           ) : (
             <>
               <p>
-                COSMOS 수업 현황을 가져오면 강의 수강·과제·퀴즈 마감을 여기서
-                확인할 수 있어요.
+                {account
+                  ? '확인된 강의가 없습니다. 코스모스에서 직접 확인해 주세요.'
+                  : '학교 계정을 연결하면 코스모스 강의 목록을 볼 수 있어요.'}
               </p>
               <button className="link" onClick={() => go('lms')}>
-                수업 현황 가져오기 <ArrowUpRight size={16} />
+                수업 현황 열기 <ArrowUpRight size={15} />
               </button>
             </>
           )}

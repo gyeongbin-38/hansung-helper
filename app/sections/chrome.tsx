@@ -57,7 +57,7 @@ export function Sidebar({
               <Logo size={20} />
             </span>
             <span className="nav-label">
-              한성 학사 도우미<small>MY ACADEMIC COMPASS</small>
+              한성 학사 도우미<small>나의 학사 나침반</small>
             </span>
           </button>
           <button
@@ -74,7 +74,7 @@ export function Sidebar({
             )}
           </button>
         </div>
-        <div className="nav-caption">MY CAMPUS</div>
+        <div className="nav-caption">내 학사</div>
         <nav>
           {menus.map(([key, name, Icon]) => (
             <button
@@ -86,9 +86,6 @@ export function Sidebar({
             >
               <Icon size={18} />
               <span className="nav-label">{name}</span>
-              {key === 'advisor' && (
-                <span className="tiny">AI</span>
-              )}
             </button>
           ))}
         </nav>
@@ -215,6 +212,23 @@ export function Topbar({
   );
 }
 
+/** 페이지별 한 줄 설명 — 모든 화면에 같은 문장을 반복하지 않는다 */
+const SECTION_SUB: Record<string, string> = {
+  home: '오늘 필요한 수업과 다음 계획을 확인하세요.',
+  timetable: '개설 시간표에서 과목을 담아 다음 학기를 구성합니다.',
+  activities: '지금 신청할 수 있는 비교과·대외활동을 찾아 저장합니다.',
+  calendar: '학교 학사일정과 개인 일정을 함께 봅니다.',
+  lms: 'COSMOS 강의·과제·퀴즈의 수집 상태와 남은 항목입니다.',
+  advisor: '내 정보와 수집 데이터로 다음 행동을 정리합니다.',
+  graduation: '이수 내역과 학과 규정으로 졸업 충족률을 계산합니다.',
+  'semester-plan': '학기별 수강 계획을 정리합니다.',
+  courses: '개설 과목을 찾아 학기 계획에 담습니다.',
+  profile: '학적·이수 정보와 수업 선호를 관리합니다.',
+  settings: '계정 연결과 저장 데이터를 관리합니다.',
+  notifications: '마감·일정·변경 사항을 모아 보여줍니다.',
+  search: '과목·활동·학사일정·수업 항목을 통합 검색합니다.',
+};
+
 export function PageHeading({
   section,
   label,
@@ -233,13 +247,12 @@ export function PageHeading({
     <div className="page-heading">
       <div>
         <div className="eyebrow">
-          MY CAMPUS / {section === 'home' ? 'OVERVIEW' : label}
+          내 학사 / {section === 'home' ? '홈' : label}
         </div>
         <h1>{section === 'home' ? `${name}님, 반가워요.` : label}</h1>
         <p>
-          {section === 'home'
-            ? '오늘 필요한 수업과 다음 계획을 확인하세요.'
-            : '필요한 정보를 확인하고 다음 계획으로 연결하세요.'}
+          {SECTION_SUB[section] ??
+            '필요한 정보를 확인하고 다음 계획으로 연결하세요.'}
         </p>
       </div>
       <div className="page-heading-side">

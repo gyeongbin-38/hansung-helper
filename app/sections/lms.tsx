@@ -608,25 +608,25 @@ export function LmsSection({
         extInstalled={extStatus.installed}
         serverCollecting={serverCollecting}
         onExtRefresh={onExtRefresh}
+        matchPending={matchPending.length}
+        matchTotal={snap?.courses.length ?? 0}
       />
 
-      {snap && unmatched.length > 0 && (
-        <section className="card pad lms-match-warn" role="note">
-          <b>
-            {snap.courses.length}과목 중 {unmatched.length}과목이 개설강의
-            카탈로그와 이름이 달라 매칭되지 않았습니다.
-          </b>
-          <p className="meta">
-            {unmatched.slice(0, 4).join(' · ')}
-            {unmatched.length > 4 ? ` 외 ${unmatched.length - 4}개` : ''}
-          </p>
-          <p className="meta">
-            이름 매칭으로만 수강을 추정하므로 이 과목들은 수강 중 배지·졸업요건
-            계산에 반영되지 않습니다. 실제 수강 여부는 학교 시스템에서
-            확인하세요.
-          </p>
-        </section>
-      )}
+      {snap &&
+        catalog &&
+        (matchPending.length > 0 ||
+          matchManual.length > 0 ||
+          matchIgnored.length > 0) && (
+          <MatchFixer
+            snap={snap}
+            catalog={catalog}
+            data={data}
+            persist={persist}
+            pending={matchPending}
+            manual={matchManual}
+            ignored={matchIgnored}
+          />
+        )}
 
       {!snap ? (
         <SetupGuide
@@ -707,7 +707,7 @@ export function LmsSection({
               ext={extStatus}
               syncing={syncing}
               lastError={lastError}
-              unmatched={unmatched}
+              matches={matches}
               catalogReady={!!catalog}
               canRefresh={canRefresh}
               studentMask={studentMask}
@@ -743,6 +743,201 @@ export function LmsSection({
   );
 }
 
+/** 매칭 보정 — 자동 이름 매칭에 실패한 과목을 사용자가 직접 연결하거나
+ *  제외한다. 보정은 data.lmsMatch에 저장되고 졸업요건·시간표의 수강
+ *  추정에도 반영된다. 자동 확정은 하지 않고 후보만 제안한다. */
+function MatchFixer({
+  snap,
+  catalog,
+  data,
+  persist,
+  pending,
+  manual,
+  ignored,
+}: {
+  snap: LmsSnapshot;
+  catalog: Catalog;
+  data: Data;
+  persist: (next: Data, msg?: string) => Promise<boolean>;
+  pending: EnrolledMatch[];
+  manual: EnrolledMatch[];
+  ignored: EnrolledMatch[];
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const setOverride = async (courseId: string, value?: string) => {
+    const next = { ...data.lmsMatch };
+    if (value === undefined) delete next[courseId];
+    else next[courseId] = value;
+    await persist(
+      { ...data, lmsMatch: next },
+      value === 'ignore'
+        ? '매칭에서 제외했습니다.'
+        : value
+          ? '과목을 직접 연결했습니다.'
+          : '매칭 보정을 되돌렸습니다.',
+    );
+    setOpen(null);
+  };
+  return (
+    <section className="card pad lms-match-warn" role="note">
+      {pending.length > 0 ? (
+        <b>
+          {snap.courses.length}과목 중 {pending.length}과목이 개설강의
+          카탈로그와 이름이 달라 매칭되지 않았습니다.
+        </b>
+      ) : (
+        <b>모든 수업 과목이 개설강의 카탈로그와 연결되었습니다.</b>
+      )}
+      <p className="meta">
+        {pending.length > 0
+          ? '아래 후보에서 같은 과목을 골라 직접 연결하거나, 수업이 아닌 과목(커뮤니티·특강)은 제외할 수 있습니다. 매칭되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
+          : '이름으로 자동 연결되지 않은 과목을 직접 연결하거나 제외한 내역입니다.'}
+      </p>
+      <div className="matchfix-list">
+        {pending.map((m) => (
+          <MatchFixRow
+            key={m.course.id}
+            m={m}
+            catalog={catalog}
+            open={open === m.course.id}
+            onToggle={() =>
+              setOpen(open === m.course.id ? null : m.course.id)
+            }
+            onPick={(sectionId) => void setOverride(m.course.id, sectionId)}
+            onIgnore={() => void setOverride(m.course.id, 'ignore')}
+          />
+        ))}
+      </div>
+      {(manual.length > 0 || ignored.length > 0) && (
+        <details className="matchfix-done">
+          <summary>
+            보정 내역 — 직접 연결 {manual.length} · 제외 {ignored.length}
+          </summary>
+          {manual.map((m) => (
+            <div className="matchfix-row" key={m.course.id}>
+              <div>
+                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <small>
+                  →{' '}
+                  {[...new Set(m.sections.map((s) => s.name))].join(', ')}
+                </small>
+              </div>
+              <button
+                className="link"
+                onClick={() => void setOverride(m.course.id)}
+              >
+                되돌리기
+              </button>
+            </div>
+          ))}
+          {ignored.map((m) => (
+            <div className="matchfix-row" key={m.course.id}>
+              <div>
+                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <small>매칭 제외됨 — 수업이 아닌 항목</small>
+              </div>
+              <button
+                className="link"
+                onClick={() => void setOverride(m.course.id)}
+              >
+                되돌리기
+              </button>
+            </div>
+          ))}
+        </details>
+      )}
+    </section>
+  );
+}
+
+/** 미매칭 과목 한 줄 — 후보 목록을 펼쳐 직접 연결하거나 '해당 없음'으로 제외 */
+function MatchFixRow({
+  m,
+  catalog,
+  open,
+  onToggle,
+  onPick,
+  onIgnore,
+}: {
+  m: EnrolledMatch;
+  catalog: Catalog;
+  open: boolean;
+  onToggle: () => void;
+  onPick: (sectionId: string) => void;
+  onIgnore: () => void;
+}) {
+  const disp = courseDisplay(m.course);
+  const candidates = open ? suggestMatchCandidates(m.course, catalog) : [];
+  return (
+    <div className="matchfix-course">
+      <div className="matchfix-row">
+        <div>
+          <b title={m.course.title}>
+            {disp.title}
+            {disp.section && (
+              <span className="lms-sect-badge">{disp.section}</span>
+            )}
+          </b>
+          <small>
+            {m.course.prof || '교수 미기재'}
+            {m.course.community ? ' · 커뮤니티' : ''}
+          </small>
+        </div>
+        <span className="enrolled-actions">
+          <button
+            className="secondary"
+            onClick={onToggle}
+            aria-expanded={open}
+          >
+            {open ? '후보 닫기' : '직접 연결'}
+          </button>
+          <button className="link" onClick={onIgnore}>
+            해당 없음
+          </button>
+        </span>
+      </div>
+      {open && (
+        <div className="matchfix-cands">
+          {candidates.length ? (
+            candidates.map((c) => (
+              <button
+                key={c.code}
+                className="matchfix-cand"
+                onClick={() => onPick(c.sectionId)}
+              >
+                <div>
+                  <b>{c.name}</b>
+                  <small>
+                    {c.dept} · {c.credits}학점
+                    {c.sectionCount > 1
+                      ? ` · 분반 ${c.sectionCount}개`
+                      : ''}
+                  </small>
+                </div>
+                <span className="matchfix-why">
+                  {c.why.map((w) => (
+                    <span className="badge purple" key={w}>
+                      {w}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="meta">
+              비슷한 이름의 개설 과목을 찾지 못했습니다 — 수업이 아닌
+              과목이면 ‘해당 없음’으로 제외하세요.
+            </p>
+          )}
+          <p className="meta">
+            직접 연결은 수강 추정에만 쓰이며 이수 확정이 아닙니다.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 상단 동기화 상태 밴드 — 현재 상태·마지막 동기화·남은 항목·경로를 한눈에 */
 function SyncBand({
   band,
@@ -753,6 +948,8 @@ function SyncBand({
   extInstalled,
   serverCollecting,
   onExtRefresh,
+  matchPending = 0,
+  matchTotal = 0,
 }: {
   band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh';
   snap?: LmsSnapshot;
@@ -762,6 +959,10 @@ function SyncBand({
   extInstalled: boolean;
   serverCollecting?: boolean;
   onExtRefresh?: () => void;
+  /** 카탈로그와 매칭되지 않은 과목 수 — '최신 상태'만으로 끝내지 않고
+   *  확인 필요 항목을 제목에 드러낸다 */
+  matchPending?: number;
+  matchTotal?: number;
 }) {
   const head: Record<typeof band, { t: string; d: string }> = {
     syncing: {
@@ -793,7 +994,12 @@ function SyncBand({
       d: '데이터는 수집 시점 기준입니다. 이후 변경은 다음 수집에 반영됩니다.',
     },
   };
-  const info = head[band];
+  let info = head[band];
+  if (band === 'fresh' && matchPending > 0)
+    info = {
+      t: `수집 완료 · 과목 매칭 ${matchTotal - matchPending}/${matchTotal}`,
+      d: `${matchPending}개 과목이 개설강의와 이름이 달라 매칭되지 않았습니다 — 아래 매칭 보정에서 직접 연결하거나 제외할 수 있습니다.`,
+    };
   return (
     <section className={`lms-band band-${band}`} aria-live="polite">
       <div className="band-main">
@@ -816,6 +1022,12 @@ function SyncBand({
             <dt>남은 항목</dt>
             <dd>{pending}</dd>
           </div>
+          {matchPending > 0 && (
+            <div>
+              <dt>매칭 확인</dt>
+              <dd>{matchPending}과목 필요</dd>
+            </div>
+          )}
           <div>
             <dt>마지막 동기화</dt>
             <dd>
@@ -983,7 +1195,7 @@ function ConnCard({
   ext,
   syncing,
   lastError,
-  unmatched,
+  matches,
   catalogReady,
   canRefresh,
   studentMask,
@@ -1000,7 +1212,7 @@ function ConnCard({
   ext: ExtSync;
   syncing: boolean;
   lastError?: string;
-  unmatched: string[];
+  matches: EnrolledMatch[];
   catalogReady: boolean;
   canRefresh: boolean;
   studentMask?: string;
@@ -1062,21 +1274,36 @@ function ConnCard({
             </dd>
           </div>
         )}
-        {catalogReady && (
-          <div>
-            <dt>카탈로그 매칭</dt>
-            <dd>
-              {snap.courses.length - unmatched.length}/{snap.courses.length} 과목
-              {unmatched.length > 0 && (
-                <small className="conn-warn">
-                  매칭 안 됨: {unmatched.slice(0, 3).join(', ')}
-                  {unmatched.length > 3 ? ` 외 ${unmatched.length - 3}` : ''}
-                  {' '}(이름이 카탈로그와 달라 연결되지 않았습니다)
-                </small>
-              )}
-            </dd>
-          </div>
-        )}
+        {catalogReady &&
+          (() => {
+            const pending = matches.filter(
+              (m) => !m.sections.length && !m.ignored,
+            );
+            const manual = matches.filter((m) => m.manual).length;
+            const ignored = matches.filter((m) => m.ignored).length;
+            return (
+              <div>
+                <dt>카탈로그 매칭</dt>
+                <dd>
+                  {snap.courses.length - pending.length - ignored}/
+                  {snap.courses.length} 과목
+                  {manual > 0 && ` · 직접 연결 ${manual}`}
+                  {ignored > 0 && ` · 제외 ${ignored}`}
+                  {pending.length > 0 && (
+                    <small className="conn-warn">
+                      확인 필요:{' '}
+                      {pending
+                        .slice(0, 3)
+                        .map((m) => m.course.title)
+                        .join(', ')}
+                      {pending.length > 3 ? ` 외 ${pending.length - 3}` : ''}{' '}
+                      (위 카드에서 직접 연결하거나 제외할 수 있습니다)
+                    </small>
+                  )}
+                </dd>
+              </div>
+            );
+          })()}
         {lastError && (
           <div>
             <dt>마지막 오류</dt>

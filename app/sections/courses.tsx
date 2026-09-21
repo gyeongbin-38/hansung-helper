@@ -94,11 +94,14 @@ export function Courses({
       (catalog?.sections ?? []).filter((s) => data.planned.includes(s.id)),
     [catalog, data.planned],
   );
-  // COSMOS 수강 과목과 이름이 매칭된 분반 — 이수 확정이 아닌 표시용
+  // COSMOS 수강 과목과 매칭된 분반 — 이수 확정이 아닌 표시용.
+  // 수업 현황의 수동 매칭 보정(lmsMatch)도 같은 결과에 반영된다.
   const enrolled = useMemo(
     () =>
-      data.lms && catalog ? enrolledSectionIds(data.lms, catalog) : null,
-    [data.lms, catalog],
+      data.lms && catalog
+        ? enrolledSectionIds(data.lms, catalog, data.lmsMatch)
+        : null,
+    [data.lms, catalog, data.lmsMatch],
   );
   function toggle(s: CourseSection) {
     if (data.planned.includes(s.id)) return plan(s.id);

@@ -487,6 +487,26 @@ export default function App() {
       '',
     );
   }
+  // 시간표 시나리오 — 현재 planned를 슬롯에 저장/복원한다
+  function saveScenario(key: string) {
+    void persist(
+      { ...data, plans: { ...data.plans, [key]: [...data.planned] } },
+      `안 ${key}에 현재 시간표를 저장했습니다.`,
+    );
+  }
+  function loadScenario(key: string) {
+    const ids = data.plans?.[key];
+    if (!ids) return;
+    void persist(
+      { ...data, planned: ids },
+      `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
+    );
+  }
+  function deleteScenario(key: string) {
+    const plans = { ...data.plans };
+    delete plans[key];
+    void persist({ ...data, plans }, `안 ${key}를 삭제했습니다.`);
+  }
   function exitDemo() {
     setDemo(false);
     setData(empty);
@@ -565,6 +585,10 @@ export default function App() {
                     (d.lmsMatch &&
                       typeof d.lmsMatch === 'object' &&
                       !Array.isArray(d.lmsMatch))) &&
+                  (d.plans === undefined ||
+                    (d.plans &&
+                      typeof d.plans === 'object' &&
+                      !Array.isArray(d.plans))) &&
                   (d.lms === undefined || typeof d.lms === 'object')
                 )
                   setData({ ...empty, ...d });
@@ -581,6 +605,7 @@ export default function App() {
     return (
       <Onboarding
         profile={data}
+        catalog={catalog}
         onSave={(next, complete) => persist(next, '', complete)}
       />
     );
@@ -692,6 +717,9 @@ export default function App() {
               plan={plan}
               swap={swapPlan}
               notify={setToast}
+              onSaveScenario={saveScenario}
+              onLoadScenario={loadScenario}
+              onDeleteScenario={deleteScenario}
             />
           ) : section === 'calendar' ? (
             <CalendarSection

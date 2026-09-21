@@ -1626,3 +1626,32 @@ mobile 홈·드로어)로 대비 개선·레이아웃 육안 확인. 배포 후 
 CSS에 신규 토큰 4종 마커 확인.
 
 BLOCKER: 없음. 라이브 f4661e13-0dd0-4cc6-9cf5-23773089c4d7.
+
+## 2026-09-21 — 시간표 시나리오 + LMS 수동 매칭 + 온보딩 이수 단계 (병행 세션 통합)
+
+TRIGGER: 사용자가 배포된 #timetable 업데이트 요청. 작업 트리에 병행
+세션의 미커밋 변경(시나리오 UI, lmsMatch, 온보딩 단계, 홈 마감)이
+존재 — 검증·보정·배포·커밋을 이 세션에서 완료.
+
+DONE:
+- 시간표 시나리오 A/B/C — `Profile.plans: Record<string,string[]>`.
+  timetable.tsx 슬롯 카드(현재 작업 중 + 안 A/B/C), page.tsx의
+  save/load/deleteScenario가 persist 경유 저장. 클라이언트 demo
+  검증 + profile route 서버 검증(Record<string,string[]>) 확인.
+- LMS 수동 매칭 — `Profile.lmsMatch: Record<string,string>`(분반 id
+  또는 'ignore'). matchEnrollment(lms,catalog,overrides)가 수동
+  매핑 우선 적용, lms.tsx에 매칭 실패 과목 '직접 연결/제외' UI.
+  courses·graduation도 동일 override-aware 매칭 소비 — 수강 중
+  배지·졸업 계산에 일관 반영. tests/lms.test.mjs 97→112.
+- 온보딩 이수 과목 단계 — stage 1 신설(카탈로그 검색으로 이수 과목
+  추가), TOTAL 7→8, 완료 시 onboardingStep=TOTAL.
+- 홈 '이번 주 마감' — LMS 마감·활동·학사일정 통합 데드라인 표시.
+- 모바일 폴리시 — .plan-slot 텍스트 nowrap(불러오기/현재 작업 중
+  줄바꿈 방지).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK(lms 112),
+양쪽 빌드 green, _verify_prod 전 엔드포인트 200,
+_check_deploy 마커 7종 라이브 확인, 프로덕션 CDP 캡처로
+시나리오 슬롯 데스크톱·모바일 렌더 확인.
+
+BLOCKER: 없음. 라이브 ae91c70d-c551-4bbd-8a93-9861976be660.

@@ -113,7 +113,7 @@ export async function PUT(request: Request) {
     profile.onboardingStep =
       Number.isInteger(input.onboardingStep) &&
       input.onboardingStep >= 0 &&
-      input.onboardingStep <= 7
+      input.onboardingStep <= 8
         ? input.onboardingStep
         : 0;
     profile.readIds =
@@ -159,6 +159,25 @@ export async function PUT(request: Request) {
       }
     }
     profile.lmsMatch = lmsMatch;
+    const plans: Record<string, string[]> = {};
+    if (input.plans && typeof input.plans === 'object') {
+      for (const [k, v] of Object.entries(
+        input.plans as Record<string, unknown>,
+      )) {
+        if (!['A', 'B', 'C'].includes(k)) continue;
+        if (
+          !Array.isArray(v) ||
+          v.length > 40 ||
+          v.some(
+            (x: unknown) =>
+              typeof x !== 'string' || x.length > 60 || !/^[\w-]+$/.test(x),
+          )
+        )
+          return json({ error: '시나리오 형식을 확인해 주세요.' }, 400);
+        plans[k] = v;
+      }
+    }
+    profile.plans = plans;
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);
       if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);

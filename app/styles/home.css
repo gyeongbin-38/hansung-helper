@@ -265,6 +265,52 @@
   transform: translate(1px, -1px);
 }
 
+/* ---------- week deadline rows (clickable) ---------- */
+button.event-line.as-link {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--nt-hairline-soft);
+  background: none;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+button.event-line.as-link:hover b {
+  color: var(--nt-primary);
+}
+button.event-line.as-link > svg {
+  flex-shrink: 0;
+  color: var(--nt-stone);
+}
+
+/* ---------- next-semester plan summary ---------- */
+.plan-stats {
+  display: flex;
+  gap: 28px;
+  margin: 4px 0 14px;
+}
+.plan-stats > div {
+  display: grid;
+  gap: 3px;
+}
+.plan-stats b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.plan-stats b.warn {
+  color: var(--nt-warning);
+}
+.plan-stats small {
+  font-size: 12px;
+  color: var(--nt-steel);
+}
+.plan-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 /* ---------- stat cards ---------- */
 .stats {
   display: grid;

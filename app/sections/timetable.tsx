@@ -131,22 +131,29 @@ function CatRow({
   );
 }
 
-/** COSMOS 수강 과목 ↔ 카탈로그 매칭 스트립 — 시간표 반영 여부를 보여준다. */
+/** COSMOS 수강 과목 ↔ 카탈로그 매칭 스트립 — 시간표 반영 여부를 보여준다.
+ *  수업 현황의 수동 매칭 보정(overrides)도 같은 결과에 반영된다. */
 function EnrolledStrip({
   lms,
   catalog,
   planned,
+  overrides,
   onFilter,
   onAdd,
 }: {
   lms: NonNullable<Data['lms']>;
   catalog: Catalog;
   planned: CourseSection[];
+  /** 수동 매칭 보정 — course.id → section.id 또는 'ignore' */
+  overrides?: Record<string, string>;
   onFilter: (title: string) => void;
   /** 분반을 계획에 담기 — 충돌·중복·이수 검사는 호출처가 처리, 성공 여부 반환 */
   onAdd: (s: CourseSection) => boolean;
 }) {
-  const matches = useMemo(() => matchEnrollment(lms, catalog), [lms, catalog]);
+  const matches = useMemo(
+    () => matchEnrollment(lms, catalog, overrides),
+    [lms, catalog, overrides],
+  );
   const [picking, setPicking] = useState<string | null>(null);
   if (!matches.length) return null;
   const plannedIds = new Set(planned.map((p) => p.id));
@@ -159,7 +166,7 @@ function EnrolledStrip({
         COSMOS 수강 {matches.length}과목 · 계획에 담긴 수강 과목 {covered}개
       </summary>
       <div className="enrolled-rows">
-        {matches.map(({ course, sections }) => {
+        {matches.map(({ course, sections, manual, ignored }) => {
           const inPlan = sections.filter((s) => plannedIds.has(s.id));
           return (
             <div className="enrolled-item" key={course.id}>
@@ -169,9 +176,12 @@ function EnrolledStrip({
                   <small>
                     {course.prof || '교수 미기재'}
                     {course.community ? ' · 커뮤니티' : ''}
+                    {manual ? ' · 직접 연결' : ''}
                   </small>
                 </div>
-                {sections.length === 0 ? (
+                {ignored ? (
+                  <span className="badge">매칭 제외</span>
+                ) : sections.length === 0 ? (
                   <span className="meta">카탈로그에 없는 과목</span>
                 ) : inPlan.length ? (
                   <span className="badge green">계획에 있음</span>
@@ -230,6 +240,19 @@ function EnrolledStrip({
   );
 }
 
+/** 저장된 시간표 안의 지표 — 과목 수·학점·충돌·공강일을 비교용으로 계산.
+ *  카탈로그 재생성으로 사라진 분반은 missing으로 별도 집계한다. */
+function scenarioStats(ids: string[], catalog: Catalog | null) {
+  const secs = (catalog?.sections ?? []).filter((s) => ids.includes(s.id));
+  const credits = secs.reduce((n, s) => n + s.credits, 0);
+  const conflicts_ = secs.filter((s) => conflicts(s, secs).length).length;
+  const sums = daySummaries(secs);
+  const freeDays = secs.some((s) => s.slots.length)
+    ? [0, 1, 2, 3, 4].filter((d) => sums[d].count === 0).length
+    : 0;
+  return { secs, credits, conflicts: conflicts_, freeDays, missing: ids.length - secs.length };
+}
+
 export function Timetable({
   catalog,
   failed,
@@ -239,6 +262,9 @@ export function Timetable({
   plan,
   swap,
   notify,
+  onSaveScenario,
+  onLoadScenario,
+  onDeleteScenario,
 }: {
   catalog: Catalog | null;
   failed?: boolean;
@@ -248,6 +274,10 @@ export function Timetable({
   plan: (id: string) => void;
   swap: (fromId: string, toId: string) => void;
   notify: (msg: string) => void;
+  /** 시나리오 슬롯 저장·불러오기·삭제 — 키는 'A'|'B'|'C' */
+  onSaveScenario: (key: string) => void;
+  onLoadScenario: (key: string) => void;
+  onDeleteScenario: (key: string) => void;
 }) {
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
@@ -302,6 +332,9 @@ export function Timetable({
   );
   const untimedPlanned = planned.filter((s) => s.untimed);
   const credits = planned.reduce((n, s) => n + s.credits, 0);
+  const curConflicts = planned.filter(
+    (s) => conflicts(s, planned).length,
+  ).length;
   const sums = daySummaries(planned);
   const hasTimed = planned.some((s) => s.slots.length > 0);
   const freeDays = hasTimed
@@ -492,6 +525,79 @@ export function Timetable({
           </div>
         </div>
       </div>
+      <fieldset className="plan-slots" aria-label="시간표 시나리오 비교">
+        <div className="plan-slot current">
+          <div className="plan-slot-head">
+            <b>현재 작업 중</b>
+            <span className="meta">
+              {planned.length}과목 · {credits}학점
+              {curConflicts ? ` · 충돌 ${curConflicts}건` : ''}
+              {freeDays.length ? ` · 공강 ${freeDays.length}일` : ''}
+            </span>
+          </div>
+        </div>
+        {['A', 'B', 'C'].map((k) => {
+          const ids = data.plans?.[k];
+          const st = ids ? scenarioStats(ids, catalog) : null;
+          return (
+            <div className={'plan-slot' + (st ? '' : ' empty')} key={k}>
+              <div className="plan-slot-head">
+                <b>안 {k}</b>
+                {st ? (
+                  <button
+                    className="icon"
+                    aria-label={`안 ${k} 삭제`}
+                    onClick={() => onDeleteScenario(k)}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                ) : null}
+              </div>
+              {st ? (
+                <>
+                  <span className="meta">
+                    {st.secs.length}과목 · {st.credits}학점
+                    {st.conflicts ? ` · 충돌 ${st.conflicts}건` : ''}
+                    {st.freeDays ? ` · 공강 ${st.freeDays}일` : ''}
+                  </span>
+                  {st.missing > 0 && (
+                    <span className="meta">
+                      현재 카탈로그에 없는 과목 {st.missing}개 포함
+                    </span>
+                  )}
+                  <div className="plan-slot-actions">
+                    <button
+                      className="secondary"
+                      onClick={() => onLoadScenario(k)}
+                    >
+                      불러오기
+                    </button>
+                    <button
+                      className="link"
+                      onClick={() => onSaveScenario(k)}
+                    >
+                      현재 안으로 덮어쓰기
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="meta">비어 있음</span>
+                  <div className="plan-slot-actions">
+                    <button
+                      className="secondary"
+                      disabled={!planned.length}
+                      onClick={() => onSaveScenario(k)}
+                    >
+                      현재 안 저장
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </fieldset>
       {hasTimed && (
         <div className="gap-chips">
           {freeDays.length > 0 && (
@@ -518,6 +624,7 @@ export function Timetable({
           lms={data.lms}
           catalog={catalog}
           planned={planned}
+          overrides={data.lmsMatch}
           onFilter={(name) => {
             setQ(name);
             setDept('전체');

@@ -59,10 +59,14 @@ export function Graduation({
   }, [myRules, data.year]);
   // 규정표에서 내 학번 컬럼 위치 — 하이라이트용
   const myColIdx = deptTargets?.columnIndex ?? -1;
-  // COSMOS 수강 과목 — 이름 매칭만으로는 이수 미확정이므로 표시 전용
+  // COSMOS 수강 과목 — 이름 매칭만으로는 이수 미확정이므로 표시 전용.
+  // 수업 현황의 수동 매칭 보정(lmsMatch)도 같은 결과에 반영된다.
   const enrolled = useMemo(
-    () => (data.lms && catalog ? matchEnrollment(data.lms, catalog) : []),
-    [data.lms, catalog],
+    () =>
+      data.lms && catalog
+        ? matchEnrollment(data.lms, catalog, data.lmsMatch)
+        : [],
+    [data.lms, catalog, data.lmsMatch],
   );
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
@@ -449,25 +453,33 @@ export function Graduation({
             ‘계획 중’ 학점으로 반영됩니다.
           </p>
           {(() => {
-            const unmatched = enrolled.filter((m) => m.sections.length === 0);
-            return unmatched.length > 0 ? (
-              <p className="meta conn-warn">
-                {enrolled.length}과목 중 {unmatched.length}과목은 이름이
-                카탈로그와 달라 매칭되지 않았습니다. 커뮤니티·특강 과목은
-                정상이며, 매칭 안 된 과목은 아래 계산에서 전부 제외됩니다.
-              </p>
-            ) : null;
+            const shown = enrolled.filter((m) => !m.ignored);
+            const unmatched = shown.filter((m) => m.sections.length === 0);
+            return (
+              <>
+                {unmatched.length > 0 && (
+                  <p className="meta conn-warn">
+                    {shown.length}과목 중 {unmatched.length}과목은 이름이
+                    카탈로그와 달라 매칭되지 않았습니다. 매칭 안 된 과목은
+                    아래 계산에서 전부 제외됩니다.{' '}
+                    <button className="link" onClick={() => go('lms')}>
+                      수업 현황에서 매칭 보정
+                    </button>
+                  </p>
+                )}
+                <ul className="rule-lines">
+                  {shown.map((m) => (
+                    <li key={m.course.id}>
+                      {m.course.title}
+                      {m.sections.length
+                        ? ` · ${m.manual ? '직접 연결' : '카탈로그 매칭'}: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
+                        : ' · 카탈로그 매칭 없음'}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            );
           })()}
-          <ul className="rule-lines">
-            {enrolled.map((m) => (
-              <li key={m.course.id}>
-                {m.course.title}
-                {m.sections.length
-                  ? ` · 카탈로그 매칭: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
-                  : ' · 카탈로그 매칭 없음'}
-              </li>
-            ))}
-          </ul>
         </section>
       )}
 

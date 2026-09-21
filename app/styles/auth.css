@@ -379,6 +379,81 @@ dialog.survey-dialog > p {
     transform: translateY(10px) scale(0.985);
   }
 }
+/* ---------- onboarding 이수 현황 ---------- */
+.ob-courses {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-surface-soft);
+}
+.ob-courses-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nt-charcoal);
+}
+.ob-completed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ob-completed .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ob-completed .badge .icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ob-completed .badge .icon:hover {
+  background: var(--nt-hairline);
+}
+.ob-course-hits {
+  display: grid;
+  gap: 6px;
+}
+.ob-course-hit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-canvas);
+  color: var(--nt-charcoal);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.ob-course-hit:hover {
+  background: var(--nt-tint-sky);
+  border-color: var(--nt-hairline-strong);
+}
+.ob-course-hit b {
+  flex: 0 1 auto;
+  font-weight: 600;
+}
+.ob-course-hit small {
+  flex: 1;
+  min-width: 0;
+  color: var(--nt-stone);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* ---------- mobile ---------- */
 @media (max-width: 767px) {
   .auth-page {

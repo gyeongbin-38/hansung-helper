@@ -7,6 +7,7 @@ import {
   weekProgress,
   matchEnrollment,
   enrolledSectionIds,
+  suggestMatchCandidates,
   submissionItems,
   bingeQueue,
   relTime,
@@ -165,6 +166,59 @@ t('match: 모든 과목 반환', em.length === 8);
 t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
 t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
 t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
+
+// ── matchEnrollment overrides (수동 보정) ──────────────────
+const emOv = matchEnrollment(lmsMatch, catalog2, {
+  '3': 'd1', // 미매칭 과목을 자료구조및실습으로 직접 연결
+  '7': 'ignore', // 커뮤니티처럼 수업 아닌 과목 제외
+  '1': 'b1', // 자동 매칭된 과목을 다른 과목으로 재지정
+});
+t('override: 직접 연결은 같은 코드의 분반 전체로 확장', emOv[2].manual === true && emOv[2].sections.length === 1 && emOv[2].sections[0].id === 'd1');
+t('override: ignore는 빈 배열 + ignored', emOv[6].ignored === true && emOv[6].sections.length === 0);
+t('override: 자동 매칭보다 사용자 보정 우선', emOv[0].manual === true && emOv[0].sections[0].id === 'b1');
+const emStale = matchEnrollment(lmsMatch, catalog2, { '2': 'ZZZ-nope' });
+t('override: 사라진 분반 id는 자동 매칭으로 복귀', emStale[1].sections.length === 1 && emStale[1].sections[0].id === 'b1' && !emStale[1].manual);
+const emIgnore = matchEnrollment(lmsMatch, catalog2, { '5': 'ignore' });
+t('override: 자동 매칭 과목도 제외 가능', emIgnore[4].ignored === true && emIgnore[4].sections.length === 0);
+const eidsOv = enrolledSectionIds(lmsMatch, catalog2, { '3': 'd1', '7': 'ignore' });
+t('override: enrolledSectionIds에 보정 반영', eidsOv.has('d1') === true);
+// 분반 id → 같은 코드 전체로 확장 (여러 분반인 과목)
+const catalogShared = {
+  ...catalog,
+  sections: [
+    mkSection('p1', '알고리즘', { code: 'P0', section: '01' }),
+    mkSection('p2', '알고리즘', { code: 'P0', section: '02' }),
+  ],
+};
+const emCode = matchEnrollment(lmsMatch, catalogShared, { '3': 'p2' });
+t('override: 분반 선택 시 같은 코드 분반 전체', emCode[2].sections.length === 2);
+
+// ── suggestMatchCandidates (보정 후보) ─────────────────────
+const sg = (id, title, extra = {}) =>
+  suggestMatchCandidates({ id, title, vods: [], assigns: [], quizzes: [], ...extra }, catalog2);
+const sgLong = sg('x', '교과(온라인) 학부 자료구조및실습심화[A] 김철수', { prof: '김철수' });
+t('suggest: 이름 포함 후보 제안', sgLong.some((c) => c.name === '자료구조및실습'));
+t('suggest: 근거 배지 포함', sgLong.find((c) => c.name === '자료구조및실습')?.why.includes('이름 포함'));
+const sgProf = sg('x', '데이터베이스응용 이교수', { prof: '이교수' });
+t('suggest: 이름 유사 후보', sgProf.some((c) => c.name === '데이터베이스'));
+const sgNone = sg('x', '캡스톤 커뮤니티', { community: true });
+t('suggest: 관련 없는 과목은 빈 후보', !sgNone.some((c) => c.name === '운영체제'));
+const sgEmpty = sg('x', '커뮤니티');
+t('suggest: 장식만 남은 제목은 후보 없음', sgEmpty.length === 0);
+// 과목 코드 단위 묶음 — 같은 코드의 분반은 한 후보
+const sgGroup = suggestMatchCandidates(
+  { id: 'x', title: '알고리즘응용', vods: [], assigns: [], quizzes: [] },
+  catalogShared,
+);
+const osCand = sgGroup.find((c) => c.name === '알고리즘');
+t('suggest: 같은 코드는 한 후보로 묶음', osCand?.sectionCount === 2 && !!osCand.sectionId);
+// 분반 일치 근거 — '[02]' 표기가 카탈로그 section '02'와 연결
+const sgSect = suggestMatchCandidates(
+  { id: 'x', title: '알고리즘특강[02]', vods: [], assigns: [], quizzes: [] },
+  catalogShared,
+);
+t('suggest: 분반 일치 근거', sgSect.find((c) => c.name === '알고리즘')?.why.includes('분반 일치'));
+t('suggest: 분반 일치 시 대표 분반도 그 분반', sgSect.find((c) => c.name === '알고리즘')?.sectionId === 'p2');
 
 // ── enrolledSectionIds ──────────────────────────────────────
 const eids = enrolledSectionIds(lmsMatch, catalog2);

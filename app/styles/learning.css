@@ -484,6 +484,81 @@
   gap: 6px;
   margin: -8px 0 14px;
 }
+/* ---------- timetable scenario slots ---------- */
+.plan-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: -6px 0 14px;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.plan-slot {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px 14px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-canvas);
+}
+.plan-slot.current {
+  border-color: var(--nt-primary);
+  background: var(--nt-tint-lavender);
+}
+.plan-slot.empty {
+  border-style: dashed;
+}
+.plan-slot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan-slot-head b {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.plan-slot .meta {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.plan-slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-slot-actions .secondary,
+.plan-slot-actions .link {
+  white-space: nowrap;
+}
+.plan-slot-actions .secondary {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.plan-slot-actions .link {
+  font-size: 12px;
+}
+.plan-slot .icon {
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--nt-stone);
+  cursor: pointer;
+}
+.plan-slot .icon:hover {
+  background: var(--nt-hairline);
+  color: var(--nt-ink);
+}
+@media (max-width: 900px) {
+  .plan-slots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .enrolled {
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
@@ -1471,6 +1546,78 @@
 }
 .lms-match-warn .meta {
   margin: 6px 0 0;
+}
+
+/* ---------- 과목 매칭 보정 ---------- */
+.matchfix-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.matchfix-course {
+  border-top: 1px dashed var(--nt-hairline);
+  padding-top: 8px;
+}
+.matchfix-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.matchfix-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.matchfix-row b {
+  font-size: 14px;
+}
+.matchfix-row small {
+  color: var(--nt-stone);
+}
+.matchfix-cands {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--nt-hairline);
+}
+.matchfix-cand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--nt-r-md);
+  border: 1px solid var(--nt-hairline);
+  background: transparent;
+}
+.matchfix-cand:hover {
+  background: var(--nt-tint-sky);
+}
+.matchfix-cand b {
+  font-size: 13px;
+}
+.matchfix-cand small {
+  color: var(--nt-stone);
+}
+.matchfix-why {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.matchfix-done {
+  margin-top: 10px;
+}
+.matchfix-done > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--nt-stone);
+}
+.matchfix-done .matchfix-row {
+  padding: 6px 0;
 }
 
 /* ---------- 지난 학기 보관 영역 ---------- */
