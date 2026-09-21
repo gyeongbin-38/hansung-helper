@@ -1485,3 +1485,50 @@ TESTS: tsc clean, oxlint 0, 매트릭스 11파일 OK, 양쪽 빌드 green,
 input[name=dept] 실제 포커스, 조사 패턴 부재 확인.
 
 BLOCKER: none. 라이브 version af79e547.
+
+---
+
+## 2026-09-21 — Notion 스타일 정리 + 사이드바 접기 (사용자 요청)
+
+CONTEXT: "이거 노션 디자인 사용하자. 그리고 사이드바 접을 수 있게
+좀 해줘" — 기존 --nt-* 토큰은 Notion 기반이지만 사이드바 화이트·
+홈 히어로 네이비 그라디언트+오빗 장식이 남아 있었음.
+
+DONE:
+- `shell.css` — 사이드바 surface 회색, 선택 항목 hairline 회색 면
+  (Notion식 무채색 선택). `.sidebar-head` + `.nav-label` 추가.
+- 접이식 사이드바: 데스크톱(≥768px) 240px ↔ 68px 아이콘 레일.
+  `chrome.tsx` Sidebar에 접기 버튼(PanelLeftClose/Open, aria-pressed),
+  Topbar에 접힌 상태 한정 펼치기 버튼(side-expand). nav 버튼에
+  aria-label/title — 레일에서도 접근성·툴팁 유지. `page.tsx`가
+  `hsu-side-collapsed` localStorage로 영속, `.shell.side-collapsed`.
+  width/margin 0.2s transition(reduced-motion 존중).
+- 모바일은 기존 오프캔버스 드로어 유지 — 레일 CSS는
+  `min-width:768px` 안에만 존재, 접기/펼치기 버튼은 ≤767px에서 숨김.
+- `home.tsx`+`home.css` — 히어로를 네이비 그라디언트·블루프린트
+  그리드·hero-orbit/orb-a,b,c 장식에서 surface-soft 카드로 교체.
+  design.md 제약 갱신(네이비는 LMS 밴드·브랜드 아이콘 한정).
+- **CSS 특이도 버그 2건 수정**: shell.css는 globals.css 3행에서
+  @import되므로 `.icon`(globals.css)보다 앞 — 동일 특이도에서 패배.
+  `.side-collapse`가 모바일에서 안 숨겨졌고, **선재 버그**로 탑바
+  햄버거(`icon mobile`)가 데스크톱에 노출돼 있었음. `.sidebar
+  .side-collapse` / `.topbar .side-expand` / `.topbar .mobile`로
+  상위 스코프 특이도 상승.
+
+TESTS: tsc clean, oxlint 0 err, 매트릭스 11파일 OK, 양쪽 빌드 green.
+Playwright e2e 15/15 — 확장 240px, 접기 68px+레이블 숨김+shell 클래스,
+탑바 펼치기 버튼, localStorage 영속+리로드 유지, 레일 아이콘 네비,
+모바일: 레일 미적용(255px 오프캔버스)·접기 버튼 숨김·드로어
+열림/스크림 닫힘. 스크린샷으로 확장·레일·모바일 드로어 시각 확인.
+배포 후 번들 마커(hsu-side-collapsed/side-collapse/side-expand +
+CSS side-collapsed/surface-soft) 라이브 확인, _verify_prod 전
+엔드포인트 200.
+
+NOTE: 커밋 전 발견 — 이전 세션의 미커밋 WIP가 양쪽 작업 트리에 남아
+있었고 이번 빌드/배포에 이미 포함됨: 졸업↔비교과 포인트 밴드
+(activities.tsx act-band), 비학점 요건 본인확인 체크리스트
+(data.ts reqChecks + profile route 검증 + graduation UI '입력 필요'
+배지), 활동 상세 커버 이미지, 관련 learning.css. 파일이 이번 작업과
+겹치지 않아 별도 선행 커밋으로 분리 기록.
+
+BLOCKER: none.

@@ -10,6 +10,8 @@ import {
   Check,
   ArrowRight,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { menus, type Data } from './data';
 import { Logo } from '../logo';
@@ -23,6 +25,8 @@ export function Sidebar({
   data,
   onExit,
   onCloseDrawer,
+  collapsed,
+  onToggleCollapse,
 }: {
   section: string;
   drawer: boolean;
@@ -31,36 +35,58 @@ export function Sidebar({
   data: Data;
   onExit: () => void;
   onCloseDrawer: () => void;
+  /** 데스크톱 아이콘 레일 접기 상태 — 모바일 드로어와는 별개 */
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   return (
     <>
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
-        <button className="brand" onClick={() => go('home')}>
-          <span className="brand-icon">
-            <Logo size={20} />
-          </span>
-          <span>
-            한성 학사 도우미<small>MY ACADEMIC COMPASS</small>
-          </span>
-        </button>
+        <div className="sidebar-head">
+          <button className="brand" onClick={() => go('home')}>
+            <span className="brand-icon">
+              <Logo size={20} />
+            </span>
+            <span className="nav-label">
+              한성 학사 도우미<small>MY ACADEMIC COMPASS</small>
+            </span>
+          </button>
+          <button
+            className="icon side-collapse"
+            aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            aria-pressed={collapsed}
+            title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            onClick={onToggleCollapse}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={17} />
+            ) : (
+              <PanelLeftClose size={17} />
+            )}
+          </button>
+        </div>
         <div className="nav-caption">MY CAMPUS</div>
         <nav>
           {menus.map(([key, name, Icon]) => (
             <button
               key={key}
               className={section === key ? 'selected' : ''}
+              aria-label={name}
+              title={name}
               onClick={() => go(key)}
             >
               <Icon size={18} />
-              {name}
-              {key === 'advisor' && <span className="tiny">AI</span>}
+              <span className="nav-label">{name}</span>
+              {key === 'advisor' && (
+                <span className="tiny">AI</span>
+              )}
             </button>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="profile-mini">
             <span className="avatar">{data.name.slice(0, 1)}</span>
-            <div>
+            <div className="nav-label">
               <b>{data.name}</b>
               <small>
                 {account
@@ -69,16 +95,22 @@ export function Sidebar({
               </small>
             </div>
           </div>
-          <button onClick={() => go('profile')}>
-            <User size={18} />내 정보
+          <button onClick={() => go('profile')} title="내 정보">
+            <User size={18} />
+            <span className="nav-label">내 정보</span>
           </button>
-          <button onClick={() => go('settings')}>
+          <button onClick={() => go('settings')} title="설정">
             <Settings size={18} />
-            설정
+            <span className="nav-label">설정</span>
           </button>
-          <button onClick={onExit}>
+          <button
+            onClick={onExit}
+            title={account ? '로그아웃' : '학교 계정으로 시작'}
+          >
             {account ? <LogOut size={18} /> : <ArrowRight size={18} />}
-            {account ? '로그아웃' : '학교 계정으로 시작'}
+            <span className="nav-label">
+              {account ? '로그아웃' : '학교 계정으로 시작'}
+            </span>
           </button>
           <small className="footnote">한성대학교 비공식 학사 계획 도구</small>
         </div>
@@ -103,6 +135,7 @@ export function Topbar({
   onMenu,
   onSearch,
   onBell,
+  onExpandSide,
 }: {
   query: string;
   setQuery: (value: string) => void;
@@ -112,6 +145,8 @@ export function Topbar({
   onMenu: () => void;
   onSearch: () => void;
   onBell: () => void;
+  /** 사이드바가 접혀 있을 때만 전달 — 데스크톱 전용 펼치기 버튼 */
+  onExpandSide?: () => void;
 }) {
   return (
     <header className="topbar">
@@ -122,6 +157,16 @@ export function Topbar({
       >
         <Menu />
       </button>
+      {onExpandSide && (
+        <button
+          className="icon side-expand"
+          aria-label="사이드바 펼치기"
+          title="사이드바 펼치기"
+          onClick={onExpandSide}
+        >
+          <PanelLeftOpen size={18} />
+        </button>
+      )}
       <span className="top-label">나의 대학 생활, 한곳에서</span>
       <form
         className="global-search"

@@ -1,59 +1,15 @@
 /* Home dashboard + account bar + notifications page.
    Owner: home agent. Use var(--nt-*) tokens only. */
 
-/* ---------- hero summary band ---------- */
+/* ---------- hero summary: quiet Notion surface card ---------- */
 .home-summary {
-  position: relative;
-  overflow: hidden;
-  padding: 34px 36px;
+  padding: 30px 32px;
+  border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   margin-bottom: 26px;
-  color: var(--nt-on-dark);
-  background:
-    radial-gradient(
-      120% 170% at 90% -20%,
-      color-mix(in srgb, var(--nt-purple) 30%, transparent),
-      transparent 58%
-    ),
-    linear-gradient(
-      135deg,
-      var(--nt-navy-mid) 0%,
-      var(--nt-navy) 48%,
-      var(--nt-navy-deep) 100%
-    );
-  box-shadow: var(--nt-shadow-2);
-}
-/* faint blueprint grid, masked to the top-right corner */
-.home-summary::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--nt-on-dark) 5%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--nt-on-dark) 5%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 28px 28px;
-  -webkit-mask-image: radial-gradient(
-    85% 130% at 100% 0%,
-    #000 18%,
-    transparent 72%
-  );
-  mask-image: radial-gradient(
-    85% 130% at 100% 0%,
-    #000 18%,
-    transparent 72%
-  );
-  pointer-events: none;
+  background: var(--nt-surface-soft);
 }
 .home-summary > .between {
-  position: relative;
-  z-index: 1;
   align-items: center;
 }
 .home-eyebrow {
@@ -62,82 +18,22 @@
   gap: 7px;
   font-size: 12px;
   font-weight: 600;
-  color: color-mix(in srgb, var(--nt-on-dark) 88%, transparent);
-  background: color-mix(in srgb, var(--nt-on-dark) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--nt-on-dark) 15%, transparent);
+  color: var(--nt-purple-800);
+  background: var(--nt-tint-lavender);
   border-radius: var(--nt-r-pill);
   padding: 5px 12px;
   margin-bottom: 16px;
 }
-.home-eyebrow svg {
-  color: var(--nt-purple-300);
-}
 .home-summary h2 {
-  font-size: 25px;
+  font-size: 24px;
   line-height: 1.32;
-  color: var(--nt-on-dark);
+  color: var(--nt-ink);
 }
 .home-summary p {
   margin: 10px 0 0;
   font-size: 15px;
   max-width: 46ch;
-  color: var(--nt-on-dark-muted);
-}
-/* decorative translucent icon cluster — pure CSS, hidden from AT */
-.hero-orbit {
-  position: relative;
-  flex-shrink: 0;
-  width: 156px;
-  height: 128px;
-  margin-left: 24px;
-}
-.orb {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  color: var(--nt-on-dark);
-  background: color-mix(in srgb, var(--nt-on-dark) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--nt-on-dark) 16%, transparent);
-  border-radius: var(--nt-r-lg);
-}
-.orb-a {
-  width: 66px;
-  height: 66px;
-  right: 42px;
-  top: 2px;
-  color: var(--nt-purple-300);
-}
-.orb-b {
-  width: 46px;
-  height: 46px;
-  right: 2px;
-  bottom: 16px;
-}
-.orb-c {
-  width: 38px;
-  height: 38px;
-  left: 8px;
-  bottom: 36px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .orb-a {
-    animation: orb-float 6.5s ease-in-out infinite;
-  }
-  .orb-b {
-    animation: orb-float 7.5s ease-in-out 0.8s infinite;
-  }
-  .orb-c {
-    animation: orb-float 8s ease-in-out 1.6s infinite;
-  }
-}
-@keyframes orb-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
+  color: var(--nt-slate);
 }
 
 /* ---------- hero activity carousel ---------- */
@@ -644,28 +540,6 @@
   }
   .home-summary h2 {
     font-size: 21px;
-  }
-  .hero-orbit {
-    width: 108px;
-    height: 90px;
-    margin-left: 12px;
-  }
-  .orb-a {
-    width: 50px;
-    height: 50px;
-    right: 30px;
-    top: 0;
-  }
-  .orb-b {
-    width: 36px;
-    height: 36px;
-    bottom: 12px;
-  }
-  .orb-c {
-    width: 30px;
-    height: 30px;
-    left: 4px;
-    bottom: 26px;
   }
   .notif-item {
     padding: 16px;

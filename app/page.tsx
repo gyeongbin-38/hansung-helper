@@ -65,6 +65,8 @@ export default function App() {
   const [account, setAccount] = useState<Account | null>(null);
   const [demo, setDemo] = useState(false);
   const [accountError, setAccountError] = useState('');
+  // 데스크톱 사이드바 아이콘 레일 — 로컬 기기 설정으로 영속화
+  const [sideCollapsed, setSideCollapsed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const { catalog, failed: catalogFailed, retry: retryCatalog } = useCatalog();
   const { snap: actsSnap } = useActivities();
@@ -98,11 +100,27 @@ export default function App() {
     const sync = () => setRoute(location.hash.slice(1) || 'home');
     sync();
     addEventListener('hashchange', sync);
+    try {
+      if (localStorage.getItem('hsu-side-collapsed') === '1')
+        setSideCollapsed(true);
+    } catch {
+      /* storage 접근 불가 환경은 접기 상태를 유지하지 않는다 */
+    }
     return () => {
       active = false;
       removeEventListener('hashchange', sync);
     };
   }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'hsu-side-collapsed',
+        sideCollapsed ? '1' : '0',
+      );
+    } catch {
+      /* 저장 실패는 무시 — 세션 내 동작은 유지된다 */
+    }
+  }, [sideCollapsed]);
   // 서버 스냅샷의 lmsData가 로컬보다 새로우면 흡수한다 — 로그인 응답에
   // 실린 데이터, 지연 수집 완료, 재수집 결과 모두 이 경로로 반영된다.
   useEffect(() => {
@@ -545,7 +563,7 @@ export default function App() {
       />
     );
   return (
-    <div className="shell">
+    <div className={'shell' + (sideCollapsed ? ' side-collapsed' : '')}>
       <Sidebar
         section={section}
         drawer={drawer}
@@ -557,6 +575,8 @@ export default function App() {
           else exitDemo();
         }}
         onCloseDrawer={() => setDrawer(false)}
+        collapsed={sideCollapsed}
+        onToggleCollapse={() => setSideCollapsed((v) => !v)}
       />
       <div className="workspace">
         <Topbar
@@ -568,6 +588,9 @@ export default function App() {
           onMenu={() => setDrawer(true)}
           onSearch={() => go('search')}
           onBell={() => setNotifOpen(true)}
+          onExpandSide={
+            sideCollapsed ? () => setSideCollapsed(false) : undefined
+          }
         />
         <main>
           <PageHeading

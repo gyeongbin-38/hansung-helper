@@ -3,17 +3,30 @@
 .shell {
   min-height: 100dvh;
 }
-/* ---- sidebar: Notion-style quiet nav on white canvas ---- */
+/* ---- sidebar: Notion-style quiet nav on gray surface ---- */
 .sidebar {
   position: fixed;
   width: 240px;
   inset: 0 auto 0 0;
-  background: var(--nt-canvas);
+  background: var(--nt-surface);
   border-right: 1px solid var(--nt-hairline);
   z-index: 30;
   display: flex;
   flex-direction: column;
   padding: 14px 10px 12px;
+}
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-head .brand {
+  flex: 1;
+  min-width: 0;
+}
+.side-collapse {
+  flex-shrink: 0;
+  color: var(--nt-stone);
 }
 .brand {
   display: flex;
@@ -31,7 +44,7 @@
   transition: background-color 0.15s ease;
 }
 .brand:hover {
-  background: var(--nt-surface);
+  background: var(--nt-tint-gray);
 }
 .brand small {
   display: block;
@@ -87,11 +100,11 @@ nav button svg,
 }
 nav button:hover,
 .sidebar-bottom > button:hover {
-  background: var(--nt-surface);
+  background: var(--nt-tint-gray);
   color: var(--nt-charcoal);
 }
 nav button.selected {
-  background: var(--nt-tint-gray);
+  background: var(--nt-hairline);
   color: var(--nt-ink);
   font-weight: 500;
 }
@@ -123,6 +136,68 @@ nav button.selected svg {
   font-size: 11px;
   margin: 8px 10px 2px;
   color: var(--nt-muted);
+}
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* ---- collapsible sidebar: icon rail (desktop only) ---- */
+@media (min-width: 768px) {
+  .side-collapsed .sidebar {
+    width: 68px;
+    padding-inline: 8px;
+  }
+  .side-collapsed .sidebar-head {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .side-collapsed .sidebar-head .brand {
+    flex: none;
+    padding: 6px;
+  }
+  .side-collapsed .nav-label,
+  .side-collapsed .nav-caption,
+  .side-collapsed .footnote,
+  .side-collapsed nav .tiny {
+    display: none;
+  }
+  .side-collapsed nav button,
+  .side-collapsed .sidebar-bottom > button {
+    justify-content: center;
+    padding: 7px 0;
+  }
+  .side-collapsed .profile-mini {
+    justify-content: center;
+    padding: 8px 0 12px;
+  }
+  .side-collapsed .profile-mini .avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+  .side-collapsed .workspace {
+    margin-left: 68px;
+  }
+  .side-collapsed .cookie {
+    left: calc(50% + 34px);
+  }
+}
+@media (max-width: 767px) {
+  .sidebar .side-collapse,
+  .topbar .side-expand {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+  .sidebar {
+    transition: width 0.2s var(--nt-ease);
+  }
+  .workspace {
+    transition: margin-left 0.2s var(--nt-ease);
+  }
 }
 /* ---- workspace / topbar ---- */
 .workspace {
@@ -424,7 +499,7 @@ footer {
 .cookie button {
   flex-shrink: 0;
 }
-.mobile {
+.topbar .mobile {
   display: none;
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -494,7 +569,7 @@ footer {
   .workspace {
     margin-left: 0;
   }
-  .mobile {
+  .topbar .mobile {
     display: flex;
   }
   .scrim {

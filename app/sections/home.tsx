@@ -1,9 +1,7 @@
 'use client';
 import { useState } from 'react';
 import {
-  BookOpen,
   CalendarDays,
-  GraduationCap,
   Sparkles,
   ArrowUpRight,
   ArrowRight,
@@ -205,17 +203,6 @@ export function Home({
                 ? '코스모스에서 확인한 강의와 개인 계획을 구분해 관리해요.'
                 : '학교 계정을 연결하면 실제 코스모스 강의 목록을 볼 수 있어요.'}
             </p>
-          </div>
-          <div className="hero-orbit" aria-hidden="true">
-            <span className="orb orb-a">
-              <BookOpen size={24} />
-            </span>
-            <span className="orb orb-b">
-              <CalendarDays size={17} />
-            </span>
-            <span className="orb orb-c">
-              <GraduationCap size={16} />
-            </span>
           </div>
         </div>
       </section>
