@@ -16,6 +16,8 @@ export type Profile = {
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
+  /** 비교과·대외활동 취향 설문 답변 */
+  actPrefs?: string[];
   readIds: string[];
   consent: boolean;
   semester?: string;

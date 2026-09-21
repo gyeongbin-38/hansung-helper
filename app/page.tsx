@@ -2,7 +2,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { SignIn, Onboarding, type Account } from './account-flow';
 import { Logo } from './logo';
-import { menus, empty, type Data } from './sections/data';
+import {
+  menus,
+  empty,
+  questions,
+  ACT_QUESTIONS,
+  type Data,
+} from './sections/data';
 import {
   useCatalog,
   useActivities,
@@ -56,10 +62,12 @@ export default function App() {
     [drawer, setDrawer] = useState(false),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
-    [survey, setSurvey] = useState(false),
+    // 어떤 설문이 열려 있는지 — 'course'(수업 선호) | 'act'(비교과 취향)
+    [survey, setSurvey] = useState<false | 'course' | 'act'>(false),
     [notifOpen, setNotifOpen] = useState(false),
     [step, setStep] = useState(0),
-    [draft, setDraft] = useState<string[]>([]);
+    [draft, setDraft] = useState<string[]>([]),
+    [actDraft, setActDraft] = useState<string[]>([]);
   const { items: toasts, push: setToast, dismiss: dismissToast } =
     useToasts();
   const [account, setAccount] = useState<Account | null>(null);
@@ -85,6 +93,7 @@ export default function App() {
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
+            setActDraft(result.profile.actPrefs || []);
           }
         } else if (response.status !== 401 && active)
           setAccountError(
@@ -402,6 +411,7 @@ export default function App() {
       setDemo(false);
       setData(empty);
       setDraft([]);
+      setActDraft([]);
       go('home');
     } catch {
       setToast('로그아웃하지 못했습니다. 다시 시도해 주세요.');
@@ -424,6 +434,7 @@ export default function App() {
       setAccount(null);
       setData(empty);
       setDraft([]);
+      setActDraft([]);
       go('home');
     } catch {
       setToast('삭제하지 못했습니다. 다시 시도해 주세요.');
@@ -434,6 +445,11 @@ export default function App() {
     setRoute(r);
     setDrawer(false);
     scrollTo(0, 0);
+  }
+  // 설문을 처음 문항부터 연다 — 이전에 보던 step이 남지 않게 리셋
+  function openSurvey(kind: 'course' | 'act') {
+    setStep(0);
+    setSurvey(kind);
   }
   function save(id: string) {
     void persist(
@@ -525,6 +541,7 @@ export default function App() {
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
+            setActDraft(result.profile.actPrefs || []);
             go('home');
           }}
           onDemo={() => {
@@ -543,6 +560,7 @@ export default function App() {
                   (d.readIds === undefined || Array.isArray(d.readIds)) &&
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
+                  (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
                   (d.lms === undefined || typeof d.lms === 'object')
                 )
                   setData({ ...empty, ...d });
@@ -598,6 +616,9 @@ export default function App() {
             label={label}
             name={data.name}
             account={account}
+            onSurvey={() =>
+              openSurvey(section === 'activities' ? 'act' : 'course')
+            }
           />
           <AccountBar account={account} go={go} onConnect={exitDemo} />
           {section === 'home' ? (
@@ -618,13 +639,15 @@ export default function App() {
               data={data}
               go={go}
               save={save}
+              onSurvey={() => openSurvey('act')}
             />
           ) : section === 'profile' ? (
             <ProfileSection
               data={data}
               account={account}
               persist={persist}
-              onOpenSurvey={() => setSurvey(true)}
+              onOpenSurvey={() => openSurvey('course')}
+              onOpenActSurvey={() => openSurvey('act')}
               focus={detail}
             />
           ) : section === 'graduation' ? (
@@ -756,15 +779,19 @@ export default function App() {
       )}
       <SurveyDialog
         dialogRef={dialog}
+        label={survey === 'act' ? '비교과 선호' : '수업 선호'}
+        questions={survey === 'act' ? ACT_QUESTIONS : questions}
         step={step}
-        draft={draft}
-        setDraft={setDraft}
+        draft={survey === 'act' ? actDraft : draft}
+        setDraft={survey === 'act' ? setActDraft : setDraft}
         setStep={setStep}
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(
-            { ...data, prefs },
-            '수업 선호를 저장했습니다.',
+            survey === 'act' ? { ...data, actPrefs: prefs } : { ...data, prefs },
+            survey === 'act'
+              ? '비교과 취향을 저장했습니다.'
+              : '수업 선호를 저장했습니다.',
           ).then((ok) => {
             if (ok) setSurvey(false);
           });

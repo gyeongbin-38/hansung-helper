@@ -14,6 +14,8 @@
   display: flex;
   flex-direction: column;
   padding: 14px 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sidebar-head {
   display: flex;
@@ -135,7 +137,7 @@ nav button.selected svg {
   display: block;
   font-size: 11px;
   margin: 8px 10px 2px;
-  color: var(--nt-muted);
+  color: var(--nt-stone);
 }
 .nav-label {
   min-width: 0;
@@ -313,6 +315,21 @@ main {
   padding-bottom: 3px;
   white-space: nowrap;
 }
+.page-heading-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+}
+button.survey-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
 /* ---- account bar: avatar + status inside the hairline card ---- */
 .account-id {
   display: flex;
@@ -375,7 +392,7 @@ footer {
   color: var(--nt-steel);
 }
 .toast > svg {
-  color: var(--nt-green);
+  color: var(--nt-green-deep);
   background: var(--nt-tint-mint);
   border-radius: 50%;
   padding: 4px;
@@ -447,6 +464,7 @@ footer {
 .notif-panel-list {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   margin: 14px -20px 0;
   padding: 0 20px;
 }

@@ -158,7 +158,7 @@ export function Courses({
             {enrolled?.has(s.id) && (
               <span
                 className="badge blue"
-                title="COSMOS 수업 현황과 과목명이 일치 — 이수 여부는 학교 시스템 기준"
+                title="COSMOS 수업 현황과 과목명이 일치 · 이수 여부는 학교 시스템 기준"
               >
                 수강 중
               </span>
@@ -341,8 +341,8 @@ export function Courses({
       {!dept && myDept && !myDeptRes.dept && (
         <p className="meta">
           {myDeptRes.candidates
-            ? `학과 매칭 확인 필요 — '${myDept}' 후보: ${myDeptRes.candidates.join(' · ')}`
-            : `학과 매칭 확인 필요 — '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
+            ? `학과 매칭 확인 필요 · '${myDept}' 후보: ${myDeptRes.candidates.join(' · ')}`
+            : `학과 매칭 확인 필요 · '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
         </p>
       )}
       {!catalog && !failed && <SkeletonCards />}
@@ -360,7 +360,7 @@ export function Courses({
                   {enrolled?.has(s.id) && (
                     <span
                       className="badge blue"
-                      title="COSMOS 수업 현황과 과목명이 일치 — 이수 여부는 학교 시스템 기준"
+                      title="COSMOS 수업 현황과 과목명이 일치 · 이수 여부는 학교 시스템 기준"
                     >
                       수강 중
                     </span>

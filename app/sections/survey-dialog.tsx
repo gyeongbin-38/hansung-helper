@@ -1,10 +1,11 @@
 'use client';
 import { Check, X } from 'lucide-react';
 import type { RefObject } from 'react';
-import { questions } from './data';
 
 export function SurveyDialog({
   dialogRef,
+  label,
+  questions,
   step,
   draft,
   setDraft,
@@ -13,6 +14,10 @@ export function SurveyDialog({
   onSubmit,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
+  /** 배지 라벨 — '수업 선호' / '비교과 선호' 등 */
+  label: string;
+  /** [질문, ...선택지] 배열 — 문항 수는 questions.length에서 파생 */
+  questions: readonly (readonly string[])[];
   step: number;
   draft: string[];
   setDraft: (value: string[]) => void;
@@ -20,6 +25,8 @@ export function SurveyDialog({
   onClose: () => void;
   onSubmit: (prefs: string[]) => void;
 }) {
+  const total = questions.length;
+  const last = total - 1;
   return (
     <dialog
       ref={dialogRef}
@@ -29,7 +36,9 @@ export function SurveyDialog({
       onClose={onClose}
     >
       <div className="between">
-        <span className="badge purple">수업 선호 · {step + 1} / 6</span>
+        <span className="badge purple">
+          {label} · {step + 1} / {total}
+        </span>
         <button className="icon" aria-label="설문 닫기" onClick={onClose}>
           <X />
         </button>
@@ -44,7 +53,7 @@ export function SurveyDialog({
             aria-pressed={draft[step] === v}
             onClick={() => {
               const next = Array.from(
-                { length: 6 },
+                { length: total },
                 (_, i) => draft[i] || '',
               );
               next[step] = v;
@@ -71,11 +80,11 @@ export function SurveyDialog({
           <button
             className="primary"
             onClick={() => {
-              if (step < 5) setStep(step + 1);
+              if (step < last) setStep(step + 1);
               else onSubmit(draft);
             }}
           >
-            {step === 5 ? '완료' : '다음'}
+            {step === last ? '완료' : '다음'}
           </button>
         </div>
       </div>

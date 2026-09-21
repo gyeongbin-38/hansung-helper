@@ -6,11 +6,19 @@ import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
   activityMatch,
+  actScore,
   liveStatus,
   type Activity,
 } from '@/lib/data/activities';
 
-const TABS = ['전체', '신청 가능', '접수예정', '운영·마감', '저장한 활동'];
+const TABS = [
+  '전체',
+  '신청 가능',
+  '접수예정',
+  '운영·마감',
+  '저장한 활동',
+  '취향 추천',
+];
 
 const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
 const period = (a: string | null, b: string | null) =>
@@ -24,6 +32,7 @@ function inTab(a: Activity, tab: string, saved: string[], now: number) {
   if (tab === '운영·마감')
     return st === 'running' || st === 'closed';
   if (tab === '저장한 활동') return saved.includes(a.id);
+  if (tab === '취향 추천') return true; // 정렬은 actScore가 담당
   return true;
 }
 
@@ -36,6 +45,7 @@ export function Activities({
   data,
   go,
   save,
+  onSurvey,
 }: {
   detail: string | undefined;
   filter: string;
@@ -45,12 +55,15 @@ export function Activities({
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
+  /** 비교과 취향 설문 다이얼로그를 연다 */
+  onSurvey: () => void;
 }) {
   const { snap, failed, retry } = useActivities();
   const now = useNow(30000);
   const items = snap?.items ?? [];
   const a = items.find((x) => x.id === detail);
   // 졸업요건 연결 컨텍스트 — 입력된 포인트와 필요량(override>공식 800P)
+  const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
   const ptsRaw = parseInt(data.points, 10);
   const ptsSet = Number.isInteger(ptsRaw);
   const ptsReq = data.ruleOverrides?.points ?? 800;
@@ -70,9 +83,14 @@ export function Activities({
             : '졸업요건에 누적 포인트를 입력하면 부족분을 계산해 드려요'}
         </small>
       </div>
-      <button className="secondary" onClick={() => go('graduation')}>
-        졸업요건에서 확인
-      </button>
+      <div className="act-band-actions">
+        <button className="secondary" onClick={onSurvey}>
+          {hasActPrefs ? '취향 설문 다시하기' : '비교과 취향 설문'}
+        </button>
+        <button className="secondary" onClick={() => go('graduation')}>
+          졸업요건에서 확인
+        </button>
+      </div>
     </div>
   );
 
@@ -134,12 +152,12 @@ export function Activities({
             <p className="meta">
               이 활동 완료 시 +{a.points}P
               {ptsSet
-                ? ` — 누적 ${ptsRaw + a.points}P / ${ptsReq}P${
+                ? ` · 누적 ${ptsRaw + a.points}P / ${ptsReq}P${
                     ptsRaw + a.points >= ptsReq
                       ? ' (졸업 기준 도달)'
                       : ` (남은 ${Math.max(0, ptsReq - ptsRaw - a.points)}P)`
                   }`
-                : ' — 졸업요건에 포인트를 입력하면 잔여분을 계산합니다'}
+                : ' · 졸업요건에 포인트를 입력하면 잔여분을 계산합니다'}
               . 비교과 포인트 인정 여부는 학교 기준을 따릅니다.
             </p>
           )}
@@ -160,7 +178,7 @@ export function Activities({
           </div>
           <p className="meta">
             활동 내용·참여 대상·수료 조건·신청 절차는 공고 원문에서
-            확인하세요 — 목록 데이터에는 포함되지 않습니다.
+            확인하세요. 목록 데이터에는 포함되지 않습니다.
           </p>
           <p className="meta">
             출처: hsportal.hansung.ac.kr 공개 목록 ·{' '}
@@ -180,11 +198,21 @@ export function Activities({
       </div>
     );
 
-  const shown = items.filter(
-    (x) =>
-      inTab(x, filter, data.saved, now) &&
-      activityMatch(x, query, koreanMatch),
-  );
+  const scored = new Map<string, { score: number; reasons: string[] }>();
+  if (filter === '취향 추천' && hasActPrefs)
+    for (const x of items) scored.set(x.id, actScore(x, data.actPrefs, now));
+  const shown = items
+    .filter(
+      (x) =>
+        inTab(x, filter, data.saved, now) &&
+        activityMatch(x, query, koreanMatch),
+    )
+    .filter((x) => filter !== '취향 추천' || (scored.get(x.id)?.score ?? 0) > 0)
+    .sort((x, y) =>
+      filter === '취향 추천'
+        ? (scored.get(y.id)?.score ?? 0) - (scored.get(x.id)?.score ?? 0)
+        : 0,
+    );
   return (
     <>
       {pointsBand}
@@ -234,6 +262,17 @@ export function Activities({
         </div>
       ) : !snap ? (
         <SkeletonCards />
+      ) : filter === '취향 추천' && !hasActPrefs ? (
+        <div className="card empty-small">
+          <Search />
+          <h3>비교과 취향 설문을 하면 맞춤 추천이 생겨요.</h3>
+          <p>목표·활동 유형·일정 취향을 5문항으로 알려주세요.</p>
+          <p className="empty-actions">
+            <button className="primary" onClick={onSurvey}>
+              비교과 설문 시작하기
+            </button>
+          </p>
+        </div>
       ) : shown.length ? (
         <>
           <ActivityCards
@@ -242,6 +281,7 @@ export function Activities({
             go={go}
             save={save}
             now={now}
+            scores={filter === '취향 추천' ? scored : undefined}
           />
           <p className="meta">
             {shown.length !== snap.itemCount
@@ -276,17 +316,21 @@ function ActivityCards({
   go,
   save,
   now,
+  scores,
 }: {
   items: Activity[];
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
   now: number;
+  /** 취향 추천 탭일 때만 전달 — 맞춤 점수·근거를 카드에 표시 */
+  scores?: Map<string, { score: number; reasons: string[] }>;
 }) {
   return (
     <div className="cards">
       {items.map((a, i) => {
         const live = liveStatus(a, now);
+        const sc = scores?.get(a.id);
         return (
         <article className="card activity" key={a.id}>
           <div
@@ -315,6 +359,18 @@ function ActivityCards({
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>
+              {sc && sc.score > 0 && (
+                <span
+                  className="badge purple act-match"
+                  title={
+                    sc.reasons.length
+                      ? `취향 매칭: ${sc.reasons.join(' · ')}`
+                      : '취향 매칭'
+                  }
+                >
+                  맞춤 {sc.score}
+                </span>
+              )}
               <button
                 className={'icon ' + (data.saved.includes(a.id) ? 'saved' : '')}
                 aria-label="활동 저장 전환"

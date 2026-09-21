@@ -6,6 +6,7 @@ import {
   isAnomalous,
   activityMatch,
   liveStatus,
+  actScore,
 } from '../lib/data/activities.ts';
 import { koreanMatch } from '../lib/data/hangul.ts';
 import snapshot from '../lib/data/activities.json' with { type: 'json' };
@@ -184,4 +185,116 @@ test('liveStatus: 파싱 불가 날짜는 스냅샷 유지', () => {
   const a = { ...base, applyStart: 'garbage', applyEnd: 'also-bad' };
   const s = liveStatus(a, NOW21);
   assert.equal(s.status, 'closing');
+});
+
+// ── actScore — 비교과 취향 설문 → 규칙 기반 적합도 ─────────
+// NOW21 시점 접수 중(마감 10/20) 활동으로 고정해 상태 가산을 예측 가능하게 한다.
+const openBase = {
+  ...base,
+  status: 'open',
+  statusLabel: '접수중',
+  applyStart: '2026-09-14T00:00:00+09:00',
+  applyEnd: '2026-10-20T23:59:00+09:00',
+};
+
+test('actScore: 설문 미응답 → 0점·근거 없음', () => {
+  assert.deepEqual(actScore(openBase, undefined, NOW21), {
+    score: 0,
+    reasons: [],
+  });
+  assert.deepEqual(actScore(openBase, [], NOW21), { score: 0, reasons: [] });
+  assert.deepEqual(actScore(openBase, ['상관없음'], NOW21), {
+    score: 0,
+    reasons: [],
+  });
+});
+
+test('actScore: 개인/팀 선호가 team 필드에 반영', () => {
+  const solo = { ...openBase, team: '개인' };
+  const team = { ...openBase, team: '팀' };
+  assert.equal(actScore(solo, ['개인 활동'], NOW21).score, 2);
+  assert.equal(actScore(solo, ['팀 활동'], NOW21).score, 0);
+  assert.equal(actScore(team, ['팀 활동'], NOW21).score, 2);
+  assert.ok(
+    actScore(team, ['팀 활동'], NOW21).reasons.includes('팀 활동'),
+  );
+});
+
+test('actScore: 졸업 포인트 목표는 포인트·인재인증에 가산', () => {
+  const pts = { ...openBase, points: 20, certified: true };
+  const noPts = { ...openBase, points: null };
+  const s = actScore(pts, ['졸업 포인트 채우기'], NOW21);
+  assert.equal(s.score, 3); // 포인트 2 + 인증 1
+  assert.deepEqual(s.reasons, ['포인트 활동', '인재인증']);
+  assert.equal(actScore(noPts, ['졸업 포인트 채우기'], NOW21).score, 0);
+});
+
+test('actScore: 활동 유형 키워드 매칭', () => {
+  const lecture = { ...openBase, title: '취업 특강 시리즈' };
+  const contest = { ...openBase, title: '데이터분석 공모전' };
+  const volunteer = { ...openBase, title: '해외 봉사단 모집' };
+  assert.equal(
+    actScore(lecture, ['특강·멘토링'], NOW21).score,
+    2,
+  );
+  assert.equal(
+    actScore(contest, ['공모전·대회'], NOW21).score,
+    2,
+  );
+  assert.equal(
+    actScore(volunteer, ['봉사·교류'], NOW21).score,
+    2,
+  );
+  assert.equal(
+    actScore(lecture, ['공모전·대회'], NOW21).score,
+    0,
+  );
+});
+
+test('actScore: 일정·포인트 선호 가산', () => {
+  const closing = { ...openBase, applyEnd: '2026-09-25T23:59:00+09:00' };
+  assert.equal(
+    actScore(closing, ['마감 임박한 것부터'], NOW21).score,
+    2,
+  );
+  assert.equal(
+    actScore(openBase, ['마감 임박한 것부터'], NOW21).score,
+    1,
+  );
+  const highPts = { ...openBase, points: 40 };
+  const lowPts = { ...openBase, points: 10 };
+  assert.equal(
+    actScore(highPts, ['높은 포인트 우선'], NOW21).score,
+    2,
+  );
+  assert.equal(
+    actScore(lowPts, ['높은 포인트 우선'], NOW21).score,
+    1,
+  );
+});
+
+test('actScore: 복수 답변은 가중치 누적·근거 중복 제거', () => {
+  const a = {
+    ...openBase,
+    team: '팀',
+    points: 50,
+    certified: true,
+    title: '인재인증 팀 프로젝트 공모전',
+  };
+  const s = actScore(
+    a,
+    ['졸업 포인트 채우기', '공모전·대회', '팀 활동', '높은 포인트 우선'],
+    NOW21,
+  );
+  // 2+1(포인트+인증) + 2(공모전) + 2(팀) + 2(높은포인트) = 9
+  assert.equal(s.score, 9);
+  assert.equal(new Set(s.reasons).size, s.reasons.length);
+});
+
+test('actScore: 실제 스냅샷 아이템에도 적용 가능', () => {
+  const teamItem = snapshot.items.find((i) => i.team === '팀');
+  assert.ok(teamItem, 'snapshot has team activity');
+  const s = actScore(teamItem, ['팀 활동'], NOW21);
+  assert.ok(s.score >= 2);
+  assert.ok(s.reasons.includes('팀 활동'));
 });

@@ -1568,3 +1568,29 @@ stale 번들 배포(activities 밴드 누락) — 번들 마커 grep으로 적�
 교훈: 배포 후 번들 마커 확인 필수.
 
 BLOCKER: none. 라이브 4e03acec.
+
+2026-09-21 — ISSUE-26 페이지별 설문 + 비교과 취향 설문
+
+TRIGGER: 사용자 요청 "설문조사 각 페이지에서 할 수 있게하자. 비교과는
+비교과 설문이 있어야지". 기존 설문은 프로필 진입점 하나뿐이고 수업
+선호 6문항뿐 — 비교과 화면에 별도 설문이 없었다.
+
+DONE:
+- SurveyDialog 범용화(label/questions props, 문항 수 파생) — 수업 선호
+  6문항과 비교과 선호 5문항이 같은 컴포넌트를 공유.
+- ACT_QUESTIONS 5문항 + data.actPrefs 분리 저장(prefs 오염 없음).
+  서버 검증·Profile 타입·데모 수화·로그아웃 리셋 반영.
+- 진입점: PageHeading 섹션별 설문 버튼(전 페이지), 비교과 포인트
+  밴드 CTA, 프로필 양쪽 버튼, 홈 태스크 '비교과 취향 설문하기'.
+- '취향 추천' 탭 + actScore() 규칙 스코어링(포인트·인증·유형 키워드·
+  팀/개인·일정) — 점수 정렬 + '맞춤 N' 배지 + 근거 툴팁. 미응답 시
+  설문 프롬프트 카드.
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK(activities 20/20 —
+actScore 7건 신규), 양쪽 빌드 green, _verify_prod 전 엔드포인트 200.
+CDP 캡처: 비교과 설문 1/5 배지·문항 렌더, 취향 추천 탭 맞춤 배지
+정렬, 미응답 프롬프트, 홈→수업 선호 1/6, 모바일 헤딩 버튼 확인.
+배포 번들 마커(actPrefs/비교과 선호/취향 추천/survey-trigger) 라이브
+확인 — stale 배포 방지 절차 적용.
+
+BLOCKER: 없음. 라이브 51f4f8b8-5ce6-4f1d-89d1-a5d79abbc8a4.

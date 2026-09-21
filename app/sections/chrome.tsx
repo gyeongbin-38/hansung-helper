@@ -12,6 +12,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  ClipboardList,
 } from 'lucide-react';
 import { menus, type Data } from './data';
 import { Logo } from '../logo';
@@ -39,6 +40,14 @@ export function Sidebar({
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseDrawer();
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [drawer, onCloseDrawer]);
   return (
     <>
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
@@ -187,7 +196,7 @@ export function Topbar({
       <button
         className="icon notification"
         aria-label={
-          unread ? `알림 — 읽지 않은 알림 ${unread}개` : '알림'
+          unread ? `알림, 읽지 않은 알림 ${unread}개` : '알림'
         }
         aria-haspopup="dialog"
         onClick={onBell}
@@ -211,11 +220,14 @@ export function PageHeading({
   label,
   name,
   account,
+  onSurvey,
 }: {
   section: string;
   label: string;
   name: string;
   account: Account | null;
+  /** 이 페이지 문맥에 맞는 설문을 연다 — 비교과면 비교과 설문, 그 외 수업 선호 */
+  onSurvey?: () => void;
 }) {
   return (
     <div className="page-heading">
@@ -230,10 +242,26 @@ export function PageHeading({
             : '필요한 정보를 확인하고 다음 계획으로 연결하세요.'}
         </p>
       </div>
-      <span className="date-label">
-        2026학년도 2학기{' '}
-        <span className="badge">{account ? '내 학사 홈' : '체험용'}</span>
-      </span>
+      <div className="page-heading-side">
+        <span className="date-label">
+          2026학년도 2학기{' '}
+          <span className="badge">{account ? '내 학사 홈' : '체험용'}</span>
+        </span>
+        {onSurvey && (
+          <button
+            className="secondary survey-trigger"
+            onClick={onSurvey}
+            title={
+              section === 'activities'
+                ? '비교과 활동 취향을 알려주세요'
+                : '수업 선호를 알려주세요'
+            }
+          >
+            <ClipboardList size={15} />
+            {section === 'activities' ? '비교과 설문' : '수업 선호 설문'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -229,7 +229,7 @@ function CourseCard({
       {c.errors?.length ? (
         <p className="meta">
           일부 항목을 수집하지 못했습니다:{' '}
-          {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')} — COSMOS에서
+          {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')}. COSMOS에서
           직접 확인해 주세요.
         </p>
       ) : null}
@@ -332,7 +332,7 @@ function BingeView({
   if (!queue.length)
     return (
       <p className="meta">
-        안 들은 온라인 강의가 없습니다 — 모두 수강했거나 강의가 수집되지
+        안 들은 온라인 강의가 없습니다. 모두 수강했거나 강의가 수집되지
         않았습니다.
       </p>
     );
@@ -345,7 +345,7 @@ function BingeView({
     <>
       <p className="meta">
         안 들은 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
-        — 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
+        · 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
         수강 반영은 재수집 후 확인됩니다.
       </p>
       <div className="lms-tasks">
@@ -430,7 +430,7 @@ function SubmissionsView({
   return (
     <>
       <p className="meta">
-        과제·퀴즈 {cur.length}건 — 완료 {done} · 남은 것{' '}
+        과제·퀴즈 {cur.length}건 · 완료 {done} · 남은 것{' '}
         {cur.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
       </p>
       <div className="lms-tasks">
@@ -617,7 +617,7 @@ export function LmsSection({
           </p>
           <p className="meta">
             이름 매칭으로만 수강을 추정하므로 이 과목들은 수강 중 배지·졸업요건
-            계산에 반영되지 않습니다 — 실제 수강 여부는 학교 시스템에서
+            계산에 반영되지 않습니다. 실제 수강 여부는 학교 시스템에서
             확인하세요.
           </p>
         </section>
@@ -910,7 +910,7 @@ function SetupGuide({
       </div>
       <ol className="lms-steps">
         <li>
-          <b>확장 프로그램 설치(권장)</b> — chrome://extensions에서 개발자 모드를
+          <b>확장 프로그램 설치(권장)</b>. chrome://extensions에서 개발자 모드를
           켜고 <code>압축해제된 확장 프로그램 로드</code>로 프로젝트의{' '}
           <code>extension/</code> 폴더를 선택합니다. 한 번만 하면 됩니다.
         </li>

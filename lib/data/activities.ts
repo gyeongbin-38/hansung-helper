@@ -219,3 +219,94 @@ export function activityMatch(
 ) {
   return match(`${a.title} ${a.dept} ${a.statusLabel}`, q);
 }
+
+/**
+ * 비교과 취향 설문(ACT_QUESTIONS 답변 배열)으로 활동 적합도를 매긴다.
+ * 규칙 기반 점수 — 추천 근거 문자열을 함께 반환해 화면에서 보여줄 수 있다.
+ * 설문 미응답이면 score 0·reasons 빈 배열. '상관없음' 계열은 가중치 없음.
+ */
+export function actScore(
+  a: Activity,
+  prefs: readonly string[] | undefined,
+  now: number,
+): { score: number; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+  if (!prefs?.length) return { score, reasons };
+  const hit = (re: RegExp) => re.test(`${a.title} ${a.dept}`);
+  const st = liveStatus(a, now).status;
+  for (const p of prefs) {
+    if (p === '졸업 포인트 채우기') {
+      if (a.points != null && a.points > 0) {
+        score += 2;
+        reasons.push('포인트 활동');
+      }
+      if (a.certified) {
+        score += 1;
+        reasons.push('인재인증');
+      }
+    } else if (p === '경험·스펙 쌓기') {
+      if (a.certified) {
+        score += 2;
+        reasons.push('수료·인증 활동');
+      }
+      if (hit(/공모|대회|경진|챌린지|해커톤|콘테스트|프로젝트|캠프|서포터즈/)) {
+        score += 1;
+        reasons.push('성과형 활동');
+      }
+    } else if (p === '사람 만나기') {
+      if (a.team === '팀') {
+        score += 2;
+        reasons.push('팀 활동');
+      }
+      if (hit(/네트워|교류|멘토|동아리|모임|커뮤니티|연수/)) {
+        score += 1;
+        reasons.push('교류형 활동');
+      }
+    } else if (p === '특강·멘토링') {
+      if (hit(/특강|멘토|강연|컨설팅|콘서트|세미나|워크숍|코칭|클리닉|독서/)) {
+        score += 2;
+        reasons.push('특강·멘토링');
+      }
+    } else if (p === '공모전·대회') {
+      if (hit(/공모|대회|경진|챌린지|해커톤|콘테스트|캡스톤/)) {
+        score += 2;
+        reasons.push('공모전·대회');
+      }
+    } else if (p === '봉사·교류') {
+      if (hit(/봉사|교류|해외|국제|글로벌|어학|문화|연수|키친|서포터즈/)) {
+        score += 2;
+        reasons.push('봉사·교류');
+      }
+    } else if (p === '개인 활동') {
+      if (a.team === '개인') {
+        score += 2;
+        reasons.push('개인 활동');
+      }
+    } else if (p === '팀 활동') {
+      if (a.team === '팀') {
+        score += 2;
+        reasons.push('팀 활동');
+      }
+    } else if (p === '마감 임박한 것부터') {
+      if (st === 'closing') {
+        score += 2;
+        reasons.push('마감 임박');
+      } else if (st === 'open') score += 1;
+    } else if (p === '여유 있는 것부터') {
+      if (st === 'open') {
+        score += 1;
+        reasons.push('접수 중');
+      } else if (st === 'upcoming') {
+        score += 1;
+        reasons.push('곧 시작');
+      }
+    } else if (p === '높은 포인트 우선') {
+      if (a.points != null && a.points >= 30) {
+        score += 2;
+        reasons.push('높은 포인트');
+      } else if (a.points != null && a.points > 0) score += 1;
+    }
+  }
+  return { score, reasons: [...new Set(reasons)] };
+}

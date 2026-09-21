@@ -203,7 +203,7 @@ export function Graduation({
           <strong>
             {missingInput(r)
               ? r.required === null
-                ? '미입력 — 공식 기준도 미확정'
+                ? '미입력 · 공식 기준도 미확정'
                 : `미입력 / ${r.required}${r.rule.unit ?? '학점'} 필요`
               : `${shown(r)}${
                   r.required === null
@@ -229,7 +229,7 @@ export function Graduation({
           )}
           <p className="meta">
             {r.required === null ? (
-              '이 규정의 공식 필요 수량은 수집되지 않았습니다 — 학과별 세부 요건을 학교에서 확인하세요.'
+              '이 규정의 공식 필요 수량은 수집되지 않았습니다. 학과별 세부 요건을 학교에서 확인하세요.'
             ) : r.requiredSource === 'dept' && myRules && deptTargets ? (
               <>
                 내 학과 규정표 기준 ({deptTargets.columnLabel}) · 출처:{' '}
@@ -256,7 +256,7 @@ export function Graduation({
             />
           </label>
           {data.ruleOverrides[r.rule.id] !== undefined && (
-            <p className="meta">현재 입력값 기준입니다 — 공식 기준 아님.</p>
+            <p className="meta">현재 입력값 기준입니다(공식 기준 아님).</p>
           )}
         </section>
         <section className="card pad">
@@ -389,7 +389,7 @@ export function Graduation({
             {GLOBAL_RULE_SOURCE.label}
           </a>{' '}
           · 확인일 {GLOBAL_RULE_SOURCE.asOf}
-          {!data.year && ' · 입학연도 미입력 — 2016학번 이후 기준을 참고값으로 표시 중'}
+          {!data.year && ' · 입학연도 미입력 · 2016학번 이후 기준을 참고값으로 표시 중'}
         </p>
         <progress
           className="progress-track"
@@ -407,17 +407,17 @@ export function Graduation({
         <strong>
           {missingInput(total)
             ? total.required === null
-              ? '이수학점 미입력 — 기준 미확정'
+              ? '이수학점 미입력 · 기준 미확정'
               : `이수학점 미입력 / ${total.required} 필요`
             : `${shown(total)}${
                 total.required === null
                   ? ' 이수 / 기준 미확정'
                   : ` / ${total.required} 이수`
-              }${pendingSteps.length ? ' — 참고값' : ''}`}
+              }${pendingSteps.length ? ' · 참고값' : ''}`}
         </strong>
         {missingInput(total) && (
           <p className="meta">
-            0학점이 아니라 아직 입력되지 않은 상태입니다 — 종합정보시스템에서
+            0학점이 아니라 아직 입력되지 않은 상태입니다. 종합정보시스템에서
             이수 내역을 확인해 아래에서 입력하면 충족률이 계산됩니다.
           </p>
         )}
@@ -444,7 +444,7 @@ export function Graduation({
             <span className="badge blue">COSMOS 수업 현황</span>
           </div>
           <p className="meta">
-            수집 스냅샷 기준 수강 중인 과목입니다 — 수강 중은 이수 완료가
+            수집 스냅샷 기준 수강 중인 과목입니다. 수강 중은 이수 완료가
             아니므로 졸업 학점 계산에서 제외됩니다. 학기 계획에 담으면
             ‘계획 중’ 학점으로 반영됩니다.
           </p>
@@ -453,7 +453,7 @@ export function Graduation({
             return unmatched.length > 0 ? (
               <p className="meta conn-warn">
                 {enrolled.length}과목 중 {unmatched.length}과목은 이름이
-                카탈로그와 달라 매칭되지 않았습니다 — 커뮤니티·특강 과목은
+                카탈로그와 달라 매칭되지 않았습니다. 커뮤니티·특강 과목은
                 정상이며, 매칭 안 된 과목은 아래 계산에서 전부 제외됩니다.
               </p>
             ) : null;
@@ -463,8 +463,8 @@ export function Graduation({
               <li key={m.course.id}>
                 {m.course.title}
                 {m.sections.length
-                  ? ` — 카탈로그 매칭: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
-                  : ' — 카탈로그 매칭 없음'}
+                  ? ` · 카탈로그 매칭: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
+                  : ' · 카탈로그 매칭 없음'}
               </li>
             ))}
           </ul>
@@ -478,7 +478,7 @@ export function Graduation({
             <span className="badge green">학과 페이지 원문</span>
           </div>
           <p className="meta">
-            {myRules.deptLabel || myRules.dept} · 수치 해석 없이 원문 표시 —
+            {myRules.deptLabel || myRules.dept} · 수치 해석 없이 원문 표시.
             최종 졸업 사정은 학교 시스템이 확인합니다.
           </p>
           {(() => {
@@ -568,13 +568,13 @@ export function Graduation({
                 )}
                 {blocks.length > 24 && (
                   <li className="meta">
-                    … 외 {blocks.length - 24}줄 — 원문 링크에서 계속
+                    … 외 {blocks.length - 24}줄 · 원문 링크에서 계속
                   </li>
                 )}
               </ul>
               {hasReq && (
                 <p className="meta">
-                  체크는 본인 확인용입니다 — 공식 졸업 사정은 학교 시스템이
+                  체크는 본인 확인용입니다. 공식 졸업 사정은 학교 시스템이
                   결정합니다.
                 </p>
               )}
@@ -612,7 +612,7 @@ export function Graduation({
           {myRules.yearTable && !deptTargets && (
             <p className="meta">
               {data.year.trim()
-                ? '입력한 입학연도에 해당하는 학번 컬럼이 규정표에 없습니다 — 학과 사무실에서 확인하세요.'
+                ? '입력한 입학연도에 해당하는 학번 컬럼이 규정표에 없습니다. 학과 사무실에서 확인하세요.'
                 : '내 정보에 입학연도를 입력하면 내 학번 기준 요건이 표시됩니다.'}
             </p>
           )}
@@ -658,7 +658,7 @@ export function Graduation({
                 })}
               </ul>
               <p className="meta">
-                학점 외 조건은 자동 집계하지 않습니다 — 충족 여부는 학교
+                학점 외 조건은 자동 집계하지 않습니다. 충족 여부는 학교
                 시스템·학과 사무실에서 확인하고, 확인한 항목은 체크해
                 두세요. 체크는 본인 확인용이며 공식 졸업 사정과 무관합니다.
               </p>
@@ -666,14 +666,14 @@ export function Graduation({
           )}
           {myRules.attachment && (
             <p className="meta">
-              규정이 첨부 문서({myRules.attachment})로 제공됩니다 — 원문
+              규정이 첨부 문서({myRules.attachment})로 제공됩니다. 원문
               링크에서 확인하세요.
             </p>
           )}
           {myRules.image && (
             <div className="rules-image">
               <p className="meta">
-                규정이 이미지로 게시돼 있습니다 — 학과 공식 이미지 원본입니다.
+                규정이 이미지로 게시돼 있습니다. 학과 공식 이미지 원본입니다.
               </p>
               <a href={myRules.image.src} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line next/no-img-element -- 외부 학교 이미지, next/image 없음 */}
@@ -759,10 +759,10 @@ export function Graduation({
             <strong>
               {missingInput(r)
                 ? r.required === null
-                  ? '미입력 — 공식 기준도 미확정'
+                  ? '미입력 · 공식 기준도 미확정'
                   : `미입력 / ${r.required}${r.rule.unit ?? '학점'} 필요`
                 : r.required === null
-                  ? `계산 대기 — ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
+                  ? `계산 대기 · ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
                   : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             <progress
@@ -784,7 +784,7 @@ export function Graduation({
             {missingInput(r) && (
               <p className="meta">
                 {r.rule.source === 'points'
-                  ? '누적 포인트 미입력 — hsportal에서 확인해 입력하면 계산됩니다.'
+                  ? '누적 포인트 미입력. hsportal에서 확인해 입력하면 계산됩니다.'
                   : '이수한 과목을 입력하면 충족률이 계산됩니다.'}
               </p>
             )}
@@ -878,7 +878,7 @@ export function Graduation({
           </div>
         ))}
         {catalog && q.length >= 2 && !matches.length && (
-          <p className="meta">카탈로그에서 찾지 못했습니다 — 아래에서 직접 추가하세요.</p>
+          <p className="meta">카탈로그에서 찾지 못했습니다. 아래에서 직접 추가하세요.</p>
         )}
         <div className="manual-add">
           <input

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
         url: '/og.png',
         width: 1200,
         height: 630,
-        alt: '한성 학사 도우미 — 강의·활동·일정·시간표, 한곳에서',
+        alt: '한성 학사 도우미 · 강의·활동·일정·시간표, 한곳에서',
       },
     ],
   },

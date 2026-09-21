@@ -1581,11 +1581,21 @@ input[aria-invalid='true'] {
 }
 .detail-cover {
   width: 100%;
+  aspect-ratio: 16 / 5;
   max-height: 200px;
   object-fit: cover;
   border-radius: 8px;
   margin-bottom: 12px;
   display: block;
+}
+.act-band > .act-band-actions {
+  flex-direction: row;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.act-match {
+  flex: none;
 }
 @media (max-width: 640px) {
   .act-band {

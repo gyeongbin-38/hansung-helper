@@ -25,7 +25,7 @@ function planAnswer(data: Data, planned: CourseSection[]) {
   const untimed = planned.filter((s) => s.untimed || !s.slots.length);
   let out = `현재 계획: ${planned.length}개 과목 · ${credits}학점. `;
   if (clashing.length)
-    out += `시간이 겹치는 과목이 ${clashing.length}개 있습니다 — 시간표에서 조정하세요. `;
+    out += `시간이 겹치는 과목이 ${clashing.length}개 있습니다. 시간표에서 조정하세요. `;
   if (untimed.length)
     out += `시간 미정 과목 ${untimed.length}개는 시간표 아래 트레이에 있습니다. `;
   if (!clashing.length && !untimed.length)
@@ -67,7 +67,7 @@ function weekAnswer(data: Data, catalog: Catalog | null) {
     .map((t) => `${t.course} ${t.kind} "${t.title}"(${t.due ?? '마감 미기재'})`)
     .join(' / ');
   return (
-    `이번 주 마감 ${due.length}건 — ${top}${due.length > 5 ? ` 외 ${due.length - 5}건` : ''}. ` +
+    `이번 주 마감 ${due.length}건: ${top}${due.length > 5 ? ` 외 ${due.length - 5}건` : ''}. ` +
     `수집일 ${snap.fetchedAt ? snap.fetchedAt.slice(0, 10) : '미상'} 기준이며, 전체 목록은 수업 현황에서 확인하세요.` +
     suffix
   );

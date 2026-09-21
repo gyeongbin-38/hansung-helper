@@ -31,7 +31,7 @@
   --nt-navy: #0a1530;
   --nt-navy-deep: #070f24;
   --nt-navy-mid: #1a2a52;
-  --nt-link: #0075de;
+  --nt-link: #0068c4;
   --nt-link-pressed: #005bab;
   /* brand spectrum */
   --nt-orange: #dd5b00;
@@ -68,9 +68,9 @@
   --nt-ink: #1a1a1a;
   --nt-charcoal: #37352f;
   --nt-slate: #5d5b54;
-  --nt-steel: #787671;
-  --nt-stone: #a4a097;
-  --nt-muted: #bbb8b1;
+  --nt-steel: #6f6c66;
+  --nt-stone: #736f68;
+  --nt-muted: #8a867e;
   --nt-on-dark: #ffffff;
   --nt-on-dark-muted: #a4a097;
   /* semantic */
@@ -116,6 +116,10 @@ button {
   border: 0;
   background: none;
   color: inherit;
+}
+button,
+a {
+  touch-action: manipulation;
 }
 a {
   color: var(--nt-link);

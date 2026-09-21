@@ -721,3 +721,31 @@ blocking regressions.
 - **Follow-ups**: 매칭 실패 LMS 과목의 수동 매핑 UX, 활동 상세의 공고
   본문 크롤링(현재 목록 데이터만), 학과 규정 라인 파서의 다른 학과
   포맷 커버리지.
+
+## ISSUE-26 — 페이지별 설문 진입점 + 비교과 전용 취향 설문
+
+- **Status**: **verified** (2026-09-21 — tsc/oxlint/매트릭스/양쪽 빌드/
+  _verify_prod 통과, 프로덕션 CDP 캡처로 두 설문 다이얼로그·취향 추천
+  탭·빈 상태 프롬프트 확인, 라이브 51f4f8b8)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 설문이 프로필에서만 열리던 것을 각 페이지 문맥에서
+  열 수 있게 하고, 비교과 활동에는 별도 취향 설문을 둔다
+  ("비교과는 비교과 설문이 있어야지").
+- **Resolution**:
+  - `SurveyDialog` 범용화 — `label`/`questions` props로 받고 문항 수를
+    `questions.length`에서 파생(6 하드코딩 제거). 수업 선호·비교과
+    선호가 같은 렌더러를 공유.
+  - `ACT_QUESTIONS` 5문항(목표·유형·개인/팀·일정·포인트) 추가,
+    `data.actPrefs: string[]` 신규 필드로 `prefs`와 분리 저장 —
+    서버 profile route 검증(≤20항목·각 ≤100자), Profile 타입,
+    데모 수화 검증, 로그아웃/삭제 리셋 모두 반영.
+  - 진입점: `PageHeading`에 섹션별 설문 버튼(비교과→비교과 설문,
+    그 외→수업 선호 설문)으로 전 페이지 접근 + 활동 포인트 밴드에
+    '비교과 취향 설문/다시하기' CTA + 프로필에 두 설문 버튼.
+  - 취향 추천 탭: TABS에 '취향 추천' 추가, `actScore()`(lib/data/
+    activities.ts) 규칙 기반 스코어링 — 포인트·인증·유형 키워드·
+    개인/팀·일정 상태 가산, 근거 문자열 반환. 점수>0만 표시·정렬,
+    카드에 '맞춤 N' 배지+툴팁 근거. 미응답 시 설문 시작 프롬프트.
+  - 홈 태스크: actPrefs 미설정 시 '비교과 취향 설문하기' → activities.
+- **Follow-ups**: 설문 답변을 AI 상담·알림 개인화에도 연결(ISSUE-15
+  후속), 추천 근거를 카드에 상시 노출할지 여부, 설문 완료율 계측 없음.

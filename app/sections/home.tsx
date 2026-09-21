@@ -55,7 +55,7 @@ function TodayStrip({
     if (dd <= 1)
       items.push({
         label: `${t.kind} ${dd <= 0 ? '오늘' : '내일'} 마감`,
-        desc: `${t.title} — ${t.course}`,
+        desc: `${t.title} · ${t.course}`,
         route: 'lms',
       });
   }
@@ -184,6 +184,13 @@ export function Home({
       '수업 성향 설문하기',
       '맞춤 추천에 선호가 반영돼요.',
       'profile',
+    ]);
+  if (!(data.actPrefs ?? []).some((p) => p))
+    tasks.push([
+      '06',
+      '비교과 취향 설문하기',
+      '활동 목록에서 맞춤 추천을 받아보세요.',
+      'activities',
     ]);
   const shownTasks = tasks.slice(0, 3);
   return (
@@ -367,7 +374,7 @@ export function Home({
               </p>
             )}
             {lmsDue.length > 4 && (
-              <p className="meta">외 {lmsDue.length - 4}건 — 수업 현황에서 확인</p>
+              <p className="meta">외 {lmsDue.length - 4}건 · 수업 현황에서 확인</p>
             )}
             <p className="meta">
               COSMOS {lmsSnap.fetchedAt.slice(0, 10)} 수집 기준

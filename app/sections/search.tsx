@@ -104,7 +104,7 @@ export function SearchResults({
         <p>
           {q ? (
             <>
-              <b>&ldquo;{q}&rdquo;</b> — 과목 {courses.length}
+              <b>&ldquo;{q}&rdquo;</b> · 과목 {courses.length}
               {courses.length === CAP ? '+' : ''} · 활동 {activities.length}
               {activities.length === CAP ? '+' : ''} · 학사일정 {events.length}
               {events.length === CAP ? '+' : ''}
@@ -139,8 +139,8 @@ export function SearchResults({
         </fieldset>
         {data.lms && (
           <p className="meta">
-            수업 현황은 현재 학기({catalog?.semester ?? '추정'}) 항목만 표시
-            — 지난 학기 항목은 제외됩니다.
+            수업 현황은 현재 학기({catalog?.semester ?? '추정'}) 항목만
+            표시됩니다. 지난 학기 항목은 제외됩니다.
           </p>
         )}
       </section>

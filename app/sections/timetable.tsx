@@ -442,7 +442,7 @@ export function Timetable({
     ctx.font = font(400, 11);
     ctx.fillStyle = '#9b948c';
     ctx.fillText(
-      `학사 도우미 개인 계획 — 공식 수강신청이 아닙니다. ${catalog?.source ?? ''}`,
+      `학사 도우미 개인 계획. 공식 수강신청이 아닙니다. ${catalog?.source ?? ''}`,
       timeW,
       H - 10,
     );
@@ -597,12 +597,12 @@ export function Timetable({
               </div>
               {!dept && myDept && !deptPool && (
                 <p className="meta">
-                  {`학과 매칭 확인 필요 — '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
+                  {`학과 매칭 확인 필요 · '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
                 </p>
               )}
               {!dept && myDept && deptPool && deptPool.length > 1 && (
                 <p className="meta">
-                  {`학과 매칭 확인 필요 — '${myDept}' 후보: ${deptPool.join(' · ')}`}
+                  {`학과 매칭 확인 필요 · '${myDept}' 후보: ${deptPool.join(' · ')}`}
                 </p>
               )}
             </div>
@@ -874,7 +874,7 @@ function BlockCell({
         height: Math.max((sl.e - sl.s) * PPM, 24),
       }}
       onClick={() => onSelect(s)}
-      aria-label={s.name + ' ' + slotLabel(sl) + ' — 눌러서 상세 보기'}
+      aria-label={s.name + ' ' + slotLabel(sl) + ', 눌러서 상세 보기'}
       {...listeners}
       {...attributes}
     >
