@@ -1514,3 +1514,80 @@ input[aria-invalid='true'] {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ---------- 졸업↔비교과 연결 ---------- */
+.act-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: color-mix(in srgb, var(--nt-tint-lavender, #e6e0f5) 55%, white);
+  border-color: var(--nt-hairline, #e5e3df);
+}
+.act-band > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.act-band b {
+  font-size: 14px;
+}
+.act-band small {
+  color: var(--nt-slate, #5d5b54);
+  font-size: 12px;
+}
+.rule-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 2px;
+}
+.cond-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+.cond-check input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: var(--nt-primary);
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.cond-check .badge {
+  flex: none;
+  margin-top: 1px;
+}
+.cond-check > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.done-text {
+  text-decoration: line-through;
+  color: var(--nt-steel, #787671);
+  font-weight: 400;
+}
+.detail-cover {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: block;
+}
+@media (max-width: 640px) {
+  .act-band {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .act-band button {
+    align-self: flex-start;
+    white-space: nowrap;
+  }
+}

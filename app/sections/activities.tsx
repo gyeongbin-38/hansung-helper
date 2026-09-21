@@ -50,6 +50,31 @@ export function Activities({
   const now = useNow(30000);
   const items = snap?.items ?? [];
   const a = items.find((x) => x.id === detail);
+  // 졸업요건 연결 컨텍스트 — 입력된 포인트와 필요량(override>공식 800P)
+  const ptsRaw = parseInt(data.points, 10);
+  const ptsSet = Number.isInteger(ptsRaw);
+  const ptsReq = data.ruleOverrides?.points ?? 800;
+  const pointsBand = (
+    <div className="card pad act-band">
+      <div>
+        <b>
+          {ptsSet
+            ? `비교과 포인트 ${ptsRaw} / ${ptsReq}P`
+            : `비교과 포인트 미입력 / ${ptsReq}P 필요`}
+        </b>
+        <small>
+          {ptsSet
+            ? ptsRaw >= ptsReq
+              ? '졸업 포인트 기준을 채웠습니다'
+              : `졸업까지 ${ptsReq - ptsRaw}P 남음`
+            : '졸업요건에 누적 포인트를 입력하면 부족분을 계산해 드려요'}
+        </small>
+      </div>
+      <button className="secondary" onClick={() => go('graduation')}>
+        졸업요건에서 확인
+      </button>
+    </div>
+  );
 
   if (detail)
     return a ? (
@@ -61,6 +86,15 @@ export function Activities({
           홈 / 비교과·대외활동 / {a.title}
         </button>
         <section className="card detail">
+          {a.cover && (
+            // eslint-disable-next-line next/no-img-element -- 외부 학교 이미지
+            <img
+              className="detail-cover"
+              src={a.cover}
+              alt=""
+              loading="lazy"
+            />
+          )}
           <span className="badge blue">
             {liveStatus(a, now).label}
             {liveStatus(a, now).dday
@@ -95,6 +129,19 @@ export function Activities({
               </div>
             ))}
           </div>
+          {a.points != null && (
+            <p className="meta">
+              이 활동 완료 시 +{a.points}P
+              {ptsSet
+                ? ` — 누적 ${ptsRaw + a.points}P / ${ptsReq}P${
+                    ptsRaw + a.points >= ptsReq
+                      ? ' (졸업 기준 도달)'
+                      : ` (남은 ${Math.max(0, ptsReq - ptsRaw - a.points)}P)`
+                  }`
+                : ' — 졸업요건에 포인트를 입력하면 잔여분을 계산합니다'}
+              . 비교과 포인트 인정 여부는 학교 기준을 따릅니다.
+            </p>
+          )}
           <div className="actions">
             <button className="primary" onClick={() => save(a.id)}>
               <Bookmark size={18} />
@@ -110,6 +157,10 @@ export function Activities({
               <ArrowUpRight size={16} />
             </a>
           </div>
+          <p className="meta">
+            활동 내용·참여 대상·수료 조건·신청 절차는 공고 원문에서
+            확인하세요 — 목록 데이터에는 포함되지 않습니다.
+          </p>
           <p className="meta">
             출처: hsportal.hansung.ac.kr 공개 목록 ·{' '}
             {snap ? snap.fetchedAt.slice(0, 10) : ''} 수집 · 신청·승인은
@@ -135,6 +186,7 @@ export function Activities({
   );
   return (
     <>
+      {pointsBand}
       <div className="toolbar">
         <div className="tabs">
           {TABS.map((f) => (
@@ -191,8 +243,11 @@ export function Activities({
             now={now}
           />
           <p className="meta">
-            공식 출처 hsportal · {snap.fetchedAt.slice(0, 10)} 수집{' '}
-            {snap.itemCount}건 · 신청·승인은 학교 시스템에서 진행
+            {shown.length !== snap.itemCount
+              ? `조건에 맞는 ${shown.length}건 표시 중 · 전체 `
+              : ''}
+            {snap.itemCount}건 수집 · 공식 출처 hsportal ·{' '}
+            {snap.fetchedAt.slice(0, 10)} · 신청·승인은 학교 시스템에서 진행
           </p>
         </>
       ) : (

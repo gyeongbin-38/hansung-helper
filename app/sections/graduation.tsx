@@ -81,6 +81,22 @@ export function Graduation({
     deptTargets,
   ]);
   const total = results[0];
+  // 미입력과 실제 0을 구분한다 — 이수 과목이 하나도 없거나 포인트가 비어
+  // 있으면 "0 이수"가 아니라 "미입력"으로 표시해야 오해가 없다.
+  const completedEmpty = data.completed.length === 0;
+  const pointsEmpty = !(data.points ?? '').trim();
+  const missingInput = (r: (typeof results)[number]) =>
+    r.rule.source === 'points' ? pointsEmpty : completedEmpty;
+  const reqCheckSet = new Set(data.reqChecks ?? []);
+  function toggleReqCheck(label: string) {
+    const next = new Set(data.reqChecks ?? []);
+    if (next.has(label)) next.delete(label);
+    else next.add(label);
+    void persist(
+      { ...data, reqChecks: [...next] },
+      '확인 상태를 저장했습니다.',
+    );
+  }
   const matches = useMemo(() => {
     if (!catalog || q.length < 2) return [];
     const done = new Set(data.completed.map((c) => c.code));
@@ -174,7 +190,9 @@ export function Graduation({
           </button>
           <div className="between">
             <h2>{r.rule.label}</h2>
-            {r.status === 'met' ? (
+            {missingInput(r) ? (
+              <span className="badge orange">입력 필요</span>
+            ) : r.status === 'met' ? (
               <span className="badge green">충족</span>
             ) : r.status === 'unknown' ? (
               <span className="badge orange">기준 확인 필요</span>
@@ -183,10 +201,15 @@ export function Graduation({
             )}
           </div>
           <strong>
-            {shown(r)}
-            {r.required === null
-              ? ` ${r.rule.unit ?? '학점'}`
-              : ` / ${r.required}${r.rule.unit ?? '학점'}`}
+            {missingInput(r)
+              ? r.required === null
+                ? '미입력 — 공식 기준도 미확정'
+                : `미입력 / ${r.required}${r.rule.unit ?? '학점'} 필요`
+              : `${shown(r)}${
+                  r.required === null
+                    ? ` ${r.rule.unit ?? '학점'}`
+                    : ` / ${r.required}${r.rule.unit ?? '학점'}`
+                }`}
           </strong>
           <progress
             className="progress-track"
@@ -241,13 +264,25 @@ export function Graduation({
             <>
               <h3>비교과 포인트</h3>
               <p>
-                현재 입력된 누적 포인트: {data.points?.trim() || '미입력'}.
+                현재 입력된 누적 포인트:{' '}
+                {data.points?.trim() ? `${data.points.trim()}P` : '미입력'}.
                 실제 포인트는 hsportal 마이페이지에서 확인하고 내 정보에
                 입력해 주세요.
               </p>
-              <button className="secondary" onClick={() => go('profile')}>
-                내 정보에서 포인트 입력
-              </button>
+              <div className="rule-actions">
+                <button
+                  className="secondary"
+                  onClick={() => go('profile')}
+                >
+                  내 정보에서 포인트 입력
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => go('activities')}
+                >
+                  포인트를 채울 수 있는 활동 보기
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -360,18 +395,32 @@ export function Graduation({
           className="progress-track"
           aria-label="전체 졸업요건 충족률"
           aria-valuetext={
-            total.required === null ? '기준 미확정' : `${pct(total)}%`
+            missingInput(total)
+              ? '미입력'
+              : total.required === null
+                ? '기준 미확정'
+                : `${pct(total)}%`
           }
           max={100}
           value={pct(total)}
         />
         <strong>
-          {shown(total)}
-          {total.required === null
-            ? ' 이수 / 기준 미확정'
-            : ` / ${total.required} 이수`}
-          {pendingSteps.length ? ' — 참고값' : ''}
+          {missingInput(total)
+            ? total.required === null
+              ? '이수학점 미입력 — 기준 미확정'
+              : `이수학점 미입력 / ${total.required} 필요`
+            : `${shown(total)}${
+                total.required === null
+                  ? ' 이수 / 기준 미확정'
+                  : ` / ${total.required} 이수`
+              }${pendingSteps.length ? ' — 참고값' : ''}`}
         </strong>
+        {missingInput(total) && (
+          <p className="meta">
+            0학점이 아니라 아직 입력되지 않은 상태입니다 — 종합정보시스템에서
+            이수 내역을 확인해 아래에서 입력하면 충족률이 계산됩니다.
+          </p>
+        )}
         {total.planned > 0 && !withPlan && (
           <p className="meta">+{total.planned}학점 계획 중</p>
         )}
@@ -395,16 +444,17 @@ export function Graduation({
             <span className="badge blue">COSMOS 수업 현황</span>
           </div>
           <p className="meta">
-            수집 스냅샷 기준 수강 중인 과목입니다 — 이름 매칭만으로는 이수
-            확정이 아니므로 졸업 학점 계산에는 포함하지 않습니다.
+            수집 스냅샷 기준 수강 중인 과목입니다 — 수강 중은 이수 완료가
+            아니므로 졸업 학점 계산에서 제외됩니다. 학기 계획에 담으면
+            ‘계획 중’ 학점으로 반영됩니다.
           </p>
           {(() => {
             const unmatched = enrolled.filter((m) => m.sections.length === 0);
             return unmatched.length > 0 ? (
               <p className="meta conn-warn">
                 {enrolled.length}과목 중 {unmatched.length}과목은 이름이
-                카탈로그와 달라 매칭되지 않았습니다 — 매칭 안 된 과목은
-                아래 계산에서 전부 제외됩니다.
+                카탈로그와 달라 매칭되지 않았습니다 — 커뮤니티·특강 과목은
+                정상이며, 매칭 안 된 과목은 아래 계산에서 전부 제외됩니다.
               </p>
             ) : null;
           })()}
@@ -498,23 +548,47 @@ export function Graduation({
             <div className="dept-conds">
               <h4>내 학번 기준 ({deptTargets.columnLabel})</h4>
               <ul>
-                {deptTargets.conditions.map((c, i) => (
-                  <li key={i}>
-                    <span
-                      className={c.recommended ? 'badge' : 'badge orange'}
-                    >
-                      {c.recommended ? '권장' : '필수'}
-                    </span>
-                    <div>
-                      <b>{c.label}</b>
-                      <small>{c.cell}</small>
-                    </div>
-                  </li>
-                ))}
+                {deptTargets.conditions.map((c, i) => {
+                  const checked = reqCheckSet.has(c.label);
+                  return (
+                    <li key={i}>
+                      <label className="cond-check">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleReqCheck(c.label)}
+                          aria-label={c.label + ' 확인 완료'}
+                        />
+                        <span
+                          className={
+                            checked
+                              ? 'badge green'
+                              : c.recommended
+                                ? 'badge'
+                                : 'badge orange'
+                          }
+                        >
+                          {checked
+                            ? '확인 완료'
+                            : c.recommended
+                              ? '권장'
+                              : '필수'}
+                        </span>
+                        <div>
+                          <b className={checked ? 'done-text' : undefined}>
+                            {c.label}
+                          </b>
+                          <small>{c.cell}</small>
+                        </div>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
               <p className="meta">
                 학점 외 조건은 자동 집계하지 않습니다 — 충족 여부는 학교
-                시스템·학과 사무실에서 확인하세요.
+                시스템·학과 사무실에서 확인하고, 확인한 항목은 체크해
+                두세요. 체크는 본인 확인용이며 공식 졸업 사정과 무관합니다.
               </p>
             </div>
           )}
@@ -600,7 +674,9 @@ export function Graduation({
                   {r.rule.label}
                 </button>
               </h3>
-              {r.status === 'met' ? (
+              {missingInput(r) ? (
+                <span className="badge orange">입력 필요</span>
+              ) : r.status === 'met' ? (
                 <span className="badge green">충족</span>
               ) : r.status === 'unknown' ? (
                 <span className="badge orange">기준 확인 필요</span>
@@ -609,15 +685,23 @@ export function Graduation({
               )}
             </div>
             <strong>
-              {r.required === null
-                ? `계산 대기 — ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
-                : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
+              {missingInput(r)
+                ? r.required === null
+                  ? '미입력 — 공식 기준도 미확정'
+                  : `미입력 / ${r.required}${r.rule.unit ?? '학점'} 필요`
+                : r.required === null
+                  ? `계산 대기 — ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
+                  : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             <progress
               className="progress-track"
               aria-label={r.rule.label + ' 충족률'}
               aria-valuetext={
-                r.required === null ? '기준 미확정' : `${pct(r)}%`
+                missingInput(r)
+                  ? '미입력'
+                  : r.required === null
+                    ? '기준 미확정'
+                    : `${pct(r)}%`
               }
               max={100}
               value={pct(r)}
@@ -625,11 +709,42 @@ export function Graduation({
             {r.planned > 0 && !withPlan && (
               <p className="meta">+{r.planned}학점 계획 중</p>
             )}
-            {r.rule.source === 'points' && !(data.points ?? '').trim() && (
+            {missingInput(r) && (
               <p className="meta">
-                누적 포인트 미입력 — 내 정보에서 입력하면 계산됩니다.
+                {r.rule.source === 'points'
+                  ? '누적 포인트 미입력 — hsportal에서 확인해 입력하면 계산됩니다.'
+                  : '이수한 과목을 입력하면 충족률이 계산됩니다.'}
               </p>
             )}
+            <div className="rule-actions">
+              {r.rule.source === 'points' && (
+                <>
+                  <button
+                    className="secondary"
+                    onClick={() => go('profile')}
+                  >
+                    포인트 입력
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => go('activities')}
+                  >
+                    포인트 채울 활동 보기
+                  </button>
+                </>
+              )}
+              {r.rule.source !== 'points' &&
+                r.required !== null &&
+                !missingInput(r) &&
+                shown(r) < r.required && (
+                  <button
+                    className="secondary"
+                    onClick={() => go('courses')}
+                  >
+                    부족 학점 채울 과목 찾기
+                  </button>
+                )}
+            </div>
             <label className="rule-target">
               필요 {r.rule.unit ?? '학점'}
               <input

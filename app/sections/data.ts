@@ -41,6 +41,8 @@ export type Data = {
   prefs: string[];
   /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
   readIds: string[];
+  /** 졸업 학점 외 요건(인증·캡스톤 등) 본인 확인 체크 — 공식 사정과 무관한 사용자 메모 */
+  reqChecks?: string[];
   /** 발송 완료한 마감 알림 id — 브라우저 알림 중복 발송 방지 */
   notifiedIds?: string[];
   /** 브라우저 마감 알림 opt-in — 앱이 열려 있는 동안만 동작 */

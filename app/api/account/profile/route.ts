@@ -124,6 +124,14 @@ export async function PUT(request: Request) {
       )
         ? input.readIds
         : [];
+    profile.reqChecks =
+      Array.isArray(input.reqChecks) &&
+      input.reqChecks.length <= 200 &&
+      input.reqChecks.every(
+        (v: unknown) => typeof v === 'string' && v.length <= 120,
+      )
+        ? input.reqChecks
+        : [];
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);
       if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);
