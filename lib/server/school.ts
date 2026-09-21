@@ -18,6 +18,9 @@ export type SchoolSnapshot = {
   lmsPending?: boolean;
   /** 지연 수집 실패 시각 — 실패 상태 표시용 */
   lmsFailedAt?: string;
+  /** COSMOS 로그인 단계 실패 원인 — 'auth' 자격 거부 / 'landing' 중간
+   *  안내 페이지에서 세션 미확인 / 'upstream' 네트워크·HTTP 오류 */
+  lmsError?: 'auth' | 'landing' | 'upstream';
   checkedAt: string;
   courseScope: string;
 };
@@ -184,34 +187,90 @@ export async function connectSchool(
     courseScope:
       '코스모스 로그인 첫 화면에 표시된 강의 · 전체 개설 과목이나 이수 내역 아님',
   };
-  try {
-    await (
-      await session.request('https://learn.hansung.ac.kr/login.php')
-    ).arrayBuffer();
-    const login = await session.request(
-      'https://learn.hansung.ac.kr/login/index.php',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Origin: 'https://learn.hansung.ac.kr',
-          Referer: 'https://learn.hansung.ac.kr/login.php',
+  // COSMOS 로그인 — 성공이면 과목 목록 HTML, 실패면 원인 분류를 돌려준다.
+  // 로그인 직후 동의·비밀번호 변경·중복 로그인 등 중간 페이지에 멈춘 경우를
+  // 세션 무효와 구분하기 위해 /my/로 세션 유효성을 한 번 더 확인한다.
+  const lmsLogin = async (): Promise<{
+    html?: string;
+    err?: 'auth' | 'landing' | 'upstream';
+  }> => {
+    try {
+      await (
+        await session.request('https://learn.hansung.ac.kr/login.php')
+      ).arrayBuffer();
+      const login = await session.request(
+        'https://learn.hansung.ac.kr/login/index.php',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Origin: 'https://learn.hansung.ac.kr',
+            Referer: 'https://learn.hansung.ac.kr/login.php',
+          },
+          body: new URLSearchParams({
+            username: studentId,
+            password,
+            loginbutton: '로그인',
+          }),
         },
-        body: new URLSearchParams({
-          username: studentId,
-          password,
-          loginbutton: '로그인',
-        }),
-      },
-    );
-    const home = await session.follow(
-      login,
-      'https://learn.hansung.ac.kr/login/index.php',
-    );
-    const html = await home.text();
-    if (/\/login\/logout\.php/.test(html)) {
+      );
+      const home = await session.follow(
+        login,
+        'https://learn.hansung.ac.kr/login/index.php',
+      );
+      const html = await home.text();
+      if (/\/login\/logout\.php/.test(html)) return { html };
+      const code = (home.url + '\n' + html.slice(0, 4000)).match(
+        /errorcode=(\d+)/,
+      )?.[1];
+      const title =
+        html.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim() ?? '';
+      console.log(
+        '[lms] landing w/o session:',
+        home.url,
+        'errorcode',
+        code ?? '-',
+        'title',
+        title.slice(0, 80),
+        'len',
+        html.length,
+      );
+      if (code === '3') return { err: 'auth' };
+      // 세션이 열렸는데 중간 안내 페이지에 멈춘 경우 — /my/는 로그인 상태로
+      // 렌더되므로 여기서 세션 유효성을 재확인한다.
+      try {
+        const probe = await session.follow(
+          await session.request('https://learn.hansung.ac.kr/my/'),
+          'https://learn.hansung.ac.kr/my/',
+        );
+        const probeHtml = await probe.text();
+        if (/\/login\/logout\.php/.test(probeHtml)) {
+          console.log('[lms] session valid via /my/ — interstitial bypassed');
+          return { html: probeHtml };
+        }
+      } catch {
+        /* probe 실패는 아래 err 결과로 처리 */
+      }
+      return { err: code ? 'auth' : 'landing' };
+    } catch (e) {
+      console.log(
+        '[lms] login request failed:',
+        e instanceof Error ? e.message : String(e),
+      );
+      return { err: 'upstream' };
+    }
+  };
+  try {
+    let res = await lmsLogin();
+    if (res.err === 'upstream') {
+      // 순간 네트워크 오류는 1회 재시도 — 자격 거부는 재시도하지 않는다
+      await new Promise((r) => setTimeout(r, 1500));
+      res = await lmsLogin();
+    }
+    if (res.err) snapshot.lmsError = res.err;
+    else {
       snapshot.lms = 'connected';
-      snapshot.courses = parseCourses(html);
+      snapshot.courses = parseCourses(res.html!);
       if (opts?.deferLms)
         opts.deferLms(() => collectLms(session, snapshot.courses));
       else

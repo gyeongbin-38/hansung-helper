@@ -737,6 +737,7 @@ export default function App() {
               serverCollecting={lmsPending && !collectStale}
               collectFailed={lmsFailed}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
+              lmsError={account?.snapshot.lmsError}
               studentMask={account?.studentMask}
               onAccount={setAccount}
               ext={ext}

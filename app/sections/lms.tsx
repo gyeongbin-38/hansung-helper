@@ -478,6 +478,7 @@ export function LmsSection({
   serverCollecting,
   collectFailed,
   lmsUnavailable,
+  lmsError,
   studentMask,
   onAccount,
   detail,
@@ -494,6 +495,8 @@ export function LmsSection({
   collectFailed?: boolean;
   /** 포털 로그인은 됐지만 COSMOS 접속 자체가 실패한 상태 */
   lmsUnavailable?: boolean;
+  /** COSMOS 로그인 단계 실패 원인 — auth/landing/upstream */
+  lmsError?: string;
   /** 연결된 계정의 마스킹된 학번 — 재수집 폼 힌트용 */
   studentMask?: string;
   /** 서버 응답의 최신 계정 스냅샷을 상위 상태에 반영 */
@@ -540,7 +543,11 @@ export function LmsSection({
     extStatus.status === 'failed'
       ? extStatus.error
       : lmsUnavailable
-        ? 'COSMOS 접속 실패'
+        ? lmsError === 'auth'
+          ? 'COSMOS 로그인 거부 — 학교 포털과 다른 비밀번호이거나 COSMOS 계정이 아직 없을 수 있습니다'
+          : lmsError === 'landing'
+            ? 'COSMOS 로그인 후 안내 페이지에서 멈췄습니다 — 직접 로그인해 안내를 완료해 주세요'
+            : 'COSMOS 접속 실패'
         : collectFailed
           ? '서버 수집 미완료'
           : undefined;
@@ -610,6 +617,7 @@ export function LmsSection({
         onExtRefresh={onExtRefresh}
         matchPending={matchPending.length}
         matchTotal={snap?.courses.length ?? 0}
+        serverLoginFailed={lmsUnavailable}
       />
 
       {snap &&
@@ -950,12 +958,15 @@ function SyncBand({
   onExtRefresh,
   matchPending = 0,
   matchTotal = 0,
+  serverLoginFailed,
 }: {
   band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh';
   snap?: LmsSnapshot;
   now: number;
   pending: number;
   error?: string;
+  /** 서버 측 COSMOS 로그인 단계 실패 — 직접 로그인/확장 경로 안내 표시 */
+  serverLoginFailed?: boolean;
   extInstalled: boolean;
   serverCollecting?: boolean;
   onExtRefresh?: () => void;
@@ -1010,6 +1021,13 @@ function SyncBand({
             {info.d}
             {band === 'failed' && error ? ` 오류: ${error}` : ''}
           </p>
+          {band === 'failed' && serverLoginFailed && (
+            <p className="meta">
+              learn.hansung.ac.kr에 직접 로그인해 안내(약관 동의·비밀번호
+              변경·중복 로그인)를 완료한 뒤 다시 시도하거나, 확장 프로그램으로
+              수집할 수 있습니다. 확장 수집은 서버 로그인 없이 동작합니다.
+            </p>
+          )}
         </div>
       </div>
       {snap && (
