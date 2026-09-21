@@ -496,17 +496,89 @@ export function Graduation({
             );
             const extras = myRules.lines.filter((l) => !cellSet.has(l));
             if (!extras.length) return null;
+            // "N. [필수] 요건명" 패턴의 라인은 본인 확인 체크리스트로 변환하고,
+            // 그 아래 들여쓰기 설명은 항목 세부로 묶는다. 패턴이 없는 라인은
+            // 원문 그대로 유지한다.
+            type Block =
+              | { kind: 'req'; num: string; level: string; text: string; subs: string[] }
+              | { kind: 'text'; line: string };
+            const blocks: Block[] = [];
+            for (const l of extras) {
+              const m = l.match(
+                /^(\d+)\.\s*\[?(필수|권장|선택)\]?\s*(.+)$/,
+              );
+              if (m)
+                blocks.push({
+                  kind: 'req',
+                  num: m[1],
+                  level: m[2],
+                  text: m[3].trim(),
+                  subs: [],
+                });
+              else {
+                const last = blocks[blocks.length - 1];
+                if (last?.kind === 'req' && /^[-*·▪]/.test(l.trim()))
+                  last.subs.push(l.trim().replace(/^[-*·▪]\s*/, ''));
+                else blocks.push({ kind: 'text', line: l });
+              }
+            }
+            const shownBlocks = blocks.slice(0, 24);
+            const hasReq = blocks.some((b) => b.kind === 'req');
             return (
+              <>
               <ul className="rule-lines">
-                {extras.slice(0, 24).map((l, i) => (
-                  <li key={i}>{l}</li>
-                ))}
-                {extras.length > 24 && (
+                {shownBlocks.map((b, i) =>
+                  b.kind === 'text' ? (
+                    <li key={i}>{b.line}</li>
+                  ) : (
+                    <li key={i} className="req-item">
+                      <label className="cond-check">
+                        <input
+                          type="checkbox"
+                          checked={reqCheckSet.has(b.text)}
+                          onChange={() => toggleReqCheck(b.text)}
+                          aria-label={b.text + ' 확인 완료'}
+                        />
+                        <span
+                          className={
+                            reqCheckSet.has(b.text)
+                              ? 'badge green'
+                              : b.level === '필수'
+                                ? 'badge orange'
+                                : 'badge'
+                          }
+                        >
+                          {reqCheckSet.has(b.text) ? '확인 완료' : b.level}
+                        </span>
+                        <div>
+                          <b
+                            className={
+                              reqCheckSet.has(b.text) ? 'done-text' : undefined
+                            }
+                          >
+                            {b.num}. {b.text}
+                          </b>
+                          {b.subs.length > 0 && (
+                            <small>{b.subs.join(' · ')}</small>
+                          )}
+                        </div>
+                      </label>
+                    </li>
+                  ),
+                )}
+                {blocks.length > 24 && (
                   <li className="meta">
-                    … 외 {extras.length - 24}줄 — 원문 링크에서 계속
+                    … 외 {blocks.length - 24}줄 — 원문 링크에서 계속
                   </li>
                 )}
               </ul>
+              {hasReq && (
+                <p className="meta">
+                  체크는 본인 확인용입니다 — 공식 졸업 사정은 학교 시스템이
+                  결정합니다.
+                </p>
+              )}
+              </>
             );
           })()}
           {myRules.yearTable && (

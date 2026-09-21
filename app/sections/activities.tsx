@@ -97,7 +97,8 @@ export function Activities({
           )}
           <span className="badge blue">
             {liveStatus(a, now).label}
-            {liveStatus(a, now).dday
+            {liveStatus(a, now).dday &&
+            liveStatus(a, now).dday !== liveStatus(a, now).label
               ? ' · ' + liveStatus(a, now).dday
               : ''}
           </span>

@@ -1573,6 +1573,12 @@ input[aria-invalid='true'] {
   color: var(--nt-steel, #787671);
   font-weight: 400;
 }
+.rule-lines .req-item {
+  list-style: none;
+}
+.rule-lines .req-item small {
+  color: var(--nt-slate, #5d5b54);
+}
 .detail-cover {
   width: 100%;
   max-height: 200px;
