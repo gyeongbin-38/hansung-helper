@@ -159,10 +159,9 @@ export function parseProgramList(html: string): {
 }
 
 const DAY_MS = 86400000;
-const dayStart = (ts: number) => {
-  const d = new Date(ts);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-};
+const KST_OFFSET = 9 * 3600000;
+/** KST 기준 캘린더 일수 — 런타임 타임존 무관 (UTC Workers에서도 한국 날짜로 D-day) */
+const kstDay = (ts: number) => Math.floor((ts + KST_OFFSET) / DAY_MS);
 const parseTs = (s: string | null) => {
   const t = s ? Date.parse(s) : NaN;
   return Number.isNaN(t) ? null : t;
@@ -192,8 +191,7 @@ export function liveStatus(a: Activity, now: number): LiveStatus {
     return { status: 'closed', label: '마감', dday: '마감' };
   if (start !== null && now < start)
     return { status: 'upcoming', label: '접수예정', dday: null };
-  const dd =
-    end !== null ? Math.round((dayStart(end) - dayStart(now)) / DAY_MS) : null;
+  const dd = end !== null ? kstDay(end) - kstDay(now) : null;
   const dday = dd === null ? null : dd <= 0 ? '오늘 마감' : `D-${dd}`;
   return dd !== null && dd <= 7
     ? { status: 'closing', label: '마감임박', dday }
