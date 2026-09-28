@@ -44,3 +44,10 @@
   (생성된 wrangler.json의 placeholder DB ID·워커명을 실값으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (모든 라이브 엔드포인트 200 확인)
 - GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)
+
+## 커밋/PR 규칙 (에이전트 포함 전원)
+- **master 직접 push 금지** — `feat/` `fix/` 브랜치 → PR (머지 조건: CI 통과 + 리뷰)
+- 커밋 전 로컬 검증 필수: `npx tsc --noEmit` → `npx oxlint app/ lib/` → `python scripts/_run_tests.py` → `npm run build`
+- **AI 생성 커밋은 검증 실행 없이 push 금지** — 실행 결과를 PR 본문에 명시
+- CI(`.github/workflows/ci.yml`)가 push/PR마다 동일 항목 재검증 → PR Checks 탭 확인
+- 시크릿·lms-data.json·dist 커밋 금지, prod D1 수정·deploy는 소유자 전용 — 상세: CONTRIBUTING.md
