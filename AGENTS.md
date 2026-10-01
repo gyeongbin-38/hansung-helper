@@ -28,6 +28,7 @@
 
 ## 데이터
 - COSMOS 수집 경로 3개: ① 로그인 시 서버 자동 수집(`lib/server/lms.ts`) ② **`extension/` 크롬 확장**(chrome://extensions → 개발자 모드 → 압축해제된 확장 로드 — **앱 열 때 자동 수집**(background 워커가 LMS 탭에서 `__hsCollect` 실행 → postMessage) + LMS 페이지 수집 버튼 + 4h 주기 수집, 가장 견고) ③ `public/lms-collect.js` 콘솔 붙여넣기(백업)
+- 확장은 LMS와 프로덕션 앱 도메인에만 접근한다. 학사 스냅샷은 브라우저 세션 메모리에만 저장되며 브라우저 종료 시 지워진다.
 - 강의 카탈로그: `scripts/import-courses.py` → `lib/data/catalog-2026-2.json` → `GET /api/courses` (로컬 데이터만, 학교 사이트 실시간 요청 없음)
 - 비교과: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록)
 - 학사일정: `node --experimental-strip-types scripts/crawl-schedule.mts` → `lib/data/schedule.json` → `GET /api/schedule` (hansung.ac.kr 공식 학사일정, month/year2 POST)
@@ -38,10 +39,11 @@
 
 ## 프로덕션 (2026-09-18부터 라이브)
 - **URL**: https://hansung-helper.gyeongbin-38.workers.dev (워커 `hansung-helper`)
-- Cloudflare 계정: gyeongbinb38@gmail.com (account `49fee188…`), workers.dev 서브도메인 `gyeongbin-38`
-- 원격 D1: `site-creator-d1` = `27aa326b-5433-4bcb-bc38-1b63bd66f67b` (APAC), 마이그레이션 적용됨
-- **재배포**: `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
-  (생성된 wrangler.json의 placeholder DB ID·워커명을 실값으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
+- Cloudflare 계정·데이터베이스 식별자와 비밀값은 저장소에 기록하지 않고 소유자 대시보드에서 확인한다.
+- 계정·로그인 IP 인덱스는 `ACCOUNT_INDEX_HMAC_KEY`로 HMAC 처리한다. 로컬 `.dev.vars` 또는 Worker 비밀값으로 32바이트 이상의 무작위 키를 설정하고, 계정 ID 마이그레이션 없이 키를 교체하지 않는다.
+- 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
+- **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
+  (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (모든 라이브 엔드포인트 200 확인)
 - GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)
 

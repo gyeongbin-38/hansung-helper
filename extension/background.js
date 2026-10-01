@@ -7,7 +7,7 @@
  * window.__hsCollect를 실행해 스냅샷을 받는다.
  * - 사용자가 보고 있는 LMS 탭은 절대 이동시키지 않는다.
  * - 진행 중 수집은 중복 실행하지 않고, 최근 성공 수집은 캐시로 응답한다.
- * - 결과는 chrome.storage.local에 남겨 다음 앱 오픈 때 즉시 표시한다.
+ * - 결과는 브라우저 세션 메모리에만 두고 다음 앱 오픈 때 전달한다.
  * COSMOS 로그인 세션은 사용자 브라우저의 것을 그대로 쓴다.
  */
 const LMS = 'https://learn.hansung.ac.kr';
@@ -81,7 +81,7 @@ async function collectLms({ createTab }) {
         return { error: String(e?.message ?? e) };
       }
       if (r.payload) {
-        await chrome.storage.local.set({
+        await chrome.storage.session.set({
           hsuLms: r.payload,
           hsuLmsAt: Date.now(),
         });
@@ -113,7 +113,7 @@ async function collectLms({ createTab }) {
 // 중복으로 두드리지 않게 한다. 실패는 hsuLmsErr로 남겨 콘솔·진단에 쓴다.
 let inflight = null;
 async function requestCollect(opts) {
-  const { hsuLmsAt, hsuLms } = await chrome.storage.local.get([
+  const { hsuLmsAt, hsuLms } = await chrome.storage.session.get([
     'hsuLmsAt',
     'hsuLms',
   ]);
@@ -121,10 +121,9 @@ async function requestCollect(opts) {
   // 진행 중 수집은 그대로 공유한다.
   if (!opts.force && hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
     return { payload: hsuLms, cached: true };
-  // 'known': 과거 성공 수집이 있는(COSMOS 사용자인) 경우에만 탭 생성 —
+  // 'known': 이번 브라우저 세션에서 성공 수집이 있었을 때만 탭 생성 —
   // 한 번도 수집한 적 없는 브라우저에 무작위 탭을 띄우지 않기 위함.
-  const createTab =
-    opts.createTab === 'known' ? !!hsuLmsAt : opts.createTab;
+  const createTab = opts.createTab === 'known' ? !!hsuLmsAt : opts.createTab;
   if (!inflight)
     inflight = collectLms({ createTab }).finally(() => {
       inflight = null;
@@ -132,7 +131,7 @@ async function requestCollect(opts) {
   const res = await inflight;
   if (res.error) {
     console.warn('[학사도우미] 수집 실패:', res.error);
-    void chrome.storage.local.set({
+    void chrome.storage.session.set({
       hsuLmsErr: { error: res.error, at: Date.now() },
     });
   }
@@ -140,6 +139,15 @@ async function requestCollect(opts) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'hsu-get-cache') {
+    chrome.storage.session
+      .get(['hsuLms', 'hsuLmsAt'])
+      .then(({ hsuLms, hsuLmsAt }) =>
+        sendResponse({ payload: hsuLms ?? null, at: hsuLmsAt ?? null }),
+      )
+      .catch(() => sendResponse({ error: 'cache-unavailable' }));
+    return true;
+  }
   if (msg?.type === 'hsu-refresh') {
     requestCollect({ createTab: true, force: msg.force === true })
       .then(sendResponse)

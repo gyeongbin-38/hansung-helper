@@ -6,7 +6,11 @@ import {
   hash,
   json,
   limited,
+  migrateLegacyStudentAccount,
+  PayloadTooLargeError,
+  readTextLimited,
   validOrigin,
+  studentAccountId,
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
@@ -16,14 +20,10 @@ import type { LmsSnapshot } from '@/lib/data/lms';
 // 즉시 버리며 저장하지 않는다. 세션과 계정 데이터는 유지된다.
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
-  if (Number(request.headers.get('content-length') || 0) > 4096)
-    return json({ error: '입력 크기를 초과했습니다.' }, 413);
   try {
     const account = await authenticated(request);
     if (!account) return json({ error: '로그인이 필요합니다.' }, 401);
-    const raw = await request.text();
-    if (raw.length > 4096)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+    const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
     if (!input || typeof input !== 'object')
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
@@ -36,8 +36,9 @@ export async function POST(request: Request) {
     )
       return json({ error: '학번과 비밀번호를 확인해 주세요.' }, 400);
     // 본인 계정만 재수집 가능 — 입력 학번 해시가 세션 계정과 같아야 한다
-    const id = await hash('hansung:' + input.studentId);
-    if (id !== account.id)
+    const id = await studentAccountId(input.studentId);
+    const legacyId = await hash('hansung:' + input.studentId);
+    if (id !== account.id && legacyId !== account.id)
       return json({ error: '연결된 계정의 학번을 입력해 주세요.' }, 403);
     if (await limited('refresh:' + account.id, 3))
       return json(
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
       },
     });
     input.password = '';
+    await migrateLegacyStudentAccount(id, legacyId);
     if (deferredCollect) snapshot.lmsPending = true;
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다
     if (!snapshot.lmsData) {
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
     }
     await database()
       .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ?')
-      .bind(JSON.stringify(snapshot), account.id)
+      .bind(JSON.stringify(snapshot), id)
       .run();
     if (deferredCollect)
       waitUntil(
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
               )
               .bind(
                 JSON.stringify({ lmsData, lmsPending: null }),
-                account.id,
+                id,
                 snapshot.checkedAt,
               )
               .run();
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
                     lmsPending: null,
                     lmsFailedAt: new Date().toISOString(),
                   }),
-                  account.id,
+                  id,
                   snapshot.checkedAt,
                 )
                 .run();
@@ -109,10 +111,12 @@ export async function POST(request: Request) {
       );
     const row = await database()
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
-      .bind(account.id)
+      .bind(id)
       .first<AccountRow>();
     return json(accountView(row!));
   } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: '입력 크기를 초과했습니다.' }, 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')

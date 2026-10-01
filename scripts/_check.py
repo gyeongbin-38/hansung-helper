@@ -2,9 +2,10 @@ import subprocess
 import sys
 import os
 
-os.chdir(r'C:\Users\82107\Desktop\학사 도우미')
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+os.chdir(ROOT)
 env = dict(os.environ)
-env['PATH'] = r'C:\Users\82107\Desktop\학사 도우미\node_modules\.bin' + os.pathsep + env['PATH']
+env['PATH'] = os.path.join(ROOT, 'node_modules', '.bin') + os.pathsep + env['PATH']
 
 CMDS = [
     'tsc --noEmit',

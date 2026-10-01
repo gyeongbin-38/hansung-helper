@@ -1,11 +1,12 @@
 import os
 import subprocess
 
-os.chdir(r'C:\Users\82107\Desktop\학사 도우미')
-log = open(r'dist\server.log', 'w', encoding='utf-8')
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+os.chdir(ROOT)
+log = open(os.path.join('dist', 'server.log'), 'w', encoding='utf-8')
 subprocess.Popen(
     [
-        r'node_modules\.bin\wrangler.cmd',
+        os.path.join('node_modules', '.bin', 'wrangler.cmd'),
         'dev',
         '--config',
         r'dist/server/wrangler.json',
