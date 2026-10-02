@@ -497,8 +497,8 @@ DONE:
   hansung-helper �넂 PUBLIC �쟾�솚 (����썝 collaborator 遺덊븘�슂),
   hansung-helper-deploy private �쑀吏�.
 - Cloudflare �봽濡쒕뜒�뀡 諛고룷 �쐟 (BE-6 �셿猷�): wrangler OAuth 濡쒓렇�씤
-  (gyeongbinb38@gmail.com, account 49fee188���), �썝寃� D1 site-creator-d1
-  �깮�꽦 (27aa326b-5433-4bcb-bc38-1b63bd66f67b, APAC), workers.dev
+  ([redacted], account [redacted]���), �썝寃� D1 site-creator-d1
+  �깮�꽦 ([redacted], APAC), workers.dev
   �꽌釉뚮룄硫붿씤 gyeongbin-38 �벑濡�, �썙而� hansung-helper 諛고룷 �넂
   https://hansung-helper.gyeongbin-38.workers.dev (踰꾩쟾 02bc60c9).
 - �썝寃� D1 留덉씠洹몃젅�씠�뀡 �쟻�슜 (3 �뀒�씠釉�).

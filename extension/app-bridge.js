@@ -35,9 +35,10 @@
 
   // 저장된 스냅샷을 먼저 보내고, 최근 수집이 오래됐으면 백그라운드 수집
   const FRESH_MS = 30 * 60 * 1000;
-  chrome.storage.local.get(['hsuLms', 'hsuLmsAt'], (r) => {
-    if (r.hsuLms) post('hsu-lms-import', { payload: r.hsuLms });
-    if (r.hsuLmsAt && Date.now() - r.hsuLmsAt < FRESH_MS) return;
+  chrome.runtime.sendMessage({ type: 'hsu-get-cache' }, (r) => {
+    if (chrome.runtime.lastError) return;
+    if (r?.payload) post('hsu-lms-import', { payload: r.payload });
+    if (r?.at && Date.now() - r.at < FRESH_MS) return;
     setTimeout(() => trigger(false), 1200);
   });
 

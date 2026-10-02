@@ -2,6 +2,8 @@ import {
   authenticated,
   database,
   json,
+  PayloadTooLargeError,
+  readTextLimited,
   validOrigin,
 } from '@/lib/server/account';
 import { validateLms } from '@/lib/data/lms';
@@ -10,9 +12,7 @@ export async function PUT(request: Request) {
   try {
     const row = await authenticated(request);
     if (!row) return json({ error: '다시 로그인해 주세요.' }, 401);
-    const raw = await request.text();
-    if (raw.length > 200000)
-      return json({ error: '저장할 내용이 너무 큽니다.' }, 413);
+    const raw = await readTextLimited(request, 200000);
     const input = JSON.parse(raw),
       profile: Record<string, unknown> = {};
     if (!input || typeof input !== 'object')
@@ -195,7 +195,11 @@ export async function PUT(request: Request) {
       )
       .run();
     return json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: '저장할 내용이 너무 큽니다.' }, 413);
+    if (error instanceof SyntaxError)
+      return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     return json({ error: '저장하지 못했습니다. 입력 내용은 유지됩니다.' }, 503);
   }
 }

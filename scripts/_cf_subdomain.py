@@ -5,8 +5,15 @@ import re
 import urllib.request
 import urllib.error
 
-CFG = r'C:\Users\82107\AppData\Roaming\xdg.config\.wrangler\config\default.toml'
-ACCOUNT = '49fee1882b3ee6e252c8f1dbe741684a'
+CFG = os.path.join(
+    os.environ.get(
+        'XDG_CONFIG_HOME',
+        os.path.join(
+            os.path.expanduser('~'), 'AppData', 'Roaming', 'xdg.config')),
+    '.wrangler', 'config', 'default.toml')
+ACCOUNT = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
+if not re.fullmatch(r'[0-9a-fA-F]{32}', ACCOUNT):
+    raise SystemExit('set CLOUDFLARE_ACCOUNT_ID in the environment')
 
 toml = open(CFG, encoding='utf-8').read()
 token = re.search(r'oauth_token\s*=\s*"([^"]+)"', toml).group(1)

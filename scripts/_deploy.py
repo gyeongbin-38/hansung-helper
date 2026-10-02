@@ -9,6 +9,7 @@ Usage: python scripts/_deploy.py
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -16,8 +17,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DEPLOY_REPO = os.path.join(ROOT, 'published-personal')
 WRANGLER_JSON = os.path.join(DEPLOY_REPO, 'dist', 'server', 'wrangler.json')
 
-DATABASE_ID = '27aa326b-5433-4bcb-bc38-1b63bd66f67b'  # remote site-creator-d1
+DATABASE_ID = os.environ.get('HANSUNG_D1_DATABASE_ID', '')
 WORKER_NAME = 'hansung-helper'
+if not re.fullmatch(
+    r'[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}',
+    DATABASE_ID,
+):
+    sys.exit('error: set HANSUNG_D1_DATABASE_ID in the deployment environment')
 
 with open(WRANGLER_JSON, encoding='utf-8') as f:
     cfg = json.load(f)
@@ -34,7 +40,7 @@ if not patched:
 
 with open(WRANGLER_JSON, 'w', encoding='utf-8') as f:
     json.dump(cfg, f)
-print(f'patched {WRANGLER_JSON}: name={WORKER_NAME}, database_id={DATABASE_ID}')
+print(f'patched {WRANGLER_JSON}: name={WORKER_NAME}, database_id=configured')
 
 r = subprocess.run(
     'npx wrangler deploy --config dist/server/wrangler.json',
