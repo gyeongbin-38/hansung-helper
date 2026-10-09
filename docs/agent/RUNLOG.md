@@ -1726,3 +1726,42 @@ _verify_prod 전 엔드포인트 200 + 라이브 번들 마커(직접 등록·
 actStatus·act-steps CSS 등 10종) 확인.
 
 BLOCKER: 없음. 라이브 a9015637.
+
+## 2026-10-09 — 디자인 개편: 학생 플래너 방향 + 한글 줄바꿈 + 기능 노출 축소 (ISSUE-30)
+
+TRIGGER: 사용자 지적 — '기능과 설명이 너무 많이 열려 있어 사용자가
+지친다' + 한글 전용 줄바꿈 CSS 필요 + B방향(학생 노트/플래너,
+Notion 레퍼런스) 선택.
+
+DONE:
+- `DESIGN.md` 신설 — B방향 디자인 계약 (잉크 네이비 primary, 노션
+  잉크 본문, 한글 타이포 규칙, 점진적 공개·카드 최소화·하드체크
+  규칙 문서화).
+- 팔레트 리맵 — primary #5645d4(인디고, AI-SaaS 수렴색) → 잉크
+  네이비 #33415c, --nt-ink #1a1a1a → #37352f(노션 잉크),
+  --nt-surface → #f7f6f3. 토큰 이름 유지로 컴포넌트 재작업 없이
+  전체 톤 전환. progress.css stale fallback(#5b5bd6/#f4f4f5) 교정.
+- 한글 타이포 — body `word-break: keep-all`(음절 절개 금지) +
+  `overflow-wrap: break-word`(긴 라틴/URL 최후 절개) +
+  `text-wrap: pretty`, h1-h3 `text-wrap: balance`.
+- 기능 노출 축소 — 홈 중복 히어로(.home-summary) 삭제, 나의 학사
+  현황 타일 4→3(계획 카드와 중복 제거), 페이지 헤딩 상시 배지
+  ·topbar 로어 텍스트 제거, 사이드바 9메뉴를 4그룹 캡션으로
+  (내 학사/수업·계획/활동·일정/점검 + 메뉴 순서 재배치).
+- 비교과 툴바 — 탭 7→6, '직접 등록'을 필터가 아닌 액션 버튼으로
+  이동. 탭 스타일 알약(bordered pill) → 조용한 텍스트 세그먼트.
+- 설명 밀도 — 활동 상세 안내문 5개→2개 병합(면책·출처 유지),
+  졸업 '현재 수강 중' 안내 압축, .meta를 muted 색으로 리세스.
+- 모션 — .activity:hover translateY 제거(그림자만).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 홈·비교과·직접
+등록·졸업·시간표·LMS, 한글 어절 줄바꿈·탭 래핑·툴바 스택 확인.
+
+DEPLOY: PR #7 squash 머지(c7dbcc6) → published-personal 5295930
+→ wrangler deploy d417eb8e-341b-484a-b505-ff673f5b7494 →
+엔드포인트 전부 200 + 라이브 CSS 마커(#33415c/keep-all/text-wrap/
+toolbar-side/#37352f/#f7f6f3) + JS 마커(수업·계획/활동·일정/직접
+등록) 확인.
+
+BLOCKER: 없음. 라이브 d417eb8e.
