@@ -1805,3 +1805,41 @@ DEPLOY: PR #9 squash 머지(98bdf1e) → published-personal cb47218
 BLOCKER: 없음. 라이브 6e641e75.
 NOTE: 프로세스 정리 중 npm.*start 패턴이 무관한 AIR-NOTE 프로젝트의
 next start(PID 19748)도 종료됨 — 사용자에게 고지.
+
+## 2026-10-10 — 디자인 v3: 정밀 다듬기(잿빛 파스텔·언더라인 탭·정합화) (ISSUE-32)
+
+TRIGGER: 사용자 — '좀 더 세련되게'. v2 토대 위에서 컴포넌트 수준의
+정밀함·일관성·팔레트 채도를 다듬는 패스.
+
+DONE (CSS 전용, 구조 변경 없음):
+- 팔레트 — --nt-tint-* 8종을 종이색(--nt-paper) 방향으로 채도 한 단계
+  낮춘 "잿빛 파스텔"로 재지정. timetable 블록·mini-art·badge·stat-tag
+  등 tint 소비처 전체가 한 번에 차분해짐.
+- .tabs — 채운 세그먼트 → 언더라인 인디케이터 탭(2px primary).
+  hover는 hairline 언더라인, active는 primary 언더라인+굵기.
+- .page-heading — 하단 --nt-hairline-soft 룰 + padding-bottom으로
+  문서 마스터헤드 구조.
+- 테두리 다이어트 — .secondary를 hairline으로(hover시 strong),
+  bottom-grid/week-list 날짜 칩·today-item·demo-note 테두리 제거.
+  today-item은 무테 로우 + hover 서피스.
+- 포커스 통일 — input/select/.field에 3px 소프트 링(primary 13%)
+  적용하고 focus-visible outline은 버튼/링크 전용으로 분리해
+  이중 표시 해소.
+- 선택 상태 수렴 — 설문 chosen·온보딩 selected·year-table my-col·
+  ai-mark·saved:hover·band-setup dot·profile-hint의 라벤더/퍼플
+  잔재를 --nt-tint-sky·hairline-strong로 통일.
+- 호버 언어 통일 — 카드 hover = border hairline-strong + shadow-1
+  (activity는 shadow-2 단독이던 것 교정). .task translateY 잔재 제거.
+- dialog radius 20px → 16px, toast shadow-modal → shadow-2.
+- DESIGN.md v3 변경 이력 추가.
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 언더라인 탭·
+마스터헤드 룰·무테 로우·바랜 파스텔 확인.
+
+DEPLOY: PR #11 squash 머지(c32246e) → published-personal 동기화·빌드
+→ wrangler deploy 86aeb3a1-6185-4802-9f22-814e90c25dcc →
+엔드포인트 전부 200 + 라이브 CSS 마커(#f7ebdf/#e5eef4/#eae8f1,
+tabs 언더라인, page-heading 룰, today-item 무테) 확인.
+
+BLOCKER: 없음. 라이브 86aeb3a1.
