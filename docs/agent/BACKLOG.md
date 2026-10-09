@@ -863,3 +863,20 @@ blocking regressions.
 - **Follow-ups**: 온보딩/설문/설정/알림 등 나머지 화면의 설명 밀도
   재감사(이번엔 홈·비교과·졸업·시간표만), 공지 없는 대시보드의
   섹션별 안내는 details 패턴으로 접는 방식 검토.
+
+## ISSUE-32 — 디자인 v3: 정밀 다듬기(잿빛 파스텔·언더라인 탭·상태 정합화)
+
+- **Status**: **verified** (2026-10-10 — 게이트/빌드/로컬 캡처/프로덕션
+  마커 전부 확인)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: '좀 더 세련되게' — v2의 방향은 유지하면서 컴포넌트
+  수준의 정밀함·팔레트 채도·상태 일관성을 끌어올린다.
+- **Done**:
+  - tint 8종을 종이 방향 저채도로 재지정 — 파스텔 면적 소음 축소.
+  - 언더라인 탭 / 마스터헤드 룰 / 무테 로우(today-item)·보더리스 칩.
+  - 필드 포커스 = 소프트 링 하나로 통일(focus-visible과 중복 해소).
+  - 선택·픽 hover·저장 등 상태색 전부 --nt-tint-sky 계열로 수렴.
+  - 카드 hover = border-strong + shadow-1 단일 패턴, dialog 16px.
+- **Follow-ups**: 온보딩/설문/설정/알림 화면의 설명 밀도·details
+  패턴 적용은 ISSUE-31 follow-up과 동일. mini-art 대형 글리프의
+  카테고리별 아트 디렉션(현재는 tint 회전)은 별도 판단.
