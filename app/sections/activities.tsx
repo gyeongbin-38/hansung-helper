@@ -326,11 +326,7 @@ export function Activities({
           </span>
           {isExt(a) && <span className="badge">직접 등록</span>}
           <h2>{a.title}</h2>
-          <p>
-            {isExt(a)
-              ? `${a.dept} — 직접 등록한 활동입니다.`
-              : `${a.dept}에서 운영하는 비교과 프로그램입니다.`}
-          </p>
+          <p>{a.dept}</p>
           <div className="detail-grid">
             {[
               ['신청 기간', period(a.applyStart, a.applyEnd)],
@@ -413,14 +409,14 @@ export function Activities({
           {/* 안내·출처는 한 줄로 병합 — 면책은 유지하되 설명 블록을 늘리지 않는다 */}
           <p className="meta">
             {isExt(a)
-              ? `단계 기록은 본인 확인용 · 직접 등록 ${
+              ? `직접 등록 ${
                   (data.extActivities ?? [])
                     .find((x) => x.id === a.id)
                     ?.addedAt.slice(0, 10) ?? ''
-                } 추가 · 공식 공고가 아니며 포인트 인정 여부는 학교에서 확인`
-              : `단계 기록은 본인 확인용 · 세부 조건·신청 절차는 공고 원문 확인 · 출처: hsportal ${
+                } 추가 · 단계 기록은 본인 확인용 · 포인트 인정은 학교에서 확인`
+              : `출처: hsportal ${
                   snap ? snap.fetchedAt.slice(0, 10) + ' 수집' : ''
-                }${actStale ? ` · ${actStale}` : ''} · 신청·승인은 학교 시스템`}
+                }${actStale ? ` · ${actStale}` : ''} · 단계 기록은 본인 확인용 · 신청은 학교 시스템에서`}
           </p>
         </section>
       </>
@@ -540,11 +536,8 @@ export function Activities({
             {extItems.length
               ? `${snap ? ' + ' : ''}직접 등록 ${extItems.length}건`
               : ''}
-            {snap
-              ? ` · hsportal · ${snap.fetchedAt.slice(0, 10)}`
-              : ''}
+            {snap ? ` · hsportal ${snap.fetchedAt.slice(0, 10)} 수집` : ''}
             {actStale ? ` · ${actStale}` : ''}
-            {snap ? ' · 신청·승인은 학교 시스템에서 진행' : ''}
           </p>
         </>
       ) : (
@@ -553,8 +546,7 @@ export function Activities({
             <Search />
             <h3>조건에 맞는 활동이 없어요.</h3>
             <p className="meta">
-              학교 공개 목록에 없는 외부 활동은 ‘직접 등록’ 탭에서 추가할 수
-              있어요.
+              외부 활동은 ‘직접 등록’으로 추가할 수 있어요.
             </p>
             <button
               className="secondary"
@@ -658,9 +650,7 @@ function ActivityCards({
               </button>
             </h3>
             <p>{a.dept}</p>
-            <small>
-              신청 {period(a.applyStart, a.applyEnd)} · {live.label}
-            </small>
+            <small>신청 {period(a.applyStart, a.applyEnd)}</small>
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

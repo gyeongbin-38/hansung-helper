@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: center;
   padding: 56px 24px 72px;
-  background: var(--nt-canvas);
+  background: var(--nt-paper);
   color: var(--nt-ink);
 }
 .auth-brand {
