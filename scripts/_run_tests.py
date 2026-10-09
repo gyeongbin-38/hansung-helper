@@ -3,6 +3,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 flags = {
     'school.test.mjs': '--experimental-transform-types',
     'lms-server.test.mjs': '--experimental-transform-types',
+    'info.test.mjs': '--experimental-transform-types',
 }
 ok = True
 for f in sorted(glob.glob('tests/*.test.mjs')):

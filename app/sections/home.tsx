@@ -232,14 +232,14 @@ export function Home({
       '개설강의와 연결하면 수강 추정과 시간표 표시가 정확해져요.',
       'lms',
     ]);
-  if (!(data.completed ?? []).length)
+  if (!(data.completed ?? []).length && !data.info?.completed.length)
     tasks.push([
       '03',
       '이수 내역 입력하기',
       '이수한 과목이 없어 졸업 계산이 대기 중이에요.',
       'graduation',
     ]);
-  else if (!data.credits)
+  else if (!data.credits && data.info?.credits === undefined)
     tasks.push([
       '03',
       '총 이수학점 입력하기',
@@ -527,18 +527,30 @@ export function Home({
             ],
             [
               '총 이수학점',
-              data.credits ? data.credits + ' 학점' : '입력 전',
-              data.credits
-                ? '사용자 입력 · 미검증'
-                : '내 정보에서 입력할 수 있어요',
+              data.info?.credits !== undefined
+                ? data.info.credits + ' 학점'
+                : data.credits
+                  ? data.credits + ' 학점'
+                  : '입력 전',
+              data.info?.credits !== undefined
+                ? '학교 수집 · 종합정보'
+                : data.credits
+                  ? '사용자 입력 · 미검증'
+                  : '내 정보에서 입력할 수 있어요',
               'sky',
             ],
             [
               '비교과 포인트',
-              data.points ? data.points + ' P' : '입력 전',
-              data.points
-                ? '사용자 입력 · 미검증'
-                : '학교 인정 내역 확인 필요',
+              data.info?.points !== undefined
+                ? data.info.points + ' P'
+                : data.points
+                  ? data.points + ' P'
+                  : '입력 전',
+              data.info?.points !== undefined
+                ? '학교 수집 · 종합정보'
+                : data.points
+                  ? '사용자 입력 · 미검증'
+                  : '학교 인정 내역 확인 필요',
               'mint',
             ],
           ].map(([l, v, s, tone]) => (

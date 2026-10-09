@@ -38,13 +38,27 @@ import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
 import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
 
-/** 계정 프로필 + 로그인 시 서버 수집 LMS 스냅샷을 Data로 병합.
- *  더 최신 fetchedAt 쪽이 이김 (수동 가져오기 파일이 최신이면 유지). */
+/** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
+ *  사용자 입력값은 절대 덮어쓰지 않는다. */
+function applyInfo(prev: Data, info: InfoSnapshot): Data {
+  const next = { ...prev, info };
+  if (!next.year && info.admitYear) next.year = String(info.admitYear);
+  if ((!next.dept || next.dept === '소속 미입력') && info.dept)
+    next.dept = info.dept;
+  if ((!next.name || next.name === '한성인') && info.name)
+    next.name = info.name;
+  return next;
+}
+
+/** 계정 프로필 + 로그인 시 서버 수집 LMS·종합정보 스냅샷을 Data로 병합.
+ *  LMS는 더 최신 fetchedAt 쪽이 이김 (수동 가져오기 파일이 최신이면 유지).
+ *  info는 서버 작성 전용이라 snapshot 값이 유일한 출처다. */
 function accountData(result: Account): Data {
   const merged = { ...empty, ...result.profile };
   const serverLms = result.snapshot?.lmsData;
@@ -53,7 +67,8 @@ function accountData(result: Account): Data {
     (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
   )
     merged.lms = serverLms;
-  return merged;
+  const info = validateInfo(result.snapshot?.infoData);
+  return info ? applyInfo(merged, info) : merged;
 }
 
 export default function App() {
@@ -143,11 +158,13 @@ export default function App() {
     );
   }, [account?.snapshot.lmsData]);
   // 서버 지연 수집(waitUntil) 진행 중이면 완료/실패까지 짧게 폴링해
-  // 결과를 즉시 반영한다. 기존 lms 데이터가 있어도 재로그인 수집은
-  // lmsPending으로 표시되므로 갱신을 놓치지 않는다.
+  // 결과를 즉시 반영한다. LMS·종합정보 수집 모두 이 루프가 받는다.
+  // 기존 lms 데이터가 있어도 재로그인 수집은 lmsPending으로 표시되므로
+  // 갱신을 놓치지 않는다.
   const lmsPending = account?.snapshot.lmsPending === true;
+  const infoPending = account?.snapshot.infoPending === true;
   useEffect(() => {
-    if (!lmsPending) return;
+    if (!lmsPending && !infoPending) return;
     let cancelled = false,
       tries = 0,
       timer: ReturnType<typeof setTimeout>;
@@ -165,9 +182,15 @@ export default function App() {
                 ? { ...prev, lms: serverLms }
                 : prev,
             );
+          const info = validateInfo(result.snapshot?.infoData);
+          if (info) setData((prev) => applyInfo(prev, info));
           // 수집이 끝났으면(성공·실패 무관) 폴링 중단
-          if (!result.snapshot?.lmsPending || result.snapshot?.lmsFailedAt)
-            return;
+          const snap = result.snapshot;
+          const doneLms =
+            !snap?.lmsPending || !!snap?.lmsFailedAt;
+          const doneInfo =
+            !snap?.infoPending || !!snap?.infoFailedAt;
+          if (doneLms && doneInfo) return;
         }
       } catch {
         /* 다음 주기에 재시도 */
@@ -179,7 +202,7 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lmsPending]);
+  }, [lmsPending, infoPending]);
   // 수집 예산(60s)+여유를 넘긴 pending은 워커 중도 종료로 간주 — 무한
   // "수집 중" 대신 지연 안내로 전환한다. 마커 도입 전의 스냅샷은
   // connected인데 lmsData·pending이 없는 상태로 남을 수 있어 그것도
@@ -187,7 +210,7 @@ export default function App() {
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const checkedAt = account?.snapshot.checkedAt;
-    if (!lmsPending || !checkedAt) return;
+    if ((!lmsPending && !infoPending) || !checkedAt) return;
     const remaining = Date.parse(checkedAt) + 5 * 60e3 - Date.now();
     if (remaining <= 0) {
       setNowTick(Date.now());
@@ -195,17 +218,24 @@ export default function App() {
     }
     const timer = setTimeout(() => setNowTick(Date.now()), remaining);
     return () => clearTimeout(timer);
-  }, [lmsPending, account?.snapshot.checkedAt]);
-  const collectStale =
-    lmsPending &&
+  }, [lmsPending, infoPending, account?.snapshot.checkedAt]);
+  const collectStale = (pending: boolean) =>
+    pending &&
     !!account?.snapshot.checkedAt &&
     Date.parse(account.snapshot.checkedAt) + 5 * 60e3 <= nowTick;
   const lmsFailed =
     !!account?.snapshot.lmsFailedAt ||
-    collectStale ||
+    collectStale(lmsPending) ||
     (account?.snapshot.lms === 'connected' &&
       !account.snapshot.lmsData &&
       !account.snapshot.lmsPending);
+  // 종합정보 수집 실패 — 포털은 연결됐는데 infoData가 없는 상태 포함
+  const infoFailed =
+    !!account?.snapshot.infoFailedAt ||
+    collectStale(infoPending) ||
+    (account?.snapshot.portal === 'connected' &&
+      !account.snapshot.infoData &&
+      !account.snapshot.infoPending);
   useEffect(() => {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
@@ -635,8 +665,11 @@ export default function App() {
                       typeof d.plans === 'object' &&
                       !Array.isArray(d.plans))) &&
                   (d.lms === undefined || typeof d.lms === 'object')
-                )
-                  setData({ ...empty, ...d });
+                ) {
+                  const next = { ...empty, ...d };
+                  const info = validateInfo(d.info);
+                  setData(info ? applyInfo(next, info) : next);
+                }
               }
             } catch {
               setData(empty);
@@ -734,6 +767,10 @@ export default function App() {
               planned={planned}
               persist={persist}
               detail={detail}
+              infoPending={
+                infoPending && !collectStale(infoPending)
+              }
+              infoFailed={infoFailed}
             />
           ) : section === 'courses' ? (
             <Courses
@@ -781,7 +818,7 @@ export default function App() {
               persist={persist}
               notify={setToast}
               detail={detail}
-              serverCollecting={lmsPending && !collectStale}
+              serverCollecting={lmsPending && !collectStale(lmsPending)}
               collectFailed={lmsFailed}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               lmsError={account?.snapshot.lmsError}

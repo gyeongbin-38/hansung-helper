@@ -249,6 +249,37 @@
   color: var(--nt-steel);
   font-size: 12.5px;
 }
+/* ---------- 종합정보 수집 결과 ---------- */
+.info-audit {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: var(--nt-surface);
+  border-radius: 10px;
+}
+.info-audit summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.info-audit .rule-lines {
+  margin: 10px 0 4px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-audit .rule-lines li {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.info-audit .rule-lines small {
+  color: var(--nt-steel);
+  font-size: 12px;
+}
+.info-audit .meta {
+  color: var(--nt-steel);
+  font-size: 12.5px;
+}
 .rules-image {
   margin: 10px 0 14px;
 }
