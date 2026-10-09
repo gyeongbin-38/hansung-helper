@@ -217,12 +217,6 @@ nav button.selected svg {
   top: 0;
   z-index: 20;
 }
-.top-label {
-  font-size: 13px;
-  color: var(--nt-steel);
-  margin-right: auto;
-  white-space: nowrap;
-}
 /* fake quick-find: filled surface, muted icon, kbd chip */
 .global-search {
   display: flex;
@@ -561,9 +555,6 @@ footer {
   }
   .topbar {
     padding: 0 20px;
-  }
-  .top-label {
-    display: none;
   }
   .global-search {
     margin-right: auto;

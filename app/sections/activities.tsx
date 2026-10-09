@@ -22,6 +22,7 @@ import {
   type ExtActivity,
 } from '@/lib/data/activities';
 
+/* '직접 등록'은 필터가 아니라 등록 행동 — 툴바의 액션 버튼으로 뺐다 */
 const TABS = [
   '전체',
   '신청 가능',
@@ -29,7 +30,6 @@ const TABS = [
   '운영·마감',
   '저장한 활동',
   '취향 추천',
-  '직접 등록',
 ];
 
 const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
@@ -371,10 +371,6 @@ export function Activities({
             </p>
           )}
           {stageRow(a)}
-          <p className="meta">
-            단계 기록은 본인 확인용입니다. 신청 승인·수료·포인트 반영은
-            {isExt(a) ? ' 주최 기관과 학교' : ' 학교 시스템'}에서 확정됩니다.
-          </p>
           {data.actStatus?.[a.id] === 'credited' && (
             <p className="meta">
               포인트가 반영됐다면{' '}
@@ -414,22 +410,17 @@ export function Activities({
               </button>
             )}
           </div>
-          {!isExt(a) && (
-            <p className="meta">
-              활동 내용·참여 대상·수료 조건·신청 절차는 공고 원문에서
-              확인하세요. 목록 데이터에는 포함되지 않습니다.
-            </p>
-          )}
+          {/* 안내·출처는 한 줄로 병합 — 면책은 유지하되 설명 블록을 늘리지 않는다 */}
           <p className="meta">
             {isExt(a)
-              ? `직접 등록 · ${(
-                  data.extActivities ?? []
-                )
-                  .find((x) => x.id === a.id)
-                  ?.addedAt.slice(0, 10)} 추가 · 학교 공식 공고가 아니며 비교과 포인트 인정 여부는 학교에서 확인하세요.`
-              : `출처: hsportal.hansung.ac.kr 공개 목록 · ${
-                  snap ? snap.fetchedAt.slice(0, 10) : ''
-                } 수집${actStale ? ` · ${actStale}` : ''} · 신청·승인은 학교 시스템이 결정합니다`}
+              ? `단계 기록은 본인 확인용 · 직접 등록 ${
+                  (data.extActivities ?? [])
+                    .find((x) => x.id === a.id)
+                    ?.addedAt.slice(0, 10) ?? ''
+                } 추가 · 공식 공고가 아니며 포인트 인정 여부는 학교에서 확인`
+              : `단계 기록은 본인 확인용 · 세부 조건·신청 절차는 공고 원문 확인 · 출처: hsportal ${
+                  snap ? snap.fetchedAt.slice(0, 10) + ' 수집' : ''
+                }${actStale ? ` · ${actStale}` : ''} · 신청·승인은 학교 시스템`}
           </p>
         </section>
       </>
@@ -478,19 +469,26 @@ export function Activities({
                     items.some((x) => x.id === id),
                   ).length +
                     extItems.length)
-                : f === '직접 등록' && extItems.length
-                  ? ' ' + extItems.length
-                  : ''}
+                : ''}
             </button>
           ))}
         </div>
-        <input
-          className="field"
-          aria-label="활동명 검색"
-          placeholder="활동명, 운영기관 검색"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="toolbar-side">
+          <input
+            className="field"
+            aria-label="활동명 검색"
+            placeholder="활동명, 운영기관 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            className="secondary"
+            aria-pressed={filter === '직접 등록'}
+            onClick={() => setFilter('직접 등록')}
+          >
+            <Plus size={15} /> 직접 등록
+          </button>
+        </div>
       </div>
       {filter === '직접 등록' && extFormNode}
       {failed ? (

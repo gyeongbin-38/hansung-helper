@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import {
   User,
   Settings,
@@ -15,6 +15,13 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { menus, type Data } from './data';
+
+/* menus 인덱스 → 그룹 캡션 시작점. 순서 바꾸면 경계도 함께 수정 */
+const NAV_GROUP_AT: Record<number, string> = {
+  1: '수업·계획',
+  5: '활동·일정',
+  7: '점검',
+};
 import { Logo } from '../logo';
 import type { Account } from '../account-flow';
 
@@ -76,17 +83,21 @@ export function Sidebar({
         </div>
         <div className="nav-caption">내 학사</div>
         <nav>
-          {menus.map(([key, name, Icon]) => (
-            <button
-              key={key}
-              className={section === key ? 'selected' : ''}
-              aria-label={name}
-              title={name}
-              onClick={() => go(key)}
-            >
-              <Icon size={18} />
-              <span className="nav-label">{name}</span>
-            </button>
+          {menus.map(([key, name, Icon], i) => (
+            <Fragment key={key}>
+              {NAV_GROUP_AT[i] && (
+                <div className="nav-caption">{NAV_GROUP_AT[i]}</div>
+              )}
+              <button
+                className={section === key ? 'selected' : ''}
+                aria-label={name}
+                title={name}
+                onClick={() => go(key)}
+              >
+                <Icon size={18} />
+                <span className="nav-label">{name}</span>
+              </button>
+            </Fragment>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -173,7 +184,6 @@ export function Topbar({
           <PanelLeftOpen size={18} />
         </button>
       )}
-      <span className="top-label">나의 대학 생활, 한곳에서</span>
       <form
         className="global-search"
         onSubmit={(e) => {
@@ -233,13 +243,11 @@ export function PageHeading({
   section,
   label,
   name,
-  account,
   onSurvey,
 }: {
   section: string;
   label: string;
   name: string;
-  account: Account | null;
   /** 이 페이지 문맥에 맞는 설문을 연다 — 비교과면 비교과 설문, 그 외 수업 선호 */
   onSurvey?: () => void;
 }) {
@@ -256,10 +264,7 @@ export function PageHeading({
         </p>
       </div>
       <div className="page-heading-side">
-        <span className="date-label">
-          2026학년도 2학기{' '}
-          <span className="badge">{account ? '내 학사 홈' : '체험용'}</span>
-        </span>
+        <span className="date-label">2026학년도 2학기</span>
         {onSurvey && (
           <button
             className="secondary survey-trigger"

@@ -12,6 +12,20 @@
   margin-bottom: 24px;
   flex-wrap: wrap;
 }
+.toolbar-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toolbar-side .field {
+  flex: 0 1 300px;
+  padding: 10px 14px;
+}
+.toolbar-side .secondary {
+  white-space: nowrap;
+  padding: 9px 14px;
+  min-height: 0;
+}
 .toolbar .field {
   flex: 0 1 300px;
   padding: 10px 14px;
@@ -21,29 +35,26 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+/* 노션식 텍스트 탭 — 필 알약 대신 조용한 세그먼트 */
 .tabs button {
-  padding: 8px 15px;
+  padding: 7px 12px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: var(--nt-r-pill);
-  border: 1px solid var(--nt-hairline);
-  color: var(--nt-slate);
-  background: var(--nt-canvas);
+  border-radius: var(--nt-r-sm);
+  color: var(--nt-stone);
   transition:
     background-color 0.15s var(--nt-ease),
-    border-color 0.15s var(--nt-ease),
     color 0.15s var(--nt-ease);
 }
 .tabs button:hover {
-  border-color: var(--nt-hairline-strong);
   color: var(--nt-ink);
-  background: var(--nt-surface);
+  background: var(--nt-tint-gray);
 }
 .tabs .active,
 .tabs .active:hover {
-  background: var(--nt-ink);
-  border-color: var(--nt-ink);
-  color: var(--nt-on-dark);
+  background: var(--nt-tint-gray);
+  color: var(--nt-ink);
+  font-weight: 600;
 }
 /* button row used by detail pages and dialogs */
 .actions {
@@ -62,13 +73,10 @@
 .activity {
   display: flex;
   flex-direction: column;
-  transition:
-    box-shadow 0.2s var(--nt-ease),
-    transform 0.2s var(--nt-ease);
+  transition: box-shadow 0.2s var(--nt-ease);
 }
 .activity:hover {
   box-shadow: var(--nt-shadow-2);
-  transform: translateY(-2px);
 }
 .mini-art {
   padding: 22px 24px;
@@ -415,6 +423,7 @@
     align-items: stretch;
     flex-direction: column;
   }
+  .toolbar-side .field,
   .toolbar .field {
     flex: 1 1 auto;
     width: 100%;
