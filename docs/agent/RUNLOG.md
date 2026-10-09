@@ -1843,3 +1843,62 @@ DEPLOY: PR #11 squash 머지(c32246e) → published-personal 동기화·빌드
 tabs 언더라인, page-heading 룰, today-item 무테) 확인.
 
 BLOCKER: 없음. 라이브 86aeb3a1.
+
+## 2026-10-10 — 종합정보 자동 수집: 이수 내역·비교과 포인트·사정표·학적 (ISSUE-33)
+
+TRIGGER: P0 — 졸업요건의 실질 가치를 좌우하던 수동 입력 갭 해소.
+로그인 시 이미 열리는 info.hansung.ac.kr 세션을 재사용하는 서버 수집
+파이프라인을 LMS 수집 패턴과 동일하게 구축.
+
+DONE:
+- lib/data/info.ts — InfoSnapshot·InfoCourse·InfoAuditRow,
+  validateInfo(수화 검증·클램프), mergeCompleted(수집본 우선·수동
+  목록 불변·코드/정규화 이름 dedup), infoCategory(학교 이수구분 →
+  앱 어휘, 미지 구분 원문 유지).
+- lib/server/info.ts — parseInfoMenu(anchor·onclick·JS 쌍 + bare
+  서블릿명), SLOTS 우선순위 매칭(누적성적 > 금학기), 헤더 기반
+  테이블 파서(과목코드·교과목명·이수구분·학점·등급·학기 컬럼 발견),
+  학기 중간 헤더 행 추적, 미이수 등급(F·FA·NP·N·U·I·낙제·불합격·
+  미이수·포기) 제외, 소계/합계 행 제외(과목명 '통계'·'회계' 보존),
+  UTF-8 선행 + U+FFFD 감지 시 EUC-KR 폴백 디코딩, isLoginWall 감지,
+  parsePoints(합계 행 우선 → 본문 패턴 폴백), parseAudit(원문 행
+  보존 — 수치 강제 변환 없음), parseIdentity(성명·소속·학번→입학연도),
+  collectInfo 오케스트레이션(병렬 fetch·예외는 diag.ok로 표면화·
+  메뉴/타겟/페이지 성공 여부를 diag로 기록 — 실계정 첫 수집 시 실제
+  메뉴 구조가 드러남).
+- school.ts — deferInfo 채널 추가. LMS 결과와 무관하게 포털 세션으로
+  진행. 인라인 수집 폴백(deferInfo 없으면 로그인 안에서 즉시 수집).
+- 라우트 — login + lms-refresh에 infoPending 마커·waitUntil 지연
+  수집·checkedAt 가드 json_patch·실패 시 infoFailedAt·이전 스냅샷
+  보존(lmsData/infoData 각각).
+- 클라이언트 — data.info 수화(validateInfo + applyInfo: year/dept/
+  name 빈칸·기본값만 채움, 사용자 입력 절대 덮어쓰지 않음),
+  LMS·info 동시 폴링(각각 완료·실패까지), collectStale 공용화
+  (5분 예산 초과 pending → 실패 분류), 데모 수화에도 applyInfo 적용.
+- 졸업 UI — merged 이수 목록(수집 행 '수집' 배지·삭제 버튼 없음,
+  수동 행만 삭제 가능), info.points 우선 계산(수동 입력 폴백·미입력≠0
+  유지), 인트로 수집 배지+신선도, 수집 과목 수·취득학점·평점 meta,
+  학교 졸업가사정표 <details>(원문·참고용 고지), 실패 시
+  '수동 입력 + 다음 로그인 재시도' 안내.
+- 홈 — 이수학점·비교과 포인트 타일이 수집값 우선 + '학교 수집' 출처
+  라벨, 수집된 경우 입력 유도 태스크 억제.
+- 프로필/온보딩 — '연결 시 자동 입력' 힌트, 동의 문구에 학사 정보
+  조회 명시(체크박스 문구도 강의→강의·학사로 확장).
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK(신규
+info.test.mjs 51건 — 메뉴 파싱·슬롯 우선순위·성적/포인트/사정표/
+학적 파서·로그인 벽·collectInfo·mergeCompleted·validateInfo) ·
+빌드 green. 로컬 CDP 캡처 — info 주입 데모에서 수집 배지·병합
+목록(수집/수동 구분)·사정표 details·홈 타일 확인. 로그인 라우트
+401 경로 확인(학교 서버 도달·자격 거부).
+
+DEPLOY: PR #13 squash 머지(43b5df8) → published-personal 동기화·빌드
+→ wrangler deploy 00befe87-b92a-443f-9e37-85f44eeb558c →
+엔드포인트 전부 200 + 라이브 CSS(.info-audit/.conn-warn) + page
+청크 JS 마커(infoPending/info-hansung/infoData/학교 수집) 확인.
+배포 리포 bcaf6b7.
+
+BLOCKER: 없음. 라이브 00befe87.
+NOTE: 실계정 페이지 마크업은 미검증 — 파서는 메뉴 발견 + 일반 테이블
+기반이라 첫 실로그인의 diag(menu·pages)로 실제 구조 확인 필요.
+매칭 실패 시 안전하게 빈 스냅샷 + 수동 입력 안내로 수렴.
