@@ -290,7 +290,7 @@
 .onboarding-option[aria-pressed='true'],
 .onboarding-option:has(input:checked) {
   border-color: var(--nt-primary);
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
   color: var(--nt-ink);
 }
 .onboarding-option.selected .option-check,
@@ -312,7 +312,7 @@ dialog.survey-dialog {
   margin: auto;
   padding: 30px 32px;
   border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-xxl);
+  border-radius: var(--nt-r-xl);
   background: var(--nt-canvas);
   color: var(--nt-ink);
   box-shadow: var(--nt-shadow-modal);
@@ -359,7 +359,7 @@ dialog.survey-dialog > p {
 .survey-dialog .survey-options button.chosen,
 .survey-dialog .survey-options button[aria-pressed='true'] {
   border-color: var(--nt-primary);
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
   color: var(--nt-ink);
 }
 .survey-dialog .actions {

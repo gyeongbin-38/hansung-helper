@@ -180,13 +180,13 @@
   vertical-align: top;
 }
 .year-table th {
-  background: var(--nt-tint-lavender, #e6e0f5);
+  background: var(--nt-surface);
   font-weight: 600;
   white-space: nowrap;
 }
 .year-table .my-col {
-  background: var(--nt-tint-lavender, #e6e0f5);
-  outline: 2px solid var(--nt-primary, #33415c);
+  background: var(--nt-tint-sky);
+  outline: 2px solid var(--nt-primary);
   outline-offset: -2px;
 }
 .dept-conds {
@@ -282,8 +282,8 @@
   width: 64px;
   height: 64px;
   border-radius: var(--nt-r-xl);
-  background: var(--nt-tint-lavender);
-  color: var(--nt-primary);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
 }
 .chips {
   display: flex;
@@ -400,7 +400,7 @@
 /* ---------- 설문 다이얼로그 ---------- */
 dialog {
   border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-xxl);
+  border-radius: var(--nt-r-xl);
   padding: 32px;
   width: min(560px, calc(100% - 32px));
   color: var(--nt-ink);
@@ -441,7 +441,7 @@ dialog p {
 .survey-options .chosen {
   border-color: var(--nt-primary);
   color: var(--nt-ink);
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
 }
 
 @media (max-width: 1199px) {
