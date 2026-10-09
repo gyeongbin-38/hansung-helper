@@ -83,7 +83,7 @@
   transition: background 0.15s ease;
 }
 .hc-dots button[aria-current='true'] {
-  background: var(--nt-purple);
+  background: var(--nt-primary);
 }
 .hc-src {
   margin: 12px 0 0;
@@ -202,10 +202,10 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  color: var(--nt-purple-800);
-  background: var(--nt-tint-lavender);
+  color: var(--nt-primary-deep);
+  background: var(--nt-tint-sky);
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--nt-purple-800) 10%, transparent);
+    color-mix(in srgb, var(--nt-primary-deep) 10%, transparent);
   flex-shrink: 0;
 }
 .task b {
@@ -432,7 +432,7 @@ button.event-line.as-link > svg {
 .notif-item.unread {
   background: color-mix(
     in srgb,
-    var(--nt-tint-lavender) 42%,
+    var(--nt-tint-sky) 42%,
     var(--nt-canvas)
   );
 }
@@ -458,13 +458,13 @@ button.event-line.as-link > svg {
   flex-shrink: 0;
 }
 .notif-item.unread .notif-ico {
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
   border-color: color-mix(
     in srgb,
-    var(--nt-purple-800) 14%,
+    var(--nt-primary-deep) 14%,
     transparent
   );
-  color: var(--nt-purple-800);
+  color: var(--nt-primary-deep);
 }
 .notif-body {
   flex: 1;

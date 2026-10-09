@@ -514,7 +514,7 @@
 }
 .plan-slot.current {
   border-color: var(--nt-primary);
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
 }
 .plan-slot.empty {
   border-style: dashed;
@@ -1681,8 +1681,7 @@ input[aria-invalid='true'] {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  background: color-mix(in srgb, var(--nt-tint-lavender, #e6e0f5) 55%, white);
-  border-color: var(--nt-hairline, #e5e3df);
+  background: var(--nt-surface);
 }
 .act-band > div {
   display: flex;

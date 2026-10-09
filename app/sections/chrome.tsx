@@ -222,21 +222,16 @@ export function Topbar({
   );
 }
 
-/** 페이지별 한 줄 설명 — 모든 화면에 같은 문장을 반복하지 않는다 */
-const SECTION_SUB: Record<string, string> = {
-  home: '오늘 필요한 수업과 다음 계획을 확인하세요.',
-  timetable: '개설 시간표에서 과목을 담아 다음 학기를 구성합니다.',
-  activities: '지금 신청할 수 있는 비교과·대외활동을 찾아 저장합니다.',
-  calendar: '학교 학사일정과 개인 일정을 함께 봅니다.',
-  lms: 'COSMOS 강의·과제·퀴즈의 수집 상태와 남은 항목입니다.',
-  advisor: '내 정보와 수집 데이터로 다음 행동을 정리합니다.',
-  graduation: '이수 내역과 학과 규정으로 졸업 충족률을 계산합니다.',
-  'semester-plan': '학기별 수강 계획을 정리합니다.',
-  courses: '개설 과목을 찾아 학기 계획에 담습니다.',
-  profile: '학적·이수 정보와 수업 선호를 관리합니다.',
-  settings: '계정 연결과 저장 데이터를 관리합니다.',
-  notifications: '마감·일정·변경 사항을 모아 보여줍니다.',
-  search: '과목·활동·학사일정·수업 항목을 통합 검색합니다.',
+/** 아이브로우 — 홈은 오늘 날짜(플래너 페이지 넘기는 느낌), 나머지는 네비 그룹 */
+const NAV_GROUP_OF: Record<string, string> = {
+  timetable: '수업·계획',
+  lms: '수업·계획',
+  'semester-plan': '수업·계획',
+  courses: '수업·계획',
+  activities: '활동·일정',
+  calendar: '활동·일정',
+  graduation: '점검',
+  advisor: '점검',
 };
 
 export function PageHeading({
@@ -251,17 +246,18 @@ export function PageHeading({
   /** 이 페이지 문맥에 맞는 설문을 연다 — 비교과면 비교과 설문, 그 외 수업 선호 */
   onSurvey?: () => void;
 }) {
+  const today = new Date().toLocaleDateString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
   return (
     <div className="page-heading">
       <div>
         <div className="eyebrow">
-          내 학사 / {section === 'home' ? '홈' : label}
+          {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
         </div>
         <h1>{section === 'home' ? `${name}님, 반가워요.` : label}</h1>
-        <p>
-          {SECTION_SUB[section] ??
-            '필요한 정보를 확인하고 다음 계획으로 연결하세요.'}
-        </p>
       </div>
       <div className="page-heading-side">
         <span className="date-label">2026학년도 2학기</span>
@@ -307,13 +303,13 @@ export function AccountBar({
               {account.snapshot.lmsPending
                 ? '수집 중…'
                 : account.snapshot.lms !== 'connected'
-                  ? '연결 실패 · 수업 현황에서 재수집 가능'
+                  ? '연결 실패'
                   : account.snapshot.lmsFailedAt
-                    ? '수집 실패 · 수업 현황에서 재수집 가능'
+                    ? '수집 실패'
                     : account.snapshot.lmsData
                       ? '조회 완료'
-                      : '수집 실패 · 수업 현황에서 재수집 가능'}{' '}
-              · {new Date(account.snapshot.checkedAt).toLocaleString('ko-KR')}
+                      : '수집 실패'}{' '}
+              · {new Date(account.snapshot.checkedAt).toLocaleDateString('ko-KR')}
             </small>
           </div>
         </div>

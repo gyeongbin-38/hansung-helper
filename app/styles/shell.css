@@ -117,8 +117,8 @@ nav button.selected svg {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
   padding: 1px 6px;
   border-radius: var(--nt-r-xs);
   margin-left: auto;
@@ -207,7 +207,7 @@ nav button.selected svg {
 }
 .topbar {
   height: 56px;
-  background: var(--nt-canvas);
+  background: var(--nt-paper);
   border-bottom: 1px solid var(--nt-hairline);
   display: flex;
   align-items: center;
@@ -269,7 +269,7 @@ nav button.selected svg {
   height: 7px;
   background: var(--nt-primary);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--nt-canvas);
+  box-shadow: 0 0 0 2px var(--nt-paper);
 }
 main {
   max-width: 1280px;
@@ -294,11 +294,7 @@ main {
 }
 .page-heading h1 {
   font-weight: 700;
-  letter-spacing: -0.03em;
-}
-.page-heading p {
-  font-size: 14px;
-  margin: 8px 0 0;
+  letter-spacing: -0.02em;
 }
 .date-label {
   font-size: 13px;
@@ -451,9 +447,9 @@ footer {
   background: var(--nt-surface);
 }
 .notif-panel .notif-cats .badge.sel {
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
-  border-color: color-mix(in srgb, var(--nt-purple-800) 20%, transparent);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
+  border-color: color-mix(in srgb, var(--nt-primary-deep) 20%, transparent);
 }
 .notif-panel-list {
   flex: 1;
@@ -610,9 +606,6 @@ footer {
   }
   .page-heading {
     margin-bottom: 20px;
-  }
-  .page-heading p {
-    font-size: 14px;
   }
   .demo-note {
     font-size: 13px;

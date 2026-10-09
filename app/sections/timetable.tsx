@@ -496,22 +496,19 @@ export function Timetable({
   return (
     <section className="builder">
       <div className="between builder-head">
-        <div>
-          <h2>시간표 짜기</h2>
-          <p>
-            {catalog ? (
-              `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
-            ) : failed ? (
-              <>
-                개설강의 데이터를 불러오지 못했습니다.{' '}
-                {retry && <RetryButton onRetry={retry} />}
-              </>
-            ) : (
-              '개설강의 데이터를 불러오는 중입니다.'
-            )}{' '}
-            · 개인 계획이며 공식 수강신청이 아닙니다.
-          </p>
-        </div>
+        <p className="meta">
+          {catalog ? (
+            `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
+          ) : failed ? (
+            <>
+              개설강의 데이터를 불러오지 못했습니다.{' '}
+              {retry && <RetryButton onRetry={retry} />}
+            </>
+          ) : (
+            '개설강의 데이터를 불러오는 중입니다.'
+          )}{' '}
+          · 개인 계획이며 공식 수강신청이 아닙니다.
+        </p>
         <div className="builder-actions">
           <button
             className="secondary"

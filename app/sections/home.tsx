@@ -81,7 +81,6 @@ function TodayStrip({
     <section className="today-strip card pad" aria-label="오늘 처리할 일">
       <div className="section-heading">
         <h2>오늘 처리할 일</h2>
-        <span className="meta">확정된 마감 기준</span>
       </div>
       {top.map((t, i) => (
         <button className="today-item" key={i} onClick={() => go(t.route)}>
@@ -182,7 +181,7 @@ export function Home({
         dday: dd,
         kind: '학사일정',
         title: e.title,
-        sub: 'hansung.ac.kr 공식 일정',
+        sub: '',
         route: 'calendar',
       });
   }
@@ -322,7 +321,7 @@ export function Home({
                       t.title
                     )}
                   </b>
-                  <small>{t.sub}</small>
+                  {t.sub && <small>{t.sub}</small>}
                 </div>
                 <ArrowUpRight size={15} aria-hidden="true" />
               </button>
@@ -371,7 +370,6 @@ export function Home({
           <h2>
             내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
           </h2>
-          <span>입력·확인이 필요한 항목</span>
         </div>
         {shownTasks.length ? (
           <div className="tasks">
@@ -565,7 +563,6 @@ export function Home({
               <span className="event-date">{e.start.slice(5)}</span>
               <div>
                 <b>{e.title}</b>
-                <small>공식 학사일정 · hansung.ac.kr</small>
               </div>
             </div>
           ))}
@@ -575,7 +572,7 @@ export function Home({
                 <span className="event-date">{e.date.slice(5)}</span>
                 <div>
                   <b>{e.title}</b>
-                  <small>개인 일정 · 사용자 입력</small>
+                  <small>개인 일정</small>
                 </div>
               </div>
             ))
@@ -620,7 +617,6 @@ export function Home({
                         {c.name}
                       </a>
                     </b>
-                    <small>코스모스 조회</small>
                   </div>
                 </div>
               ))}

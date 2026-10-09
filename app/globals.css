@@ -1,4 +1,5 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 @import 'tailwindcss';
 @import './styles/shell.css';
 @import './styles/auth.css';
@@ -59,8 +60,12 @@
   --nt-tint-gray: #f0eeec;
   /* surface — 종이색 캔버스 + 노션 회색 패널 */
   --nt-canvas: #ffffff;
+  --nt-paper: #fbfaf7;
   --nt-surface: #f7f6f3;
   --nt-surface-soft: #fbfbfa;
+  /* display — 노션 세리프 모드: 제목·숫자·날짜만 한글 세리프로 인쇄물 계층 */
+  --nt-font-display:
+    'Gowun Batang', 'Noto Serif KR', 'Source Serif 4', serif;
   --nt-hairline: #e5e3df;
   --nt-hairline-soft: #ede9e4;
   --nt-hairline-strong: #c8c4be;
@@ -100,11 +105,28 @@ body {
   margin: 0;
   font-size: 16px;
   line-height: 1.6;
+  background: var(--nt-paper);
   /* 한글 어절 단위 줄바꿈 — 음절 중간 절개 금지.
      긴 영문/URL은 overflow-wrap이 마지막 수단으로 절개한다. */
   word-break: keep-all;
   overflow-wrap: break-word;
   text-wrap: pretty;
+}
+::selection {
+  background: color-mix(in srgb, var(--nt-primary) 16%, transparent);
+}
+/* 얇은 스크롤바 — 콘텐츠와 경쟁하지 않는다 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--nt-hairline-strong);
+  border-radius: var(--nt-r-pill);
+  border: 2px solid var(--nt-paper);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nt-stone);
 }
 button,
 input {
@@ -160,6 +182,24 @@ small {
   font-size: 13px;
   color: var(--nt-stone);
   line-height: 1.5;
+}
+/* ---- display serif: 페이지 제목·섹션 제목·큰 숫자·D-day에만 적용.
+   본문·라벨·버튼은 산스 유지 — 문서 계층과 UI 크롬을 서체로 분리한다 ---- */
+.page-heading h1,
+.section-heading h2,
+.detail > h2,
+.grad-intro h2,
+.auth-panel h1,
+.notif-panel-head h2,
+.hc-body h3,
+.stat strong,
+.plan-stats b,
+.builder-sum strong,
+.grad-intro > strong,
+.mini-art strong,
+.event-date b {
+  font-family: var(--nt-font-display);
+  letter-spacing: -0.01em;
 }
 /* ---- shared primitives (card-base / buttons / badges / fields) ---- */
 .card {
@@ -472,8 +512,8 @@ select {
   color: var(--nt-ink);
 }
 .saved {
-  color: var(--nt-purple-800);
-  background: var(--nt-tint-lavender);
+  color: var(--nt-primary-deep);
+  background: var(--nt-tint-sky);
 }
 .avatar {
   display: grid;
@@ -481,8 +521,8 @@ select {
   width: 39px;
   height: 39px;
   border-radius: 50%;
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
   font-weight: 600;
   flex-shrink: 0;
 }

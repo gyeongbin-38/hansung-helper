@@ -394,20 +394,19 @@ export function Graduation({
           </ol>
         )}
         <p>
-          입력한 이수 과목으로 이수구분별 충족률을 계산합니다.{' '}
-          {deptTargets
-            ? `총 이수학점·비교과 포인트는 내 학과 졸업 규정표의 학번별 기준(${deptTargets.columnLabel})을 적용했고,`
-            : '총 이수학점·비교과 포인트는 학교 공식 전역 기준(2016학번 이후)을 적용하고,'}{' '}
-          학과별 세부 요건은 확인이 필요합니다. 학교의 공식 졸업 사정을
-          대체하지 않습니다.
+          입력한 이수 내역으로 충족률을 계산합니다. 공식 사정이 아닌 계획
+          참고용입니다.
         </p>
         <p className="meta">
-          기준 출처:{' '}
+          {deptTargets
+            ? `내 학과 규정표 ${deptTargets.columnLabel} 기준 적용`
+            : '학교 전역 기준(2016학번 이후) 적용'}
+          {' · '}
           <a href={GLOBAL_RULE_SOURCE.url} target="_blank" rel="noreferrer">
             {GLOBAL_RULE_SOURCE.label}
           </a>{' '}
           · 확인일 {GLOBAL_RULE_SOURCE.asOf}
-          {!data.year && ' · 입학연도 미입력 · 2016학번 이후 기준을 참고값으로 표시 중'}
+          {!data.year && ' · 입학연도 미입력 — 참고값'}
         </p>
         <progress
           className="progress-track"
@@ -435,8 +434,8 @@ export function Graduation({
         </strong>
         {missingInput(total) && (
           <p className="meta">
-            0학점이 아니라 아직 입력되지 않은 상태입니다. 종합정보시스템에서
-            이수 내역을 확인해 아래에서 입력하면 충족률이 계산됩니다.
+            0학점이 아니라 미입력 상태입니다 — 이수 내역을 입력하면
+            계산됩니다.
           </p>
         )}
         {total.planned > 0 && !withPlan && (
@@ -606,8 +605,7 @@ export function Graduation({
               </ul>
               {hasReq && (
                 <p className="meta">
-                  체크는 본인 확인용입니다. 공식 졸업 사정은 학교 시스템이
-                  결정합니다.
+                  체크는 본인 확인용 · 공식 졸업 사정과 무관.
                 </p>
               )}
               </>
@@ -690,9 +688,8 @@ export function Graduation({
                 })}
               </ul>
               <p className="meta">
-                학점 외 조건은 자동 집계하지 않습니다. 충족 여부는 학교
-                시스템·학과 사무실에서 확인하고, 확인한 항목은 체크해
-                두세요. 체크는 본인 확인용이며 공식 졸업 사정과 무관합니다.
+                학점 외 조건은 자동 집계하지 않습니다 — 학교에서 확인 후
+                체크해 두세요. (본인 확인용)
               </p>
             </div>
           )}
@@ -704,9 +701,7 @@ export function Graduation({
           )}
           {myRules.image && (
             <div className="rules-image">
-              <p className="meta">
-                규정이 이미지로 게시돼 있습니다. 학과 공식 이미지 원본입니다.
-              </p>
+              <p className="meta">학과 공식 이미지 원본</p>
               <a href={myRules.image.src} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line next/no-img-element -- 외부 학교 이미지, next/image 없음 */}
                 <img
