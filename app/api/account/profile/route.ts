@@ -140,6 +140,69 @@ export async function PUT(request: Request) {
       )
         ? input.actPrefs
         : [];
+    const actStatus: Record<string, string> = {};
+    if (input.actStatus && typeof input.actStatus === 'object') {
+      const entries = Object.entries(
+        input.actStatus as Record<string, unknown>,
+      );
+      if (entries.length > 100)
+        return json({ error: '활동 단계 항목이 너무 많습니다.' }, 400);
+      for (const [k, v] of entries) {
+        if (
+          k.length > 60 ||
+          !['applied', 'joined', 'done', 'credited'].includes(v as string)
+        )
+          return json({ error: '활동 단계 형식을 확인해 주세요.' }, 400);
+        actStatus[k] = v as string;
+      }
+    }
+    profile.actStatus = actStatus;
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const extActivities: Record<string, string>[] = [];
+    if (Array.isArray(input.extActivities)) {
+      if (input.extActivities.length > 50)
+        return json({ error: '직접 등록 활동이 너무 많습니다.' }, 400);
+      for (const v of input.extActivities as Record<string, unknown>[]) {
+        const str = (x: unknown, max: number) =>
+          typeof x === 'string' && x.length <= max;
+        if (
+          !v ||
+          !str(v.id, 40) ||
+          !/^ext-[\w-]+$/.test(v.id as string) ||
+          !str(v.title, 100) ||
+          !(v.title as string).trim() ||
+          !str(v.org, 60) ||
+          !(v.org as string).trim() ||
+          !str(v.applyStart, 10) ||
+          !str(v.applyEnd, 10) ||
+          !str(v.runStart, 10) ||
+          !str(v.runEnd, 10) ||
+          [v.applyStart, v.applyEnd, v.runStart, v.runEnd].some(
+            (d) => d !== '' && !dateRe.test(d as string),
+          ) ||
+          !str(v.points, 4) ||
+          ((v.points as string) !== '' && !/^\d{1,4}$/.test(v.points as string)) ||
+          !str(v.url, 300) ||
+          ((v.url as string) !== '' &&
+            !/^https?:\/\//.test(v.url as string)) ||
+          !str(v.addedAt, 40)
+        )
+          return json({ error: '직접 등록 활동 형식을 확인해 주세요.' }, 400);
+        extActivities.push({
+          id: v.id as string,
+          title: (v.title as string).trim(),
+          org: (v.org as string).trim(),
+          applyStart: v.applyStart as string,
+          applyEnd: v.applyEnd as string,
+          runStart: v.runStart as string,
+          runEnd: v.runEnd as string,
+          points: v.points as string,
+          url: v.url as string,
+          addedAt: v.addedAt as string,
+        });
+      }
+    }
+    profile.extActivities = extActivities;
     const lmsMatch: Record<string, string> = {};
     if (input.lmsMatch && typeof input.lmsMatch === 'object') {
       const entries = Object.entries(

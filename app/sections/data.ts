@@ -10,6 +10,7 @@ import {
   MonitorPlay,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import type { ExtActivity } from '@/lib/data/activities';
 export const menus = [
   ['home', '홈', Home],
   ['timetable', '시간표 짜기', LayoutGrid],
@@ -44,6 +45,10 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 활동 진행 단계(본인 확인용) — activity id → ACT_STAGES 단계 id */
+  actStatus?: Record<string, string>;
+  /** 직접 등록한 외부 활동 — hsportal 목록 외의 사용자 입력 데이터 */
+  extActivities?: ExtActivity[];
   /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
   readIds: string[];
   /** 졸업 학점 외 요건(인증·캡스톤 등) 본인 확인 체크 — 공식 사정과 무관한 사용자 메모 */

@@ -27,7 +27,8 @@ import {
   DAY_SHORT,
   daySummaries,
   fmtMin,
-  placeLabel,
+  deliveryLabel,
+  roomLabel,
   slotLabel,
   slotsLabel,
   type Catalog,
@@ -824,8 +825,12 @@ export function Timetable({
                     <b>{selected.professor || '미정'}</b>
                   </div>
                   <div>
+                    <small>수업 방식</small>
+                    <b>{deliveryLabel(selected)}</b>
+                  </div>
+                  <div>
                     <small>강의실</small>
-                    <b>{placeLabel(selected)}</b>
+                    <b>{roomLabel(selected) || '미정'}</b>
                   </div>
                   <div>
                     <small>시간</small>
@@ -836,6 +841,13 @@ export function Timetable({
                     <b>{selected.cross ? '가능' : '불가'}</b>
                   </div>
                 </div>
+                {selected.online && roomLabel(selected) && (
+                  <p className="meta">
+                    온라인 강좌인데 강의실({roomLabel(selected)})이 함께
+                    표기된 원자료입니다. 실제 운영 방식은 교수 공지 또는
+                    COSMOS 강의실에서 확인하세요.
+                  </p>
+                )}
                 {alternatives.length > 0 && (
                   <>
                     <h3>다른 분반</h3>

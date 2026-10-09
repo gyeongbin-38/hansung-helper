@@ -1747,6 +1747,64 @@ input[aria-invalid='true'] {
 .act-match {
   flex: none;
 }
+/* ---------- 활동 진행 단계 스테퍼 ---------- */
+.act-steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 16px 0 0;
+  border: none;
+  padding: 0;
+  min-width: 0;
+}
+.act-step {
+  padding: 6px 12px;
+  border-radius: var(--nt-r-md);
+  border: 1px solid var(--nt-hairline);
+  background: var(--nt-canvas);
+  color: var(--nt-slate);
+  font-size: 13px;
+  font-weight: 500;
+}
+.act-step:hover {
+  border-color: var(--nt-hairline-strong);
+  color: var(--nt-ink);
+}
+.act-step.active {
+  background: var(--nt-primary);
+  border-color: var(--nt-primary);
+  color: var(--nt-on-primary);
+}
+.act-step.done {
+  background: var(--nt-tint-mint);
+  border-color: var(--nt-tint-mint);
+  color: var(--nt-green-deep);
+}
+/* ---------- 외부 활동 직접 등록 폼 ---------- */
+.ext-form {
+  margin-bottom: 18px;
+}
+.ext-form h3 {
+  margin-top: 0;
+}
+.ext-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin: 14px 0 16px;
+}
+.ext-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--nt-slate);
+  font-weight: 500;
+}
+.ext-grid input {
+  width: 100%;
+}
 @media (max-width: 640px) {
   .act-band {
     flex-direction: column;
@@ -1755,5 +1813,8 @@ input[aria-invalid='true'] {
   .act-band button {
     align-self: flex-start;
     white-space: nowrap;
+  }
+  .ext-grid {
+    grid-template-columns: 1fr;
   }
 }

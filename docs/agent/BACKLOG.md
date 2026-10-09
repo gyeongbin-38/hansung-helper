@@ -798,3 +798,25 @@ blocking regressions.
 - **Follow-ups**: 프라이머리 인디고(#5645d4) 색역은 브랜드 판단
   사항으로 보류, 토스트 겹침(transient overlay라 허용), DESIGN.md
   도입 여부(frontend-deslop의 Phase 3 산출물).
+
+## ISSUE-29 — 활동 라이프사이클 + 외부 활동 직접 등록 + 수집 신선도
+
+- **Status**: implemented — **needs-verification** (2026-10-09)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 외부 리뷰 지적 해소 — (a) 활동이 발견·저장에서 멈추고
+  신청→참여→수료→포인트 이력 추적 부재, (b) hsportal 공개 목록 외
+  대외활동 데이터 부재로 '교내외 통합' 명칭 부정확, (c) 스냅샷 수집일은
+  있으나 stale 경고 없음, (d) 온라인 강좌+강의실 동시 표기 혼동.
+- **Done**:
+  - `Data.actStatus` — 활동별 진행 단계(신청함/참여 중/수료/포인트 확인)
+    스테퍼. 공식 인증 아닌 본인 기록임을 UI에 명시.
+  - `Data.extActivities` + '직접 등록' 탭 + 등록 폼 — 외부 활동을
+    본인 메모로 기록. `extToActivity`가 공통 Activity로 정규화해
+    목록·상세·홈 마감·검색에 자연 통합. 삭제 시 saved/actStatus 정리.
+  - `lib/data/freshness.ts` — staleLabel 공용 헬퍼. 학사일정·학과
+    규정·LMS 수강중 카드·홈 마감에 'N일 전 수집' 배지.
+  - 시간표 상세 수업방식/강의실 필드 분리 + 동시 표기 원자료 안내.
+- **Follow-ups**: 종합정보시스템 이수 내역 자동 수집(리뷰 최우선
+  지적 — 로그인 세션으로 이수 과목 페이지 파싱 조사 필요), actStatus
+  단계 기반 알림(수료 기한 리마인드), 외부 활동 공개 공고 수집원
+  (링크모음 등 — 자동 크롤링은 출처 정책 검토 필요).

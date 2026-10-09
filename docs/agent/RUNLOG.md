@@ -1690,3 +1690,34 @@ TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK, 루트 빌드
 green, 토큰 감사 스크립트 재실행으로 미정의 참조 0 확인.
 
 BLOCKER: 없음.
+
+## 2026-10-09 — 비교과 라이프사이클·외부 활동 직접 등록·수집 신선도 (ISSUE-29)
+
+TRIGGER: 외부 제품 리뷰 지적 — '비교과·대외활동'이 발견·저장에 머물고
+활동 이력 추적 없음, 외부 활동 검색 0건, 수집 기준일만 있고 stale
+경고 없음, 온라인 강좌에 강의실이 동시 표기되는 원자료 표시 혼동.
+
+DONE:
+- 활동 진행 단계 `Data.actStatus: Record<id, stage>` — 저장됨 이후
+  신청함→참여 중→수료→포인트 확인 스테퍼(activities 상세·카드 배지).
+  단계는 본인 확인용임을 UI에 명시(공식 인증 사칭 없음). profile
+  라우트 서버 검증(≤100건, stage enum).
+- 외부 활동 직접 등록 `Data.extActivities` — 대외활동·공모전 등
+  hsportal 공개 목록 밖 활동을 제목·기관·신청/운영 기간·포인트·링크로
+  기록('ext-' id, ≤50건, 날짜/URL/포인트 서버 검증). '직접 등록' 탭
+  신설 + 등록 폼 + 삭제 시 saved/actStatus 정리. extToActivity로
+  공통 Activity 형태 정규화 → liveStatus 재계산·홈 마감 통합·
+  검색 대상 포함.
+- 데이터 최신성 `lib/data/freshness.ts` — ageDays/isStale/staleLabel.
+  학사일정(calendar 본문·상세), 학과 규정(graduation 3곳), LMS
+  수강중 카드(7일 기준), 홈 마감 카드(COSMOS·hsportal 각각)에
+  'N일 전 수집' orange 배지.
+- 시간표 상세 — '수업 방식'(온라인/대면)을 '강의실'과 분리.
+  온라인 강좌+강의실 동시 표기 원자료에는 확인 안내 메모 추가.
+  deliveryLabel/roomLabel 헬퍼로 교체.
+- 검증 — tsc clean, oxlint 0, 매트릭스 12파일 전부 OK
+  (activities +5건 extToActivity/ACT_STAGES, freshness 신규 5건),
+  빌드 green, 로컬 8787 + CDP 캡처로 폼/상세/스테퍼/배지 실동작
+  확인(데모 모드에서 ext 등록→상세 이동→참여 중 기록→목록 배지).
+
+BLOCKER: 없음.
