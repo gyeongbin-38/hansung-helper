@@ -9,6 +9,7 @@ import {
   ACT_QUESTIONS,
   type Data,
 } from './sections/data';
+import type { ExtActivity } from '@/lib/data/activities';
 import {
   useCatalog,
   useActivities,
@@ -507,6 +508,44 @@ export default function App() {
     delete plans[key];
     void persist({ ...data, plans }, `안 ${key}를 삭제했습니다.`);
   }
+  // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
+  function setActStage(id: string, stage: string | null) {
+    const actStatus = { ...data.actStatus };
+    if (stage) actStatus[id] = stage;
+    else delete actStatus[id];
+    void persist(
+      { ...data, actStatus },
+      stage
+        ? '활동 단계를 기록했습니다. 본인 확인용입니다.'
+        : '활동 단계 기록을 지웠습니다.',
+    );
+  }
+  // 직접 등록 활동 — hsportal 목록에 없는 외부 활동(대외활동·공모전 등)
+  function addExtActivity(fields: Omit<ExtActivity, 'id' | 'addedAt'>) {
+    const entry: ExtActivity = {
+      ...fields,
+      id: 'ext-' + Date.now().toString(36),
+      addedAt: new Date().toISOString(),
+    };
+    void persist(
+      { ...data, extActivities: [...(data.extActivities ?? []), entry] },
+      '직접 등록 활동을 추가했습니다.',
+    );
+    return entry.id;
+  }
+  function removeExtActivity(id: string) {
+    const actStatus = { ...data.actStatus };
+    delete actStatus[id];
+    void persist(
+      {
+        ...data,
+        extActivities: (data.extActivities ?? []).filter((x) => x.id !== id),
+        saved: data.saved.filter((x) => x !== id),
+        actStatus,
+      },
+      '직접 등록 활동을 삭제했습니다.',
+    );
+  }
   function exitDemo() {
     setDemo(false);
     setData(empty);
@@ -581,6 +620,12 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.actStatus === undefined ||
+                    (d.actStatus &&
+                      typeof d.actStatus === 'object' &&
+                      !Array.isArray(d.actStatus))) &&
+                  (d.extActivities === undefined ||
+                    Array.isArray(d.extActivities)) &&
                   (d.lmsMatch === undefined ||
                     (d.lmsMatch &&
                       typeof d.lmsMatch === 'object' &&
@@ -668,6 +713,9 @@ export default function App() {
               data={data}
               go={go}
               save={save}
+              setActStage={setActStage}
+              addExtActivity={addExtActivity}
+              removeExtActivity={removeExtActivity}
               onSurvey={() => openSurvey('act')}
             />
           ) : section === 'profile' ? (

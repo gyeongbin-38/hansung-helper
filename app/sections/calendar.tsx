@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CalendarDays, ArrowRight, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { Data } from './data';
 import { currentSemesterStart, dueSoon } from '@/lib/data/lms';
+import { staleLabel } from '@/lib/data/freshness';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { useCatalog, useNow, useSchedule } from './catalog';
 import { RetryButton, SkeletonRows } from './skeleton';
@@ -40,6 +41,7 @@ export function CalendarSection({
   if (detail) {
     const e = snap?.items.find((x) => x.id === detail);
     const fetched = snap?.fetchedAt.slice(0, 10);
+    const stale = snap ? staleLabel(snap.fetchedAt, now) : null;
     return (
       <section className="card pad">
         <button className="link" onClick={() => go('calendar')}>
@@ -55,8 +57,10 @@ export function CalendarSection({
               {e.end && e.end !== e.start ? ` ~ ${e.end}` : ''}
             </p>
             <p className="meta">
-              hansung.ac.kr 수집 · {fetched} 기준 · 일정은
-              학교 사정으로 변동될 수 있습니다.
+              hansung.ac.kr 수집 · {fetched} 기준
+              {stale ? ` · ` : ''}
+              {stale && <span className="badge orange">{stale}</span>}
+              {' '}· 일정은 학교 사정으로 변동될 수 있습니다.
             </p>
             <a
               className="link"
@@ -95,8 +99,17 @@ export function CalendarSection({
         {snap && (
           <p className="meta">
             공식 학사일정 · hansung.ac.kr 수집 ·{' '}
-            {snap.fetchedAt.slice(0, 10)} 기준 · 일정은 학교 사정으로 변동될
-            수 있습니다.
+            {snap.fetchedAt.slice(0, 10)} 기준
+            {staleLabel(snap.fetchedAt, now) && (
+              <>
+                {' '}
+                ·{' '}
+                <span className="badge orange">
+                  {staleLabel(snap.fetchedAt, now)}
+                </span>
+              </>
+            )}{' '}
+            · 일정은 학교 사정으로 변동될 수 있습니다.
           </p>
         )}
         {failed && (

@@ -7,6 +7,8 @@ import {
   activityMatch,
   liveStatus,
   actScore,
+  extToActivity,
+  ACT_STAGES,
 } from '../lib/data/activities.ts';
 import { koreanMatch } from '../lib/data/hangul.ts';
 import snapshot from '../lib/data/activities.json' with { type: 'json' };
@@ -297,4 +299,74 @@ test('actScore: 실제 스냅샷 아이템에도 적용 가능', () => {
   const s = actScore(teamItem, ['팀 활동'], NOW21);
   assert.ok(s.score >= 2);
   assert.ok(s.reasons.includes('팀 활동'));
+});
+
+// ── extToActivity / ACT_STAGES — 직접 등록 활동 ──────────────
+const extBase = {
+  id: 'ext-abc1',
+  title: '데이터분석 공모전',
+  org: '00재단',
+  applyStart: '2026-09-14',
+  applyEnd: '2026-09-25',
+  runStart: '2026-10-01',
+  runEnd: '2026-10-31',
+  points: '50',
+  url: 'https://contest.example.com',
+  addedAt: '2026-09-10T00:00:00.000Z',
+};
+
+test('extToActivity: 날짜를 KST 시각으로 변환 — 종료일은 23:59', () => {
+  const a = extToActivity(extBase);
+  assert.equal(a.id, 'ext-abc1');
+  assert.equal(a.dept, '00재단');
+  assert.equal(a.statusLabel, '직접 등록');
+  assert.equal(a.points, 50);
+  assert.equal(a.applyStart, '2026-09-14T09:00:00+09:00');
+  assert.equal(a.applyEnd, '2026-09-25T23:59:59+09:00');
+  assert.equal(a.url, 'https://contest.example.com');
+  assert.equal(a.cover, null);
+});
+
+test('extToActivity: 마감 당일에 liveStatus가 오늘 마감으로 판정', () => {
+  const a = extToActivity(extBase);
+  // 2026-09-25 15:00 KST — applyEnd 23:59 이전이라 아직 접수중이어야 함
+  const s = liveStatus(a, Date.parse('2026-09-25T15:00:00+09:00'));
+  assert.equal(s.status, 'closing');
+  assert.equal(s.dday, '오늘 마감');
+  // 다음 날은 마감
+  assert.equal(
+    liveStatus(a, Date.parse('2026-09-26T00:00:00+09:00')).status,
+    'closed',
+  );
+});
+
+test('extToActivity: 날짜 없으면 추측하지 않고 직접 등록 상태 유지', () => {
+  const a = extToActivity({
+    ...extBase,
+    applyStart: '',
+    applyEnd: '',
+    runStart: '',
+    runEnd: '',
+    points: 'abc',
+  });
+  const s = liveStatus(a, NOW21);
+  assert.equal(s.status, 'unknown');
+  assert.equal(s.label, '직접 등록');
+  assert.equal(a.points, null); // 비숫자 → null (지어내지 않음)
+});
+
+test('extToActivity: org 비어도 dept 폴백', () => {
+  const a = extToActivity({ ...extBase, org: '' });
+  assert.equal(a.dept, '직접 등록');
+});
+
+test('ACT_STAGES: 순서·라벨 고정 — UI 스테퍼가 의존', () => {
+  assert.deepEqual(
+    ACT_STAGES.map(([k]) => k),
+    ['applied', 'joined', 'done', 'credited'],
+  );
+  assert.deepEqual(
+    ACT_STAGES.map(([, l]) => l),
+    ['신청함', '참여 중', '수료', '포인트 확인'],
+  );
 });

@@ -23,6 +23,7 @@ import {
   pendingTasks,
 } from '@/lib/data/lms';
 import { liveStatus } from '@/lib/data/activities';
+import { staleLabel } from '@/lib/data/freshness';
 import { useActivities, useNow, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
@@ -155,6 +156,21 @@ export function Home({
         title: a.title,
         sub: a.dept + (a.points != null ? ` · ${a.points}P` : ''),
         route: 'activities/' + a.id,
+      });
+  }
+  // 직접 등록한 외부 활동도 신청 마감이 임박하면 함께 올린다
+  for (const e of data.extActivities ?? []) {
+    if (!e.applyEnd) continue;
+    const dd = Math.ceil(
+      (Date.parse(e.applyEnd + 'T23:59:59') - now) / 86400000,
+    );
+    if (dd >= 0 && dd <= 7)
+      week.push({
+        dday: dd,
+        kind: '비교과',
+        title: e.title,
+        sub: e.org + ' · 직접 등록',
+        route: 'activities/' + e.id,
       });
   }
   for (const e of sched?.items ?? []) {
@@ -335,9 +351,26 @@ export function Home({
             )}
             <p className="meta">
               {lmsSnap
-                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집 · `
+                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
                 : ''}
+              {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
+                <>
+                  {' '}
+                  <span className="badge orange">
+                    {staleLabel(lmsSnap.fetchedAt, now, 7)}
+                  </span>
+                </>
+              )}
+              {lmsSnap && acts ? ' · ' : ''}
               {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
+              {acts && staleLabel(acts.fetchedAt, now) && (
+                <>
+                  {' '}
+                  <span className="badge orange">
+                    {staleLabel(acts.fetchedAt, now)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </section>

@@ -8,7 +8,8 @@ import {
   deptRuleTargets,
   rulesetMatchesDept,
 } from '@/lib/data/dept-rules';
-import { deptPoolOf, useDeptRules } from './catalog';
+import { staleLabel } from '@/lib/data/freshness';
+import { deptPoolOf, useDeptRules, useNow } from './catalog';
 import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
 
@@ -34,6 +35,13 @@ export function Graduation({
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
+  const now = useNow(30000);
+  const rulesStale = deptRules
+    ? staleLabel(deptRules.fetchedAt, now)
+    : null;
+  const lmsStale = data.lms
+    ? staleLabel(data.lms.fetchedAt, now, 7)
+    : null;
   const myRules = useMemo(() => {
     if (!deptRules || !catalog) return null;
     const pool = deptPoolOf(data.dept, [
@@ -241,6 +249,12 @@ export function Graduation({
                   {myRules.deptLabel || myRules.dept} 졸업요건
                 </a>{' '}
                 · 수집일 {deptRules?.fetchedAt.slice(0, 10)}
+                {rulesStale && (
+                  <>
+                    {' '}
+                    <span className="badge orange">{rulesStale}</span>
+                  </>
+                )}
               </>
             ) : (
               `공식 전역 기준(2016학번 이후) · 출처: ${GLOBAL_RULE_SOURCE.label} · 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
@@ -448,9 +462,17 @@ export function Graduation({
             <span className="badge blue">COSMOS 수업 현황</span>
           </div>
           <p className="meta">
-            수집 스냅샷 기준 수강 중인 과목입니다. 수강 중은 이수 완료가
-            아니므로 졸업 학점 계산에서 제외됩니다. 학기 계획에 담으면
-            ‘계획 중’ 학점으로 반영됩니다.
+            COSMOS 수집 {data.lms?.fetchedAt.slice(0, 10)} 기준
+            {lmsStale && (
+              <>
+                {' '}
+                <span className="badge orange">{lmsStale}</span>
+              </>
+            )}{' '}
+            — 수집 스냅샷의 수강 과목입니다. 수강 중은 이수 완료가
+            아니므로 졸업 학점 계산에서 제외되고, 수집 이후 수강 변동은
+            반영되지 않았을 수 있습니다. 학기 계획에 담으면 ‘계획 중’
+            학점으로 반영됩니다.
           </p>
           {(() => {
             const shown = enrolled.filter((m) => !m.ignored);
@@ -707,6 +729,12 @@ export function Graduation({
           </a>
           <p className="meta">
             수집일 {deptRules?.fetchedAt.slice(0, 10)}
+            {rulesStale && (
+              <>
+                {' '}
+                <span className="badge orange">{rulesStale}</span>
+              </>
+            )}
           </p>
         </section>
       )}
@@ -740,8 +768,14 @@ export function Graduation({
           </ul>
           <p className="meta">
             출처: 학교 각 학과 공식 사이트 · 수집일{' '}
-            {deptRules.fetchedAt.slice(0, 10)} · 미수집 학과는 표시되지
-            않습니다.
+            {deptRules.fetchedAt.slice(0, 10)}
+            {rulesStale && (
+              <>
+                {' '}
+                <span className="badge orange">{rulesStale}</span>
+              </>
+            )}{' '}
+            · 미수집 학과는 표시되지 않습니다.
           </p>
         </details>
       )}
