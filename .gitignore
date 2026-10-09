@@ -48,3 +48,6 @@ scripts/_tunnel.log
 # LMS collector output — personal academic data, never commit
 lms-data.json
 **/lms-data.json
+
+# agent-local skill links (junctions to external drive, not portable)
+/.devin/skills/

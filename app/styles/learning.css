@@ -636,7 +636,7 @@
   font-size: 13px;
 }
 .enrolled-pick-row:hover {
-  background: var(--nt-tint-blue);
+  background: var(--nt-tint-sky);
 }
 .enrolled-pick-row b {
   font-size: 13px;
@@ -1000,9 +1000,9 @@
 .lms-refresh {
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid var(--nt-line);
+  border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-md);
-  background: var(--nt-bg-soft, var(--nt-tint-blue));
+  background: var(--nt-surface);
 }
 .lms-refresh-row {
   display: flex;
@@ -1538,8 +1538,11 @@
 
 /* ---------- LMS 카탈로그 매칭 경고 ---------- */
 .lms-match-warn {
-  border-left: 3px solid var(--nt-orange-deep, #c2510a);
   margin: 14px 0 0;
+}
+.lms-match-warn.needs {
+  background: var(--nt-tint-peach);
+  border-color: var(--nt-orange);
 }
 .lms-match-warn b {
   font-size: 14px;
@@ -1640,7 +1643,7 @@
 
 /* ---------- 프로필 누락 힌트 / 폼 오류 ---------- */
 .profile-hint {
-  border-left: 3px solid var(--nt-primary);
+  border-left: 2px solid var(--nt-purple-300);
   padding-left: 10px;
 }
 .form-error {

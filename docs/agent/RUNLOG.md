@@ -1655,3 +1655,38 @@ _check_deploy 마커 7종 라이브 확인, 프로덕션 CDP 캡처로
 시나리오 슬롯 데스크톱·모바일 렌더 확인.
 
 BLOCKER: 없음. 라이브 ae91c70d-c551-4bbd-8a93-9861976be660.
+
+## 2026-09-21 — design-slop/frontend-deslop 스킬 감사 + 죽은 토큰 수정
+
+TRIGGER: 사용자 요청 — skills.sh의 디자인 스킬(wpgaurav/design-slop,
+samber/frontend-design-deslop)로 UI 감사. 스킬은 G:\내 드라이브\
+design-skills\에 설치하고 .devin/skills/에 junction 연결(gitignore 처리).
+
+DONE:
+- 전체 CSS 감사 — 하드체크(둥근 카드+두꺼운 보더), 그라디언트/블러/
+  글래스, pill 남용, 토큰 정의 대조. 대부분 통과: 유일한
+  linear-gradient는 시간표 그리드 라인, 유일한 backdrop-filter는
+  dialog 스크림. Pretendard Variable, --nt-* 단일 토큰 계약,
+  reduced-motion 킬스위치, 프린트 스타일시트는 스킬이 요구하는
+  수준을 이미 충족.
+- [Major] .lms-match-warn — card(12px radius)에 border-left 3px
+  orange = 카탈로그가 지목하는 대표 슬롭 패턴(side-tab accent).
+  보더 제거하고 미매칭 과목이 있을 때만 peach tint + orange
+  hairline으로 조건부 표시(needs 클래스). 성공 상태에는 흰 카드.
+- [Major] 죽은 CSS 변수 5종 수정 — --nt-tint-blue·--nt-line·
+  --nt-bg-soft·--nt-ink-2·--nt-ink-3이 정의 없이 참조돼 해당
+  선언이 통째로 무효화되던 버그: .lms-refresh 패널(테두리+배경
+  상실), .enrolled-pick-row:hover(호버 피드백 없음), .rules-image
+  img 테두리, .notif-native 구분선, .hc-* 텍스트 색. 실제 토큰
+  (--nt-hairline/--nt-tint-sky/--nt-surface/--nt-slate/--nt-stone)으로
+  매핑 + 스크립트 감사로 전체 파일 잔여 미정의 토큰 0 확인.
+- .profile-hint 3px primary 바 → 2px purple-300으로 경량화
+  (하드체크 대상은 아니나 시스템 대비 과중).
+- 미적용(판단 보류): --nt-primary #5645d4 인디고는 deslop 스킬의
+  'red ocean' 지적 대상이나 한성 네이비/퍼플 브랜드 맥락으로 유지
+  — 색역 변경은 브랜드 결정 사항이라 별도 논의 필요.
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK, 루트 빌드
+green, 토큰 감사 스크립트 재실행으로 미정의 참조 0 확인.
+
+BLOCKER: 없음.

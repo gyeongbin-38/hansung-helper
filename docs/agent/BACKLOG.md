@@ -774,3 +774,27 @@ blocking regressions.
 - **Follow-ups**: 시나리오 이름 자유 입력(현재 A/B/C 고정), 시나리오
   간 과목 diff 뷰, lmsMatch 매핑의 신뢰도 표시(수동=확정/자동=추정),
   온보딩 이수 단계의 학점 자동 합산 표시.
+
+## ISSUE-28 — design-slop 스킬 감사: 사이드탭 보더 + 죽은 CSS 변수
+
+- **Status**: **verified** (2026-09-21 — tsc/oxlint/매트릭스/빌드 통과,
+  토큰 감사 스크립트로 미정의 참조 0 확인)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: skills.sh 디자인 감사 스킬(design-slop,
+  frontend-design-deslop) 체크리스트로 라이브 UI를 심사하고
+  실제 위반을 최소 수정으로 제거한다.
+- **Resolution**:
+  - 하드체크 위반 수정 — .lms-match-warn의 card+3px left border를
+    조건부 peach tint(.needs)로 교체. 미매칭 과목이 있을 때만
+    경고 색상, 모두 연결된 상태는 흰 카드.
+  - 죽은 토큰 버그 — --nt-tint-blue/--nt-line/--nt-bg-soft/
+    --nt-ink-2/--nt-ink-3 미정의 참조 6곳이 선언 무효화를 유발
+    (.lms-refresh 패널보더·무배경, enrolled-pick-row 무반응
+    호버 등). 실제 토큰으로 매핑하고 스크립트로 전체 CSS 재감사.
+  - .profile-hint 3px→2px 경량화.
+  - 감사 통과 항목 기록: Pretendard, 토큰 계약 주석, reduced-motion,
+    프린트 스타일, 기능적 그라디언트/블러만 사용, pill은 태그/필터
+    전용, 페이지당 primary 하나.
+- **Follow-ups**: 프라이머리 인디고(#5645d4) 색역은 브랜드 판단
+  사항으로 보류, 토스트 겹침(transient overlay라 허용), DESIGN.md
+  도입 여부(frontend-deslop의 Phase 3 산출물).
