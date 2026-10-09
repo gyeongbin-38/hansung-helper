@@ -20,13 +20,13 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #1a1a1a;
+  color: #37352f;
   background: #ffffff;
   font-synthesis: none;
-  /* brand + primary */
-  --nt-primary: #5645d4;
-  --nt-primary-pressed: #4534b3;
-  --nt-primary-deep: #3a2a99;
+  /* brand + primary — 잉크 네이비: 행동 버튼은 차분한 굵은 잉크 톤 */
+  --nt-primary: #33415c;
+  --nt-primary-pressed: #27334a;
+  --nt-primary-deep: #1f2a3e;
   --nt-on-primary: #ffffff;
   --nt-navy: #0a1530;
   --nt-navy-deep: #070f24;
@@ -57,15 +57,15 @@
   --nt-tint-yellow-bold: #f9e79f;
   --nt-tint-cream: #f8f5e8;
   --nt-tint-gray: #f0eeec;
-  /* surface */
+  /* surface — 종이색 캔버스 + 노션 회색 패널 */
   --nt-canvas: #ffffff;
-  --nt-surface: #f6f5f4;
-  --nt-surface-soft: #fafaf9;
+  --nt-surface: #f7f6f3;
+  --nt-surface-soft: #fbfbfa;
   --nt-hairline: #e5e3df;
   --nt-hairline-soft: #ede9e4;
   --nt-hairline-strong: #c8c4be;
-  /* text */
-  --nt-ink: #1a1a1a;
+  /* text — 순수 검정 대신 따뜻한 잉크 */
+  --nt-ink: #37352f;
   --nt-charcoal: #37352f;
   --nt-slate: #5d5b54;
   --nt-steel: #6f6c66;
@@ -99,7 +99,12 @@
 body {
   margin: 0;
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.6;
+  /* 한글 어절 단위 줄바꿈 — 음절 중간 절개 금지.
+     긴 영문/URL은 overflow-wrap이 마지막 수단으로 절개한다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 button,
 input {
@@ -137,6 +142,7 @@ h3 {
   margin: 0;
   font-weight: 600;
   color: var(--nt-ink);
+  text-wrap: balance;
 }
 h1 {
   font-size: 34px;
@@ -367,10 +373,12 @@ select {
   color: var(--nt-steel);
   font-weight: 500;
 }
+/* 출처·수집일·면책 같은 보조 문구 — 읽을 수는 있되 시선을 뺏지 않게 */
 .meta {
   font-size: 12px;
-  color: var(--nt-steel);
-  margin: 14px 0;
+  color: var(--nt-muted);
+  line-height: 1.55;
+  margin: 10px 0;
 }
 .demo-note {
   display: flex;
@@ -464,7 +472,7 @@ select {
   color: var(--nt-ink);
 }
 .saved {
-  color: var(--nt-primary);
+  color: var(--nt-purple-800);
   background: var(--nt-tint-lavender);
 }
 .avatar {

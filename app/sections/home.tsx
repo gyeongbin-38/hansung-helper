@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import {
   CalendarDays,
-  Sparkles,
   ArrowUpRight,
   ArrowRight,
   ChevronLeft,
@@ -276,24 +275,6 @@ export function Home({
   ).length;
   return (
     <>
-      <section className="home-summary">
-        <div className="between">
-          <div>
-            <span className="home-eyebrow">
-              <Sparkles size={13} aria-hidden="true" />
-              한성 학사 도우미
-            </span>
-            <h2>
-              {account ? '내 수업부터 확인해요' : '내 학사 정보를 한곳에서'}
-            </h2>
-            <p>
-              {account
-                ? '코스모스에서 확인한 강의와 개인 계획을 구분해 관리해요.'
-                : '학교 계정을 연결하면 실제 코스모스 강의 목록을 볼 수 있어요.'}
-            </p>
-          </div>
-        </div>
-      </section>
       <TodayStrip
         lmsDue={lmsDue}
         acts={acts?.items ?? []}
@@ -561,12 +542,6 @@ export function Home({
                 ? '사용자 입력 · 미검증'
                 : '학교 인정 내역 확인 필요',
               'mint',
-            ],
-            [
-              '다음 학기 계획',
-              planned.reduce((n, s) => n + s.credits, 0) + ' 학점',
-              planned.length + '개 과목 · 이수학점과 별도',
-              'peach',
             ],
           ].map(([l, v, s, tone]) => (
             <div className={'card stat ' + tone} key={l}>

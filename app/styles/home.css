@@ -1,41 +1,6 @@
 /* Home dashboard + account bar + notifications page.
    Owner: home agent. Use var(--nt-*) tokens only. */
 
-/* ---------- hero summary: quiet Notion surface card ---------- */
-.home-summary {
-  padding: 30px 32px;
-  border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-lg);
-  margin-bottom: 26px;
-  background: var(--nt-surface-soft);
-}
-.home-summary > .between {
-  align-items: center;
-}
-.home-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--nt-purple-800);
-  background: var(--nt-tint-lavender);
-  border-radius: var(--nt-r-pill);
-  padding: 5px 12px;
-  margin-bottom: 16px;
-}
-.home-summary h2 {
-  font-size: 24px;
-  line-height: 1.32;
-  color: var(--nt-ink);
-}
-.home-summary p {
-  margin: 10px 0 0;
-  font-size: 15px;
-  max-width: 46ch;
-  color: var(--nt-slate);
-}
-
 /* ---------- hero activity carousel ---------- */
 .hero-carousel {
   position: relative;
@@ -314,7 +279,7 @@ button.event-line.as-link > svg {
 /* ---------- stat cards ---------- */
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
 }
 .stat {
@@ -580,12 +545,6 @@ button.event-line.as-link > svg {
   }
   .live-courses {
     grid-template-columns: 1fr;
-  }
-  .home-summary {
-    padding: 24px 20px;
-  }
-  .home-summary h2 {
-    font-size: 21px;
   }
   .notif-item {
     padding: 16px;

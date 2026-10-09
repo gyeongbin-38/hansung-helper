@@ -462,17 +462,15 @@ export function Graduation({
             <span className="badge blue">COSMOS 수업 현황</span>
           </div>
           <p className="meta">
-            COSMOS 수집 {data.lms?.fetchedAt.slice(0, 10)} 기준
+            COSMOS {data.lms?.fetchedAt.slice(0, 10)} 수집
             {lmsStale && (
               <>
                 {' '}
                 <span className="badge orange">{lmsStale}</span>
               </>
             )}{' '}
-            — 수집 스냅샷의 수강 과목입니다. 수강 중은 이수 완료가
-            아니므로 졸업 학점 계산에서 제외되고, 수집 이후 수강 변동은
-            반영되지 않았을 수 있습니다. 학기 계획에 담으면 ‘계획 중’
-            학점으로 반영됩니다.
+            — 수강 중은 이수 완료가 아니라 졸업 계산에서 제외됩니다.
+            계획에 담으면 ‘계획 중’ 학점으로 반영됩니다.
           </p>
           {(() => {
             const shown = enrolled.filter((m) => !m.ignored);

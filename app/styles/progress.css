@@ -179,13 +179,13 @@
   vertical-align: top;
 }
 .year-table th {
-  background: var(--nt-tint-lavender, #f4f4f5);
+  background: var(--nt-tint-lavender, #e6e0f5);
   font-weight: 600;
   white-space: nowrap;
 }
 .year-table .my-col {
-  background: var(--nt-tint-lavender, #f4f4f5);
-  outline: 2px solid var(--nt-primary, #5b5bd6);
+  background: var(--nt-tint-lavender, #e6e0f5);
+  outline: 2px solid var(--nt-primary, #33415c);
   outline-offset: -2px;
 }
 .dept-conds {

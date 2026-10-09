@@ -689,7 +689,6 @@ export default function App() {
             section={section}
             label={label}
             name={data.name}
-            account={account}
             onSurvey={() =>
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
