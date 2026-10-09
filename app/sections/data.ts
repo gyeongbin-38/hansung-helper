@@ -10,6 +10,7 @@ import {
   MonitorPlay,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import type { InfoSnapshot } from '@/lib/data/info';
 import type { ExtActivity } from '@/lib/data/activities';
 /* 사이드바 순서 — chrome.tsx NAV_GROUP_AT의 캡션 경계와 맞춘다 */
 export const menus = [
@@ -62,6 +63,9 @@ export type Data = {
   lms?: LmsSnapshot;
   /** 수업 현황의 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore'(수업 아님) */
   lmsMatch?: Record<string, string>;
+  /** 종합정보시스템 수집 스냅샷 — 로그인 시 서버가 읽어온 이수 내역·
+   *  비교과 포인트·졸업가사정표·학적 요약 (서버 작성 전용) */
+  info?: InfoSnapshot;
   consent: boolean;
 };
 export const empty: Data = {

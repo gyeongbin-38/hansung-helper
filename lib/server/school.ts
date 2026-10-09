@@ -1,5 +1,7 @@
 import { collectLms } from './lms.ts';
+import { collectInfo } from './info.ts';
 import type { LmsSnapshot } from '../data/lms.ts';
+import type { InfoSnapshot } from '../data/info.ts';
 
 export type SchoolCourse = {
   id: string;
@@ -21,6 +23,12 @@ export type SchoolSnapshot = {
   /** COSMOS 로그인 단계 실패 원인 — 'auth' 자격 거부 / 'landing' 중간
    *  안내 페이지에서 세션 미확인 / 'upstream' 네트워크·HTTP 오류 */
   lmsError?: 'auth' | 'landing' | 'upstream';
+  /** 종합정보 수집 스냅샷 (이수 내역·비교과 포인트·졸업가사정표·학적) */
+  infoData?: InfoSnapshot;
+  /** 종합정보 지연 수집 진행 중 */
+  infoPending?: boolean;
+  /** 종합정보 수집 실패 시각 */
+  infoFailedAt?: string;
   checkedAt: string;
   courseScope: string;
 };
@@ -138,6 +146,8 @@ export async function connectSchool(
     /** 지정하면 상세 수집을 즉시 실행하지 않고 수집 클로저를 넘긴다
      * (응답 후 waitUntil에서 실행해 로그인 지연을 줄이는 용도) */
     deferLms?: (collect: () => Promise<LmsSnapshot>) => void;
+    /** 종합정보 수집을 응답 후 waitUntil로 미루는 클로저 채널 */
+    deferInfo?: (collect: () => Promise<InfoSnapshot | null>) => void;
   },
 ): Promise<SchoolSnapshot> {
   const session = new SchoolSession();
@@ -287,6 +297,18 @@ export async function connectSchool(
       e instanceof Error ? e.message : String(e),
     );
     /* Portal authentication remains valid when LMS is temporarily unavailable. */
+  }
+  // 종합정보 수집 — LMS 결과와 무관하게 info 세션으로 진행한다.
+  // deferInfo가 있으면 응답 후 waitUntil에서 실행, 없으면 여기서 수집한다.
+  const runInfo = () => collectInfo(session, { menuHtml, mainHtml });
+  if (opts?.deferInfo) {
+    opts.deferInfo(() => runInfo().catch(() => null));
+  } else {
+    try {
+      snapshot.infoData = await runInfo();
+    } catch {
+      snapshot.infoFailedAt = new Date().toISOString();
+    }
   }
   return snapshot;
 }

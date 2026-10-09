@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import type { InfoSnapshot } from '@/lib/data/info';
 
 // 학교 비밀번호 재인증으로 COSMOS 수집을 다시 실행한다. 비밀번호는 검증 후
 // 즉시 버리며 저장하지 않는다. 세션과 계정 데이터는 유지된다.
@@ -45,20 +46,28 @@ export async function POST(request: Request) {
         429,
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
+    let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
     const snapshot = await connectSchool(input.studentId, input.password, {
       deferLms: (collect) => {
         deferredCollect = collect;
       },
+      deferInfo: (collect) => {
+        deferredInfo = collect;
+      },
     });
     input.password = '';
     if (deferredCollect) snapshot.lmsPending = true;
+    if (deferredInfo) snapshot.infoPending = true;
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다
-    if (!snapshot.lmsData) {
+    if (!snapshot.lmsData || !snapshot.infoData) {
       try {
         const old = JSON.parse(account.snapshot) as {
           lmsData?: LmsSnapshot;
+          infoData?: InfoSnapshot;
         };
-        if (old.lmsData) snapshot.lmsData = old.lmsData;
+        if (!snapshot.lmsData && old.lmsData) snapshot.lmsData = old.lmsData;
+        if (!snapshot.infoData && old.infoData)
+          snapshot.infoData = old.infoData;
       } catch {
         /* 이전 스냅샷 손상은 무시 */
       }
@@ -96,6 +105,54 @@ export async function POST(request: Request) {
                   JSON.stringify({
                     lmsPending: null,
                     lmsFailedAt: new Date().toISOString(),
+                  }),
+                  account.id,
+                  snapshot.checkedAt,
+                )
+                .run();
+            } catch {
+              /* 마커 기록 실패도 재수집 성공 여부에 영향을 주지 않는다 */
+            }
+          }
+        })(),
+      );
+    // 종합정보 재수집 — 로그인 라우트와 같은 waitUntil 패턴
+    if (deferredInfo)
+      waitUntil(
+        (async () => {
+          try {
+            const infoData = await deferredInfo();
+            await database()
+              .prepare(
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+              )
+              .bind(
+                JSON.stringify(
+                  infoData
+                    ? { infoData, infoPending: null }
+                    : {
+                        infoPending: null,
+                        infoFailedAt: new Date().toISOString(),
+                      },
+                ),
+                account.id,
+                snapshot.checkedAt,
+              )
+              .run();
+          } catch (e) {
+            console.log(
+              '[info] deferred collect failed:',
+              e instanceof Error ? e.message : String(e),
+            );
+            try {
+              await database()
+                .prepare(
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                )
+                .bind(
+                  JSON.stringify({
+                    infoPending: null,
+                    infoFailedAt: new Date().toISOString(),
                   }),
                   account.id,
                   snapshot.checkedAt,

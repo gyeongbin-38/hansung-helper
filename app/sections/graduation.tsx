@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
+import { mergeCompleted } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import {
   deptRuleTargets,
@@ -22,6 +23,8 @@ export function Graduation({
   planned,
   persist,
   detail,
+  infoPending,
+  infoFailed,
 }: {
   data: Data;
   go: (route: string) => void;
@@ -29,6 +32,10 @@ export function Graduation({
   planned: CourseSection[];
   persist: (next: Data, msg?: string) => Promise<boolean>;
   detail?: string;
+  /** 종합정보 수집 진행 중 — 첫 로그인 직후 폴링 구간 */
+  infoPending?: boolean;
+  /** 종합정보 수집 실패 (로그인은 됐는데 페이지 파싱이 안 된 경우 포함) */
+  infoFailed?: boolean;
 }) {
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
@@ -42,6 +49,14 @@ export function Graduation({
   const lmsStale = data.lms
     ? staleLabel(data.lms.fetchedAt, now, 7)
     : null;
+  const info = data.info;
+  // 종합정보 수집본 + 사용자 수동 입력 병합 — 같은 과목은 수집본 우선,
+  // 수동 목록(data.completed) 자체는 변경하지 않는다.
+  const merged = useMemo(
+    () => mergeCompleted(data.completed, info?.completed),
+    [data.completed, info],
+  );
+  const infoStale = info ? staleLabel(info.fetchedAt, now, 30) : null;
   const myRules = useMemo(() => {
     if (!deptRules || !catalog) return null;
     const pool = deptPoolOf(data.dept, [
@@ -76,27 +91,32 @@ export function Graduation({
         : [],
     [data.lms, catalog, data.lmsMatch],
   );
+  // 비교과 포인트는 학교 수집값을 우선한다 — 수동 입력은 수집이
+  // 없을 때의 폴백이다.
+  const infoPoints = info?.points;
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
-    const pts = parseInt(data.points, 10);
-    return evaluate(data.completed, planned, data.ruleOverrides, {
+    const pts = infoPoints ?? parseInt(data.points, 10);
+    return evaluate(merged, planned, data.ruleOverrides, {
       admitYear: Number.isInteger(year) ? year : undefined,
       points: Number.isInteger(pts) ? pts : undefined,
       deptTargets: deptTargets ?? undefined,
     });
   }, [
-    data.completed,
+    merged,
     planned,
     data.ruleOverrides,
     data.year,
     data.points,
+    infoPoints,
     deptTargets,
   ]);
   const total = results[0];
   // 미입력과 실제 0을 구분한다 — 이수 과목이 하나도 없거나 포인트가 비어
   // 있으면 "0 이수"가 아니라 "미입력"으로 표시해야 오해가 없다.
-  const completedEmpty = data.completed.length === 0;
-  const pointsEmpty = !(data.points ?? '').trim();
+  const completedEmpty = merged.length === 0;
+  const pointsEmpty =
+    infoPoints === undefined && !(data.points ?? '').trim();
   const missingInput = (r: (typeof results)[number]) =>
     r.rule.source === 'points' ? pointsEmpty : completedEmpty;
   const reqCheckSet = new Set(data.reqChecks ?? []);
@@ -281,12 +301,33 @@ export function Graduation({
           {isPoints ? (
             <>
               <h3>비교과 포인트</h3>
-              <p>
-                현재 입력된 누적 포인트:{' '}
-                {data.points?.trim() ? `${data.points.trim()}P` : '미입력'}.
-                실제 포인트는 hsportal 마이페이지에서 확인하고 내 정보에
-                입력해 주세요.
-              </p>
+              {info?.points !== undefined ? (
+                <p>
+                  학교에서 수집한 누적 포인트: <b>{info.points}P</b>
+                  <span className="meta">
+                    {' '}
+                    · 종합정보 {info.fetchedAt.slice(0, 10)} 수집
+                    {infoStale ? ` · ${infoStale}` : ''}
+                  </span>
+                  {data.points?.trim() &&
+                    parseInt(data.points, 10) !== info.points && (
+                      <span className="meta">
+                        {' '}
+                        · 직접 입력값 {data.points.trim()}P는 사용하지
+                        않습니다
+                      </span>
+                    )}
+                </p>
+              ) : (
+                <p>
+                  현재 입력된 누적 포인트:{' '}
+                  {data.points?.trim()
+                    ? `${data.points.trim()}P`
+                    : '미입력'}
+                  . 실제 포인트는 hsportal 마이페이지에서 확인하고 내
+                  정보에 입력해 주세요.
+                </p>
+              )}
               <div className="rule-actions">
                 <button
                   className="secondary"
@@ -354,8 +395,10 @@ export function Graduation({
       route: 'profile',
     },
     {
-      label: '이수한 과목 입력',
-      done: data.completed.length > 0,
+      label: info
+        ? '이수 내역 학교 연동'
+        : '이수한 과목 입력',
+      done: merged.length > 0,
     },
     {
       label: '내 학과 공식 규정 확인',
@@ -375,7 +418,16 @@ export function Graduation({
         {deptTargets && (
           <span className="badge green">내 학과 규정표 반영</span>
         )}
-        <span className="badge">사용자 입력 기반</span>
+        {info ? (
+          <span className="badge green">
+            종합정보 {info.fetchedAt.slice(0, 10)} 수집
+            {infoStale ? ` · ${infoStale}` : ''}
+          </span>
+        ) : infoPending ? (
+          <span className="badge">학교에서 불러오는 중…</span>
+        ) : (
+          <span className="badge">사용자 입력 기반</span>
+        )}
         <h2>졸업 준비는 정확한 기준부터.</h2>
         {pendingSteps.length > 0 && (
           <ol className="grad-steps">
@@ -883,10 +935,16 @@ export function Graduation({
       <section className="card pad">
         <div className="between">
           <h3>이수한 과목</h3>
-          <span className="badge">사용자 입력</span>
+          {info?.completed.length ? (
+            <span className="badge green">학교 수집 포함</span>
+          ) : (
+            <span className="badge">사용자 입력</span>
+          )}
         </div>
         <p>
-          이미 이수한 과목을 입력하면 졸업 충족률과 과목 추천에 반영됩니다.
+          {info?.completed.length
+            ? '종합정보 수집 내역과 직접 입력분을 함께 계산합니다.'
+            : '이미 이수한 과목을 입력하면 졸업 충족률과 과목 추천에 반영됩니다.'}{' '}
           학교 기록과 다를 수 있으니 정확한 내역은 종합정보시스템에서 확인하세요.
         </p>
         <label className="cat-search">
@@ -953,26 +1011,90 @@ export function Graduation({
             <Plus size={15} /> 추가
           </button>
         </div>
-        {data.completed.map((c, i) => (
+        {merged.map((c, i) => (
           <div className="event-line" key={c.code + i}>
             <Check />
             <div>
               <b>{c.name}</b>
               <small>
                 {c.category} · {c.credits}학점 · {gradGroup(c.category)}
+                {c.semester ? ` · ${c.semester}` : ''}
+                {c.src === 'info' ? ' · 학교 수집' : ''}
               </small>
             </div>
-            <button
-              className="secondary"
-              onClick={() => removeCompleted(i)}
-              aria-label={c.name + ' 이수 목록에서 제거'}
-            >
-              <X size={15} />
-            </button>
+            {c.src === 'info' ? (
+              <span className="badge">수집</span>
+            ) : (
+              <button
+                className="secondary"
+                onClick={() => {
+                  const idx = data.completed.findIndex(
+                    (x) => x.code === c.code && x.name === c.name,
+                  );
+                  if (idx >= 0) removeCompleted(idx);
+                }}
+                aria-label={c.name + ' 이수 목록에서 제거'}
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
         ))}
-        {!data.completed.length && (
-          <p className="empty-small">아직 입력한 이수 과목이 없어요.</p>
+        {!merged.length && (
+          <p className="empty-small">
+            {infoPending
+              ? '학교에서 이수 내역을 불러오는 중입니다…'
+              : '아직 입력한 이수 과목이 없어요.'}
+          </p>
+        )}
+        {infoFailed && !info && (
+          <p className="meta conn-warn">
+            종합정보 연결은 됐지만 이수 내역 페이지를 읽지 못했습니다.
+            지금은 수동 입력을 이용해 주세요 — 다음 로그인 때 다시
+            시도합니다.
+          </p>
+        )}
+        {info && !info.completed.length && !infoFailed && (
+          <p className="meta">
+            학교 수집은 됐지만 이수 내역을 찾지 못했습니다 — 수기 입력과
+            함께 쓸 수 있어요.
+          </p>
+        )}
+        {info && info.completed.length > 0 && (
+          <p className="meta">
+            종합정보에서 {info.completed.length}과목을 불러왔습니다
+            {info.credits !== undefined &&
+              ` · 취득 ${info.credits}학점`}
+            {info.gpa !== undefined && ` · 평점 ${info.gpa}`} ·{' '}
+            {info.fetchedAt.slice(0, 10)} 수집
+            {infoStale ? ` · ${infoStale}` : ''}. 수집 항목은 수동 삭제되지
+            않습니다 — 잘못 보인 항목은 학교 시스템에서 확인하세요.
+          </p>
+        )}
+        {info?.audit && info.audit.length > 0 && (
+          <details className="info-audit">
+            <summary>학교 졸업가사정표 {info.audit.length}개 항목</summary>
+            <ul className="rule-lines">
+              {info.audit.map((r, i) => (
+                <li key={i}>
+                  <b>{r.area}</b>
+                  <small>
+                    {[
+                      r.required && `기준 ${r.required}`,
+                      r.earned && `취득 ${r.earned}`,
+                      r.verdict,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                </li>
+              ))}
+            </ul>
+            <p className="meta">
+              종합정보시스템 졸업가사정표 원문 — 참고용이며 공식 사정 결과가
+              아닐 수 있습니다.
+            </p>
+          </details>
         )}
         <a
           className="link"

@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import type { InfoSnapshot } from '@/lib/data/info';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   if (Number(request.headers.get('content-length') || 0) > 4096)
@@ -55,16 +56,21 @@ export async function POST(request: Request) {
         429,
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
+    let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
     const snapshot = await connectSchool(input.studentId, input.password, {
       deferLms: (collect) => {
         deferredCollect = collect;
       },
+      deferInfo: (collect) => {
+        deferredInfo = collect;
+      },
     });
     input.password = '';
     if (deferredCollect) snapshot.lmsPending = true;
-    // 새 스냅샷에 lmsData가 없으면(이번 수집 실패/진행 중) 이전 수집본을
-    // 보존한다 — fetchedAt이 기준 시각을 그대로 보여주므로 신선도는 유지.
-    if (!snapshot.lmsData) {
+    if (deferredInfo) snapshot.infoPending = true;
+    // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
+    // 수집본을 보존한다 — fetchedAt이 기준 시각을 그대로 보여주므로 신선도 유지.
+    if (!snapshot.lmsData || !snapshot.infoData) {
       const prior = await database()
         .prepare('SELECT snapshot FROM academic_accounts WHERE id = ?')
         .bind(id)
@@ -73,9 +79,11 @@ export async function POST(request: Request) {
         const old = prior?.snapshot
           ? (JSON.parse(prior.snapshot) as {
               lmsData?: LmsSnapshot;
+              infoData?: InfoSnapshot;
             })
           : null;
         if (old?.lmsData) snapshot.lmsData = old.lmsData;
+        if (old?.infoData) snapshot.infoData = old.infoData;
       } catch {
         /* 이전 스냅샷 손상은 무시 */
       }
@@ -139,6 +147,55 @@ export async function POST(request: Request) {
                   JSON.stringify({
                     lmsPending: null,
                     lmsFailedAt: new Date().toISOString(),
+                  }),
+                  id,
+                  snapshot.checkedAt,
+                )
+                .run();
+            } catch {
+              /* 마커 기록 실패도 로그인 성공에 영향을 주지 않는다 */
+            }
+          }
+        })(),
+      );
+    // 종합정보 수집 — 같은 waitUntil 패턴. infoPending 해제와 결과/실패
+    // 마커를 이전 스냅샷 위에 병합한다 (checkedAt 가드로 순서 보장).
+    if (deferredInfo)
+      waitUntil(
+        (async () => {
+          try {
+            const infoData = await deferredInfo();
+            await database()
+              .prepare(
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+              )
+              .bind(
+                JSON.stringify(
+                  infoData
+                    ? { infoData, infoPending: null }
+                    : {
+                        infoPending: null,
+                        infoFailedAt: new Date().toISOString(),
+                      },
+                ),
+                id,
+                snapshot.checkedAt,
+              )
+              .run();
+          } catch (e) {
+            console.log(
+              '[info] deferred collect failed:',
+              e instanceof Error ? e.message : String(e),
+            );
+            try {
+              await database()
+                .prepare(
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                )
+                .bind(
+                  JSON.stringify({
+                    infoPending: null,
+                    infoFailedAt: new Date().toISOString(),
                   }),
                   id,
                   snapshot.checkedAt,
