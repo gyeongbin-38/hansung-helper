@@ -173,7 +173,7 @@
 }
 .year-table th,
 .year-table td {
-  border: 1px solid var(--nt-line, #e4e4e7);
+  border: 1px solid var(--nt-hairline);
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
@@ -254,7 +254,7 @@
 .rules-image img {
   display: block;
   max-width: 100%;
-  border: 1px solid var(--nt-line);
+  border: 1px solid var(--nt-hairline);
   border-radius: 10px;
 }
 

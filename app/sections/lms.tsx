@@ -787,7 +787,12 @@ function MatchFixer({
     setOpen(null);
   };
   return (
-    <section className="card pad lms-match-warn" role="note">
+    <section
+      className={
+        'card pad lms-match-warn' + (pending.length > 0 ? ' needs' : '')
+      }
+      role="note"
+    >
       {pending.length > 0 ? (
         <b>
           {snap.courses.length}과목 중 {pending.length}과목이 개설강의

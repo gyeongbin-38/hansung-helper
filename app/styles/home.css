@@ -74,7 +74,7 @@
 .hc-body p {
   font-size: 14px;
   margin: 7px 0 0;
-  color: var(--nt-ink-2);
+  color: var(--nt-slate);
 }
 .hc-body .link {
   margin-top: auto;
@@ -96,7 +96,7 @@
   height: 32px;
   border-radius: var(--nt-r-pill);
   border: 1px solid var(--nt-hairline);
-  color: var(--nt-ink-2);
+  color: var(--nt-slate);
   transition:
     border-color 0.15s ease,
     color 0.15s ease;
@@ -123,7 +123,7 @@
 .hc-src {
   margin: 12px 0 0;
   font-size: 12px;
-  color: var(--nt-ink-3);
+  color: var(--nt-stone);
 }
 @media (max-width: 640px) {
   .hc-slide {
@@ -537,7 +537,7 @@ button.event-line.as-link > svg {
 .notif-native {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid var(--nt-line);
+  border-top: 1px solid var(--nt-hairline);
 }
 .notif-native b {
   font-size: 13.5px;
