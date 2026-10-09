@@ -1765,3 +1765,43 @@ toolbar-side/#37352f/#f7f6f3) + JS 마커(수업·계획/활동·일정/직접
 등록) 확인.
 
 BLOCKER: 없음. 라이브 d417eb8e.
+
+## 2026-10-10 — 디자인 v2: 세리프 디스플레이 + 페이퍼 배경 + 텍스트 대폭 절감 (ISSUE-31)
+
+TRIGGER: 사용자 — '글이 너무 많아 어지럽다' + 디자인을 더 과감하게.
+B방향(학생 플래너/Notion) 위에서 시그니처 무브를 추가.
+
+DONE:
+- `DESIGN.md` v2 — 시그니처 무브 확정: 노션 세리프 모드의 학사 노트.
+  제목·큰 수치·D-day = 고운바탕, 본문·UI = Pretendard.
+- `--nt-font-display` (Gowun Batang 400/700, Google Fonts) 신규 —
+  .page-heading h1/.section-heading h2/.detail h2/인증·인트로 제목/
+  큰 수치(.stat strong/.plan-stats b/.builder-sum/.grad-intro>strong)/
+  .mini-art strong 대형 글리프/.event-date b D-day에 적용.
+- `--nt-paper` #fbfaf7 — body·.workspace·.topbar·.auth-page 배경을
+  따뜻한 종이 톤으로. 카드는 순백 유지해 대비.
+- 텍스트 절감 — SECTION_SUB 페이지 설명문 전체 폐지, 홈 아이브로우를
+  오늘 날짜("10월 10일 토요일")로(플래너 페이지 넘김), 나머지 페이지는
+  네비 그룹명(수업·계획/활동·일정/점검). 행 단위 출처 라벨·배지 중복
+  라벨 제거(home week 학사일정 sub/코스모스 rows/비교과 카드·목록
+  메타/활동 상세 dept 문장), 졸업 인트로 산문 3문장→1문장, 반복 면책
+  문장 압축, 시간표 페이지 중복 h2 제거.
+- 팔레트 정합 — 아바타·task-num·안읽음 표시·선택 배지·plan-slot을
+  라벤더 → --nt-tint-sky + --nt-primary-deep로 통일. grad-intro
+  라벤더 → 크림(--nt-tint-cream), act-band 플랫 서피스.
+- 디테일 — ::selection 네이비 틴트, 얇은 스크롤바(10px pill),
+  AccountBar 문구 압축(날짜만).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 홈·비교과·저장·
+직접등록·졸업·시간표·LMS 전부 세리프/페이퍼/줄바꿈 확인.
+
+DEPLOY: PR #9 squash 머지(98bdf1e) → published-personal cb47218
+→ wrangler deploy 6e641e75-d8d7-4109-a02a-150fa9d05e08 →
+엔드포인트 전부 200 + 라이브 CSS 마커(Gowun Batang/font-display/
+#fbfaf7/keep-all) + JS 마커(수업·계획/활동·일정/직접 등록/반가워요)
+확인.
+
+BLOCKER: 없음. 라이브 6e641e75.
+NOTE: 프로세스 정리 중 npm.*start 패턴이 무관한 AIR-NOTE 프로젝트의
+next start(PID 19748)도 종료됨 — 사용자에게 고지.
