@@ -276,13 +276,15 @@ main {
   margin: auto;
   padding: 36px 32px 0;
 }
-/* ---- editorial page heading ---- */
+/* ---- editorial page heading: 문서 마스터헤드처럼 얇은 룰로 본문과 분리 ---- */
 .page-heading {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--nt-hairline-soft);
 }
 .eyebrow {
   font-size: 11px;
@@ -367,7 +369,7 @@ footer {
   background: var(--nt-canvas);
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
-  box-shadow: var(--nt-shadow-modal);
+  box-shadow: var(--nt-shadow-2);
   padding: 13px 14px;
   display: flex;
   gap: 10px;

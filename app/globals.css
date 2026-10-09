@@ -48,15 +48,15 @@
   --nt-green-deep: #127a2b;
   --nt-yellow: #f5d75e;
   --nt-brown: #523410;
-  /* pastel card tints */
-  --nt-tint-peach: #ffe8d4;
-  --nt-tint-rose: #fde0ec;
-  --nt-tint-mint: #d9f3e1;
-  --nt-tint-lavender: #e6e0f5;
-  --nt-tint-sky: #dcecfa;
-  --nt-tint-yellow: #fef7d6;
-  --nt-tint-yellow-bold: #f9e79f;
-  --nt-tint-cream: #f8f5e8;
+  /* pastel card tints — 종이색을 향해 한 단계 바랜 "잿빛 파스텔" */
+  --nt-tint-peach: #f7ebdf;
+  --nt-tint-rose: #f7e7ed;
+  --nt-tint-mint: #e2efe5;
+  --nt-tint-lavender: #eae8f1;
+  --nt-tint-sky: #e5eef4;
+  --nt-tint-yellow: #f7f1dc;
+  --nt-tint-yellow-bold: #f2e6ae;
+  --nt-tint-cream: #f6f3e9;
   --nt-tint-gray: #f0eeec;
   /* surface — 종이색 캔버스 + 노션 회색 패널 */
   --nt-canvas: #ffffff;
@@ -191,6 +191,7 @@ small {
 .grad-intro h2,
 .auth-panel h1,
 .notif-panel-head h2,
+.advisor h2,
 .hc-body h3,
 .stat strong,
 .plan-stats b,
@@ -281,11 +282,12 @@ small {
 }
 .secondary {
   background: var(--nt-canvas);
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-hairline);
   color: var(--nt-ink);
 }
 .secondary:hover {
   background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
 }
 .link {
   display: inline-flex;
@@ -336,8 +338,12 @@ input {
 input::placeholder {
   color: var(--nt-muted);
 }
-input:focus {
+input:focus,
+select:focus,
+.field:focus {
   border-color: var(--nt-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nt-primary) 13%, transparent);
+  outline: none;
 }
 select {
   border: 1px solid var(--nt-hairline-strong);
@@ -432,7 +438,6 @@ select {
   font-size: 13px;
   line-height: 1.6;
   margin-bottom: 23px;
-  border: 1px solid var(--nt-hairline);
 }
 .demo-note b {
   font-weight: 600;
@@ -550,10 +555,14 @@ select {
   font-size: 11px;
 }
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--nt-primary);
+}
+/* 필드류 포커스는 소프트 링 하나로 — 이중 표시 방지 */
+input:focus-visible,
+select:focus-visible,
+.field:focus-visible {
+  outline: none;
 }
 /* ---- skeleton loading: placeholder blocks keep layout + reading order ---- */
 .sk-status {
