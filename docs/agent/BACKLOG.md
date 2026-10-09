@@ -148,7 +148,8 @@ blocking regressions.
   표시 전용으로 구현(LMS 학점·코드 부재로 집계 미반영 — 이름 매칭
   기반 '수강 중' 배지 + 졸업 '현재 수강 중' 정보 스트립).
   잔여: 다른 학과 ruleset 수집·검증, 수강중의 공식 이수 상태 연동
-  (COSMOS에 학점·코드 데이터가 없어 추가 소스 필요).
+  (COSMOS에 학점·코드 데이터가 없어 추가 소스 필요). 이수 내역
+  자동 수집은 ISSUE-33에서 종합정보 경로로 구현.
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
@@ -880,3 +881,26 @@ blocking regressions.
 - **Follow-ups**: 온보딩/설문/설정/알림 화면의 설명 밀도·details
   패턴 적용은 ISSUE-31 follow-up과 동일. mini-art 대형 글리프의
   카테고리별 아트 디렉션(현재는 tint 회전)은 별도 판단.
+
+## ISSUE-33 — 종합정보 자동 수집 (이수 내역·포인트·사정표·학적)
+
+- **Status**: **needs-verification** (2026-10-10 — 구현·단위테스트·
+  배포 완료. 실계정 페이지 파싱 정확도는 첫 실로그인 diag 확인 후
+  verified 전환)
+- **Labels**: agent-ready, priority:p1, area:data, area:account
+- **Objective**: 로그인 시 열리는 info.hansung.ac.kr 세션으로 학적·
+  이수 내역·비교과 포인트·졸업가사정표를 자동 수집 — 졸업 계산이
+  수동 입력 대기에서 실수치로 전환.
+- **Done**: 서버 collectInfo(메뉴 발견 → 슬롯별 페이지 fetch → 헤더
+  기반 테이블 파서 · 미이수 등급 제외 · 소계 행 제외 · EUC-KR 폴백
+  디코딩 · 로그인 벽 감지 · diag 계측), SchoolSnapshot.infoData/
+  infoPending/infoFailedAt, login+lms-refresh 라우트 waitUntil 지연
+  수집 + checkedAt 가드 + 이전 스냅샷 보존, 클라이언트 data.info
+  수화(빈칸만 채움), 졸업 mergeCompleted 병합 + 수집 배지 + 사정표
+  details + 실패 안내, 홈 타일 수집값 우선 + 출처 라벨, 동의 문구
+  갱신. tests/info.test.mjs 51건.
+- **Follow-ups**: 실계정 첫 수집의 diag.menu/pages로 실제 메뉴
+  라벨·경로 확인 → 매칭 실패 시 SLOTS 정규식 보정. hsportal 세션
+  (iModule AJAX 로그인)은 미구현 — 종합정보 포인트 페이지가 비어
+  있으면 재검토. 수집 주기는 로그인/lms-refresh 시점 — 장기 미로그인
+  시 신선도 저하는 infoStale 배지가 표시.
