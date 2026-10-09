@@ -1720,4 +1720,9 @@ DONE:
   빌드 green, 로컬 8787 + CDP 캡처로 폼/상세/스테퍼/배지 실동작
   확인(데모 모드에서 ext 등록→상세 이동→참여 중 기록→목록 배지).
 
-BLOCKER: 없음.
+DEPLOY: PR #5 squash 머지(루트 5301699) → published-personal ee1bafd
+→ wrangler deploy a9015637-6f1e-4e94-a2d0-e83c77473f8c →
+_verify_prod 전 엔드포인트 200 + 라이브 번들 마커(직접 등록·
+actStatus·act-steps CSS 등 10종) 확인.
+
+BLOCKER: 없음. 라이브 a9015637.
