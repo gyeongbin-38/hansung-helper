@@ -1903,6 +1903,54 @@ NOTE: 실계정 페이지 마크업은 미검증 — 파서는 메뉴 발견 + �
 기반이라 첫 실로그인의 diag(menu·pages)로 실제 구조 확인 필요.
 매칭 실패 시 안전하게 빈 스냅샷 + 수동 입력 안내로 수렴.
 
+## 2026-10-11 — ISSUE-33 실계정 검증 + 실마크업 수집기 재보정
+
+TRIGGER: 첫 실계정 로그인 수집의 diag가 {"menu":[],"pages":[]}로 수렴
+— 파서가 추측한 구조와 실제 종합정보 마크업이 달랐다. 실계정 HTML을
+덤프해 실제 구조로 재보정.
+
+DONE (PR #19 → 71b669a, PR #20 → ce7d01d, 라이브 e8a0c347):
+- 메뉴 소스 수정 — dae_top_menu는 링크 없는 헤더바. 실제 메뉴는
+  dae_main 프레임셋의 name=left 프레임(fuz/common/include/left/
+  left.jsp)과 우측 프레임(infohaksamain_portal.jsp)의 사이드바.
+  frameSrcs로 프레임 src 발견 → fetch → parseInfoMenu. 프레임 없는
+  구형 레이아웃이면 s_gong.gong_dae_left_menu 폴백. 수집된 페이지의
+  사이드바로 누락 슬롯 2차 재탐색.
+- parseInfoMenu 버그 수정 — li>a 중첩 시 li 컨테이너 매칭이 안쪽
+  앵커를 삼켜 메뉴 누락(실제 1건만 발견되던 것이 78건으로). a/area/
+  img/input 직접 스캔 + li/td 속성 경로 2차 스캔으로 분리. 'ac.kr'
+  도메인 꼬리 오캡처(kr/x.jsp) 수정.
+- parseGrades 실마크업 대응 — '구분/교과명/교과코드/학점/성적/
+  현재트랙' 헤더('교과' 추가 — '교과명'이 '과목' 미포함), 성적 열
+  필수로 '이수한 학점' 요약 테이블 오염 차단, 미확정 성적 행 제외
+  (표 전체가 빈 성적 열이면 구형 포맷으로 간주해 유지), 학기 카드
+  헤더 '2026 학년도 1 학기' 인식(윈도우 2000자), 페이지 전체 첫
+  취득학점/평균평점 총계 폴백, A0 등급 통과.
+- parseIdentity 실마크업 대응 — '<font>이름 : X</font>'·'학부(과) :
+  Y' 패턴, 성적 페이지 신원 라인 '이름 (학번) 학과', 7자리 학번
+  입학연도 규칙(앞 2자리+2000 — 기존 앞 4자리 규칙은 7자리 학번에서
+  실패). ctx.studentId를 최종 폴백으로 라우트에서 전달.
+- SLOTS — grades 첫 패턴을 /누적|전체 성적|이수 (내역|현황)/으로
+  확장해 '성적조회(누적)'이 '성적조회(현학기)'보다 우선 선택.
+- diag 확장 — 메뉴 소스 fetch(slot=menu)와 미검출 슬롯(path '-')
+  기록. 비교과 포인트는 메뉴상 hsportal 외부 링크라 info 세션으로
+  수집 불가 → 미검출로 정직히 기록(수동 입력 유지).
+- tests/info.test.mjs — 실계정 덤프 재현 픽스처(익명화)로 e2e 추가.
+  72건.
+
+VERIFY (실계정 prod 수집, 2026-10-11):
+- prod 로그인 200 → infoPending → D1 infoData 확인:
+  menu 78항목 발견(left.jsp 정상 파싱), menu 소스 4페이지 ok,
+  grades=jsp_21/student/grade/total_grade.jsp ok,
+  audit=joluprequire_track.jsp ok, points='-'(미검출),
+  credits=50, gpa=2.87, courses=18, name/dept/admitYear 실데이터.
+  사정표는 계정 미보유(2학년 — 정상), 포인트는 hsportal 외부 링크.
+- 실계정 left.jsp 덤프로 parseInfoMenu 78항목 로컬 재확인.
+
+BLOCKER: 없음. 라이브 e8a0c347, 배포 리포 a8971e8.
+NOTE: 사정표·포인트 수집은 계정 조건에 따라 자료가 없거나 외부
+링크라 미수집이 정상 — 이수 내역·학적 중심으로 실데이터 확보.
+
 
 ## 2026-10-10 — 동시 접속 안정화: IP 리밋·서브리퀘스트 예산·프로필 충돌 가드 (ISSUE-34)
 
