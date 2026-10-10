@@ -72,7 +72,7 @@ const SLOTS: { slot: string; res: RegExp[] }[] = [
   {
     slot: 'grades',
     res: [
-      /누적\s*성적|전체\s*성적|이수\s*(과목|내역|현황)/,
+      /누적|전체\s*성적|이수\s*(내역|현황)/,
       /성적\s*조회|성적표\s*조회|성적/,
     ],
   },
@@ -95,6 +95,22 @@ export function pickTargets(menu: InfoMenuItem[]) {
     }
   return found;
 }
+
+/** dae_main 프레임셋에서 프레임 src 목록 — 실제 메뉴는 좌측 프레임(left.jsp),
+ *  우측 프레임(포털 메인)에도 같은 사이드바가 박혀 있어 둘 다 메뉴 소스가 된다. */
+const frameSrcs = (html: string): string[] => {
+  const out: string[] = [];
+  for (const m of html.matchAll(/<frame\b([^>]*)>/gi)) {
+    const src =
+      m[1].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] ??
+      m[1].match(/\bsrc\s*=\s*([^\s>]+)/i)?.[1];
+    if (!src) continue;
+    const p = src.trim().replace(/^\/+/, '');
+    if (!p || /^https?:/i.test(p) || p.length > 120 || out.includes(p)) continue;
+    out.push(p);
+  }
+  return out;
+};
 
 // 's_x.y' bare servlet명 → servlet/ 접두, 'h_x/y.html'·'x/y.jsp' 경로는 그대로
 const toUrl = (path: string) =>
@@ -150,7 +166,9 @@ const num = (s: string) => {
 };
 
 /** 누적 성적 페이지 — 학기별 과목 테이블에서 이수 과목을 뽑는다.
- *  과목명 컬럼과 학점 컬럼이 같은 헤더에 있어야 데이터 테이블로 인정한다. */
+ *  실제 페이지(total_grade.jsp)는 학기 카드마다
+ *  '구분/교과명/교과코드/학점/성적' 테이블이 있다 — 과목명·학점·성적
+ *  세 헤더가 모두 있어야 성적표로 인정한다(요약 테이블 제외). */
 export function parseGrades(html: string): {
   completed: InfoCourse[];
   credits?: number;
@@ -160,11 +178,12 @@ export function parseGrades(html: string): {
   const seen = new Set<string>();
   let credits: number | undefined;
   let gpa: number | undefined;
-  // 테이블 앞 텍스트에서 학기 헤더를 찾는다 (예: "2024학년도 1학기")
+  // 테이블 앞 텍스트에서 학기 헤더를 찾는다 — 실제로는 카드 헤더
+  // ("2026 학년도 1 학기")가 테이블 바로 앞에 온다
   const chunks = html.split(/<table\b/i);
   for (let ti = 1; ti < chunks.length; ti++) {
     const block = chunks[ti].split(/<\/table>/i)[0] ?? '';
-    const before = plainText(chunks[ti - 1].slice(-800));
+    const before = plainText(chunks[ti - 1].slice(-2000));
     const sems = [
       ...before.matchAll(
         /(20\d{2})\s*(?:학년도|년)?\s*(1|2|여름|겨울)\s*학기/g,
@@ -183,8 +202,9 @@ export function parseGrades(html: string): {
     const headerIdx = rows.findIndex((r) => {
       const joined = r.join(' ');
       return (
-        /(교과목명|과목명|강좌명|과목\s*명|교과목)/.test(joined) &&
-        /학점/.test(joined)
+        /(교과목명|과목명|강좌명|과목\s*명|교과목|교과)/.test(joined) &&
+        /학점/.test(joined) &&
+        /(성적|등급)/.test(joined)
       );
     });
     if (headerIdx === -1) {
@@ -202,12 +222,17 @@ export function parseGrades(html: string): {
     }
     const head = rows[headerIdx];
     const iCode = col(head, [/과목코드|교과목코드|학수번호|과목번호|코드/]);
-    const iName = col(head, [/교과목명|과목명|강좌명|과목\s*명|교과목/]);
+    const iName = col(head, [/교과목명|과목명|강좌명|과목\s*명|교과목|교과/]);
     const iCat = col(head, [/이수\s*구분|구분|이수구분/]);
     const iCredits = col(head, [/취득\s*학점|학점수|학점/]);
     const iGrade = col(head, [/등급|성적/]);
     const iSem = col(head, [/학기|년도/]);
     if (iName === -1 || iCredits === -1) continue;
+    // 성적 열이 비어 있는 행(미확정)은 이수로 세지 않는다 — 단, 표 전체가
+    // 빈 성적 열이면 구형 포맷으로 간주해 행을 버리지 않는다.
+    const anyGrade =
+      iGrade !== -1 &&
+      rows.slice(headerIdx + 1).some((c) => (c[iGrade] ?? '').trim());
     let curSem = semester;
     for (const cells of rows.slice(headerIdx + 1)) {
       // 학기 중간 헤더 행 (colspan 하나만 있는 행)
@@ -221,12 +246,18 @@ export function parseGrades(html: string): {
       if (cells.length <= Math.max(iName, iCredits)) continue;
       const name = cells[iName];
       const cr = num(cells[iCredits]);
-      if (!name || cr === null || /^(소계|합계|총계|계)$/.test(name))
+      if (
+        !name ||
+        cr === null ||
+        /^(소\s*계|합\s*계|총\s*계|계)$/.test(name) ||
+        !/[가-힣A-Za-z]/.test(name)
+      )
         continue;
-      // 미이수 등급(F·NP·U·낙제 등)은 이수 목록에서 제외 — D학점까지는 이수.
       const gradeCell = iGrade !== -1 ? (cells[iGrade] ?? '').trim() : '';
+      // 미이수 등급(F·NP·U·낙제 등)은 이수 목록에서 제외 — D학점까지는 이수.
       if (/^(F|FA|NP|N|U|I|낙제|불합격|미이수|포기)/i.test(gradeCell))
         continue;
+      if (anyGrade && !gradeCell) continue;
       const code = iCode !== -1 ? cells[iCode] || '미확인' : '미확인';
       const sem =
         (iSem !== -1 &&
@@ -246,6 +277,19 @@ export function parseGrades(html: string): {
         grade: gradeCell ? gradeCell.slice(0, 10) : undefined,
       });
     }
+  }
+  // 테이블에서 못 구했으면 페이지 텍스트 첫 매치를 총계로 사용한다
+  // (총 성적 내역 블록이 학기별 카드보다 문서상 먼저 온다)
+  const text = plainText(html);
+  if (credits === undefined) {
+    const cm = text.match(/취득\s*학점[^0-9]{0,8}(\d{1,3})/);
+    if (cm) credits = parseInt(cm[1], 10);
+  }
+  if (gpa === undefined) {
+    const gm =
+      text.match(/평균\s*평점[^0-9]{0,8}(\d(?:\.\d{1,2})?)/) ??
+      text.match(/평점\s*평균[^0-9]{0,8}(\d(?:\.\d{1,2})?)/);
+    if (gm) gpa = parseFloat(gm[1]);
   }
   return { completed: completed.slice(0, 300), credits, gpa };
 }
@@ -295,13 +339,31 @@ export function parseAudit(html: string): InfoAuditRow[] | undefined {
   return undefined;
 }
 
-/** 학적 요약 — 라벨/값 테이블 쌍과 본문 패턴에서 이름·소속·학번을 찾는다. */
+/** 학번 → 입학연도. 한성대 학번은 앞자리가 입학연도다 —
+ *  8자리 이상이면 앞 4자리(20241234→2024), 7자리면 앞 2자리+2000(2591037→2025). */
+const admitYearOf = (id: string): number | undefined => {
+  const d = id.replace(/\D/g, '');
+  if (d.length >= 8) {
+    const y = parseInt(d.slice(0, 4), 10);
+    if (y >= 1990 && y <= 2100) return y;
+  }
+  if (d.length >= 7) {
+    const y = 2000 + parseInt(d.slice(0, 2), 10);
+    if (y >= 2000 && y <= 2100) return y;
+  }
+  return undefined;
+};
+
+/** 학적 요약 — 라벨/값 테이블 쌍과 본문 패턴에서 이름·소속·학번을 찾는다.
+ *  실제 마크업은 두 형태다 — 헤더 바 '<font>이름 : 홍길동</font>'과
+ *  성적 페이지 신원 라인 '홍길동 (2591037) AI응용학과'. */
 export function parseIdentity(html: string): {
   name?: string;
   dept?: string;
   admitYear?: number;
 } {
   const out: { name?: string; dept?: string; admitYear?: number } = {};
+  let sid = '';
   // <th>라벨</th><td>값</td> 패턴
   const pair = (labelRe: RegExp) => {
     const m = html.match(
@@ -318,49 +380,136 @@ export function parseIdentity(html: string): {
   if (/^[가-힣]{2,5}$/.test(name)) out.name = name;
   const idText = pair(/학번|학번\(사번\)|등록번호/) ||
     html.match(/학번[^0-9]{0,10}(\d{7,10})/)?.[1] || '';
-  const idm = idText.match(/\d{7,10}/) || idText.match(/\d{6,10}/);
-  const year = idm ? parseInt(idm[0].slice(0, 4), 10) : 0;
-  if (year >= 1990 && year <= 2100) out.admitYear = year;
+  const idm = idText.match(/\d{6,10}/);
+  if (idm) sid = idm[0];
+  const text = plainText(html);
+  // '이름 : 홍길동' — 다음 라벨이나 끝에서 끊는다 (붙어 있을 수 있음)
+  if (!out.name) {
+    const m = text.match(
+      /이름\s*[:：]\s*([가-힣]{2,5}?)(?=\s*(?:학부|전공|학번|$))/,
+    );
+    if (m) out.name = m[1];
+  }
+  // '학부(과) : AI응용학과' — '전공 :' 라벨 앞에서 끊는다
+  if (!out.dept) {
+    const m =
+      text.match(
+        /학부\s*\(과\)\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:전공|이름|학번|$))/,
+      ) ??
+      text.match(
+        /전공\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:이름|학부|학번|$))/,
+      );
+    if (m) out.dept = m[1];
+  }
+  // '홍길동 (2591037) AI응용학과 2 학년' 신원 라인
+  const idLine = text.match(
+    /([가-힣]{2,5})\s*\(\s*(\d{6,10})\s*\)\s*([가-힣A-Za-z·]{2,30})/,
+  );
+  if (idLine) {
+    out.name ??= idLine[1];
+    if (!out.dept) out.dept = idLine[3];
+    if (!sid) sid = idLine[2];
+  }
+  const year = sid ? admitYearOf(sid) : undefined;
+  if (year) out.admitYear = year;
   return out;
 }
 
-/** 세션으로 발견된 목표 페이지를 병렬로 가져와 스냅샷을 조립한다.
- *  예외는 밖으로 던지지 않는다 — 모든 실패는 diag.ok로 표현한다. */
+/** 세션으로 발견된 목표 페이지를 가져와 스냅샷을 조립한다.
+ *  메뉴는 두 라운드로 찾는다 — ① dae_main 프레임셋의 좌/우 프레임
+ *  (left.jsp + 포털 메인의 사이드바) ② 수집된 페이지 안의 사이드바.
+ *  예외는 밖으로 던지지 않는다 — 모든 실패는 diag.pages로 표현한다. */
 export async function collectInfo(
   session: InfoSession,
-  ctx: { menuHtml: string; mainHtml: string },
+  ctx: { menuHtml: string; mainHtml: string; studentId?: string },
 ): Promise<InfoSnapshot> {
-  const menu = [...parseInfoMenu(ctx.menuHtml)];
-  for (const m of parseInfoMenu(ctx.mainHtml))
-    if (!menu.some((x) => x.path === m.path)) menu.push(m);
-  const targets = pickTargets(menu);
   const pages: { slot: string; path: string; ok: boolean }[] = [];
   const fetched: Record<string, string> = {};
+  const menuHtmls: string[] = [ctx.menuHtml, ctx.mainHtml];
+
+  const get = async (path: string): Promise<string | null> => {
+    const url = toUrl(path);
+    try {
+      const res = await session.follow(await session.request(url), url);
+      const html = await decode(res);
+      return isLoginWall(html) ? null : html;
+    } catch {
+      return null;
+    }
+  };
+
+  // 1차 메뉴 소스 — 프레임셋의 프레임들 (left.jsp가 실제 네비게이션).
+  // 프레임이 없는 구형 레이아웃이면 레거시 좌측 메뉴 서블릿을 시도한다.
+  const frames = frameSrcs(ctx.mainHtml).slice(0, 4);
+  const menuSources = frames.length
+    ? frames
+    : ['s_gong.gong_dae_left_menu'];
   await Promise.all(
-    Object.entries(targets).map(async ([slot, path]) => {
-      const url = toUrl(path);
-      try {
-        const res = await session.follow(await session.request(url), url);
-        const html = await decode(res);
-        if (isLoginWall(html)) {
-          pages.push({ slot, path, ok: false });
-          return;
-        }
-        fetched[slot] = html;
-        pages.push({ slot, path, ok: true });
-      } catch {
-        pages.push({ slot, path, ok: false });
-      }
+    menuSources.map(async (src) => {
+      const html = await get(src);
+      pages.push({ slot: 'menu', path: src, ok: html !== null });
+      if (html) menuHtmls.push(html);
     }),
   );
-  const identity = {
-    ...parseIdentity(ctx.mainHtml),
-    ...parseIdentity(ctx.menuHtml),
-    ...(fetched.grades ? parseIdentity(fetched.grades) : {}),
+
+  const menuItems = () => {
+    const seen = new Set<string>();
+    const out: InfoMenuItem[] = [];
+    for (const h of menuHtmls)
+      for (const it of parseInfoMenu(h)) {
+        const k = it.path + '|' + it.label;
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(it);
+        }
+      }
+    return out;
   };
+
+  const fetchSlot = async (slot: string, path: string) => {
+    const html = await get(path);
+    pages.push({ slot, path, ok: html !== null });
+    if (html !== null) fetched[slot] = html;
+  };
+
+  const targets = pickTargets(menuItems());
+  await Promise.all(
+    Object.entries(targets).map(([slot, path]) => fetchSlot(slot, path)),
+  );
+
+  // 2차 탐색 — 가져온 페이지의 사이드바에서 못 찾은 슬롯을 재시도한다
+  const deep = new Map<string, InfoMenuItem>();
+  for (const h of [...Object.values(fetched), ...menuHtmls])
+    for (const it of parseInfoMenu(h))
+      if (!deep.has(it.path + '|' + it.label)) deep.set(it.path + '|' + it.label, it);
+  const again = pickTargets([...deep.values()]);
+  for (const { slot } of SLOTS) {
+    if (!targets[slot] && again[slot]) {
+      targets[slot] = again[slot];
+      await fetchSlot(slot, again[slot]);
+    }
+  }
+
+  // 못 찾은 슬롯도 diag에 남긴다 — '찾지 못함'과 '가져오기 실패'를 구분
+  for (const { slot } of SLOTS)
+    if (!fetched[slot] && !pages.some((p) => p.slot === slot))
+      pages.push({ slot, path: '-', ok: false });
+
+  const identity: { name?: string; dept?: string; admitYear?: number } = {};
+  for (const h of [ctx.mainHtml, ctx.menuHtml, ...Object.values(fetched)]) {
+    const id = parseIdentity(h);
+    identity.name ??= id.name;
+    identity.dept ??= id.dept;
+    identity.admitYear ??= id.admitYear;
+  }
+  // 페이지에서 학번을 못 찾으면 로그인 학번으로 입학연도를 채운다
+  if (!identity.admitYear && ctx.studentId)
+    identity.admitYear = admitYearOf(ctx.studentId);
+
   const grades = fetched.grades
     ? parseGrades(fetched.grades)
     : { completed: [] };
+  const menu = menuItems();
   const snap: InfoSnapshot = {
     source: 'info-hansung',
     fetchedAt: new Date().toISOString(),
