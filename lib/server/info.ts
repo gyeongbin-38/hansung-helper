@@ -33,7 +33,9 @@ export function parseInfoMenu(html: string): InfoMenuItem[] {
   const PATH_RE =
     /servlet\/s_[a-z][a-z0-9_]*\.[a-z0-9_]+|h_[a-z][a-z0-9_]*\/[a-z0-9_]+\.html?|[a-z0-9_]+\/[a-z0-9_/]*\.jsp|\bs_[a-z][a-z0-9_]*\.[a-z0-9_]+/gi;
   const push = (label: string, path: string) => {
-    const p = path.trim().replace(/^\/+/, '');
+    // 'kr/x.jsp'는 절대 URL 'info.hansung.ac.kr/x.jsp'의 도메인 꼬리가
+    // 경로 패턴에 잡힌 것 — 'kr/' 접두를 떼고 본래 경로로 되돌린다
+    const p = path.trim().replace(/^\/+/, '').replace(/^kr\//, '');
     const l = label.replace(/\s+/g, ' ').trim().slice(0, 60);
     if (!p || /[:\\]/.test(p) || p.length > 80) return;
     const key = p + '|' + l;
@@ -41,20 +43,31 @@ export function parseInfoMenu(html: string): InfoMenuItem[] {
     seen.add(key);
     items.push({ label: l, path: p });
   };
-  // 태그 단위 스캔 — 속성 안의 경로 + 같은 태그의 라벨(alt/title/value/본문)
-  for (const m of html.matchAll(/<(a|area|img|input|td|li)\b([^>]*)>([\s\S]*?)<\/\1>|<(a|area|img|input)\b([^>]*)\/?\s*>/gi)) {
-    const attrs = m[2] ?? m[5] ?? '';
-    const inner = m[3] ?? '';
-    const pathMatch = attrs.match(PATH_RE);
+  const pathOf = (attrs: string) => {
+    const m = attrs.match(PATH_RE);
     PATH_RE.lastIndex = 0;
-    if (!pathMatch) continue;
-    const full = pathMatch[0];
-    const path = full.startsWith('servlet/') ? full.slice(8) : full;
+    if (!m) return null;
+    const full = m[0];
+    return full.startsWith('servlet/') ? full.slice(8) : full;
+  };
+  // 태그 단위 스캔 — 속성 안의 경로 + 같은 태그의 라벨(alt/title/value/본문).
+  // a/area/img/input만 직접 스캔한다 — li/td를 함께 잡으면 컨테이너가
+  // 안쪽 앵커를 통째로 삼켜 실제 메뉴(<li><a>)가 전부 누락된다.
+  for (const m of html.matchAll(/<(a|area|img|input)\b([^>]*)>([\s\S]*?)<\/\1>|<(a|area|img|input)\b([^>]*)\/?\s*>/gi)) {
+    const attrs = m[2] ?? m[5] ?? '';
+    const path = pathOf(attrs);
+    if (!path) continue;
     const label =
       attrs.match(/(?:alt|title|value)="([^"]{1,60})"/)?.[1] ??
       attrs.match(/(?:alt|title|value)='([^']{1,60})'/)?.[1] ??
-      plainText(inner).slice(0, 60);
+      plainText(m[3] ?? '').slice(0, 60);
     push(label, path);
+  }
+  // li/td 컨테이너 — onclick 등 속성에 경로가 있고 본문이 라벨인 형태
+  for (const m of html.matchAll(/<(li|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi)) {
+    const path = pathOf(m[2] ?? '');
+    if (!path) continue;
+    push(plainText(m[3] ?? '').slice(0, 60), path);
   }
   // JS 배열/인자 쌍: "라벨","s_x.y" 또는 '라벨','path.jsp'
   for (const m of html.matchAll(
