@@ -2,7 +2,11 @@
 import { useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
-import { evaluate, GLOBAL_RULE_SOURCE } from '@/lib/data/graduation';
+import {
+  evaluate,
+  GLOBAL_RULE_SOURCE,
+  graduationOutlook,
+} from '@/lib/data/graduation';
 import { mergeCompleted } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import {
@@ -39,6 +43,7 @@ export function Graduation({
 }) {
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
+  const [pace, setPace] = useState('');
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
@@ -112,6 +117,24 @@ export function Graduation({
     deptTargets,
   ]);
   const total = results[0];
+  // 졸업 전망 역산 — 학기당 목표 학점은 사용자가 조정할 수 있다.
+  // 입학연도는 수집본을 우선한다(수동 입력보다 정확).
+  const outlook = useMemo(() => {
+    const semPace = parseInt(pace, 10);
+    const admit =
+      info?.admitYear ??
+      (Number.isInteger(parseInt(data.year, 10))
+        ? parseInt(data.year, 10)
+        : undefined);
+    return graduationOutlook({
+      earned: total.earned,
+      required: total.required,
+      planned: total.planned,
+      perSemester: Number.isInteger(semPace) ? semPace : undefined,
+      semester: catalog?.semester,
+      admitYear: admit,
+    });
+  }, [pace, info, data.year, total, catalog]);
   // 미입력과 실제 0을 구분한다 — 이수 과목이 하나도 없거나 포인트가 비어
   // 있으면 "0 이수"가 아니라 "미입력"으로 표시해야 오해가 없다.
   const completedEmpty = merged.length === 0;
@@ -505,6 +528,47 @@ export function Graduation({
           프로필에서 소속·입학연도 수정
         </button>
       </div>
+
+      {outlook.ok && !missingInput(total) && (
+        <section className="card pad grad-outlook">
+          <div className="between">
+            <h3>졸업 전망</h3>
+            <span className="badge">추정 · 공식 사정 아님</span>
+          </div>
+          <strong>
+            남은 교과 학점 {outlook.remaining}학점
+            {outlook.afterPlan < outlook.remaining &&
+              ` → 계획 반영 시 ${outlook.afterPlan}학점`}
+          </strong>
+          <p>
+            {outlook.afterPlan === 0
+              ? '이번 학기 계획 과목을 모두 이수하면 학점 요건을 채웁니다.'
+              : `학기당 ${outlook.perSemester}학점 기준 약 ${outlook.semestersLeft}학기 더 필요` +
+                (outlook.estLabel
+                  ? ` — ${outlook.estLabel}학기 이수 완료 전망`
+                  : '') +
+                (outlook.gradeYear
+                  ? ` (현재 ${outlook.gradeYear}학년 기준)`
+                  : '')}
+          </p>
+          <label className="rule-target">
+            학기당 목표 학점
+            <input
+              type="number"
+              min={1}
+              max={25}
+              placeholder={String(outlook.perSemester)}
+              value={pace}
+              aria-label="학기당 목표 이수 학점"
+              onChange={(e) => setPace(e.target.value)}
+            />
+          </label>
+          <p className="meta">
+            계획 과목 전부 이수·학기당 균등 이수 가정 — 예상치이며 학교의
+            공식 졸업 사정이 아닙니다.
+          </p>
+        </section>
+      )}
 
       {enrolled.length > 0 && (
         <section className="card pad">

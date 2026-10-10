@@ -159,3 +159,82 @@ export function evaluate(
     return { rule, earned, planned: plan, required, requiredSource, status };
   });
 }
+
+/** 학기 라벨 '2026-2' → [2026, 2] */
+export const parseSemester = (s: string): [number, number] | null => {
+  const m = s.match(/(20\d{2})\s*[-./]?\s*([12])/);
+  return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : null;
+};
+
+const semIdx = (y: number, s: number) => y * 2 + (s - 1);
+const semLabel = (idx: number) => `${Math.floor(idx / 2)}-${(idx % 2) + 1}`;
+
+/** 졸업 전망 역산 — 남은 학점을 학기당 목표로 나눈 추정치.
+ *  공식 사정이 아니라 계획 참고용 — 화면에 가정을 그대로 표시해야 한다.
+ *  이번 학기 계획 과목은 '이수 예정'으로 취급해 남은 학점에서 먼저 뺀다. */
+export function graduationOutlook(input: {
+  /** 확정 이수 학점(교과 총계) */
+  earned: number;
+  /** 졸업 필요 총학점 — null이면 기준 미확정으로 계산 불가 */
+  required: number | null;
+  /** 이번 학기 계획 과목 학점 */
+  planned: number;
+  /** 학기당 목표 이수 학점 — 미지정 시 계획 학점(없으면 18) */
+  perSemester?: number;
+  /** 현재 학기 라벨 '2026-2' — 예상 졸업 시기 계산용 */
+  semester?: string;
+  /** 입학연도 — 현재 학년차 표시용 */
+  admitYear?: number;
+}): {
+  /** 계산 가능 여부 — required 미확정 또는 입력 부족이면 false */
+  ok: boolean;
+  /** 계획 반영 전 남은 교과 학점 */
+  remaining: number;
+  /** 이번 학기 계획 반영 후 남은 학점 */
+  afterPlan: number;
+  /** 실제 적용된 학기당 학점 */
+  perSemester: number;
+  /** 계획 이수 후 추가로 필요한 학기 수 */
+  semestersLeft: number;
+  /** 예상 졸업 학기 라벨 'YYYY-S' — semester 미지정이면 없음 */
+  estLabel?: string;
+  /** 현재 학년차 — admitYear+semester가 있을 때만 */
+  gradeYear?: number;
+} {
+  if (input.required === null || input.required <= 0)
+    return {
+      ok: false,
+      remaining: 0,
+      afterPlan: 0,
+      perSemester: 0,
+      semestersLeft: 0,
+    };
+  const remaining = Math.max(0, input.required - input.earned);
+  const afterPlan = Math.max(0, remaining - input.planned);
+  const perSemester = Math.min(
+    25,
+    Math.max(1, Math.round(input.perSemester ?? (input.planned || 18))),
+  );
+  const semestersLeft = Math.ceil(afterPlan / perSemester);
+  const sem = input.semester ? parseSemester(input.semester) : null;
+  let estLabel: string | undefined;
+  let gradeYear: number | undefined;
+  if (sem) {
+    const cur = semIdx(sem[0], sem[1]);
+    // 계획은 현재 학기분 — 남은 학점은 다음 학기부터 채운다
+    estLabel = semLabel(cur + semestersLeft);
+    if (input.admitYear) {
+      const elapsed = cur - semIdx(input.admitYear, 1);
+      if (elapsed >= 0 && elapsed < 20) gradeYear = Math.floor(elapsed / 2) + 1;
+    }
+  }
+  return {
+    ok: true,
+    remaining,
+    afterPlan,
+    perSemester,
+    semestersLeft,
+    estLabel,
+    gradeYear,
+  };
+}
