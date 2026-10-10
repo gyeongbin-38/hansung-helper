@@ -12,6 +12,8 @@ import {
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
+import { mergeInfoSnapshot } from '@/lib/data/info';
+import { infoChanges } from '@/lib/data/notifs';
 
 // 학교 비밀번호 재인증으로 COSMOS 수집을 다시 실행한다. 비밀번호는 검증 후
 // 즉시 버리며 저장하지 않는다. 세션과 계정 데이터는 유지된다.
@@ -58,7 +60,9 @@ export async function POST(request: Request) {
     input.password = '';
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
-    // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다
+    // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다.
+    // oldInfo는 지연 수집 완료 시 변동 지표 비교 기준으로도 쓴다.
+    let oldInfo: InfoSnapshot | undefined;
     if (!snapshot.lmsData || !snapshot.infoData) {
       try {
         const old = JSON.parse(account.snapshot) as {
@@ -66,8 +70,8 @@ export async function POST(request: Request) {
           infoData?: InfoSnapshot;
         };
         if (!snapshot.lmsData && old.lmsData) snapshot.lmsData = old.lmsData;
-        if (!snapshot.infoData && old.infoData)
-          snapshot.infoData = old.infoData;
+        oldInfo = old.infoData;
+        if (!snapshot.infoData && oldInfo) snapshot.infoData = oldInfo;
       } catch {
         /* 이전 스냅샷 손상은 무시 */
       }
@@ -122,14 +126,22 @@ export async function POST(request: Request) {
         (async () => {
           try {
             const infoData = await deferredInfo();
+            // 로그인 라우트와 동일 — 슬롯 실패 시 이전 값 유지 + changed 정리
+            const patchInfo = infoData
+              ? (() => {
+                  const stored = mergeInfoSnapshot(oldInfo, infoData);
+                  const changed = infoChanges(oldInfo, stored);
+                  return { ...stored, changed: changed.length ? changed : null };
+                })()
+              : null;
             await database()
               .prepare(
                 "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
               )
               .bind(
                 JSON.stringify(
-                  infoData
-                    ? { infoData, infoPending: null }
+                  patchInfo
+                    ? { infoData: patchInfo, infoPending: null }
                     : {
                         infoPending: null,
                         infoFailedAt: new Date().toISOString(),

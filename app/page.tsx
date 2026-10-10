@@ -36,7 +36,11 @@ import { CalendarSection } from './sections/calendar';
 import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
-import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
+import {
+  deriveNotifs,
+  reminderTargets,
+  stageReminderTargets,
+} from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart } from '@/lib/data/lms';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
@@ -380,7 +384,6 @@ export default function App() {
     const d = data;
     if (
       !d.notifEnabled ||
-      !d.lms ||
       typeof Notification === 'undefined' ||
       Notification.permission !== 'granted'
     )
@@ -389,7 +392,19 @@ export default function App() {
     const before =
       (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
       currentSemesterStart(Date.now());
-    const timers = reminderTargets(d.lms, Date.now(), undefined, undefined, before)
+    const targets = [
+      // 활동 라이프사이클(수료·포인트 확인) + LMS 마감 — 같은 예약 큐
+      ...stageReminderTargets({
+        actStatus: d.actStatus,
+        acts: actsSnap,
+        extActivities: d.extActivities,
+        now: Date.now(),
+      }),
+      ...(d.lms
+        ? reminderTargets(d.lms, Date.now(), undefined, undefined, before)
+        : []),
+    ].sort((a, b) => a.fireAt - b.fireAt);
+    const timers = targets
       .filter((r) => !fired.has(r.id))
       .map((r) =>
         setTimeout(() => {
@@ -406,7 +421,7 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, catalog]);
+  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, catalog, actsSnap]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',

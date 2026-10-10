@@ -6,6 +6,7 @@ import {
 } from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
 import { dueSoon, type LmsSnapshot } from './lms.ts';
+import type { InfoSnapshot } from './info.ts';
 
 export type NotifItem = {
   id: string;
@@ -30,6 +31,8 @@ export type NotifInputs = {
     actStatus?: Record<string, string>;
     /** 직접 등록 활동 — 단계 리마인드 대상에 포함 */
     extActivities?: ExtActivity[];
+    /** 종합정보 수집본 — changed 필드가 있으면 성적 변동 알림 도출 */
+    info?: InfoSnapshot;
   };
   planned: CourseSection[];
   acts: ActivitySnapshot | null;
@@ -80,6 +83,84 @@ export function reminderTargets(
     });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
+}
+
+/**
+ * 활동 라이프사이클 리마인드의 OS 알림 대상 — 알림함(deriveNotifs)과
+ * 같은 단계 규칙을 브라우저 알림 예약 형식으로 변환한다.
+ * 종료 경과 리마인드는 fireAt=now로 즉시 발송 대상이 된다.
+ */
+export function stageReminderTargets(input: {
+  actStatus?: Record<string, string>;
+  acts?: ActivitySnapshot | null;
+  extActivities?: ExtActivity[];
+  now: number;
+  /** 발송 상한 — 알림함과 같은 우선순위로 앞에서부터 */
+  limit?: number;
+}): Reminder[] {
+  const { now } = input;
+  const extById = new Map(
+    (input.extActivities ?? []).map((e) => [
+      e.id,
+      { title: e.title, runEnd: e.runEnd, points: e.points },
+    ]),
+  );
+  const out: Reminder[] = [];
+  for (const [id, stage] of Object.entries(input.actStatus ?? {})) {
+    if (out.length >= (input.limit ?? 3)) break;
+    const src =
+      (input.acts?.items ?? []).find((a) => a.id === id) ??
+      extById.get(id);
+    if (!src) continue;
+    const endStr = src.runEnd ?? '';
+    const endTs = endStr ? Date.parse(endStr.slice(0, 10)) : NaN;
+    if (Number.isNaN(endTs)) continue;
+    const dd = Math.round((endTs - now) / DAY);
+    if (stage === 'joined' && dd >= 0 && dd <= 7) {
+      out.push({
+        id: `stage-${id}-end`,
+        // 종료 전날에 울린다 — 당일이면 즉시
+        fireAt: Math.max(now, endTs - DAY),
+        title: `활동 종료 ${dd === 0 ? '오늘' : `D-${dd}`}: ${src.title}`,
+        body: '종료 후 수료 여부를 단계로 기록해 주세요.',
+      });
+    } else if (stage === 'joined' && dd < 0 && dd >= -30) {
+      out.push({
+        id: `stage-${id}-done-chk`,
+        fireAt: now,
+        title: `종료된 활동이에요: ${src.title}`,
+        body: '수료했다면 단계를 갱신해 주세요.',
+      });
+    } else if (stage === 'done' && dd < 0 && dd >= -60) {
+      const rawPts = src.points;
+      const pts =
+        typeof rawPts === 'number' ? rawPts : parseInt(rawPts || '0', 10);
+      if (!pts) continue;
+      out.push({
+        id: `stage-${id}-credit`,
+        fireAt: now,
+        title: `포인트 반영을 확인해 주세요: ${src.title}`,
+        body: 'hsportal 비교과 포인트 내역에서 반영 여부를 확인하세요.',
+      });
+    }
+  }
+  return out.sort((a, b) => a.fireAt - b.fireAt);
+}
+
+/** 이전 스냅샷과 비교해 바뀐 학적 지표 라벨 — 알림 문구에 쓴다.
+ *  비교 대상: 학점·평점·이수 과목 수 (성적 반영 시즌에 바뀌는 값들). */
+export function infoChanges(
+  prev: InfoSnapshot | undefined,
+  next: InfoSnapshot | undefined,
+): string[] {
+  if (!next) return [];
+  if (!prev) return next.completed.length ? ['수집 시작'] : [];
+  const out: string[] = [];
+  if (prev.credits !== next.credits) out.push('취득학점');
+  if (prev.gpa !== next.gpa) out.push('평점');
+  if (prev.completed.length !== next.completed.length)
+    out.push('이수 과목 수');
+  return out;
 }
 
 /**
@@ -229,6 +310,19 @@ export function deriveNotifs({
         route: 'lms',
       });
     }
+
+  // 학교 수집 성적 변동 — 서버가 이전 스냅샷과 비교해 심은 changed 라벨.
+  // fetchedAt을 id에 붙여 새 수집마다 1회씩만 울린다.
+  if (data.info?.changed?.length)
+    items.push({
+      id: `info-changed-${data.info.fetchedAt}`,
+      tone: 'blue',
+      cat: '시스템',
+      label: '성적 반영',
+      title: '학교 성적 정보가 갱신됐습니다.',
+      desc: `${data.info.changed.join(' · ')}이 바뀌었습니다 — 졸업요건에서 확인하세요.`,
+      route: 'graduation',
+    });
 
   // 다가오는 공식 학사일정 (7일 이내 시작)
   for (const e of sched?.items ?? []) {

@@ -1,4 +1,9 @@
-import { deriveNotifs, reminderTargets } from '../lib/data/notifs.ts';
+import {
+  deriveNotifs,
+  reminderTargets,
+  stageReminderTargets,
+  infoChanges,
+} from '../lib/data/notifs.ts';
 import { parseDue } from '../lib/data/lms.ts';
 
 let pass = 0;
@@ -265,6 +270,80 @@ items = deriveNotifs({
   now: NOW,
 });
 t('stage: ext 활동 종료 임박', items.some((i) => i.id === 'stage-ext-abc-end' && i.title.includes('D-1')));
+
+// --- stageReminderTargets: 동일 단계 규칙의 OS 알림 대상 ---
+const st = stageReminderTargets({
+  actStatus: {
+    'j-end3': 'joined',
+    'j-old': 'joined',
+    'j-stale': 'joined',
+    'd-pts': 'done',
+    'd-nopts': 'done',
+    'a-applied': 'applied',
+  },
+  acts: acts2,
+  now: NOW,
+});
+t('stage-rem: 종료 임박', st.some((r) => r.id === 'stage-j-end3-end'));
+t('stage-rem: 전날 발송', st.find((r) => r.id === 'stage-j-end3-end').fireAt === Date.parse(iso(NOW + 3 * DAY)) - DAY);
+t('stage-rem: 경과 즉시', st.find((r) => r.id === 'stage-j-old-done-chk').fireAt === NOW);
+t('stage-rem: 포인트 확인', st.some((r) => r.id === 'stage-d-pts-credit'));
+t('stage-rem: 오래된/무포인트 제외', !st.some((r) => r.id.includes('j-stale') || r.id.includes('d-nopts')));
+t('stage-rem: applied 제외', !st.some((r) => r.id.includes('a-applied')));
+const stExt = stageReminderTargets({
+  actStatus: { 'ext-abc': 'joined' },
+  extActivities: [{
+    id: 'ext-abc', title: '외부 공모전', org: '주최',
+    applyStart: '', applyEnd: '', runStart: '', runEnd: iso(NOW + DAY),
+    points: '', url: '', addedAt: '',
+  }],
+  now: NOW,
+});
+t('stage-rem: ext 활동', stExt.length === 1 && stExt[0].id === 'stage-ext-abc-end');
+
+// --- infoChanges: 성적 변동 감지 ---
+const base = {
+  source: 'info-hansung',
+  fetchedAt: '2026-09-01T00:00:00Z',
+  credits: 50,
+  gpa: 2.87,
+  completed: [{ code: 'A', name: 'n', category: '전선', credits: 3 }],
+};
+t('infoChanges: 첫 수집', infoChanges(undefined, base).join() === '수집 시작');
+t('infoChanges: 동일', infoChanges(base, { ...base }).length === 0);
+t(
+  'infoChanges: 학점+평점 변동',
+  infoChanges(base, { ...base, credits: 62, gpa: 3.01 }).join(',') === '취득학점,평점',
+);
+t(
+  'infoChanges: 과목 수 변동',
+  infoChanges(base, {
+    ...base,
+    completed: [
+      { code: 'A', name: 'n', category: '전선', credits: 3 },
+      { code: 'B', name: 'm', category: '교양', credits: 2 },
+    ],
+  }).join() === '이수 과목 수',
+);
+// 변동 알림 도출 — fetchedAt으로 1회 id
+items = deriveNotifs({
+  account: {},
+  data: {
+    saved: [], dept: 'd', year: '2023',
+    info: { ...base, changed: ['취득학점', '평점'] },
+  },
+  planned: [],
+  acts: null,
+  sched: null,
+  now: NOW,
+});
+const ch = items.find((i) => i.id === 'info-changed-2026-09-01T00:00:00Z');
+t('info-changed notif', !!ch && ch.desc.includes('취득학점'));
+t('info-changed 없으면 알림 없음', !deriveNotifs({
+  account: {},
+  data: { saved: [], dept: 'd', year: '2023', info: { ...base } },
+  planned: [], acts: null, sched: null, now: NOW,
+}).some((i) => i.id.startsWith('info-changed')));
 
 console.log(`notifs: ${pass}/${pass + fail}`);
 process.exit(fail ? 1 : 0);
