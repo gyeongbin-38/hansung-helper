@@ -100,11 +100,14 @@ const REAL_TOP_MENU = `<html><body>
 <font color="#ffffff">전공 : 테스트학과</font>
 </body></html>`;
 
-const REAL_LEFT = `<a href="/jsp/sugang/h_sungjeok_s01_h.jsp" class="d2" target='right'>성적조회(현학기) 및 이의신청</a>
-<a href="/jsp_21/student/grade/total_grade.jsp?viewMode=oc" class="d2" target='right'>성적조회(누적)</a>
-<a href="https://hsportal.hansung.ac.kr/" class="d2" target='_sub'>비교과포인트조회</a>
-<a href="/jsp_21/student/graduation/joluprequire_track.jsp?viewMode=oc" class="d2" target='right'>졸업(가)사정 결과조회</a>
-<a href="/jsp_21/student/graduation/graduation_requirement.jsp?viewMode=oc" class="d2" target='right'>졸업요건</a>`;
+// 실제 left.jsp는 li>a 중첩 구조 — 컨테이너가 앵커를 삼키는 회귀 재현용
+const REAL_LEFT = `<ul>
+<li><a href="/jsp/sugang/h_sungjeok_s01_h.jsp" class="d2" target='right'>성적조회(현학기) 및 이의신청</a></li>
+<li><a href="/jsp_21/student/grade/total_grade.jsp?viewMode=oc" class="d2" target='right'>성적조회(누적)</a></li>
+<li><a href="https://hsportal.hansung.ac.kr/" class="d2" target='_sub'>비교과포인트조회</a></li>
+<li><a href="/jsp_21/student/graduation/joluprequire_track.jsp?viewMode=oc" class="d2" target='right'>졸업(가)사정 결과조회</a></li>
+<li><a href="/jsp_21/student/graduation/graduation_requirement.jsp?viewMode=oc" class="d2" target='right'>졸업요건</a></li>
+</ul>`;
 
 const REAL_GRADES = `<html><body>
 <strong class="objHeading_h3">홍길동 (2199999) 테스트학과 2 학년 재학</strong>
