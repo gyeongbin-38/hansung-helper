@@ -46,6 +46,7 @@ const ERROR_LABELS: Record<string, string> = {
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
   timeout: '수집 시간 초과',
+  budget: '수집량 한도 도달',
 };
 
 /** 수강 기간 원문 'YYYY-MM-DD … ~ YYYY-MM-DD …' → 'MM-DD ~ MM-DD' 축약 */

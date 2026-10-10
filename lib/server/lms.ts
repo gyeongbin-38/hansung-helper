@@ -257,9 +257,15 @@ export async function collectLms(
   courses: { id: string; name: string; community?: boolean }[],
 ): Promise<LmsSnapshot> {
   const deadline = Date.now() + COLLECT_BUDGET_MS;
+  // 지연 수집은 로그인 invocation의 서브리퀘스트 예산을 공유한다 —
+  // 학교 서버 부담과 플랜 한도(무료 50)를 위해 수집 요청에 상한을 둔다.
+  // 초과 시 나머지 과목은 'budget' 오류로 표시하고 결과는 부분 보존.
+  const REQ_BUDGET = 40;
+  let used = 0;
   // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
   // 이를 빈 결과로 삼키지 않고 throw해 errors[]에 남긴다.
   const html = async (url: string) => {
+    if (++used > REQ_BUDGET) throw new Error('lms:budget');
     const r = await session.request(url);
     const h = await r.text();
     if (r.status !== 200 || !/\/login\/logout\.php/.test(h)) {
@@ -312,7 +318,9 @@ export async function collectLms(
     );
     const out: LmsTask[] = [];
     let unchecked = 0;
-    for (const it of items) {
+    // 퀴즈별 제출 확인이 과목당 요청 수를 키운다 — 12개까지만 확인하고
+    // 나머지는 미확인(uncertain)으로 표시한다.
+    for (const it of items.slice(0, 12)) {
       const r = await html(it.url!)
         .then((h) => ({ submitted: hasQuizAttempt(h), failed: false }))
         .catch(() => ({ submitted: false, failed: true }));
@@ -322,6 +330,10 @@ export async function collectLms(
         submitted: r.submitted,
         uncertain: r.failed || undefined,
       });
+    }
+    for (const it of items.slice(12)) {
+      unchecked += 1;
+      out.push({ ...it, submitted: false, uncertain: true });
     }
     return { tasks: out, unchecked };
   };
@@ -338,6 +350,17 @@ export async function collectLms(
         assigns: [],
         quizzes: [],
         errors: ['timeout'],
+      });
+      continue;
+    }
+    if (used > REQ_BUDGET) {
+      out.push({
+        id: c.id,
+        title: c.name,
+        vods: [],
+        assigns: [],
+        quizzes: [],
+        errors: ['budget'],
       });
       continue;
     }

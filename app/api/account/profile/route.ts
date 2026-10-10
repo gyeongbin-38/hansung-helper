@@ -222,6 +222,26 @@ export async function PUT(request: Request) {
       }
     }
     profile.lmsMatch = lmsMatch;
+    // 낙관적 잠금 — 클라이언트가 보낸 rev와 저장된 rev가 다르면 다른
+    // 기기/탭이 먼저 쓴 것이므로 덮어쓰지 않고 409로 알린다. rev를
+    // 보내지 않는 구 클라이언트는 저장값 기준으로 통과시킨다.
+    const baseRev = (() => {
+      try {
+        const old = JSON.parse(row.profile) as { rev?: unknown };
+        return typeof old.rev === 'number' && Number.isInteger(old.rev)
+          ? old.rev
+          : 0;
+      } catch {
+        return 0;
+      }
+    })();
+    const expected =
+      typeof input.rev === 'number' &&
+      Number.isInteger(input.rev) &&
+      input.rev >= 0
+        ? input.rev
+        : baseRev;
+    profile.rev = expected + 1;
     const plans: Record<string, string[]> = {};
     if (input.plans && typeof input.plans === 'object') {
       for (const [k, v] of Object.entries(
@@ -247,17 +267,27 @@ export async function PUT(request: Request) {
       profile.lms = lms;
     }
     profile.consent = input.consent === true;
-    await database()
+    const written = await database()
       .prepare(
-        'UPDATE academic_accounts SET profile = ?, onboarded = ? WHERE id = ?',
+        "UPDATE academic_accounts SET profile = ?, onboarded = ? WHERE id = ? AND COALESCE(json_extract(profile, '$.rev'), 0) = ?",
       )
       .bind(
         JSON.stringify(profile),
         input.onboarded === true || row.onboarded ? 1 : 0,
         row.id,
+        expected,
       )
       .run();
-    return json({ ok: true });
+    if (!written.meta.changes)
+      return json(
+        {
+          error:
+            '다른 곳에서 먼저 저장된 내용이 있습니다. 최신 상태를 다시 불러와 주세요.',
+          conflict: true,
+        },
+        409,
+      );
+    return json({ ok: true, rev: profile.rev });
   } catch {
     return json({ error: '저장하지 못했습니다. 입력 내용은 유지됩니다.' }, 503);
   }

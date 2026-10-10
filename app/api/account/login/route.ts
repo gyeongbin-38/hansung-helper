@@ -42,15 +42,20 @@ export async function POST(request: Request) {
     const ip = await hash(
       'ip:' + (request.headers.get('cf-connecting-ip') || 'unknown'),
     );
-    await database().batch([
-      database()
-        .prepare('DELETE FROM academic_sessions WHERE expires_at < ?')
-        .bind(Date.now()),
-      database()
-        .prepare('DELETE FROM academic_login_limits WHERE expires_at < ?')
-        .bind(Date.now()),
-    ]);
-    if ((await limited(ip, 20)) || (await limited(id, 3)))
+    // 만료 행 정리는 핫패스에서 매번 돌리지 않는다 — 로그인의 ~5%만
+    // 담당해 쓰기 부담을 줄이고, 인덱스가 있어 오래된 행 조회 비용도 작다.
+    if (Math.random() < 0.05)
+      await database().batch([
+        database()
+          .prepare('DELETE FROM academic_sessions WHERE expires_at < ?')
+          .bind(Date.now()),
+        database()
+          .prepare('DELETE FROM academic_login_limits WHERE expires_at < ?')
+          .bind(Date.now()),
+      ]);
+    // IP 리밋은 공유망(캠퍼스 NAT) 기준으로 넉넉하게 — 계정별 리밋은
+    // 무차별 대입 방어를 위해 엄격하게 유지한다.
+    if ((await limited(ip, 150)) || (await limited(id, 3)))
       return json(
         { error: '로그인 시도가 많습니다. 15분 후 다시 시도해 주세요.' },
         429,

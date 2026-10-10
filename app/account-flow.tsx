@@ -28,6 +28,8 @@ export type Profile = {
   onboardingStep?: number;
   /** 수업 현황 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore' */
   lmsMatch?: Record<string, string>;
+  /** 프로필 리비전 — 서버가 저장할 때 +1 (동시 기기 충돌 감지) */
+  rev?: number;
 };
 export type Account = {
   profile: Partial<Profile>;
