@@ -1939,3 +1939,44 @@ DEPLOY: PR #15 squash 머지(799f6c8) → published-personal 동기화·빌드
 BLOCKER: 없음. 라이브 17f59ca1.
 NOTE: 실계정 동시성은 합성 부하 미검증 — 잔여로 부하 테스트
 스크립트(공개 엔드포인트 + 로그인 경로)를 BACKLOG에 등록.
+
+
+## 2026-10-10 — 활동 라이프사이클 리마인드 + 합성 부하 테스트 + 백로그 정리 (ISSUE-35)
+
+TRIGGER: 다음 개선 후보 중 에이전트 단독 진행 가능한 3건 —
+활동 루프 마지막 고리(actStatus 리마인드), "300명 안정"의
+실측 검증(부하 테스트), 오래된 needs-verification 문서 정리.
+
+DONE:
+- lib/data/notifs.ts — deriveNotifs에 단계 리마인드 추가.
+  actStatus 기준: joined + 종료 7일 이내 → '활동 종료 D-N',
+  joined + 종료 경과(30일 내) → '수료 확인', done + 포인트
+  활동 + 종료 경과(60일 내) → '포인트 반영 확인'(hsportal
+  확인 안내). 직접 등록 활동도 extById로 대상에 포함.
+  알림함 상한 3건 — 단계 알림이 마감 알림을 밀어내지 않게 함.
+- scripts/load-test.mts — 합성 부하 측정(동시성·라운드 인자).
+  공개 읽기 경로만 대상('/, health, courses, activities,
+  schedule + /api/account 401 경로) — 로그인은 학교 서버
+  부하를 주므로 제외. 지연 분포·상태×경로·오류율 출력,
+  오류율 >1%면 exit 1.
+- 프로덕션 부하 테스트 실행: 300-동시 × 5라운드 = 1,500요청,
+  실패 0건 (0.0%), p50=389ms p95=2057ms max=2318ms.
+  첫 라운드 콜드스타트 2.5s wall, 이후 ~1.1s 안정.
+- BACKLOG 정리 — ISSUE-18/21/22/23/29를 needs-verification →
+  verified로 갱신(전부 배포·실사용·테스트 커버 확인됨).
+  ISSUE-23은 간헐 수집 실패가 ISSUE-34 예산 작업으로 진단·
+  완화됐음을 명시. ISSUE-29/34의 완료된 follow-up 교차 참조.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK
+(notifs 27/27 — 단계 리마인드 7건 추가) · 빌드 green.
+
+DEPLOY: PR #17 squash 머지(dd8165e) → published-personal
+동기화·빌드 → wrangler deploy dc7f7711-b99b-49ee-ad8a-
+d0b2258edf0e → 엔드포인트 전부 200 + 라이브 page 청크에
+stage-·수료 확인·포인트 반영·actStatus 마커 확인.
+배포 리포 58fda61.
+
+BLOCKER: 없음. 라이브 dc7f7711.
+NOTE: 로그인 경로의 동시성은 학교 서버 부하 때문에 합성 부하
+불가 — 구조적 대비(IP 리밋·예산)가 답이며 실측은 실사용으로
+확인 필요.
