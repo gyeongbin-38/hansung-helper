@@ -42,6 +42,9 @@ export type InfoSnapshot = {
   completed: InfoCourse[];
   /** 졸업가사정표 행 — 학교 기준 자체를 보여주는 참고표 */
   audit?: InfoAuditRow[];
+  /** 이전 수집 대비 바뀐 지표 라벨 — '취득학점'|'평점'|'이수 과목 수'|'수집 시작'.
+   *  첫 수집이거나 변동 없으면 없음. 알림 1회 표시 트리거로 사용 */
+  changed?: string[];
   /** 수집 진단 — 어떤 메뉴를 찾았고 각 페이지가 파싱됐는지.
    *  실계정 첫 수집 때 실제 메뉴 구조를 알려주는 계측이다. */
   diag?: {
@@ -110,6 +113,11 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
           grade: str(c.grade, 10),
         }))
       : [],
+    changed: Array.isArray(s.changed)
+      ? s.changed
+          .filter((c): c is string => typeof c === 'string')
+          .slice(0, 10)
+      : undefined,
     audit: Array.isArray(s.audit)
       ? s.audit
           .filter(
@@ -163,6 +171,33 @@ export type MergedCourse = {
   src: 'info' | 'manual';
   semester?: string;
 };
+
+/** 부분 수집 병합 — diag.pages에서 fetch가 확인된(ok) 슬롯만 새 값을 믿고,
+ *  못 가져온 슬롯은 이전 스냅샷 값을 유지한다. 학교 세션은 계정당 하나라
+ *  다른 기기 로그인이 수집 도중 세션을 끊을 수 있다 — 그때 페이지가 200으로
+ *  돌아와도 로그인 프레임셋이라 메뉴·슬롯이 통째로 비는데, 이전 데이터를
+ *  덮어쓰지 않게 하는 안전장치다. fetchedAt·diag는 항상 이번 수집본을 쓴다. */
+export function mergeInfoSnapshot(
+  prev: InfoSnapshot | undefined,
+  next: InfoSnapshot,
+): InfoSnapshot {
+  if (!prev) return next;
+  const ok = (slot: string) =>
+    next.diag?.pages.some((p) => p.slot === slot && p.ok) ?? false;
+  const gradesOk = ok('grades');
+  return {
+    ...next,
+    name: next.name ?? prev.name,
+    dept: next.dept ?? prev.dept,
+    admitYear: next.admitYear ?? prev.admitYear,
+    credits: gradesOk ? (next.credits ?? prev.credits) : prev.credits,
+    gpa: gradesOk ? (next.gpa ?? prev.gpa) : prev.gpa,
+    completed: gradesOk ? next.completed : prev.completed,
+    points: ok('points') ? (next.points ?? prev.points) : prev.points,
+    audit: ok('audit') ? (next.audit ?? prev.audit) : prev.audit,
+    changed: next.changed,
+  };
+}
 
 const normKey = (s: string) => s.replace(/\s+/g, '').toLowerCase();
 

@@ -12,6 +12,8 @@ import {
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
+import { mergeInfoSnapshot } from '@/lib/data/info';
+import { infoChanges } from '@/lib/data/notifs';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   if (Number(request.headers.get('content-length') || 0) > 4096)
@@ -75,6 +77,8 @@ export async function POST(request: Request) {
     if (deferredInfo) snapshot.infoPending = true;
     // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
     // 수집본을 보존한다 — fetchedAt이 기준 시각을 그대로 보여주므로 신선도 유지.
+    // oldInfo는 아래 지연 수집 완료 시 '무엇이 바뀌었나' 비교 기준으로도 쓴다.
+    let oldInfo: InfoSnapshot | undefined;
     if (!snapshot.lmsData || !snapshot.infoData) {
       const prior = await database()
         .prepare('SELECT snapshot FROM academic_accounts WHERE id = ?')
@@ -88,7 +92,8 @@ export async function POST(request: Request) {
             })
           : null;
         if (old?.lmsData) snapshot.lmsData = old.lmsData;
-        if (old?.infoData) snapshot.infoData = old.infoData;
+        oldInfo = old?.infoData;
+        if (oldInfo) snapshot.infoData = oldInfo;
       } catch {
         /* 이전 스냅샷 손상은 무시 */
       }
@@ -170,14 +175,24 @@ export async function POST(request: Request) {
         (async () => {
           try {
             const infoData = await deferredInfo();
+            // 부분 수집 병합 — 못 가져온 슬롯은 이전 값을 유지한다(학교
+            // 세션 중도 만료 대비). 변동 지표는 병합본 기준으로 계산하고
+            // 없으면 null로 명시해 구값 changed가 살아남지 않게 한다.
+            const patchInfo = infoData
+              ? (() => {
+                  const stored = mergeInfoSnapshot(oldInfo, infoData);
+                  const changed = infoChanges(oldInfo, stored);
+                  return { ...stored, changed: changed.length ? changed : null };
+                })()
+              : null;
             await database()
               .prepare(
                 "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
               )
               .bind(
                 JSON.stringify(
-                  infoData
-                    ? { infoData, infoPending: null }
+                  patchInfo
+                    ? { infoData: patchInfo, infoPending: null }
                     : {
                         infoPending: null,
                         infoFailedAt: new Date().toISOString(),

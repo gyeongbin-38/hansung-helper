@@ -12,6 +12,7 @@ import {
 import {
   infoCategory,
   mergeCompleted,
+  mergeInfoSnapshot,
   validateInfo,
 } from '../lib/data/info.ts';
 
@@ -283,6 +284,62 @@ t('validate: 비객체 거부', validateInfo('nope') === null && validateInfo(nu
 t('validate: 범위 초과 클램프', validateInfo({ source: 'info-hansung', fetchedAt: 't', points: 999999, completed: [] })?.points === undefined);
 t('validate: completed 필터', validateInfo({ source: 'info-hansung', fetchedAt: 't', completed: [{ name: 'x' }, { code: 'A', name: '과목', category: '전필', credits: 3 }] })?.completed.length === 1);
 t('validate: 학기/등급 문자열 길이 제한', valid?.completed.every((c) => (c.semester ?? '').length <= 10) === true);
+
+// ── mergeInfoSnapshot: 부분 수집 보호 ──────────────────────
+const prevSnap = {
+  source: 'info-hansung',
+  fetchedAt: '2026-01-01T00:00:00Z',
+  name: '홍길동', dept: 'AI응용학과', admitYear: 2025,
+  credits: 50, gpa: 2.87, points: 120,
+  completed: [{ code: 'A', name: '과목A', category: '전선', credits: 3 }],
+  audit: [{ area: '전공', required: '60', earned: '30', verdict: '진행' }],
+};
+const degradedNext = {
+  source: 'info-hansung',
+  fetchedAt: '2026-02-01T00:00:00Z',
+  name: '홍길동', dept: 'AI응용학과',
+  completed: [],
+  diag: {
+    menu: [],
+    pages: [
+      { slot: 'menu', path: 'left.jsp', ok: true },
+      { slot: 'grades', path: '-', ok: false },
+      { slot: 'points', path: '-', ok: false },
+      { slot: 'audit', path: '-', ok: false },
+    ],
+  },
+};
+const mg1 = mergeInfoSnapshot(prevSnap, degradedNext);
+t('merge-info: 슬롯 실패 시 completed 보존', mg1.completed.length === 1);
+t('merge-info: 슬롯 실패 시 학점·평점 보존', mg1.credits === 50 && mg1.gpa === 2.87);
+t('merge-info: 슬롯 실패 시 포인트·사정 보존', mg1.points === 120 && mg1.audit.length === 1);
+t('merge-info: fetchedAt은 신값', mg1.fetchedAt === '2026-02-01T00:00:00Z');
+t('merge-info: 신원은 새 값 우선', mg1.name === '홍길동' && mg1.dept === 'AI응용학과');
+t('merge-info: admitYear 폴백', mg1.admitYear === 2025);
+
+const fullNext = {
+  source: 'info-hansung',
+  fetchedAt: '2026-03-01T00:00:00Z',
+  credits: 62, gpa: 3.0,
+  completed: [
+    { code: 'A', name: '과목A', category: '전선', credits: 3 },
+    { code: 'B', name: '과목B', category: '교필', credits: 2 },
+  ],
+  audit: [{ area: '전공', required: '60', earned: '45', verdict: '진행' }],
+  diag: {
+    menu: [], pages: [
+      { slot: 'grades', path: 'x.jsp', ok: true },
+      { slot: 'points', path: 'p.jsp', ok: false },
+      { slot: 'audit', path: 'a.jsp', ok: true },
+    ],
+  },
+};
+const mg2 = mergeInfoSnapshot(prevSnap, fullNext);
+t('merge-info: 성공 슬롯은 새 값', mg2.completed.length === 2 && mg2.credits === 62 && mg2.gpa === 3.0);
+t('merge-info: 성공 슬롯 사정 갱신', mg2.audit[0].earned === '45');
+t('merge-info: 실패 슬롯 포인트 보존', mg2.points === 120);
+t('merge-info: 신원 빈칸은 이전 유지', mg2.name === '홍길동' && mg2.dept === 'AI응용학과');
+t('merge-info: prev 없으면 next 그대로', mergeInfoSnapshot(undefined, fullNext) === fullNext);
 
 console.log(`info.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
