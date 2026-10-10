@@ -904,3 +904,22 @@ blocking regressions.
   (iModule AJAX 로그인)은 미구현 — 종합정보 포인트 페이지가 비어
   있으면 재검토. 수집 주기는 로그인/lms-refresh 시점 — 장기 미로그인
   시 신선도 저하는 infoStale 배지가 표시.
+
+
+## ISSUE-34 — 동시 접속 안정화 (리밋·예산·충돌 가드)
+
+- **Status**: **verified** (2026-10-10 — 라이브 17f59ca1, 헬스체크
+  + 마커 확인. 실계정 합성 부하는 미실행)
+- **Labels**: agent-ready, priority:p1, area:account, area:infra
+- **Objective**: 300명+ 동시 접속 시 정당한 사용자 차단·데이터
+  꼬임·수집 실패를 구조적으로 예방.
+- **Done**: IP 리밋 20→150(NAT 대응), 만료 행 정리 ~5% 확률화,
+  collectLms 서브리퀘스트 예산 40 + 퀴즈 확인 12 상한,
+  profile.rev 낙관적 잠금 + 409 재수화 + persist 직렬화,
+  /api/health 추가.
+- **Follow-ups**: ① wrangler 플랜의 서브리퀘스트 한도 확인 — 유료
+  1000이면 예산 상향 여지, 무료 50이면 LMS 수집량 상한이 실효
+  제약. ② 합성 부하 테스트 스크립트(공개 GET + 로그인 429 경로
+  300 동시). ③ 프로필 409 시 필드 단위 자동 병합은 미구현 —
+  현재는 서버 상태 우선 + 사용자 재확인. ④ UptimeRobot/CF Health
+  Checks로 /api/health 외부 모니터링 등록.
