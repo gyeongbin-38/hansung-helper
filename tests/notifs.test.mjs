@@ -200,5 +200,71 @@ const rem2 = reminderTargets(lms2, NOW);
 t('reminder: uncertain 표기', rem2.length === 1 && rem2[0].body.includes('응시 여부 확인 실패'));
 t('reminder: 내일 마감', rem2[0].title.startsWith('내일 마감'));
 
+// --- actStatus 단계 리마인드 (활동 라이프사이클) ---
+const actRun = (id, runEnd, points) => ({
+  ...act(id, 'open', null),
+  runEnd,
+  points,
+});
+const acts2 = snap([
+  actRun('j-end3', iso(NOW + 3 * DAY), null), // 참여 중·종료 D-3
+  actRun('j-old', iso(NOW - 5 * DAY), null), // 참여 중·5일 전 종료
+  actRun('j-stale', iso(NOW - 40 * DAY), null), // 참여 중·40일 전 → 제외
+  actRun('d-pts', iso(NOW - 10 * DAY), 50), // 수료·포인트 있음
+  actRun('d-nopts', iso(NOW - 10 * DAY), null), // 수료·포인트 없음
+  actRun('a-applied', iso(NOW + 2 * DAY), null), // 신청함 → 알림 없음
+]);
+items = deriveNotifs({
+  account: {},
+  data: {
+    saved: [],
+    dept: 'd',
+    year: '2023',
+    actStatus: {
+      'j-end3': 'joined',
+      'j-old': 'joined',
+      'j-stale': 'joined',
+      'd-pts': 'done',
+      'd-nopts': 'done',
+      'a-applied': 'applied',
+    },
+  },
+  planned: [],
+  acts: acts2,
+  sched: null,
+  now: NOW,
+});
+const lifeItems = items.filter((i) => i.id.startsWith('stage-'));
+t('stage: 종료 임박 joined', lifeItems.some((i) => i.id === 'stage-j-end3-end' && i.title.includes('D-3')));
+t('stage: 경과 joined → 수료 확인', lifeItems.some((i) => i.id === 'stage-j-old-done-chk'));
+t('stage: 오래된 joined 제외', !lifeItems.some((i) => i.id.includes('j-stale')));
+t('stage: done+포인트 → 반영 확인', lifeItems.some((i) => i.id === 'stage-d-pts-credit'));
+t('stage: done+포인트없음 제외', !lifeItems.some((i) => i.id.includes('d-nopts')));
+t('stage: applied 제외', !lifeItems.some((i) => i.id.includes('a-applied')));
+
+// 직접 등록 활동도 단계 리마인드 대상 — runEnd 'YYYY-MM-DD' 문자열
+items = deriveNotifs({
+  account: {},
+  data: {
+    saved: [],
+    dept: 'd',
+    year: '2023',
+    actStatus: { 'ext-abc': 'joined' },
+    extActivities: [{
+      id: 'ext-abc',
+      title: '외부 공모전',
+      org: '주최',
+      applyStart: '', applyEnd: '',
+      runStart: '', runEnd: iso(NOW + DAY),
+      points: '', url: '', addedAt: '',
+    }],
+  },
+  planned: [],
+  acts: null,
+  sched: null,
+  now: NOW,
+});
+t('stage: ext 활동 종료 임박', items.some((i) => i.id === 'stage-ext-abc-end' && i.title.includes('D-1')));
+
 console.log(`notifs: ${pass}/${pass + fail}`);
 process.exit(fail ? 1 : 0);

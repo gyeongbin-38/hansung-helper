@@ -1,5 +1,9 @@
 import { conflicts, type CourseSection } from './catalog.ts';
-import { liveStatus, type ActivitySnapshot } from './activities.ts';
+import {
+  liveStatus,
+  type ActivitySnapshot,
+  type ExtActivity,
+} from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
 import { dueSoon, type LmsSnapshot } from './lms.ts';
 
@@ -17,7 +21,16 @@ export type NotifItem = {
 export type NotifInputs = {
   /** truthy면 '계정 연결됨' 안내로 도출 */
   account: unknown;
-  data: { saved?: string[]; dept?: string; year?: string; lms?: LmsSnapshot };
+  data: {
+    saved?: string[];
+    dept?: string;
+    year?: string;
+    lms?: LmsSnapshot;
+    /** 활동 진행 단계 — 수료·포인트 확인 리마인드의 기준 */
+    actStatus?: Record<string, string>;
+    /** 직접 등록 활동 — 단계 리마인드 대상에 포함 */
+    extActivities?: ExtActivity[];
+  };
   planned: CourseSection[];
   acts: ActivitySnapshot | null;
   sched: ScheduleSnapshot | null;
@@ -140,6 +153,65 @@ export function deriveNotifs({
       route: 'activities/' + a.id,
     });
   }
+
+  // 활동 라이프사이클 리마인드 — 본인이 기록한 단계(actStatus) 기준.
+  // 참여 중인 활동의 종료 임박/경과 → 수료 확인, 수료 기록 + 포인트
+  // 활동 → 반영 확인까지 '발견→신청→수료→반영' 루프를 닫는다.
+  const actStatus = data.actStatus ?? {};
+  const extById = new Map(
+    (data.extActivities ?? []).map((e) => [
+      e.id,
+      { title: e.title, runEnd: e.runEnd, points: e.points },
+    ]),
+  );
+  const lifeItems: NotifItem[] = [];
+  for (const [id, stage] of Object.entries(actStatus)) {
+    if (lifeItems.length >= 3) break;
+    const src =
+      (acts?.items ?? []).find((a) => a.id === id) ?? extById.get(id);
+    if (!src) continue;
+    const endStr = src.runEnd ?? '';
+    const endTs = endStr ? Date.parse(endStr.slice(0, 10)) : NaN;
+    if (Number.isNaN(endTs)) continue;
+    const dd = Math.round((endTs - now) / DAY);
+    const within = (days: number) => dd >= -days;
+    if (stage === 'joined' && dd >= 0 && dd <= 7)
+      lifeItems.push({
+        id: `stage-${id}-end`,
+        tone: 'purple',
+        cat: '활동',
+        label: '참여 중',
+        title: `활동 종료 ${dd === 0 ? '오늘' : `D-${dd}`}: ${src.title}`,
+        desc: '종료 후 수료 여부를 단계로 기록해 주세요.',
+        route: 'activities/' + id,
+      });
+    else if (stage === 'joined' && dd < 0 && within(30))
+      lifeItems.push({
+        id: `stage-${id}-done-chk`,
+        tone: 'purple',
+        cat: '활동',
+        label: '수료 확인',
+        title: `종료된 활동이에요: ${src.title}`,
+        desc: '수료했다면 단계를 갱신해 주세요.',
+        route: 'activities/' + id,
+      });
+    else if (stage === 'done' && dd < 0 && within(60)) {
+      const rawPts = src.points;
+      const pts =
+        typeof rawPts === 'number' ? rawPts : parseInt(rawPts || '0', 10);
+      if (!pts) continue;
+      lifeItems.push({
+        id: `stage-${id}-credit`,
+        tone: 'purple',
+        cat: '활동',
+        label: '포인트 확인',
+        title: `포인트 반영을 확인해 주세요: ${src.title}`,
+        desc: 'hsportal 비교과 포인트 내역에서 반영 여부를 확인하세요.',
+        route: 'activities/' + id,
+      });
+    }
+  }
+  items.push(...lifeItems);
 
   // COSMOS LMS 마감 임박 (7일 이내 미완료, 최대 5건) — 지난 학기 제외
   if (data.lms)

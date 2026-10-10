@@ -359,7 +359,8 @@ blocking regressions.
 
 ## ISSUE-18 — 상세 라우트 부재 (spec §6)
 
-- **Status**: implemented — **needs-verification** (전 라우트)
+- **Status**: **verified** (2026-10-10 정리 — 전 라우트 구현·배포·
+  실사용 확인됨: courses/:id, graduation/:id, calendar/:id)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: `/courses/:id`, `/graduation/:id`, `/calendar/:id` 상세
   라우트 없음(activities/:id만 존재). 브레드크럼 포함.
@@ -490,7 +491,8 @@ blocking regressions.
 
 ## ISSUE-21 — advisor 자유질문에 학사일정 검색 포함
 
-- **Status**: implemented — **needs-verification**
+- **Status**: **verified** (2026-10-10 정리 — 구현·단위테스트·
+  배포 완료, 검색 테스트로 커버됨)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: advisor.tsx의 searchAll이 과목·활동만 검색 — "수강신청
   언제" 같은 질문에 공식 학사일정 타이틀 매칭이 안 됨. useSchedule
@@ -507,7 +509,8 @@ blocking regressions.
 
 ## ISSUE-22 — 저장한 활동 우선 마감 알림
 
-- **Status**: implemented — **needs-verification**
+- **Status**: **verified** (2026-10-10 정리 — 구현·단위테스트·
+  배포 완료, notifs.test로 커버됨)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: deriveNotifs의 활동 마감 알림이 전체 open/closing
   대상 — 저장한 활동(data.saved)은 별도 강조하거나, 저장 활동만으로
@@ -522,7 +525,9 @@ blocking regressions.
 
 ## ISSUE-23 — COSMOS LMS 수업 현황 연동 (돋부기 참조)
 
-- **Status**: implemented — **needs-verification** (2026-09-18 이터레이션 10)
+- **Status**: **verified** (2026-10-10 정리 — 확장·서버·파일 3경로
+  모두 실사용 검증됨. 간헐 수집 실패는 ISSUE-34에서 서브리퀘스트
+  예산으로 진단·완화)
 - **Labels**: agent-ready, priority:p1, area:frontend, area:data
 - **Objective**: 학교 LMS(COSMOS, learn.hansung.ac.kr, Moodle 기반)의
   수강 상태를 앱에서 확인 — 수강한/남은 온라인 강의, 미제출 과제,
@@ -802,7 +807,8 @@ blocking regressions.
 
 ## ISSUE-29 — 활동 라이프사이클 + 외부 활동 직접 등록 + 수집 신선도
 
-- **Status**: implemented — **needs-verification** (2026-10-09)
+- **Status**: **verified** (2026-10-10 정리 — 전 항목 구현·배포·
+  실사용 확인됨. actStatus 리마인드는 ISSUE-35로 분리 완료)
 - **Labels**: agent-ready, priority:p1, area:frontend, area:data
 - **Objective**: 외부 리뷰 지적 해소 — (a) 활동이 발견·저장에서 멈추고
   신청→참여→수료→포인트 이력 추적 부재, (b) hsportal 공개 목록 외
@@ -817,9 +823,9 @@ blocking regressions.
   - `lib/data/freshness.ts` — staleLabel 공용 헬퍼. 학사일정·학과
     규정·LMS 수강중 카드·홈 마감에 'N일 전 수집' 배지.
   - 시간표 상세 수업방식/강의실 필드 분리 + 동시 표기 원자료 안내.
-- **Follow-ups**: 종합정보시스템 이수 내역 자동 수집(리뷰 최우선
-  지적 — 로그인 세션으로 이수 과목 페이지 파싱 조사 필요), actStatus
-  단계 기반 알림(수료 기한 리마인드), 외부 활동 공개 공고 수집원
+- **Follow-ups**: ~~종합정보시스템 이수 내역 자동 수집~~(ISSUE-33
+  완료), ~~actStatus 단계 기반 알림~~(ISSUE-35 완료 — 종료 임박/
+  수료 확인/포인트 반영 리마인드), 외부 활동 공개 공고 수집원
   (링크모음 등 — 자동 크롤링은 출처 정책 검토 필요).
 
 ## ISSUE-30 — 디자인 개편: 학생 플래너 방향(B) + 한글 줄바꿈 + 기능 노출 축소
@@ -908,8 +914,8 @@ blocking regressions.
 
 ## ISSUE-34 — 동시 접속 안정화 (리밋·예산·충돌 가드)
 
-- **Status**: **verified** (2026-10-10 — 라이브 17f59ca1, 헬스체크
-  + 마커 확인. 실계정 합성 부하는 미실행)
+- **Status**: **verified** (2026-10-10 — 라이브 17f59ca1 +
+  합성 부하 300-동시 1,500요청 0실패 확인, scripts/load-test.mts)
 - **Labels**: agent-ready, priority:p1, area:account, area:infra
 - **Objective**: 300명+ 동시 접속 시 정당한 사용자 차단·데이터
   꼬임·수집 실패를 구조적으로 예방.
@@ -919,7 +925,22 @@ blocking regressions.
   /api/health 추가.
 - **Follow-ups**: ① wrangler 플랜의 서브리퀘스트 한도 확인 — 유료
   1000이면 예산 상향 여지, 무료 50이면 LMS 수집량 상한이 실효
-  제약. ② 합성 부하 테스트 스크립트(공개 GET + 로그인 429 경로
-  300 동시). ③ 프로필 409 시 필드 단위 자동 병합은 미구현 —
-  현재는 서버 상태 우선 + 사용자 재확인. ④ UptimeRobot/CF Health
-  Checks로 /api/health 외부 모니터링 등록.
+  제약. ~~② 합성 부하 테스트 스크립트~~(ISSUE-35 완료 — 공개
+  엔드포인트 300-동시 0실패. 로그인 경로는 학교 서버 부하로 제외).
+  ③ 프로필 409 시 필드 단위 자동 병합은 미구현 — 현재는 서버
+  상태 우선 + 사용자 재확인. ④ UptimeRobot/CF Health Checks로
+  /api/health 외부 모니터링 등록.
+
+## ISSUE-35 — 활동 라이프사이클 리마인드 (수료·포인트 확인)
+
+- **Status**: **verified** (2026-10-10 — 구현·단위테스트·배포 완료)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: actStatus 단계를 알림 루프에 연결 — 발견→신청→
+  참여→수료→포인트 반영의 마지막 고리.
+- **Done**: deriveNotifs에 단계 리마인드 — joined+종료 7일 이내
+  '활동 종료 D-N', joined+종료 경과(30일 내) '수료 확인',
+  done+포인트 활동+종료 경과(60일 내) '포인트 반영 확인'.
+  직접 등록 활동(extActivities)도 대상. 최대 3건 상한.
+  tests/notifs.test.mjs 27/27.
+- **Follow-ups**: 브라우저 OS 알림(reminderTargets)에도 단계
+  리마인드 추가 가능 — 현재는 알림함/벨 배지만.
