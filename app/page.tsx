@@ -7,6 +7,7 @@ import {
   empty,
   questions,
   ACT_QUESTIONS,
+  mergeProfile,
   type Data,
 } from './sections/data';
 import type { ExtActivity } from '@/lib/data/activities';
@@ -429,33 +430,66 @@ export default function App() {
   ) {
     try {
       if (account) {
-        const response = await enqueue(() =>
-          fetch('/api/account/profile', {
+        // 호출 시점의 화면 상태를 base로 둔다 — 큐에서 기다리는 동안 앞선
+        // 저장이 반영될 수 있으므로 전송 직전에 3-way 병합으로 내 변경분만
+        // 얹는다(같은 탭 연속 쓰기가 서로를 덮어쓰지 않게).
+        const baseAtCall = dataRef.current;
+        let send = next;
+        const response = await enqueue(() => {
+          send = mergeProfile(baseAtCall, next, dataRef.current);
+          return fetch('/api/account/profile', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              ...next,
+              ...send,
               // 전송 시점의 최신 rev — 큐에서 기다리는 동안 이전 저장이
               // rev를 올렸을 수 있으므로 next가 아닌 dataRef를 본다.
-              rev: dataRef.current.rev ?? next.rev,
+              rev: dataRef.current.rev ?? send.rev,
               onboarded: complete ?? account.onboarded,
             }),
-          }),
-        );
+          });
+        });
         if (!response.ok) {
           const result = (await response.json()) as {
             error?: string;
             conflict?: boolean;
           };
-          // 다른 기기/탭이 먼저 씀 — 서버 상태로 재수화해 데이터 유실을
-          // 막고 사용자에게 방금 변경을 다시 확인하게 한다.
+          // 다른 기기/탭이 먼저 씀 — 필드 단위 3-way 병합으로 양쪽 변경을
+          // 살려 한 번만 재시도하고, 또 충돌하면 서버 상태로 수렴한다.
           if (result.conflict) {
             try {
               const res = await fetch('/api/account', { cache: 'no-store' });
               if (res.ok) {
                 const fresh: Account = await res.json();
+                const remote = accountData(fresh);
+                const merged = mergeProfile(dataRef.current, send, remote);
+                const retry = await fetch('/api/account/profile', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    ...merged,
+                    rev: remote.rev,
+                    onboarded: complete ?? fresh.onboarded,
+                  }),
+                });
+                if (retry.ok) {
+                  const r2 = (await retry.json()) as { rev?: number };
+                  const stored = { ...merged, rev: r2.rev ?? remote.rev };
+                  setAccount({
+                    ...fresh,
+                    profile: stored,
+                    onboarded: complete ?? fresh.onboarded,
+                  });
+                  setData(stored);
+                  setToast('다른 기기의 변경과 병합해 저장했습니다.');
+                  return true;
+                }
                 setAccount(fresh);
-                setData(accountData(fresh));
+                setData(remote);
+                setToast(
+                  '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
+                );
+                return false;
               }
             } catch {
               /* 재수화 실패 시 안내 문구만 표시 */
@@ -465,7 +499,7 @@ export default function App() {
           return false;
         }
         const result = (await response.json()) as { rev?: number };
-        const stored = { ...next, rev: result.rev ?? next.rev };
+        const stored = { ...send, rev: result.rev ?? send.rev };
         setAccount({
           ...account,
           profile: stored,

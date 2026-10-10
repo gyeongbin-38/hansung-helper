@@ -85,6 +85,9 @@ export const empty: Data = {
   readIds: [],
   consent: false,
 };
+
+// 3-way 프로필 병합 — 순수 로직이라 lib으로 분리해 노드 테스트에서 쓴다.
+export { mergeProfile } from '@/lib/data/profile-merge';
 export const questions = [
   [
     '이번 학기의 우선 목표는 무엇인가요?',

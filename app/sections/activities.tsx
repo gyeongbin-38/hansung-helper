@@ -15,6 +15,7 @@ import { staleLabel } from '@/lib/data/freshness';
 import {
   activityMatch,
   actScore,
+  pointScore,
   liveStatus,
   extToActivity,
   ACT_STAGES,
@@ -50,7 +51,7 @@ function inTab(a: Activity, tab: string, saved: string[], now: number) {
   if (tab === '운영·마감')
     return st === 'running' || st === 'closed';
   if (tab === '저장한 활동') return saved.includes(a.id);
-  if (tab === '취향 추천') return true; // 정렬은 actScore가 담당
+  if (tab === '취향 추천' || tab === '포인트 채우기') return true; // 점수 함수가 걸러줌
   return true;
 }
 
@@ -102,11 +103,12 @@ export function Activities({
   const extItems = (data.extActivities ?? []).map(extToActivity);
   const items = [...(snap?.items ?? []), ...extItems];
   const a = items.find((x) => x.id === detail);
-  // 졸업요건 연결 컨텍스트 — 입력된 포인트와 필요량(override>공식 800P)
+  // 졸업요건 연결 컨텍스트 — 학교 수집 포인트를 우선한다(졸업 페이지와 동일)
   const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
-  const ptsRaw = parseInt(data.points, 10);
+  const ptsRaw = data.info?.points ?? parseInt(data.points, 10);
   const ptsSet = Number.isInteger(ptsRaw);
   const ptsReq = data.ruleOverrides?.points ?? 800;
+  const ptsDeficit = ptsSet ? Math.max(0, ptsReq - ptsRaw) : 0;
   const actStale = snap ? staleLabel(snap.fetchedAt, now) : null;
   const pointsBand = (
     <div className="card pad act-band">
@@ -434,15 +436,18 @@ export function Activities({
   const scored = new Map<string, { score: number; reasons: string[] }>();
   if (filter === '취향 추천' && hasActPrefs)
     for (const x of items) scored.set(x.id, actScore(x, data.actPrefs, now));
+  if (filter === '포인트 채우기' && ptsDeficit > 0)
+    for (const x of items) scored.set(x.id, pointScore(x, ptsDeficit, now));
+  const isScoredTab = filter === '취향 추천' || filter === '포인트 채우기';
   const shown = items
     .filter(
       (x) =>
         inTab(x, filter, data.saved, now) &&
         activityMatch(x, query, koreanMatch),
     )
-    .filter((x) => filter !== '취향 추천' || (scored.get(x.id)?.score ?? 0) > 0)
+    .filter((x) => !isScoredTab || (scored.get(x.id)?.score ?? 0) > 0)
     .sort((x, y) =>
-      filter === '취향 추천'
+      isScoredTab
         ? (scored.get(y.id)?.score ?? 0) - (scored.get(x.id)?.score ?? 0)
         : 0,
     );
@@ -451,7 +456,10 @@ export function Activities({
       {pointsBand}
       <div className="toolbar">
         <div className="tabs">
-          {TABS.map((f) => (
+          {(ptsDeficit > 0
+            ? [...TABS.slice(0, 5), '포인트 채우기', ...TABS.slice(5)]
+            : TABS
+          ).map((f) => (
             <button
               className={filter === f ? 'active' : ''}
               key={f}
@@ -525,7 +533,7 @@ export function Activities({
             go={go}
             save={save}
             now={now}
-            scores={filter === '취향 추천' ? scored : undefined}
+            scores={isScoredTab ? scored : undefined}
           />
           <p className="meta">
             {shown.length !== (snap?.itemCount ?? 0) + extItems.length &&
@@ -624,8 +632,8 @@ function ActivityCards({
                   className="badge purple act-match"
                   title={
                     sc.reasons.length
-                      ? `취향 매칭: ${sc.reasons.join(' · ')}`
-                      : '취향 매칭'
+                      ? `추천 근거: ${sc.reasons.join(' · ')}`
+                      : '추천'
                   }
                 >
                   맞춤 {sc.score}

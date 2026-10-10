@@ -7,6 +7,7 @@ import {
   activityMatch,
   liveStatus,
   actScore,
+  pointScore,
   extToActivity,
   ACT_STAGES,
 } from '../lib/data/activities.ts';
@@ -369,4 +370,71 @@ test('ACT_STAGES: 순서·라벨 고정 — UI 스테퍼가 의존', () => {
     ACT_STAGES.map(([, l]) => l),
     ['신청함', '참여 중', '수료', '포인트 확인'],
   );
+});
+
+// ── pointScore — 졸업 포인트 결핍 기반 추천 ─────────────────
+// deficit은 졸업요건 페이지의 '남은 포인트'. 신청 가능한 포인트
+// 부여 활동만 점수를 받고, 무관한 활동은 0으로 걸러진다.
+
+test('pointScore: 결핍 없음(<=0)이면 0점 — 추천할 이유가 없다', () => {
+  const pts = { ...openBase, points: 50 };
+  assert.deepEqual(pointScore(pts, 0, NOW21), { score: 0, reasons: [] });
+  assert.deepEqual(pointScore(pts, -10, NOW21), { score: 0, reasons: [] });
+});
+
+test('pointScore: 신청 불가 상태·무포인트는 제외', () => {
+  const pts = { ...openBase, points: 50 };
+  const running = { ...pts, applyStart: null, applyEnd: null, status: 'running' };
+  assert.equal(pointScore(running, 100, NOW21).score, 0);
+  const closed = {
+    ...pts,
+    applyStart: '2026-09-01T00:00:00+09:00',
+    applyEnd: '2026-09-10T23:59:00+09:00',
+  };
+  assert.equal(pointScore(closed, 100, NOW21).score, 0);
+  // 포인트가 없으면 결핍 해소에 기여하지 않으므로 제외
+  assert.equal(pointScore({ ...openBase, points: null }, 100, NOW21).score, 0);
+  assert.equal(pointScore({ ...openBase, points: 0 }, 100, NOW21).score, 0);
+});
+
+test('pointScore: 접수 중 포인트 활동은 점수+포인트 근거 표시', () => {
+  const s = pointScore({ ...openBase, points: 30 }, 100, NOW21);
+  assert.ok(s.score > 0);
+  assert.ok(s.reasons.includes('포인트 +30'));
+  assert.ok(s.reasons.includes('접수 중'));
+  // 결핍을 못 채우는 소액이면 '한 번에 충족' 근거는 없다
+  assert.ok(!s.reasons.includes('부족분 한 번에 충족'));
+});
+
+test('pointScore: 결핍 전부 커버·마감임박·인증이 가산된다', () => {
+  const big = pointScore({ ...openBase, points: 100 }, 100, NOW21);
+  assert.ok(big.reasons.includes('부족분 한 번에 충족'));
+  const closing = {
+    ...openBase,
+    points: 30,
+    applyEnd: '2026-09-25T23:59:00+09:00', // NOW21 기준 마감임박
+  };
+  const s = pointScore(closing, 100, NOW21);
+  assert.ok(s.reasons.includes('마감 임박'));
+  // 마감임박은 같은 포인트의 접수중보다 앞에 온다
+  const openSame = pointScore({ ...openBase, points: 30 }, 100, NOW21);
+  assert.ok(s.score > openSame.score);
+  const cert = pointScore({ ...openBase, points: 30, certified: true }, 100, NOW21);
+  assert.ok(cert.reasons.includes('인재인증'));
+  assert.ok(cert.score > openSame.score);
+});
+
+test('pointScore: 접수예정도 낮은 점수로 후보에 포함', () => {
+  const upcoming = {
+    ...openBase,
+    points: 30,
+    applyStart: '2026-09-30T00:00:00+09:00',
+    applyEnd: '2026-10-10T23:59:00+09:00',
+  };
+  const s = pointScore(upcoming, 100, NOW21);
+  assert.ok(s.score > 0);
+  assert.ok(s.reasons.includes('곧 접수'));
+  // 접수 중보다는 낮은 우선순위
+  const openSame = pointScore({ ...openBase, points: 30 }, 100, NOW21);
+  assert.ok(s.score < openSame.score);
 });

@@ -365,3 +365,43 @@ export function actScore(
   }
   return { score, reasons: [...new Set(reasons)] };
 }
+
+/**
+ * 졸업 포인트 결핍 기반 추천 — 남은 필요 포인트(deficit)가 있을 때
+ * 신청 가능한 포인트 부여 활동을 커버율·마감 시급성·인증 순으로 매긴다.
+ * 추천 근거를 함께 반환해 화면에 '왜 뜬 건지' 보여준다.
+ * deficit<=0, 신청 불가 상태, 무포인트 활동은 score 0으로 제외된다.
+ */
+export function pointScore(
+  a: Activity,
+  deficit: number,
+  now: number,
+): { score: number; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+  if (deficit <= 0) return { score, reasons };
+  const st = liveStatus(a, now).status;
+  if (st !== 'open' && st !== 'closing' && st !== 'upcoming')
+    return { score, reasons };
+  const pts = a.points ?? 0;
+  if (pts <= 0) return { score, reasons };
+  // 결핍 대비 커버율 — 작은 포인트도 후보에 두되 큰 것을 앞에
+  score += Math.max(1, Math.min(4, Math.round((pts / deficit) * 4)));
+  reasons.push(`포인트 +${pts}`);
+  if (pts >= deficit) reasons.push('부족분 한 번에 충족');
+  if (st === 'closing') {
+    score += 3;
+    reasons.push('마감 임박');
+  } else if (st === 'open') {
+    score += 2;
+    reasons.push('접수 중');
+  } else {
+    score += 1;
+    reasons.push('곧 접수');
+  }
+  if (a.certified) {
+    score += 1;
+    reasons.push('인재인증');
+  }
+  return { score, reasons: [...new Set(reasons)] };
+}
