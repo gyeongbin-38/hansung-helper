@@ -938,9 +938,9 @@ blocking regressions.
   1000이면 예산 상향 여지, 무료 50이면 LMS 수집량 상한이 실효
   제약. ~~② 합성 부하 테스트 스크립트~~(ISSUE-35 완료 — 공개
   엔드포인트 300-동시 0실패. 로그인 경로는 학교 서버 부하로 제외).
-  ③ 프로필 409 시 필드 단위 자동 병합은 미구현 — 현재는 서버
-  상태 우선 + 사용자 재확인. ④ UptimeRobot/CF Health Checks로
-  /api/health 외부 모니터링 등록.
+  ~~③ 프로필 409 시 필드 단위 자동 병합~~(ISSUE-37 완료 —
+  mergeProfile 3-way 병합 + 한 번 재시도). ④ UptimeRobot/CF
+  Health Checks로 /api/health 외부 모니터링 등록.
 
 ## ISSUE-35 — 활동 라이프사이클 리마인드 (수료·포인트 확인)
 
@@ -953,5 +953,76 @@ blocking regressions.
   done+포인트 활동+종료 경과(60일 내) '포인트 반영 확인'.
   직접 등록 활동(extActivities)도 대상. 최대 3건 상한.
   tests/notifs.test.mjs 27/27.
-- **Follow-ups**: 브라우저 OS 알림(reminderTargets)에도 단계
-  리마인드 추가 가능 — 현재는 알림함/벨 배지만.
+- **Follow-ups**: ~~브라우저 OS 알림(reminderTargets)에도 단계
+  리마인드 추가~~(ISSUE-36 완료 — stageReminderTargets).
+
+
+## ISSUE-36 — 월 그리드 캘린더 + ICS + 알림 확장 + 부분수집 보호
+
+- **Status**: **verified** (2026-10-10 — 라이브 56acd1a9, 엔드포인트
+  전부 200 + 청크 마커 확인)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 학사일정·LMS 마감·개인 일정·계획 수업을 한 달력에
+  통합하고 외부 캘린더 앱으로 내보낸다. planner 프로젝트의 검증된
+  캘린더 패턴을 포팅.
+- **Done**:
+  - `lib/data/calendar.ts` — monthGrid/범위 조회/collectCalItems
+    (4 소스 통합)/parseQuickAdd 자연어(내일·다음주 요일·M월D일).
+  - `lib/data/ics.ts` — VCALENDAR/VEVENT + FREQ=WEEKLY·BYDAY·UNTIL
+    반복 수업. 계획 수업은 '수강신청 결과 아님' 명시.
+  - `calendar.tsx` 재작성 — 월 그리드 + 기간 밴드 + 선택일 agenda +
+    D-day + quick-add 미리보기 + 공식 출처/수집 시각 표기.
+  - `stageReminderTargets` — 활동 종료 임박/수료 확인/포인트 반영
+    확인을 브라우저 OS 알림 예약 큐로 확장(page.tsx, notifiedIds 공유).
+  - `infoChanges` + `InfoSnapshot.changed` — 로그인/재수집 시 이전
+    스냅샷 대비 학점·평점·과목 수 변동 → 졸업 연결 1회 알림.
+    미발화 시 changed:null로 명시 삭제해 재발화 방지.
+  - `mergeInfoSnapshot` — diag.pages ok 슬롯만 신값 신뢰. 학교
+    단일세션 정책으로 수집 중 세션이 끊기면(타 기기 로그인) 페이지가
+    200이어도 로그인 프레임셋 → 슬롯 공백. 실계정에서 completed
+    18→0 덮어쓰기 사고 확인 후 도입.
+  - tests: calendar 51 · info 83 · notifs 40 (신규 24건).
+- **Follow-ups**: hsportal 포인트 자동 수집 — 직접 API는 GUEST
+  반환, SSO 브리지 여부는 left.jsp 비교과 링크 확인 필요(탐색 중
+  학교 스로틀 발생 — 쿨다운 후 재시도). ICS는 로컬 시각 기준이며
+  캘린더 클라이언트 실기 검증(구글/애플 가져오기)은 미실시.
+  mergeInfoSnapshot은 grades 슬롯 fetch ok + 파싱 0건 조합은
+  신뢰한다(파서 회귀 시 별도 진단 필요).
+
+
+## ISSUE-37 — 졸업 전망 역산 + 포인트 채우기 추천 + 프로필 3-way 병합
+
+- **Status**: **verified** (2026-10-11 — 라이브 0cce2711, 엔드포인트
+  전부 200 + page 청크 마커 확인)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:account
+- **Objective**: 수집된 실데이터를 사용자 가치로 전환하는 3개 묶음 —
+  졸업 시기 추정, 결핍 기반 비교과 추천, 동시 쓰기 데이터 유실 제거.
+- **Done**:
+  - `graduationOutlook`(lib/data/graduation.ts) — 남은 학점을 학기당
+    목표로 나눈 역산. 이번 학기 계획 학점 우선 차감, 학기당 목표
+    1~25 클램프(기본 = 계획 학점 또는 18), 카탈로그 학기 라벨로
+    졸업 시기·입학연도로 현재 학년 추정. required null이면 계산
+    불가로 정직 반환.
+  - 졸업요건 페이지 '졸업 전망' 카드 — '추정 · 공식 사정 아님'
+    배지 + 가정 문구(계획 전부 이수·균등 이수 가정) + 학기당 목표
+    조정 입력. 미입력 상태에선 미표시.
+  - `pointScore`(lib/data/activities.ts) — 졸업 포인트 결핍 기반
+    추천. 신청 가능 상태(open/closing/upcoming)+포인트 부여 활동만,
+    커버율·마감 시급성·인재인증 가중 + 근거 문자열. '포인트 채우기'
+    탭(결핍>0일 때만 표시), 현재 포인트는 info.points 우선.
+  - `mergeProfile`(lib/data/profile-merge.ts) — 필드 단위 3-way
+    병합: 배열=집합 병합(양쪽 추가·local 삭제 반영), 레코드=키 단위
+    3-way, 스칼라=local 변경분만 우선, 서버 필드(lms/info/rev/
+    consent)=remote 고정. persist 충돌 시 병합 후 한 번 재시도,
+    재충돌은 서버 상태로 수렴.
+  - 같은 탭 연속 쓰기 유실 수정 — persist가 전송 직전
+    mergeProfile(호출 시점 base, 내 next, 최신 동기 상태)로
+    변경분만 얹는다. 이전엔 enqueue가 직렬화만 하고 stale next가
+    앞선 저장을 조용히 덮어썼다.
+  - tests: graduation 17(+outlook 6) · activities 30(+pointScore 5)
+    · profile-merge 11 신규.
+- **Follow-ups**: 409 병합은 클라이언트 주도 1회 재시도 — 재충돌은
+  여전히 서버 우선(의도적 단순화). 전망은 학기당 균등 이수 가정이라
+  편차 큰 학습자에겐 부정확 — 학기별 실제 수강 이력 기반 추정은
+  별도 개선. 포인트 추천은 결핍을 모를 때(포인트 미입력) 탭이
+  숨겨지며 밴드에서 입력 유도.
