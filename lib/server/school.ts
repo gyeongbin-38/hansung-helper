@@ -300,7 +300,8 @@ export async function connectSchool(
   }
   // 종합정보 수집 — LMS 결과와 무관하게 info 세션으로 진행한다.
   // deferInfo가 있으면 응답 후 waitUntil에서 실행, 없으면 여기서 수집한다.
-  const runInfo = () => collectInfo(session, { menuHtml, mainHtml });
+  const runInfo = () =>
+    collectInfo(session, { menuHtml, mainHtml, studentId });
   if (opts?.deferInfo) {
     opts.deferInfo(() => runInfo().catch(() => null));
   } else {
