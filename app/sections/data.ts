@@ -66,6 +66,8 @@ export type Data = {
   /** 종합정보시스템 수집 스냅샷 — 로그인 시 서버가 읽어온 이수 내역·
    *  비교과 포인트·졸업가사정표·학적 요약 (서버 작성 전용) */
   info?: InfoSnapshot;
+  /** 프로필 리비전 — 서버가 저장할 때 +1. 낙관적 잠금(충돌 감지)에 사용 */
+  rev?: number;
   consent: boolean;
 };
 export const empty: Data = {

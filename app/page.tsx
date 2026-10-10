@@ -246,6 +246,17 @@ export default function App() {
   dataRef.current = data;
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
+  // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
+  // 일으키지 않게 순서대로 보낸다.
+  const persistSeq = useRef(Promise.resolve());
+  const enqueue = <T,>(job: () => Promise<T>): Promise<T> => {
+    const run = persistSeq.current.then(job);
+    persistSeq.current = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  };
   // 확장 프로그램(extension/) ↔ 앱 브리지 프로토콜:
   //   수신 hsu-extension-ready / hsu-lms-status / hsu-lms-import
   //   발신 hsu-extension-ping / hsu-lms-refresh-request
@@ -403,25 +414,53 @@ export default function App() {
   ) {
     try {
       if (account) {
-        const response = await fetch('/api/account/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...next,
-            onboarded: complete ?? account.onboarded,
+        const response = await enqueue(() =>
+          fetch('/api/account/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...next,
+              // 전송 시점의 최신 rev — 큐에서 기다리는 동안 이전 저장이
+              // rev를 올렸을 수 있으므로 next가 아닌 dataRef를 본다.
+              rev: dataRef.current.rev ?? next.rev,
+              onboarded: complete ?? account.onboarded,
+            }),
           }),
-        });
+        );
         if (!response.ok) {
-          const result = (await response.json()) as { error?: string };
+          const result = (await response.json()) as {
+            error?: string;
+            conflict?: boolean;
+          };
+          // 다른 기기/탭이 먼저 씀 — 서버 상태로 재수화해 데이터 유실을
+          // 막고 사용자에게 방금 변경을 다시 확인하게 한다.
+          if (result.conflict) {
+            try {
+              const res = await fetch('/api/account', { cache: 'no-store' });
+              if (res.ok) {
+                const fresh: Account = await res.json();
+                setAccount(fresh);
+                setData(accountData(fresh));
+              }
+            } catch {
+              /* 재수화 실패 시 안내 문구만 표시 */
+            }
+          }
           setToast(result.error || '저장하지 못했습니다.');
           return false;
         }
+        const result = (await response.json()) as { rev?: number };
+        const stored = { ...next, rev: result.rev ?? next.rev };
         setAccount({
           ...account,
-          profile: next,
+          profile: stored,
           onboarded: complete ?? account.onboarded,
         });
-      } else localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+        setData(stored);
+        if (msg) setToast(msg);
+        return true;
+      }
+      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
