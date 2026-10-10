@@ -955,3 +955,36 @@ blocking regressions.
   tests/notifs.test.mjs 27/27.
 - **Follow-ups**: 브라우저 OS 알림(reminderTargets)에도 단계
   리마인드 추가 가능 — 현재는 알림함/벨 배지만.
+
+
+## ISSUE-36 — 월 그리드 캘린더 + ICS + 알림 확장 + 부분수집 보호
+
+- **Status**: **verified** (2026-10-10 — 라이브 56acd1a9, 엔드포인트
+  전부 200 + 청크 마커 확인)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 학사일정·LMS 마감·개인 일정·계획 수업을 한 달력에
+  통합하고 외부 캘린더 앱으로 내보낸다. planner 프로젝트의 검증된
+  캘린더 패턴을 포팅.
+- **Done**:
+  - `lib/data/calendar.ts` — monthGrid/범위 조회/collectCalItems
+    (4 소스 통합)/parseQuickAdd 자연어(내일·다음주 요일·M월D일).
+  - `lib/data/ics.ts` — VCALENDAR/VEVENT + FREQ=WEEKLY·BYDAY·UNTIL
+    반복 수업. 계획 수업은 '수강신청 결과 아님' 명시.
+  - `calendar.tsx` 재작성 — 월 그리드 + 기간 밴드 + 선택일 agenda +
+    D-day + quick-add 미리보기 + 공식 출처/수집 시각 표기.
+  - `stageReminderTargets` — 활동 종료 임박/수료 확인/포인트 반영
+    확인을 브라우저 OS 알림 예약 큐로 확장(page.tsx, notifiedIds 공유).
+  - `infoChanges` + `InfoSnapshot.changed` — 로그인/재수집 시 이전
+    스냅샷 대비 학점·평점·과목 수 변동 → 졸업 연결 1회 알림.
+    미발화 시 changed:null로 명시 삭제해 재발화 방지.
+  - `mergeInfoSnapshot` — diag.pages ok 슬롯만 신값 신뢰. 학교
+    단일세션 정책으로 수집 중 세션이 끊기면(타 기기 로그인) 페이지가
+    200이어도 로그인 프레임셋 → 슬롯 공백. 실계정에서 completed
+    18→0 덮어쓰기 사고 확인 후 도입.
+  - tests: calendar 51 · info 83 · notifs 40 (신규 24건).
+- **Follow-ups**: hsportal 포인트 자동 수집 — 직접 API는 GUEST
+  반환, SSO 브리지 여부는 left.jsp 비교과 링크 확인 필요(탐색 중
+  학교 스로틀 발생 — 쿨다운 후 재시도). ICS는 로컬 시각 기준이며
+  캘린더 클라이언트 실기 검증(구글/애플 가져오기)은 미실시.
+  mergeInfoSnapshot은 grades 슬롯 fetch ok + 파싱 0건 조합은
+  신뢰한다(파서 회귀 시 별도 진단 필요).
