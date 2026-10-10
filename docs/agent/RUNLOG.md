@@ -1902,3 +1902,40 @@ BLOCKER: 없음. 라이브 00befe87.
 NOTE: 실계정 페이지 마크업은 미검증 — 파서는 메뉴 발견 + 일반 테이블
 기반이라 첫 실로그인의 diag(menu·pages)로 실제 구조 확인 필요.
 매칭 실패 시 안전하게 빈 스냅샷 + 수동 입력 안내로 수렴.
+
+
+## 2026-10-10 — 동시 접속 안정화: IP 리밋·서브리퀘스트 예산·프로필 충돌 가드 (ISSUE-34)
+
+TRIGGER: 300명+ 동시 접속 안정성 요구 — 코드 리뷰로 찾은 동시성
+리스크 3종(IP NAT 차단·서브리퀘스트 초과·프로필 last-write-wins)
+과 운영 강화 2종(정리 쿼리·관측성)을 한 패스로 처리.
+
+DONE:
+- login/route.ts — IP 레이트리밋 20→150/15분(캠퍼스 NAT 공유망
+  대응, 계정별 3회는 무차별 대입 방어로 유지). 만료 세션·리밋
+  DELETE를 매 로그인 → ~5% 확률 실행으로 이동해 핫패스 쓰기 축소.
+- lib/server/lms.ts — collectLms에 서브리퀘스트 예산(40) —
+  waitUntil이 로그인 invocation 예산(무료 50)을 공유하므로 초과를
+  방지 + 학교 서버 버스트 억제. 초과 시 남은 과목은 errors:['budget']
+  로 부분 보존. 퀴즈 응시 확인은 과목당 12개 상한, 초과분은
+  uncertain:true + quiz-check 표기.
+- app/sections/lms.tsx — ERROR_LABELS에 'budget' 라벨 추가.
+- profile/route.ts — 낙관적 잠금: profile.rev를 조건부 UPDATE의
+  COALESCE 비교로 검증, 불일치 시 409 + conflict:true 반환.
+  rev 미전송(구 클라이언트)은 저장 rev 기준으로 통과 — 회귀 없음.
+- page.tsx — persist 직렬화 큐(같은 탭 연속 저장의 자기 충돌 방지),
+  전송 시점 최신 rev 사용(dataRef), 성공 시 서버 rev 반영, 409
+  수신 시 /api/account 재수화로 데이터 유실 차단 + 안내 토스트.
+- app/api/health/route.ts — 업타임 모니터링 엔드포인트 추가.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK · 빌드
+green(/api/health 라우트 등록 확인).
+
+DEPLOY: PR #15 squash 머지(799f6c8) → published-personal 동기화·빌드
+→ wrangler deploy 17f59ca1-3503-48b6-acfa-2cb16034b696 →
+엔드포인트 전부 200(/api/health 200 {ok:true}) + 라이브 청크
+마커(conflict·budget) 확인. 배포 리포 a3b4db2.
+
+BLOCKER: 없음. 라이브 17f59ca1.
+NOTE: 실계정 동시성은 합성 부하 미검증 — 잔여로 부하 테스트
+스크립트(공개 엔드포인트 + 로그인 경로)를 BACKLOG에 등록.
