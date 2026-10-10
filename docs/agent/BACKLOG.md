@@ -890,26 +890,37 @@ blocking regressions.
 
 ## ISSUE-33 — 종합정보 자동 수집 (이수 내역·포인트·사정표·학적)
 
-- **Status**: **needs-verification** (2026-10-10 — 구현·단위테스트·
-  배포 완료. 실계정 페이지 파싱 정확도는 첫 실로그인 diag 확인 후
-  verified 전환)
+- **Status**: **verified** (2026-10-11 — 라이브 e8a0c347 실계정 수집
+  확인: 메뉴 78항목 발견, 취득학점 50·평점 2.87·이수 18과목·
+  학적(이름·소속·입학연도) 실데이터, 사정표·포인트 정직 미검출)
 - **Labels**: agent-ready, priority:p1, area:data, area:account
 - **Objective**: 로그인 시 열리는 info.hansung.ac.kr 세션으로 학적·
   이수 내역·비교과 포인트·졸업가사정표를 자동 수집 — 졸업 계산이
   수동 입력 대기에서 실수치로 전환.
-- **Done**: 서버 collectInfo(메뉴 발견 → 슬롯별 페이지 fetch → 헤더
-  기반 테이블 파서 · 미이수 등급 제외 · 소계 행 제외 · EUC-KR 폴백
-  디코딩 · 로그인 벽 감지 · diag 계측), SchoolSnapshot.infoData/
-  infoPending/infoFailedAt, login+lms-refresh 라우트 waitUntil 지연
-  수집 + checkedAt 가드 + 이전 스냅샷 보존, 클라이언트 data.info
-  수화(빈칸만 채움), 졸업 mergeCompleted 병합 + 수집 배지 + 사정표
-  details + 실패 안내, 홈 타일 수집값 우선 + 출처 라벨, 동의 문구
-  갱신. tests/info.test.mjs 51건.
-- **Follow-ups**: 실계정 첫 수집의 diag.menu/pages로 실제 메뉴
-  라벨·경로 확인 → 매칭 실패 시 SLOTS 정규식 보정. hsportal 세션
-  (iModule AJAX 로그인)은 미구현 — 종합정보 포인트 페이지가 비어
-  있으면 재검토. 수집 주기는 로그인/lms-refresh 시점 — 장기 미로그인
-  시 신선도 저하는 infoStale 배지가 표시.
+- **Done**: 서버 collectInfo(dae_main 프레임셋→좌/우 프레임 fetch →
+  사이드바 메뉴 발견 → 슬롯별 페이지 fetch → 헤더 기반 테이블 파서 ·
+  미이수 등급 제외 · 소계 행 제외 · 미확정 성적 제외 · EUC-KR 폴백
+  디코딩 · 로그인 벽 감지 · diag 계측 + 2차 사이드바 재탐색),
+  SchoolSnapshot.infoData/infoPending/infoFailedAt, login+lms-refresh
+  라우트 waitUntil 지연 수집 + checkedAt 가드 + 이전 스냅샷 보존,
+  클라이언트 data.info 수화(빈칸만 채움), 졸업 mergeCompleted 병합 +
+  수집 배지 + 사정표 details + 실패 안내, 홈 타일 수집값 우선 + 출처
+  라벨, 동의 문구 갱신. tests/info.test.mjs 72건(실계정 덤프 재현
+  픽스처 포함).
+- **실계정 검증 로그 (2026-10-11)**: 첫 수집은 diag={"menu":[],
+  "pages":[]}로 수렴 → 실계정 HTML 덤프 분석으로 두 가지 구조적
+  불일치 수정: ① 메뉴 소스 — dae_top_menu는 링크 없는 헤더바,
+  실제 메뉴는 프레임셋 left.jsp(78항목). li>a 중첩 컨테이너 스캔
+  버그도 수정(PR #20). ② 성적 헤더 — 실제 '구분/교과명/교과코드/
+  학점/성적' (PR #19). 재수집 결과 credits 50 · gpa 2.87 · 18과목 ·
+  name/dept/admitYear 실데이터, audit는 계정 미보유(정상), points
+  미검출 기록.
+- **Follow-ups**: 비교과 포인트는 메뉴상 hsportal 외부 링크라 info
+  세션으로 수집 불가 — hsportal 로그인(iModule AJAX) 별도 구현 필요.
+  졸업가사정표는 해당 학기 생성 전 계정엔 자료 없음 — 실제 사정표
+  구조는 졸업 학기 계정으로 추가 검증 권장. 수집 주기는 로그인/
+  lms-refresh 시점 — 장기 미로그인 시 신선도 저하는 infoStale 배지가
+  표시.
 
 
 ## ISSUE-34 — 동시 접속 안정화 (리밋·예산·충돌 가드)
