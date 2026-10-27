@@ -32,3 +32,9 @@ PR의 **Checks** 탭에서 결과 확인 — 로컬에서 안 돌린 커밋은 �
 - 시크릿·`.env`·실계정 정보·`lms-data.json` 커밋
 - 프로덕션 D1 데이터 직접 수정, `wrangler deploy` (소유자 전용)
 - `dist/`·`node_modules`·`.wrangler` 상태 커밋
+
+## 보안 설정
+
+- `ACCOUNT_INDEX_HMAC_KEY`는 최소 32바이트의 무작위 키다. 로컬 Wrangler 실행에는 무시되는 `.dev.vars`에 넣고, 프로덕션에는 Worker secret으로 설정한다.
+- 예를 들어 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`로 키를 만든 뒤 `ACCOUNT_INDEX_HMAC_KEY=<생성한 값>`으로 설정한다. 키는 계속 보관하고, 계정 ID 마이그레이션 계획 없이 교체하지 않는다.
+- 배포 보조 스크립트는 `HANSUNG_D1_DATABASE_ID`와 `CLOUDFLARE_ACCOUNT_ID`를 환경에서 읽는다. 실제 계정 정보·비밀값을 코드나 문서에 기록하지 않는다.

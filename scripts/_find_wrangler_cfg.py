@@ -1,8 +1,10 @@
 import os
 print('XDG_CONFIG_HOME =', os.environ.get('XDG_CONFIG_HOME'))
+xdg_home = os.environ.get('XDG_CONFIG_HOME')
+appdata = os.environ.get('APPDATA')
 candidates = [
-    r'C:\Users\82107\AppData\Roaming\xdg.config\.wrangler',
-    os.path.expandvars(r'%XDG_CONFIG_HOME%\.wrangler') if os.environ.get('XDG_CONFIG_HOME') else None,
+    os.path.join(xdg_home, '.wrangler') if xdg_home else None,
+    os.path.join(appdata, 'xdg.config', '.wrangler') if appdata else None,
     os.path.expandvars(r'%USERPROFILE%\.wrangler'),
     os.path.expandvars(r'%APPDATA%\.wrangler'),
     os.path.expandvars(r'%LOCALAPPDATA%\.wrangler'),

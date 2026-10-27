@@ -14,6 +14,7 @@ import type {
 
 const BASE = 'https://learn.hansung.ac.kr';
 const NOT_SUBMITTED = ['미제출', 'Not submitted', '提出なし', '没有作业'];
+const SUBMITTED = ['제출 완료', '제출됨', '제출함', 'submitted'];
 const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];
 const COL_WEEKLY_ATTENDANCE = ['주차 출석', 'Week attendance'];
 const COL_ATTENDANCE = ['출석', 'Attendance'];
@@ -25,6 +26,10 @@ export interface LmsSession {
 }
 
 const clsRe = (cls: string) => `class="[^"]*\\b${cls}\\b[^"]*"`;
+
+function hasClassTable(html: string, className: string): boolean {
+  return new RegExp(`<table[^>]*${clsRe(className)}[^>]*>`, 'i').test(html);
+}
 
 function tableRows(html: string, tableClass: string): string[] {
   const t = html.match(
@@ -70,6 +75,16 @@ function normDate(raw: string): string | null {
 
 const abs = (h: string) => (h.startsWith('http') ? h : BASE + h);
 
+function submissionState(status: string): Pick<LmsTask, 'submitted' | 'uncertain'> {
+  const normalized = status.toLocaleLowerCase();
+  if (NOT_SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+    return { submitted: false };
+  if (SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+    return { submitted: true };
+  // Unknown or blank text is not evidence that the student submitted the task.
+  return { submitted: false, uncertain: true };
+}
+
 /** 과제 목록 — mod/assign/index.php generaltable */
 export function parseAssigns(html: string): LmsTask[] {
   return tableRows(html, 'generaltable').flatMap((row) => {
@@ -81,7 +96,7 @@ export function parseAssigns(html: string): LmsTask[] {
       title: a.title,
       url: abs(a.href),
       due: dueRaw && dueRaw !== '-' ? normDate(dueRaw) : null,
-      submitted: !NOT_SUBMITTED.some((k) => status.includes(k)),
+      ...submissionState(status),
     };
   });
 }
@@ -100,15 +115,15 @@ export function parseQuizList(html: string): Omit<LmsTask, 'submitted'>[] {
   });
 }
 
-/** 퀴즈 상세 — quizattemptsummary tbody 행 존재 = 응시 이력 있음 */
-export function hasQuizAttempt(html: string): boolean {
+/** 퀴즈 상세 — missing table means unknown; an empty summary means not attempted. */
+export function hasQuizAttempt(html: string): boolean | null {
   const t = html.match(
     new RegExp(
       `<table[^>]*${clsRe('quizattemptsummary')}[^>]*>([\\s\\S]*?)</table>`,
       'i',
     ),
   );
-  if (!t) return false;
+  if (!t) return null;
   const tbody = t[1].match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i)?.[1] ?? '';
   return /<tr\b/i.test(tbody);
 }
@@ -256,6 +271,7 @@ export async function collectLms(
   session: LmsSession,
   courses: { id: string; name: string; community?: boolean }[],
 ): Promise<LmsSnapshot> {
+  if (!courses.length) throw new Error('lms:no-courses-collected');
   const deadline = Date.now() + COLLECT_BUDGET_MS;
   // 지연 수집은 로그인 invocation의 서브리퀘스트 예산을 공유한다 —
   // 학교 서버 부담과 플랜 한도(무료 50)를 위해 수집 요청에 상한을 둔다.
@@ -305,24 +321,31 @@ export async function collectLms(
         lastErr = e; /* 다음 URL 시도 */
       }
     }
-    // 두 URL 모두 요청 실패(세션/HTTP)면 'vod' 오류로 표면화,
-    // 페이지는 왔지만 표가 없는 경우만 정상 빈 결과.
+    // A successful page without the expected table is not proof of no work.
     if (lastErr) throw lastErr;
-    return [];
+    throw new Error('lms:progress-table-missing');
   };
-  const fetchAssigns = async (id: string) =>
-    parseAssigns(await html(`${BASE}/mod/assign/index.php?id=${id}`));
+  const fetchAssigns = async (id: string) => {
+    const page = await html(`${BASE}/mod/assign/index.php?id=${id}`);
+    if (!hasClassTable(page, 'generaltable'))
+      throw new Error('lms:assign-table-missing');
+    return parseAssigns(page);
+  };
   const fetchQuizzes = async (id: string) => {
-    const items = parseQuizList(
-      await html(`${BASE}/mod/quiz/index.php?id=${id}`),
-    );
+    const page = await html(`${BASE}/mod/quiz/index.php?id=${id}`);
+    if (!hasClassTable(page, 'generaltable'))
+      throw new Error('lms:quiz-table-missing');
+    const items = parseQuizList(page);
     const out: LmsTask[] = [];
     let unchecked = 0;
     // 퀴즈별 제출 확인이 과목당 요청 수를 키운다 — 12개까지만 확인하고
     // 나머지는 미확인(uncertain)으로 표시한다.
     for (const it of items.slice(0, 12)) {
       const r = await html(it.url!)
-        .then((h) => ({ submitted: hasQuizAttempt(h), failed: false }))
+        .then((h) => {
+          const submitted = hasQuizAttempt(h);
+          return { submitted: submitted === true, failed: submitted === null };
+        })
         .catch(() => ({ submitted: false, failed: true }));
       if (r.failed) unchecked += 1;
       out.push({

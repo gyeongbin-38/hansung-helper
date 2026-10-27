@@ -43,6 +43,7 @@ import {
   stageReminderTargets,
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
@@ -89,10 +90,17 @@ export default function App() {
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]),
     [actDraft, setActDraft] = useState<string[]>([]);
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
     useToasts();
   const [account, setAccount] = useState<Account | null>(null);
   const [demo, setDemo] = useState(false);
+  const accountRef = useRef(account);
+  accountRef.current = account;
+  const demoRef = useRef(demo);
+  demoRef.current = demo;
+  const allowExtensionImport = useRef(false);
   const [accountError, setAccountError] = useState('');
   // 데스크톱 사이드바 아이콘 레일 — 로컬 기기 설정으로 영속화
   const [sideCollapsed, setSideCollapsed] = useState(false);
@@ -106,11 +114,12 @@ export default function App() {
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
     let active = true;
-    fetch('/api/account', { cache: 'no-store' })
+    apiFetch('/api/account', { cache: 'no-store' })
       .then(async (response) => {
         if (response.ok) {
-          const result: Account = await response.json();
+          const result = await apiData<Account>(response);
           if (active) {
+            allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
@@ -176,9 +185,9 @@ export default function App() {
     const poll = async () => {
       tries += 1;
       try {
-        const res = await fetch('/api/account', { cache: 'no-store' });
+        const res = await apiFetch('/api/account', { cache: 'no-store' });
         if (res.ok) {
-          const result: Account = await res.json();
+          const result = await apiData<Account>(res);
           setAccount(result);
           const serverLms = result.snapshot?.lmsData;
           if (serverLms)
@@ -294,6 +303,11 @@ export default function App() {
       location.origin,
     );
   };
+  const clearExtensionCache = () =>
+    window.postMessage(
+      { type: 'hsu-lms-clear-cache-request' },
+      location.origin,
+    );
   useEffect(() => {
     const endSync = (patch: Partial<typeof ext>) => {
       if (syncTimeout.current) clearTimeout(syncTimeout.current);
@@ -334,15 +348,32 @@ export default function App() {
         return;
       }
       if (d?.type !== 'hsu-lms-import' || !d.payload) return;
+      if (
+        !readyRef.current ||
+        !allowExtensionImport.current ||
+        (!accountRef.current && !demoRef.current)
+      )
+        return;
       const valid = validateLms(d.payload);
-      if (!valid) return;
-      endSync({ status: 'success' });
+      if (!valid) {
+        endSync({ status: 'failed', error: '수집 데이터 형식이 올바르지 않습니다.' });
+        return;
+      }
       const cur = dataRef.current;
-      if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) return;
+      if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) {
+        endSync({ status: 'success' });
+        return;
+      }
       void persistRef.current?.(
         { ...cur, lms: valid },
         '확장 프로그램이 최신 수업 현황을 가져왔습니다.',
-      );
+      ).then((saved) => {
+        endSync(
+          saved
+            ? { status: 'success', error: undefined }
+            : { status: 'failed', error: '수집 데이터 저장에 실패했습니다.' },
+        );
+      });
     };
     addEventListener('message', onMsg);
     // content script가 리스너보다 먼저 ready를 보냈을 수 있으므로 능동 확인
@@ -437,7 +468,7 @@ export default function App() {
         let send = next;
         const response = await enqueue(() => {
           send = mergeProfile(baseAtCall, next, dataRef.current);
-          return fetch('/api/account/profile', {
+          return apiFetch('/api/account/profile', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -450,55 +481,55 @@ export default function App() {
           });
         });
         if (!response.ok) {
-          const result = (await response.json()) as {
-            error?: string;
-            conflict?: boolean;
-          };
+          let errorMessage = '저장하지 못했습니다.';
+          try {
+            await apiData(response);
+          } catch (error) {
+            if (error instanceof ApiRequestError) errorMessage = error.message;
+          }
           // 다른 기기/탭이 먼저 씀 — 필드 단위 3-way 병합으로 양쪽 변경을
           // 살려 한 번만 재시도하고, 또 충돌하면 서버 상태로 수렴한다.
-          if (result.conflict) {
+          if (response.status === 409) {
             try {
-              const res = await fetch('/api/account', { cache: 'no-store' });
-              if (res.ok) {
-                const fresh: Account = await res.json();
-                const remote = accountData(fresh);
-                const merged = mergeProfile(dataRef.current, send, remote);
-                const retry = await fetch('/api/account/profile', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    ...merged,
-                    rev: remote.rev,
-                    onboarded: complete ?? fresh.onboarded,
-                  }),
+              const res = await apiFetch('/api/account', { cache: 'no-store' });
+              const fresh = await apiData<Account>(res);
+              const remote = accountData(fresh);
+              const merged = mergeProfile(dataRef.current, send, remote);
+              const retry = await apiFetch('/api/account/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...merged,
+                  rev: remote.rev,
+                  onboarded: complete ?? fresh.onboarded,
+                }),
+              });
+              if (retry.ok) {
+                const r2 = await apiData<{ saved: true; rev?: number }>(retry);
+                const stored = { ...merged, rev: r2.rev ?? remote.rev };
+                setAccount({
+                  ...fresh,
+                  profile: stored,
+                  onboarded: complete ?? fresh.onboarded,
                 });
-                if (retry.ok) {
-                  const r2 = (await retry.json()) as { rev?: number };
-                  const stored = { ...merged, rev: r2.rev ?? remote.rev };
-                  setAccount({
-                    ...fresh,
-                    profile: stored,
-                    onboarded: complete ?? fresh.onboarded,
-                  });
-                  setData(stored);
-                  setToast('다른 기기의 변경과 병합해 저장했습니다.');
-                  return true;
-                }
-                setAccount(fresh);
-                setData(remote);
-                setToast(
-                  '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
-                );
-                return false;
+                setData(stored);
+                setToast('다른 기기의 변경과 병합해 저장했습니다.');
+                return true;
               }
+              setAccount(fresh);
+              setData(remote);
+              setToast(
+                '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
+              );
+              return false;
             } catch {
               /* 재수화 실패 시 안내 문구만 표시 */
             }
           }
-          setToast(result.error || '저장하지 못했습니다.');
+          setToast(errorMessage);
           return false;
         }
-        const result = (await response.json()) as { rev?: number };
+        const result = await apiData<{ saved: true; rev?: number }>(response);
         const stored = { ...send, rev: result.rev ?? send.rev };
         setAccount({
           ...account,
@@ -519,13 +550,15 @@ export default function App() {
     }
   }
   async function logout() {
+    allowExtensionImport.current = false;
     try {
-      const response = await fetch('/api/account/logout', {
+      const response = await apiFetch('/api/account/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
       if (!response.ok) throw new Error();
+      clearExtensionCache();
       setAccount(null);
       setDemo(false);
       setData(empty);
@@ -533,6 +566,7 @@ export default function App() {
       setActDraft([]);
       go('home');
     } catch {
+      allowExtensionImport.current = true;
       setToast('로그아웃하지 못했습니다. 다시 시도해 주세요.');
     }
   }
@@ -543,19 +577,22 @@ export default function App() {
       )
     )
       return;
+    allowExtensionImport.current = false;
     try {
-      const response = await fetch('/api/account', {
+      const response = await apiFetch('/api/account', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
       if (!response.ok) throw new Error();
+      clearExtensionCache();
       setAccount(null);
       setData(empty);
       setDraft([]);
       setActDraft([]);
       go('home');
     } catch {
+      allowExtensionImport.current = true;
       setToast('삭제하지 못했습니다. 다시 시도해 주세요.');
     }
   }
@@ -715,6 +752,8 @@ export default function App() {
         <SignIn
           notice={accountError || undefined}
           onAuthenticated={(result) => {
+            clearExtensionCache();
+            allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
@@ -722,6 +761,8 @@ export default function App() {
             go('home');
           }}
           onDemo={() => {
+            clearExtensionCache();
+            allowExtensionImport.current = false;
             setDemo(true);
             try {
               const raw = localStorage.getItem('hansung-demo-v1');

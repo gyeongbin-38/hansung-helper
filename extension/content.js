@@ -13,6 +13,7 @@
   const BASE = 'https://learn.hansung.ac.kr';
   const APP_URL = 'https://hansung-helper.gyeongbin-38.workers.dev/#lms';
   const NOT_SUBMITTED = ['미제출', 'Not submitted', '提出なし', '没有作业'];
+  const SUBMITTED = ['제출 완료', '제출됨', '제출함', 'submitted'];
   const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];
   const COL_WEEKLY_ATTENDANCE = ['주차 출석', 'Week attendance'];
   const COL_ATTENDANCE = ['출석', 'Attendance'];
@@ -26,6 +27,14 @@
   };
   const text = (el, sel) => el.querySelector(sel)?.textContent?.trim() ?? '';
   const abs = (h) => (h.startsWith('http') ? h : BASE + h);
+  const submissionState = (status) => {
+    const normalized = status.toLocaleLowerCase();
+    if (NOT_SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+      return { submitted: false };
+    if (SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+      return { submitted: true };
+    return { submitted: false, uncertain: true };
+  };
   const normDate = (raw) => {
     if (!raw) return null;
     const s = raw.trim();
@@ -86,6 +95,8 @@
   // ── 과제 목록 ────────────────────────────────────────────────
   const fetchAssigns = async (id) => {
     const doc = await fetchHtml(`${BASE}/mod/assign/index.php?id=${id}`);
+    if (!doc.querySelector('table.generaltable'))
+      throw new Error('assign-table-missing');
     let week = '';
     return Array.from(
       doc.querySelectorAll('table.generaltable tbody tr'),
@@ -102,7 +113,7 @@
         title,
         url: abs(h),
         due: dueRaw && dueRaw !== '-' ? normDate(dueRaw) : null,
-        submitted: !NOT_SUBMITTED.some((k) => status.includes(k)),
+          ...submissionState(status),
       };
     });
   };
@@ -111,9 +122,11 @@
   const quizSubmitted = async (url) => {
     try {
       const doc = await fetchHtml(url);
+      const table = doc.querySelector('table.quizattemptsummary');
+      if (!table) return { submitted: false, uncertain: true };
       return {
         submitted:
-          doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0,
+          table.querySelectorAll('tbody tr').length > 0,
         uncertain: undefined,
       };
     } catch {
@@ -123,6 +136,8 @@
   };
   const fetchQuizzes = async (id) => {
     const doc = await fetchHtml(`${BASE}/mod/quiz/index.php?id=${id}`);
+    if (!doc.querySelector('table.generaltable'))
+      throw new Error('quiz-table-missing');
     let week = '';
     const items = Array.from(
       doc.querySelectorAll('table.generaltable tbody tr'),

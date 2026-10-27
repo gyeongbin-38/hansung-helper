@@ -4,6 +4,7 @@ import { ArrowRight, Check, ArrowLeft, Plus, X } from 'lucide-react';
 import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
 import type { Catalog } from '@/lib/data/catalog';
+import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 
 export type Profile = {
   name: string;
@@ -83,7 +84,7 @@ export function SignIn({
             const form = e.currentTarget;
             const fields = new FormData(form);
             try {
-              const response = await fetch('/api/account/login', {
+              const response = await apiFetch('/api/account/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -91,21 +92,19 @@ export function SignIn({
                   password: fields.get('password'),
                   agreed: fields.get('agreement') === 'on',
                 }),
-              });
-              const result = (await response.json()) as Account & {
-                error?: string;
-              };
+              }, 60000);
               const password = form.elements.namedItem(
                 'password',
               ) as HTMLInputElement;
               password.value = '';
-              if (!response.ok) {
-                setError(result.error || '로그인하지 못했습니다.');
-                return;
-              }
+              const result = await apiData<Account>(response);
               onAuthenticated(result);
-            } catch {
-              setError('연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.');
+            } catch (error) {
+              setError(
+                error instanceof ApiRequestError
+                  ? error.message
+                  : '연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.',
+              );
             } finally {
               const passwordField = form.elements.namedItem(
                 'password',

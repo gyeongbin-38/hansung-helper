@@ -20,13 +20,17 @@ export async function DELETE(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   const account = await authenticated(request);
   if (!account) return json({ error: '로그인이 필요합니다.' }, 401);
-  await database().batch([
-    database()
+  const db = database();
+  await db.batch([
+    db
       .prepare('DELETE FROM academic_sessions WHERE account_id = ?')
       .bind(account.id),
-    database()
+    db
       .prepare('DELETE FROM academic_accounts WHERE id = ?')
       .bind(account.id),
+    db
+      .prepare('DELETE FROM academic_login_limits WHERE key IN (?, ?)')
+      .bind(account.id, `refresh:${account.id}`),
   ]);
-  return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+  return json({ deleted: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
 }

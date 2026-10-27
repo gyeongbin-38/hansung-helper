@@ -9,6 +9,11 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
+    "d1:migrate:local": "node scripts/_d1_migrate.mjs --local",
+    "d1:migrate:remote": "node scripts/_d1_migrate.mjs --remote",
+    "d1:backup:local": "node scripts/_d1_export.mjs --local",
+    "d1:backup:remote": "node scripts/_d1_export.mjs --remote",
+    "d1:restore:rehearsal": "node scripts/_d1_restore_rehearsal.mjs",
     "lint": "oxlint",
     "format": "oxfmt"
   },
@@ -22,8 +27,8 @@
     "vinext": "1.0.0-beta.10"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.56.0",
-    "@cloudflare/workers-types": "5.20260919.1",
+    "@cloudflare/vite-plugin": "1.65.0",
+    "@cloudflare/workers-types": "5.20261027.1",
     "@openai/sites-vite-plugin": "0.2.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
@@ -31,13 +36,13 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.35",
-    "oxfmt": "0.61.0",
+    "oxfmt": "0.74.0",
     "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vite": "8.3.0",
-    "wrangler": "4.135.0"
+    "vite": "8.3.5",
+    "wrangler": "4.153.0"
   },
   "type": "module"
 }

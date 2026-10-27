@@ -12,6 +12,7 @@ import {
   bingeQueue,
   relTime,
   currentSemesterStart,
+  kstDateNumber,
   isPast,
   courseIsPast,
   parseDue,
@@ -236,7 +237,7 @@ const soon = dueSoon(snap, NOW, 7);
 t('dueSoon: 7일 내 항목 수', soon.length === 2); // 강의(9/20), 퀴즈(9/19) — 과제(9/25)는 7일 초과
 t('dueSoon: 마감 빠른 순 정렬', soon[0].title === '퀴즈1' && soon[1].title === '2주차 강의');
 t('dueSoon: 마감 미기재 제외', !pendingTasks(snap).some((p) => p.title === '과제0' ));
-t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59')));
+t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59:00+09:00')));
 const far = dueSoon(snap, NOW, 2);
 t('dueSoon: 2일 창', far.length === 1 && far[0].title === '퀴즈1');
 // 과거 하한 — 오래 지난 미완료가 다가오는 마감을 밀어내지 않아야 한다
@@ -304,7 +305,7 @@ t('submissions: 응시완료 포함', unSubs.some((s) => s.title === '응시완�
 // ── bingeQueue (강의 몰아듣기) ───────────────────────────────
 const bq = bingeQueue(snap);
 t('binge: 안 들은 강의만', bq.length === 1 && bq[0].title === '2주차 강의');
-t('binge: range 끝날짜→dueTs', bq[0].dueTs === Date.parse('2026-09-20T23:59'));
+t('binge: range 끝날짜→KST dueTs', bq[0].dueTs === Date.parse('2026-09-20T23:59:00+09:00'));
 t('binge: 주차·출석 원문 전달', bq[0].week === 2 && bq[0].status === 'X');
 const bqSnap = {
   ...snap,
@@ -466,9 +467,13 @@ t('live: 주차 진행', lwp.length === 2 && lwp[0].done === 1 && lwp[1].done ==
 
 // ── 학기 경계 (지난 학기 분리) ──────────────────────────────
 const SEM = currentSemesterStart(NOW); // 2026-09-18 → 2026-09-01
-t('semester: 9월은 9/1 시작', SEM === new Date(2026, 8, 1).getTime());
-t('semester: 3월은 3/1 시작', currentSemesterStart(Date.parse('2026-03-15')) === new Date(2026, 2, 1).getTime());
-t('semester: 1~2월은 전년 9/1', currentSemesterStart(Date.parse('2026-02-15')) === new Date(2025, 8, 1).getTime());
+t('parseDue: LMS 마감은 KST로 파싱', parseDue('2026-09-20 23:59') === Date.parse('2026-09-20T23:59:00+09:00'));
+t('parseDue: 명시된 시간대 유지', parseDue('2026-09-20T23:59:00Z') === Date.parse('2026-09-20T23:59:00Z'));
+t('parseDue: 잘못된 날짜 거부', parseDue('2026-02-31 23:59') === null);
+t('parseDue: KST 자정 기준 일수', kstDateNumber(Date.parse('2026-09-20T00:30:00+09:00')) - kstDateNumber(Date.parse('2026-09-19T23:30:00+09:00')) === 1);
+t('semester: 9월은 9/1 KST 시작', SEM === Date.UTC(2026, 8, 1) - 9 * 60 * 60 * 1000);
+t('semester: 3월은 3/1 KST 시작', currentSemesterStart(Date.parse('2026-03-15')) === Date.UTC(2026, 2, 1) - 9 * 60 * 60 * 1000);
+t('semester: 1~2월은 전년 9/1 KST', currentSemesterStart(Date.parse('2026-02-15')) === Date.UTC(2025, 8, 1) - 9 * 60 * 60 * 1000);
 t('isPast: 경계 이전 마감', isPast(parseDue('2025-11-23 23:59'), SEM) === true);
 t('isPast: 경계 이후 마감', isPast(parseDue('2026-09-20 23:59'), SEM) === false);
 t('isPast: 마감 미기재는 현재 간주(추측 금지)', isPast(null, SEM) === false);

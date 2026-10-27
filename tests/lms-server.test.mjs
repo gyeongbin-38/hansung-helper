@@ -32,6 +32,10 @@ t('assign: 제출 판정', assigns[1].submitted === true);
 t('assign: 마감 - → null', assigns[1].due === null);
 t('assign: 절대 URL', assigns[0].url.startsWith('https://learn.hansung.ac.kr'));
 t('assign: 年形式 정규화', assigns[2].due === '2026-10-02 23:59');
+t('assign: 알 수 없는 제출 상태는 미제출 단정 금지', assigns[0].uncertain === undefined);
+const unknownStatus = parseAssigns(`<table class="generaltable"><tbody><tr><td class="cell c1"><a href="/mod/assign/view.php?id=104">확인할 과제</a></td><td class="cell c2">2026-10-04 23:59</td><td class="cell c3"></td></tr></tbody></table>`)[0];
+t('assign: 빈 상태는 uncertain', unknownStatus.submitted === false && unknownStatus.uncertain === true);
+t('assign: 제출 완료는 submitted', assigns[1].submitted === true && assigns[1].uncertain === undefined);
 
 // ── 퀴즈 목록 + 응시 판정 ─────────────────────────────────────
 const QUIZ_HTML = `<table class="generaltable"><tbody>
@@ -43,7 +47,7 @@ t('quiz: 상대경로 보정', quizzes[0].url === 'https://learn.hansung.ac.kr/m
 t('quiz: due 파싱', quizzes[0].due === '2026-10-05 18:00');
 t('attempt: 있음', hasQuizAttempt(`<table class="quizattemptsummary"><tbody><tr><td>1</td></tr></tbody></table>`));
 t('attempt: 없음', !hasQuizAttempt(`<table class="quizattemptsummary"><tbody></tbody></table>`));
-t('attempt: 테이블 부재', !hasQuizAttempt(`<div>no table</div>`));
+t('attempt: 테이블 부재는 확인 불가', hasQuizAttempt(`<div>no table</div>`) === null);
 
 // ── 온라인 출석부 (6열, 출석인정 요구시간 컬럼 포함) ────────────
 const PROGRESS_HTML = `<table class="user_progress_table">
@@ -140,7 +144,7 @@ t(
   snap3.courses[0].vods.length === 0 && snap3.courses[0].assigns.length === 0,
 );
 
-// 표 없는 정상 페이지(마커 있음) → 오류 아닌 빈 결과
+// 표가 없는 응답은 빈 과목이 아니라 수집 불가로 분류
 const snap4 = await collectLms(
   {
     request: async (url) =>
@@ -151,9 +155,8 @@ const snap4 = await collectLms(
   [{ id: '999', name: '테스트과목' }],
 );
 t(
-  'snap4: 표 없음은 오류 아님',
-  !(snap4.courses[0].errors ?? []).includes('vod') &&
-    snap4.courses[0].vods.length === 0,
+  'snap4: 표 없음은 vod 수집 오류',
+  snap4.courses[0].errors?.includes('vod') && snap4.courses[0].vods.length === 0,
 );
 
 // 퀴즈 상세 조회 실패 → 미응시 단정 금지: uncertain 표시 + quiz-check 오류
@@ -184,6 +187,15 @@ const snap6 = await collectLms(
 );
 t('snap6: errors=quiz', snap6.courses[0].errors?.includes('quiz'));
 t('snap6: quiz-check 아님', !snap6.courses[0].errors?.includes('quiz-check'));
+
+// 로그인 이후 과목을 한 건도 인식하지 못하면 정상 빈 결과로 반환하지 않는다.
+let emptyCoursesFailed = false;
+try {
+  await collectLms({ request: async () => byUrl('unknown') }, []);
+} catch (error) {
+  emptyCoursesFailed = error.message === 'lms:no-courses-collected';
+}
+t('empty course list is a collection failure', emptyCoursesFailed);
 
 console.log(`lms-server.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

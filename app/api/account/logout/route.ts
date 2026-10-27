@@ -15,5 +15,5 @@ export async function POST(request: Request) {
       .prepare('DELETE FROM academic_sessions WHERE token_hash = ?')
       .bind(await hash(token))
       .run();
-  return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+  return json({ loggedOut: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
 }

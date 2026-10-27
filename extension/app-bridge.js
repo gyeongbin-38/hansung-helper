@@ -20,9 +20,14 @@
   const trigger = (force) => {
     post('hsu-lms-status', { status: 'syncing' });
     chrome.runtime.sendMessage({ type: 'hsu-refresh', force }, (res) => {
-      if (chrome.runtime.lastError) return;
+      if (chrome.runtime.lastError) {
+        post('hsu-lms-status', {
+          status: 'failed',
+          error: 'extension-runtime-error',
+        });
+        return;
+      }
       if (res?.ok && res.payload) {
-        post('hsu-lms-status', { status: 'success' });
         post('hsu-lms-import', { payload: res.payload });
       } else {
         post('hsu-lms-status', {
@@ -35,9 +40,10 @@
 
   // 저장된 스냅샷을 먼저 보내고, 최근 수집이 오래됐으면 백그라운드 수집
   const FRESH_MS = 30 * 60 * 1000;
-  chrome.storage.local.get(['hsuLms', 'hsuLmsAt'], (r) => {
-    if (r.hsuLms) post('hsu-lms-import', { payload: r.hsuLms });
-    if (r.hsuLmsAt && Date.now() - r.hsuLmsAt < FRESH_MS) return;
+  chrome.runtime.sendMessage({ type: 'hsu-get-cache' }, (r) => {
+    if (chrome.runtime.lastError) return;
+    if (r?.payload) post('hsu-lms-import', { payload: r.payload });
+    if (r?.at && Date.now() - r.at < FRESH_MS) return;
     setTimeout(() => trigger(false), 1200);
   });
 
@@ -46,5 +52,7 @@
     if (e.data?.type === 'hsu-extension-ping') ready();
     if (e.data?.type === 'hsu-lms-refresh-request')
       trigger(e.data.force === true);
+    if (e.data?.type === 'hsu-lms-clear-cache-request')
+      chrome.runtime.sendMessage({ type: 'hsu-clear-cache' });
   });
 })();
