@@ -194,7 +194,7 @@ export async function PUT(request: Request) {
         row.id,
       )
       .run();
-    return json({ ok: true });
+    return json({ saved: true });
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
       return json({ error: '저장할 내용이 너무 큽니다.' }, 413);

@@ -39,6 +39,7 @@ next-env.d.ts
 /work/
 *.tsbuildinfo
 /published-personal/
+/.d1-backups/
 /.omx/
 
 # tunnel tooling (local only)

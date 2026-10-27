@@ -20,9 +20,14 @@
   const trigger = (force) => {
     post('hsu-lms-status', { status: 'syncing' });
     chrome.runtime.sendMessage({ type: 'hsu-refresh', force }, (res) => {
-      if (chrome.runtime.lastError) return;
+      if (chrome.runtime.lastError) {
+        post('hsu-lms-status', {
+          status: 'failed',
+          error: 'extension-runtime-error',
+        });
+        return;
+      }
       if (res?.ok && res.payload) {
-        post('hsu-lms-status', { status: 'success' });
         post('hsu-lms-import', { payload: res.payload });
       } else {
         post('hsu-lms-status', {
@@ -47,5 +52,7 @@
     if (e.data?.type === 'hsu-extension-ping') ready();
     if (e.data?.type === 'hsu-lms-refresh-request')
       trigger(e.data.force === true);
+    if (e.data?.type === 'hsu-lms-clear-cache-request')
+      chrome.runtime.sendMessage({ type: 'hsu-clear-cache' });
   });
 })();

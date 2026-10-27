@@ -49,7 +49,8 @@ async function d1Snapshot(
 }
 
 function snapshotResponse(body: string): Response {
-  return new Response(body, {
+  const parsed: unknown = JSON.parse(body);
+  return new Response(JSON.stringify({ ok: true, data: parsed }), {
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'Cache-Control': 'public, max-age=300',

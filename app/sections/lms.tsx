@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
+import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { useNow } from './catalog';
 import {
   bingeQueue,
@@ -20,6 +21,7 @@ import {
   currentSemesterStart,
   dueSoon,
   isPast,
+  kstDateNumber,
   matchEnrollment,
   parseDue,
   pendingTasks,
@@ -96,8 +98,8 @@ function TaskRow({
   past?: boolean;
   now: number;
 }) {
-  const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
-  const dd = ts !== null && !Number.isNaN(ts) ? Math.ceil((ts - now) / DAY) : null;
+  const ts = parseDue(due);
+  const dd = ts !== null ? kstDateNumber(ts) - kstDateNumber(now) : null;
   const tint =
     kind === '과제' ? 't-assign' : kind === '퀴즈' ? 't-quiz' : 't-vod';
   return (
@@ -118,7 +120,7 @@ function TaskRow({
           {due
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
-          {uncertain ? ' · 응시 여부 확인 실패' : ''}
+          {uncertain ? ' · 상태 확인 실패' : ''}
           {watched
             ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
             : ''}
@@ -281,7 +283,7 @@ function CourseCard({
 /** 안 들은 강의 한 줄 — 몰아듣기 큐용 */
 function BingeRow({ b, now }: { b: BingeItem; now: number }) {
   const overdue = b.dueTs !== null && b.dueTs <= now;
-  const dd = b.dueTs !== null ? Math.ceil((b.dueTs - now) / DAY) : null;
+  const dd = b.dueTs !== null ? kstDateNumber(b.dueTs) - kstDateNumber(now) : null;
   return (
     <div className="lms-task t-vod">
       <span className={'badge ' + (overdue ? 'orange' : 'blue')}>
@@ -371,7 +373,7 @@ function BingeView({
 
 /** 과제·퀴즈 한 줄 — 제출·응시 상태 배지 포함 */
 function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
-  const dd = s.dueTs !== null ? Math.ceil((s.dueTs - now) / DAY) : null;
+  const dd = s.dueTs !== null ? kstDateNumber(s.dueTs) - kstDateNumber(now) : null;
   return (
     <div className={`lms-task ${s.kind === '과제' ? 't-assign' : 't-quiz'}`}>
       <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
@@ -403,7 +405,7 @@ function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
             ? '응시 완료'
             : '제출 완료'
           : s.uncertain
-            ? '응시 여부 확인 실패'
+            ? `${s.kind} 상태 확인 실패`
             : s.kind === '퀴즈'
               ? '미응시'
               : '미제출'}
@@ -1388,22 +1390,22 @@ function RefreshForm({
     setErr('');
     setLoading(true);
     try {
-      const res = await fetch('/api/account/lms-refresh', {
+      const res = await apiFetch('/api/account/lms-refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId, password }),
-      });
-      const body = (await res.json()) as Account & { error?: string };
-      if (!res.ok) {
-        setErr(body.error || '재수집에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-        return;
-      }
+      }, 75000);
+      const body = await apiData<Account>(res);
       onAccount(body);
       setPassword('');
       setOpen(false);
       notify?.('서버에서 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.');
-    } catch {
-      setErr('요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    } catch (error) {
+      setErr(
+        error instanceof ApiRequestError
+          ? error.message
+          : '요청에 실패했습니다. 네트워크를 확인해 주세요.',
+      );
     } finally {
       setLoading(false);
     }
@@ -1499,8 +1501,8 @@ function DueSoonList({
               {t.course} ·{' '}
               {t.dueTs < now
                 ? '마감 지남'
-                : `D-${Math.ceil((t.dueTs - now) / DAY)}`}
-              {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
+                : `D-${kstDateNumber(t.dueTs) - kstDateNumber(now)}`}
+              {t.uncertain ? ' · 상태 확인 실패' : ''}
             </small>
           </div>
         </div>

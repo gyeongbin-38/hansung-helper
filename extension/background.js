@@ -13,6 +13,15 @@
 const LMS = 'https://learn.hansung.ac.kr';
 const RECENT_MS = 5 * 60e3; // 백그라운드 단기 캐시 — 5분 이내 성공분 재사용
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const success = (payload, cached = false) => ({
+  ok: true,
+  payload,
+  ...(cached ? { cached: true } : {}),
+});
+const failure = (error) => ({
+  ok: false,
+  error: String(error || 'collect-failed'),
+});
 
 const isDashboard = (u) => {
   try {
@@ -81,10 +90,6 @@ async function collectLms({ createTab }) {
         return { error: String(e?.message ?? e) };
       }
       if (r.payload) {
-        await chrome.storage.session.set({
-          hsuLms: r.payload,
-          hsuLmsAt: Date.now(),
-        });
         return { payload: r.payload };
       }
       if (r.error === 'collector-missing') {
@@ -112,6 +117,7 @@ async function collectLms({ createTab }) {
 // 진행 중 수집 공유 + 단기 캐시 — 앱 탭 여러 개/빠른 재방문이 LMS를
 // 중복으로 두드리지 않게 한다. 실패는 hsuLmsErr로 남겨 콘솔·진단에 쓴다.
 let inflight = null;
+let cacheGeneration = 0;
 async function requestCollect(opts) {
   const { hsuLmsAt, hsuLms } = await chrome.storage.session.get([
     'hsuLmsAt',
@@ -120,25 +126,49 @@ async function requestCollect(opts) {
   // force=true(앱의 명시적 새로고침·주기 갱신)면 단기 캐시를 건너뛰되
   // 진행 중 수집은 그대로 공유한다.
   if (!opts.force && hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
-    return { payload: hsuLms, cached: true };
+    return success(hsuLms, true);
+  const generation = cacheGeneration;
   // 'known': 이번 브라우저 세션에서 성공 수집이 있었을 때만 탭 생성 —
   // 한 번도 수집한 적 없는 브라우저에 무작위 탭을 띄우지 않기 위함.
   const createTab = opts.createTab === 'known' ? !!hsuLmsAt : opts.createTab;
-  if (!inflight)
-    inflight = collectLms({ createTab }).finally(() => {
-      inflight = null;
-    });
+  if (!inflight) {
+    const generation = cacheGeneration;
+    inflight = collectLms({ createTab })
+      .then(async (result) => {
+        if (result.payload && generation === cacheGeneration) {
+          await chrome.storage.session.set({
+            hsuLms: result.payload,
+            hsuLmsAt: Date.now(),
+          });
+        }
+        return result;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+  }
   const res = await inflight;
+  if (generation !== cacheGeneration) return failure('cache-cleared');
   if (res.error) {
     console.warn('[학사도우미] 수집 실패:', res.error);
     void chrome.storage.session.set({
       hsuLmsErr: { error: res.error, at: Date.now() },
     });
+    return failure(res.error);
   }
-  return res;
+  if (!res.payload) return failure('empty-payload');
+  return success(res.payload);
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'hsu-clear-cache') {
+    cacheGeneration += 1;
+    chrome.storage.session
+      .remove(['hsuLms', 'hsuLmsAt', 'hsuLmsErr'])
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse(failure('cache-clear-failed')));
+    return true;
+  }
   if (msg?.type === 'hsu-get-cache') {
     chrome.storage.session
       .get(['hsuLms', 'hsuLmsAt'])
@@ -151,7 +181,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'hsu-refresh') {
     requestCollect({ createTab: true, force: msg.force === true })
       .then(sendResponse)
-      .catch((e) => sendResponse({ error: String(e?.message ?? e) }));
+      .catch((e) => sendResponse(failure(e?.message ?? e)));
     return true; // 비동기 sendResponse
   }
 });

@@ -184,7 +184,30 @@ export function json(
   status = 200,
   extra: Record<string, string> = {},
 ) {
-  return Response.json(body, {
+  const isError = status >= 400;
+  const errorMessage =
+    isError && body && typeof body === 'object' &&
+    typeof (body as { error?: unknown }).error === 'string'
+      ? (body as { error: string }).error
+      : '요청을 처리하지 못했습니다.';
+  const errorCode: Record<number, string> = {
+    400: 'INVALID_REQUEST',
+    401: 'AUTH_REQUIRED',
+    403: 'FORBIDDEN',
+    413: 'PAYLOAD_TOO_LARGE',
+    429: 'RATE_LIMITED',
+    503: 'SERVICE_UNAVAILABLE',
+  };
+  const payload = isError
+    ? {
+        ok: false,
+        error: {
+          code: errorCode[status] ?? 'REQUEST_FAILED',
+          message: errorMessage,
+        },
+      }
+    : { ok: true, data: body };
+  return Response.json(payload, {
     status,
     headers: {
       'Cache-Control': 'no-store, private',

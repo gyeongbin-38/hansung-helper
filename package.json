@@ -9,6 +9,11 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
+    "d1:migrate:local": "node scripts/_d1_migrate.mjs --local",
+    "d1:migrate:remote": "node scripts/_d1_migrate.mjs --remote",
+    "d1:backup:local": "node scripts/_d1_export.mjs --local",
+    "d1:backup:remote": "node scripts/_d1_export.mjs --remote",
+    "d1:restore:rehearsal": "node scripts/_d1_restore_rehearsal.mjs",
     "lint": "oxlint",
     "format": "oxfmt"
   },
