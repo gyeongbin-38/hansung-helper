@@ -174,9 +174,10 @@ const task = (title, due, submitted = false, uncertain) => ({
   uncertain,
 });
 const dueStr = (ts) => {
-  const d = new Date(ts);
+  // Build a KST wall-clock timestamp independent of the machine timezone.
+  const d = new Date(ts + 9 * 60 * 60 * 1000);
   const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 };
 
 const lms1 = lmsSnap([
