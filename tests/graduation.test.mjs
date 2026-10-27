@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluate, DEFAULT_RULES } from '../lib/data/graduation.ts';
+import {
+  evaluate,
+  DEFAULT_RULES,
+  graduationOutlook,
+} from '../lib/data/graduation.ts';
 
 const section = (id, category, credits) => ({
   id,
@@ -138,4 +142,87 @@ test('requiredSource: 전역 기준 경로는 global로 표시', () => {
   // 학과 기준이 있어도 total/points 외 규정에는 영향 없음
   const r2 = evaluate([], [], {}, { admitYear: 2023, deptTargets: { total: 130, points: 800 } });
   assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, undefined);
+});
+
+// ── graduationOutlook — 남은 학점 → 학기 역산 추정 ─────────
+// 공식 사정이 아닌 계획 참고용 — 화면에 가정과 함께 표시된다.
+
+test('outlook: 기준 미확정(required null/0)이면 계산 불가', () => {
+  assert.equal(
+    graduationOutlook({ earned: 50, required: null, planned: 0 }).ok,
+    false,
+  );
+  assert.equal(
+    graduationOutlook({ earned: 50, required: 0, planned: 0 }).ok,
+    false,
+  );
+});
+
+test('outlook: 남은 학점을 학기당 18학점 기본으로 나눈다', () => {
+  // 130 - 50 = 80 → ceil(80/18) = 5학기
+  const o = graduationOutlook({ earned: 50, required: 130, planned: 0 });
+  assert.equal(o.remaining, 80);
+  assert.equal(o.afterPlan, 80);
+  assert.equal(o.perSemester, 18);
+  assert.equal(o.semestersLeft, 5);
+});
+
+test('outlook: 이번 학기 계획 학점은 이수 예정으로 먼저 차감', () => {
+  // 계획 18 → 남은 62, 학기당 기본도 계획값 18을 따른다 → ceil(62/18)=4
+  const o = graduationOutlook({ earned: 50, required: 130, planned: 18 });
+  assert.equal(o.afterPlan, 62);
+  assert.equal(o.perSemester, 18);
+  assert.equal(o.semestersLeft, 4);
+  // 계획이 남은 학점을 다 채우면 추가 학기 0
+  const full = graduationOutlook({ earned: 120, required: 130, planned: 12 });
+  assert.equal(full.afterPlan, 0);
+  assert.equal(full.semestersLeft, 0);
+});
+
+test('outlook: perSemester 지정 시 기본값 대신 적용 + 1~25 클램프', () => {
+  const o = graduationOutlook({
+    earned: 50,
+    required: 130,
+    planned: 0,
+    perSemester: 10,
+  });
+  assert.equal(o.perSemester, 10);
+  assert.equal(o.semestersLeft, 8);
+  const hi = graduationOutlook({
+    earned: 50,
+    required: 130,
+    planned: 0,
+    perSemester: 40,
+  });
+  assert.equal(hi.perSemester, 25); // 상한
+  const lo = graduationOutlook({
+    earned: 50,
+    required: 130,
+    planned: 0,
+    perSemester: 0,
+  });
+  assert.equal(lo.perSemester, 1); // 하한 — 0으로 나누기 방지
+});
+
+test('outlook: 학기 라벨로 졸업 시기와 현재 학년 추정', () => {
+  // 2026-2에 5학기 남음 → 2029-1 이수 완료 전망
+  const o = graduationOutlook({
+    earned: 50,
+    required: 130,
+    planned: 0,
+    semester: '2026-2',
+    admitYear: 2025,
+  });
+  assert.equal(o.estLabel, '2029-1');
+  assert.equal(o.gradeYear, 2); // 2025입학 → 2026-2는 2학년
+  // 학기 미지정이면 추정 라벨 없이 학기 수만
+  const noSem = graduationOutlook({ earned: 50, required: 130, planned: 0 });
+  assert.equal(noSem.estLabel, undefined);
+  assert.equal(noSem.gradeYear, undefined);
+});
+
+test('outlook: 이미 채웠으면 남은 0 — 추가 학기 없음', () => {
+  const o = graduationOutlook({ earned: 135, required: 130, planned: 0 });
+  assert.equal(o.remaining, 0);
+  assert.equal(o.semestersLeft, 0);
 });

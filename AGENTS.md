@@ -16,6 +16,7 @@
 - `node --experimental-strip-types tests/activities.test.mjs`
 - `node --experimental-transform-types tests/school.test.mjs` (parameter property 사용 — strip-types로는 실패)
 - `node --experimental-transform-types tests/lms-server.test.mjs` (서버 LMS 파서)
+- `node --experimental-transform-types tests/info.test.mjs` (종합정보 수집 파서)
 - `python scripts/_run_tests.py` (전체 매트릭스)
 - 실계정 COSMOS 검증: `node --experimental-transform-types scripts/cosmos-live.mts`
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)

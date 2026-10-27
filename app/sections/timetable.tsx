@@ -27,7 +27,8 @@ import {
   DAY_SHORT,
   daySummaries,
   fmtMin,
-  placeLabel,
+  deliveryLabel,
+  roomLabel,
   slotLabel,
   slotsLabel,
   type Catalog,
@@ -495,22 +496,19 @@ export function Timetable({
   return (
     <section className="builder">
       <div className="between builder-head">
-        <div>
-          <h2>시간표 짜기</h2>
-          <p>
-            {catalog ? (
-              `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
-            ) : failed ? (
-              <>
-                개설강의 데이터를 불러오지 못했습니다.{' '}
-                {retry && <RetryButton onRetry={retry} />}
-              </>
-            ) : (
-              '개설강의 데이터를 불러오는 중입니다.'
-            )}{' '}
-            · 개인 계획이며 공식 수강신청이 아닙니다.
-          </p>
-        </div>
+        <p className="meta">
+          {catalog ? (
+            `${catalog.semester} 공식 개설 시간표 ${catalog.sectionCount}개 분반 · ${catalog.source}`
+          ) : failed ? (
+            <>
+              개설강의 데이터를 불러오지 못했습니다.{' '}
+              {retry && <RetryButton onRetry={retry} />}
+            </>
+          ) : (
+            '개설강의 데이터를 불러오는 중입니다.'
+          )}{' '}
+          · 개인 계획이며 공식 수강신청이 아닙니다.
+        </p>
         <div className="builder-actions">
           <button
             className="secondary"
@@ -824,8 +822,12 @@ export function Timetable({
                     <b>{selected.professor || '미정'}</b>
                   </div>
                   <div>
+                    <small>수업 방식</small>
+                    <b>{deliveryLabel(selected)}</b>
+                  </div>
+                  <div>
                     <small>강의실</small>
-                    <b>{placeLabel(selected)}</b>
+                    <b>{roomLabel(selected) || '미정'}</b>
                   </div>
                   <div>
                     <small>시간</small>
@@ -836,6 +838,13 @@ export function Timetable({
                     <b>{selected.cross ? '가능' : '불가'}</b>
                   </div>
                 </div>
+                {selected.online && roomLabel(selected) && (
+                  <p className="meta">
+                    온라인 강좌인데 강의실({roomLabel(selected)})이 함께
+                    표기된 원자료입니다. 실제 운영 방식은 교수 공지 또는
+                    COSMOS 강의실에서 확인하세요.
+                  </p>
+                )}
                 {alternatives.length > 0 && (
                   <>
                     <h3>다른 분반</h3>

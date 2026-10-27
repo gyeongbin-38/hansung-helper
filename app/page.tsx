@@ -7,8 +7,10 @@ import {
   empty,
   questions,
   ACT_QUESTIONS,
+  mergeProfile,
   type Data,
 } from './sections/data';
+import type { ExtActivity } from '@/lib/data/activities';
 import {
   useCatalog,
   useActivities,
@@ -35,16 +37,34 @@ import { CalendarSection } from './sections/calendar';
 import { LmsSection } from './sections/lms';
 import { Advisor } from './sections/advisor';
 import { Notifications, NotifPanel } from './sections/notifications';
-import { deriveNotifs, reminderTargets } from '@/lib/data/notifs';
+import {
+  deriveNotifs,
+  reminderTargets,
+  stageReminderTargets,
+} from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
+import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
 
-/** 계정 프로필 + 로그인 시 서버 수집 LMS 스냅샷을 Data로 병합.
- *  더 최신 fetchedAt 쪽이 이김 (수동 가져오기 파일이 최신이면 유지). */
+/** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
+ *  사용자 입력값은 절대 덮어쓰지 않는다. */
+function applyInfo(prev: Data, info: InfoSnapshot): Data {
+  const next = { ...prev, info };
+  if (!next.year && info.admitYear) next.year = String(info.admitYear);
+  if ((!next.dept || next.dept === '소속 미입력') && info.dept)
+    next.dept = info.dept;
+  if ((!next.name || next.name === '한성인') && info.name)
+    next.name = info.name;
+  return next;
+}
+
+/** 계정 프로필 + 로그인 시 서버 수집 LMS·종합정보 스냅샷을 Data로 병합.
+ *  LMS는 더 최신 fetchedAt 쪽이 이김 (수동 가져오기 파일이 최신이면 유지).
+ *  info는 서버 작성 전용이라 snapshot 값이 유일한 출처다. */
 function accountData(result: Account): Data {
   const merged = { ...empty, ...result.profile };
   const serverLms = result.snapshot?.lmsData;
@@ -53,7 +73,8 @@ function accountData(result: Account): Data {
     (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
   )
     merged.lms = serverLms;
-  return merged;
+  const info = validateInfo(result.snapshot?.infoData);
+  return info ? applyInfo(merged, info) : merged;
 }
 
 export default function App() {
@@ -151,11 +172,13 @@ export default function App() {
     );
   }, [account?.snapshot.lmsData]);
   // 서버 지연 수집(waitUntil) 진행 중이면 완료/실패까지 짧게 폴링해
-  // 결과를 즉시 반영한다. 기존 lms 데이터가 있어도 재로그인 수집은
-  // lmsPending으로 표시되므로 갱신을 놓치지 않는다.
+  // 결과를 즉시 반영한다. LMS·종합정보 수집 모두 이 루프가 받는다.
+  // 기존 lms 데이터가 있어도 재로그인 수집은 lmsPending으로 표시되므로
+  // 갱신을 놓치지 않는다.
   const lmsPending = account?.snapshot.lmsPending === true;
+  const infoPending = account?.snapshot.infoPending === true;
   useEffect(() => {
-    if (!lmsPending) return;
+    if (!lmsPending && !infoPending) return;
     let cancelled = false,
       tries = 0,
       timer: ReturnType<typeof setTimeout>;
@@ -173,9 +196,15 @@ export default function App() {
                 ? { ...prev, lms: serverLms }
                 : prev,
             );
+          const info = validateInfo(result.snapshot?.infoData);
+          if (info) setData((prev) => applyInfo(prev, info));
           // 수집이 끝났으면(성공·실패 무관) 폴링 중단
-          if (!result.snapshot?.lmsPending || result.snapshot?.lmsFailedAt)
-            return;
+          const snap = result.snapshot;
+          const doneLms =
+            !snap?.lmsPending || !!snap?.lmsFailedAt;
+          const doneInfo =
+            !snap?.infoPending || !!snap?.infoFailedAt;
+          if (doneLms && doneInfo) return;
         }
       } catch {
         /* 다음 주기에 재시도 */
@@ -187,7 +216,7 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lmsPending]);
+  }, [lmsPending, infoPending]);
   // 수집 예산(60s)+여유를 넘긴 pending은 워커 중도 종료로 간주 — 무한
   // "수집 중" 대신 지연 안내로 전환한다. 마커 도입 전의 스냅샷은
   // connected인데 lmsData·pending이 없는 상태로 남을 수 있어 그것도
@@ -195,7 +224,7 @@ export default function App() {
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const checkedAt = account?.snapshot.checkedAt;
-    if (!lmsPending || !checkedAt) return;
+    if ((!lmsPending && !infoPending) || !checkedAt) return;
     const remaining = Date.parse(checkedAt) + 5 * 60e3 - Date.now();
     if (remaining <= 0) {
       setNowTick(Date.now());
@@ -203,17 +232,24 @@ export default function App() {
     }
     const timer = setTimeout(() => setNowTick(Date.now()), remaining);
     return () => clearTimeout(timer);
-  }, [lmsPending, account?.snapshot.checkedAt]);
-  const collectStale =
-    lmsPending &&
+  }, [lmsPending, infoPending, account?.snapshot.checkedAt]);
+  const collectStale = (pending: boolean) =>
+    pending &&
     !!account?.snapshot.checkedAt &&
     Date.parse(account.snapshot.checkedAt) + 5 * 60e3 <= nowTick;
   const lmsFailed =
     !!account?.snapshot.lmsFailedAt ||
-    collectStale ||
+    collectStale(lmsPending) ||
     (account?.snapshot.lms === 'connected' &&
       !account.snapshot.lmsData &&
       !account.snapshot.lmsPending);
+  // 종합정보 수집 실패 — 포털은 연결됐는데 infoData가 없는 상태 포함
+  const infoFailed =
+    !!account?.snapshot.infoFailedAt ||
+    collectStale(infoPending) ||
+    (account?.snapshot.portal === 'connected' &&
+      !account.snapshot.infoData &&
+      !account.snapshot.infoPending);
   useEffect(() => {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
@@ -224,6 +260,17 @@ export default function App() {
   dataRef.current = data;
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
+  // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
+  // 일으키지 않게 순서대로 보낸다.
+  const persistSeq = useRef(Promise.resolve());
+  const enqueue = <T,>(job: () => Promise<T>): Promise<T> => {
+    const run = persistSeq.current.then(job);
+    persistSeq.current = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  };
   // 확장 프로그램(extension/) ↔ 앱 브리지 프로토콜:
   //   수신 hsu-extension-ready / hsu-lms-status / hsu-lms-import
   //   발신 hsu-extension-ping / hsu-lms-refresh-request
@@ -369,7 +416,6 @@ export default function App() {
     const d = data;
     if (
       !d.notifEnabled ||
-      !d.lms ||
       typeof Notification === 'undefined' ||
       Notification.permission !== 'granted'
     )
@@ -378,7 +424,19 @@ export default function App() {
     const before =
       (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
       currentSemesterStart(Date.now());
-    const timers = reminderTargets(d.lms, Date.now(), undefined, undefined, before)
+    const targets = [
+      // 활동 라이프사이클(수료·포인트 확인) + LMS 마감 — 같은 예약 큐
+      ...stageReminderTargets({
+        actStatus: d.actStatus,
+        acts: actsSnap,
+        extActivities: d.extActivities,
+        now: Date.now(),
+      }),
+      ...(d.lms
+        ? reminderTargets(d.lms, Date.now(), undefined, undefined, before)
+        : []),
+    ].sort((a, b) => a.fireAt - b.fireAt);
+    const timers = targets
       .filter((r) => !fired.has(r.id))
       .map((r) =>
         setTimeout(() => {
@@ -395,7 +453,7 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, catalog]);
+  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, catalog, actsSnap]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
@@ -403,30 +461,86 @@ export default function App() {
   ) {
     try {
       if (account) {
-        const response = await apiFetch('/api/account/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...next,
-            onboarded: complete ?? account.onboarded,
-          }),
+        // 호출 시점의 화면 상태를 base로 둔다 — 큐에서 기다리는 동안 앞선
+        // 저장이 반영될 수 있으므로 전송 직전에 3-way 병합으로 내 변경분만
+        // 얹는다(같은 탭 연속 쓰기가 서로를 덮어쓰지 않게).
+        const baseAtCall = dataRef.current;
+        let send = next;
+        const response = await enqueue(() => {
+          send = mergeProfile(baseAtCall, next, dataRef.current);
+          return apiFetch('/api/account/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...send,
+              // 전송 시점의 최신 rev — 큐에서 기다리는 동안 이전 저장이
+              // rev를 올렸을 수 있으므로 next가 아닌 dataRef를 본다.
+              rev: dataRef.current.rev ?? send.rev,
+              onboarded: complete ?? account.onboarded,
+            }),
+          });
         });
-        try {
-          await apiData<{ saved: true }>(response);
-        } catch (error) {
-          setToast(
-            error instanceof ApiRequestError
-              ? error.message
-              : '저장하지 못했습니다.',
-          );
+        if (!response.ok) {
+          let errorMessage = '저장하지 못했습니다.';
+          try {
+            await apiData(response);
+          } catch (error) {
+            if (error instanceof ApiRequestError) errorMessage = error.message;
+          }
+          // 다른 기기/탭이 먼저 씀 — 필드 단위 3-way 병합으로 양쪽 변경을
+          // 살려 한 번만 재시도하고, 또 충돌하면 서버 상태로 수렴한다.
+          if (response.status === 409) {
+            try {
+              const res = await apiFetch('/api/account', { cache: 'no-store' });
+              const fresh = await apiData<Account>(res);
+              const remote = accountData(fresh);
+              const merged = mergeProfile(dataRef.current, send, remote);
+              const retry = await apiFetch('/api/account/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...merged,
+                  rev: remote.rev,
+                  onboarded: complete ?? fresh.onboarded,
+                }),
+              });
+              if (retry.ok) {
+                const r2 = await apiData<{ saved: true; rev?: number }>(retry);
+                const stored = { ...merged, rev: r2.rev ?? remote.rev };
+                setAccount({
+                  ...fresh,
+                  profile: stored,
+                  onboarded: complete ?? fresh.onboarded,
+                });
+                setData(stored);
+                setToast('다른 기기의 변경과 병합해 저장했습니다.');
+                return true;
+              }
+              setAccount(fresh);
+              setData(remote);
+              setToast(
+                '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
+              );
+              return false;
+            } catch {
+              /* 재수화 실패 시 안내 문구만 표시 */
+            }
+          }
+          setToast(errorMessage);
           return false;
         }
+        const result = await apiData<{ saved: true; rev?: number }>(response);
+        const stored = { ...send, rev: result.rev ?? send.rev };
         setAccount({
           ...account,
-          profile: next,
+          profile: stored,
           onboarded: complete ?? account.onboarded,
         });
-      } else localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+        setData(stored);
+        if (msg) setToast(msg);
+        return true;
+      }
+      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
@@ -549,6 +663,44 @@ export default function App() {
     delete plans[key];
     void persist({ ...data, plans }, `안 ${key}를 삭제했습니다.`);
   }
+  // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
+  function setActStage(id: string, stage: string | null) {
+    const actStatus = { ...data.actStatus };
+    if (stage) actStatus[id] = stage;
+    else delete actStatus[id];
+    void persist(
+      { ...data, actStatus },
+      stage
+        ? '활동 단계를 기록했습니다. 본인 확인용입니다.'
+        : '활동 단계 기록을 지웠습니다.',
+    );
+  }
+  // 직접 등록 활동 — hsportal 목록에 없는 외부 활동(대외활동·공모전 등)
+  function addExtActivity(fields: Omit<ExtActivity, 'id' | 'addedAt'>) {
+    const entry: ExtActivity = {
+      ...fields,
+      id: 'ext-' + Date.now().toString(36),
+      addedAt: new Date().toISOString(),
+    };
+    void persist(
+      { ...data, extActivities: [...(data.extActivities ?? []), entry] },
+      '직접 등록 활동을 추가했습니다.',
+    );
+    return entry.id;
+  }
+  function removeExtActivity(id: string) {
+    const actStatus = { ...data.actStatus };
+    delete actStatus[id];
+    void persist(
+      {
+        ...data,
+        extActivities: (data.extActivities ?? []).filter((x) => x.id !== id),
+        saved: data.saved.filter((x) => x !== id),
+        actStatus,
+      },
+      '직접 등록 활동을 삭제했습니다.',
+    );
+  }
   function exitDemo() {
     setDemo(false);
     setData(empty);
@@ -627,6 +779,12 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.actStatus === undefined ||
+                    (d.actStatus &&
+                      typeof d.actStatus === 'object' &&
+                      !Array.isArray(d.actStatus))) &&
+                  (d.extActivities === undefined ||
+                    Array.isArray(d.extActivities)) &&
                   (d.lmsMatch === undefined ||
                     (d.lmsMatch &&
                       typeof d.lmsMatch === 'object' &&
@@ -636,8 +794,11 @@ export default function App() {
                       typeof d.plans === 'object' &&
                       !Array.isArray(d.plans))) &&
                   (d.lms === undefined || typeof d.lms === 'object')
-                )
-                  setData({ ...empty, ...d });
+                ) {
+                  const next = { ...empty, ...d };
+                  const info = validateInfo(d.info);
+                  setData(info ? applyInfo(next, info) : next);
+                }
               }
             } catch {
               setData(empty);
@@ -690,7 +851,6 @@ export default function App() {
             section={section}
             label={label}
             name={data.name}
-            account={account}
             onSurvey={() =>
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
@@ -714,6 +874,9 @@ export default function App() {
               data={data}
               go={go}
               save={save}
+              setActStage={setActStage}
+              addExtActivity={addExtActivity}
+              removeExtActivity={removeExtActivity}
               onSurvey={() => openSurvey('act')}
             />
           ) : section === 'profile' ? (
@@ -733,6 +896,10 @@ export default function App() {
               planned={planned}
               persist={persist}
               detail={detail}
+              infoPending={
+                infoPending && !collectStale(infoPending)
+              }
+              infoFailed={infoFailed}
             />
           ) : section === 'courses' ? (
             <Courses
@@ -780,7 +947,7 @@ export default function App() {
               persist={persist}
               notify={setToast}
               detail={detail}
-              serverCollecting={lmsPending && !collectStale}
+              serverCollecting={lmsPending && !collectStale(lmsPending)}
               collectFailed={lmsFailed}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               lmsError={account?.snapshot.lmsError}

@@ -10,16 +10,19 @@ import {
   MonitorPlay,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import type { InfoSnapshot } from '@/lib/data/info';
+import type { ExtActivity } from '@/lib/data/activities';
+/* 사이드바 순서 — chrome.tsx NAV_GROUP_AT의 캡션 경계와 맞춘다 */
 export const menus = [
   ['home', '홈', Home],
   ['timetable', '시간표 짜기', LayoutGrid],
-  ['activities', '비교과·대외활동', Compass],
-  ['calendar', '학사일정', CalendarDays],
   ['lms', '수업 현황', MonitorPlay],
-  ['advisor', '학사 안내', Sparkles],
-  ['graduation', '졸업요건', GraduationCap],
   ['semester-plan', '학기별 계획', Layers],
   ['courses', '과목 추천', BookOpen],
+  ['activities', '비교과·대외활동', Compass],
+  ['calendar', '학사일정', CalendarDays],
+  ['graduation', '졸업요건', GraduationCap],
+  ['advisor', '학사 안내', Sparkles],
 ] as const;
 export type Completed = {
   code: string;
@@ -44,6 +47,10 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 활동 진행 단계(본인 확인용) — activity id → ACT_STAGES 단계 id */
+  actStatus?: Record<string, string>;
+  /** 직접 등록한 외부 활동 — hsportal 목록 외의 사용자 입력 데이터 */
+  extActivities?: ExtActivity[];
   /** 읽음 처리한 알림 id — 새 알림이 오면 다시 unread로 표시된다 */
   readIds: string[];
   /** 졸업 학점 외 요건(인증·캡스톤 등) 본인 확인 체크 — 공식 사정과 무관한 사용자 메모 */
@@ -56,6 +63,11 @@ export type Data = {
   lms?: LmsSnapshot;
   /** 수업 현황의 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore'(수업 아님) */
   lmsMatch?: Record<string, string>;
+  /** 종합정보시스템 수집 스냅샷 — 로그인 시 서버가 읽어온 이수 내역·
+   *  비교과 포인트·졸업가사정표·학적 요약 (서버 작성 전용) */
+  info?: InfoSnapshot;
+  /** 프로필 리비전 — 서버가 저장할 때 +1. 낙관적 잠금(충돌 감지)에 사용 */
+  rev?: number;
   consent: boolean;
 };
 export const empty: Data = {
@@ -73,6 +85,9 @@ export const empty: Data = {
   readIds: [],
   consent: false,
 };
+
+// 3-way 프로필 병합 — 순수 로직이라 lib으로 분리해 노드 테스트에서 쓴다.
+export { mergeProfile } from '@/lib/data/profile-merge';
 export const questions = [
   [
     '이번 학기의 우선 목표는 무엇인가요?',

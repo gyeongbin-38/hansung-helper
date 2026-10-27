@@ -1655,3 +1655,376 @@ _check_deploy 마커 7종 라이브 확인, 프로덕션 CDP 캡처로
 시나리오 슬롯 데스크톱·모바일 렌더 확인.
 
 BLOCKER: 없음. 라이브 ae91c70d-c551-4bbd-8a93-9861976be660.
+
+## 2026-09-21 — design-slop/frontend-deslop 스킬 감사 + 죽은 토큰 수정
+
+TRIGGER: 사용자 요청 — skills.sh의 디자인 스킬(wpgaurav/design-slop,
+samber/frontend-design-deslop)로 UI 감사. 스킬은 G:\내 드라이브\
+design-skills\에 설치하고 .devin/skills/에 junction 연결(gitignore 처리).
+
+DONE:
+- 전체 CSS 감사 — 하드체크(둥근 카드+두꺼운 보더), 그라디언트/블러/
+  글래스, pill 남용, 토큰 정의 대조. 대부분 통과: 유일한
+  linear-gradient는 시간표 그리드 라인, 유일한 backdrop-filter는
+  dialog 스크림. Pretendard Variable, --nt-* 단일 토큰 계약,
+  reduced-motion 킬스위치, 프린트 스타일시트는 스킬이 요구하는
+  수준을 이미 충족.
+- [Major] .lms-match-warn — card(12px radius)에 border-left 3px
+  orange = 카탈로그가 지목하는 대표 슬롭 패턴(side-tab accent).
+  보더 제거하고 미매칭 과목이 있을 때만 peach tint + orange
+  hairline으로 조건부 표시(needs 클래스). 성공 상태에는 흰 카드.
+- [Major] 죽은 CSS 변수 5종 수정 — --nt-tint-blue·--nt-line·
+  --nt-bg-soft·--nt-ink-2·--nt-ink-3이 정의 없이 참조돼 해당
+  선언이 통째로 무효화되던 버그: .lms-refresh 패널(테두리+배경
+  상실), .enrolled-pick-row:hover(호버 피드백 없음), .rules-image
+  img 테두리, .notif-native 구분선, .hc-* 텍스트 색. 실제 토큰
+  (--nt-hairline/--nt-tint-sky/--nt-surface/--nt-slate/--nt-stone)으로
+  매핑 + 스크립트 감사로 전체 파일 잔여 미정의 토큰 0 확인.
+- .profile-hint 3px primary 바 → 2px purple-300으로 경량화
+  (하드체크 대상은 아니나 시스템 대비 과중).
+- 미적용(판단 보류): --nt-primary #5645d4 인디고는 deslop 스킬의
+  'red ocean' 지적 대상이나 한성 네이비/퍼플 브랜드 맥락으로 유지
+  — 색역 변경은 브랜드 결정 사항이라 별도 논의 필요.
+
+TESTS: tsc clean, oxlint 0, 매트릭스 11파일 전부 OK, 루트 빌드
+green, 토큰 감사 스크립트 재실행으로 미정의 참조 0 확인.
+
+BLOCKER: 없음.
+
+## 2026-10-09 — 비교과 라이프사이클·외부 활동 직접 등록·수집 신선도 (ISSUE-29)
+
+TRIGGER: 외부 제품 리뷰 지적 — '비교과·대외활동'이 발견·저장에 머물고
+활동 이력 추적 없음, 외부 활동 검색 0건, 수집 기준일만 있고 stale
+경고 없음, 온라인 강좌에 강의실이 동시 표기되는 원자료 표시 혼동.
+
+DONE:
+- 활동 진행 단계 `Data.actStatus: Record<id, stage>` — 저장됨 이후
+  신청함→참여 중→수료→포인트 확인 스테퍼(activities 상세·카드 배지).
+  단계는 본인 확인용임을 UI에 명시(공식 인증 사칭 없음). profile
+  라우트 서버 검증(≤100건, stage enum).
+- 외부 활동 직접 등록 `Data.extActivities` — 대외활동·공모전 등
+  hsportal 공개 목록 밖 활동을 제목·기관·신청/운영 기간·포인트·링크로
+  기록('ext-' id, ≤50건, 날짜/URL/포인트 서버 검증). '직접 등록' 탭
+  신설 + 등록 폼 + 삭제 시 saved/actStatus 정리. extToActivity로
+  공통 Activity 형태 정규화 → liveStatus 재계산·홈 마감 통합·
+  검색 대상 포함.
+- 데이터 최신성 `lib/data/freshness.ts` — ageDays/isStale/staleLabel.
+  학사일정(calendar 본문·상세), 학과 규정(graduation 3곳), LMS
+  수강중 카드(7일 기준), 홈 마감 카드(COSMOS·hsportal 각각)에
+  'N일 전 수집' orange 배지.
+- 시간표 상세 — '수업 방식'(온라인/대면)을 '강의실'과 분리.
+  온라인 강좌+강의실 동시 표기 원자료에는 확인 안내 메모 추가.
+  deliveryLabel/roomLabel 헬퍼로 교체.
+- 검증 — tsc clean, oxlint 0, 매트릭스 12파일 전부 OK
+  (activities +5건 extToActivity/ACT_STAGES, freshness 신규 5건),
+  빌드 green, 로컬 8787 + CDP 캡처로 폼/상세/스테퍼/배지 실동작
+  확인(데모 모드에서 ext 등록→상세 이동→참여 중 기록→목록 배지).
+
+DEPLOY: PR #5 squash 머지(루트 5301699) → published-personal ee1bafd
+→ wrangler deploy a9015637-6f1e-4e94-a2d0-e83c77473f8c →
+_verify_prod 전 엔드포인트 200 + 라이브 번들 마커(직접 등록·
+actStatus·act-steps CSS 등 10종) 확인.
+
+BLOCKER: 없음. 라이브 a9015637.
+
+## 2026-10-09 — 디자인 개편: 학생 플래너 방향 + 한글 줄바꿈 + 기능 노출 축소 (ISSUE-30)
+
+TRIGGER: 사용자 지적 — '기능과 설명이 너무 많이 열려 있어 사용자가
+지친다' + 한글 전용 줄바꿈 CSS 필요 + B방향(학생 노트/플래너,
+Notion 레퍼런스) 선택.
+
+DONE:
+- `DESIGN.md` 신설 — B방향 디자인 계약 (잉크 네이비 primary, 노션
+  잉크 본문, 한글 타이포 규칙, 점진적 공개·카드 최소화·하드체크
+  규칙 문서화).
+- 팔레트 리맵 — primary #5645d4(인디고, AI-SaaS 수렴색) → 잉크
+  네이비 #33415c, --nt-ink #1a1a1a → #37352f(노션 잉크),
+  --nt-surface → #f7f6f3. 토큰 이름 유지로 컴포넌트 재작업 없이
+  전체 톤 전환. progress.css stale fallback(#5b5bd6/#f4f4f5) 교정.
+- 한글 타이포 — body `word-break: keep-all`(음절 절개 금지) +
+  `overflow-wrap: break-word`(긴 라틴/URL 최후 절개) +
+  `text-wrap: pretty`, h1-h3 `text-wrap: balance`.
+- 기능 노출 축소 — 홈 중복 히어로(.home-summary) 삭제, 나의 학사
+  현황 타일 4→3(계획 카드와 중복 제거), 페이지 헤딩 상시 배지
+  ·topbar 로어 텍스트 제거, 사이드바 9메뉴를 4그룹 캡션으로
+  (내 학사/수업·계획/활동·일정/점검 + 메뉴 순서 재배치).
+- 비교과 툴바 — 탭 7→6, '직접 등록'을 필터가 아닌 액션 버튼으로
+  이동. 탭 스타일 알약(bordered pill) → 조용한 텍스트 세그먼트.
+- 설명 밀도 — 활동 상세 안내문 5개→2개 병합(면책·출처 유지),
+  졸업 '현재 수강 중' 안내 압축, .meta를 muted 색으로 리세스.
+- 모션 — .activity:hover translateY 제거(그림자만).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 홈·비교과·직접
+등록·졸업·시간표·LMS, 한글 어절 줄바꿈·탭 래핑·툴바 스택 확인.
+
+DEPLOY: PR #7 squash 머지(c7dbcc6) → published-personal 5295930
+→ wrangler deploy d417eb8e-341b-484a-b505-ff673f5b7494 →
+엔드포인트 전부 200 + 라이브 CSS 마커(#33415c/keep-all/text-wrap/
+toolbar-side/#37352f/#f7f6f3) + JS 마커(수업·계획/활동·일정/직접
+등록) 확인.
+
+BLOCKER: 없음. 라이브 d417eb8e.
+
+## 2026-10-10 — 디자인 v2: 세리프 디스플레이 + 페이퍼 배경 + 텍스트 대폭 절감 (ISSUE-31)
+
+TRIGGER: 사용자 — '글이 너무 많아 어지럽다' + 디자인을 더 과감하게.
+B방향(학생 플래너/Notion) 위에서 시그니처 무브를 추가.
+
+DONE:
+- `DESIGN.md` v2 — 시그니처 무브 확정: 노션 세리프 모드의 학사 노트.
+  제목·큰 수치·D-day = 고운바탕, 본문·UI = Pretendard.
+- `--nt-font-display` (Gowun Batang 400/700, Google Fonts) 신규 —
+  .page-heading h1/.section-heading h2/.detail h2/인증·인트로 제목/
+  큰 수치(.stat strong/.plan-stats b/.builder-sum/.grad-intro>strong)/
+  .mini-art strong 대형 글리프/.event-date b D-day에 적용.
+- `--nt-paper` #fbfaf7 — body·.workspace·.topbar·.auth-page 배경을
+  따뜻한 종이 톤으로. 카드는 순백 유지해 대비.
+- 텍스트 절감 — SECTION_SUB 페이지 설명문 전체 폐지, 홈 아이브로우를
+  오늘 날짜("10월 10일 토요일")로(플래너 페이지 넘김), 나머지 페이지는
+  네비 그룹명(수업·계획/활동·일정/점검). 행 단위 출처 라벨·배지 중복
+  라벨 제거(home week 학사일정 sub/코스모스 rows/비교과 카드·목록
+  메타/활동 상세 dept 문장), 졸업 인트로 산문 3문장→1문장, 반복 면책
+  문장 압축, 시간표 페이지 중복 h2 제거.
+- 팔레트 정합 — 아바타·task-num·안읽음 표시·선택 배지·plan-slot을
+  라벤더 → --nt-tint-sky + --nt-primary-deep로 통일. grad-intro
+  라벤더 → 크림(--nt-tint-cream), act-band 플랫 서피스.
+- 디테일 — ::selection 네이비 틴트, 얇은 스크롤바(10px pill),
+  AccountBar 문구 압축(날짜만).
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 홈·비교과·저장·
+직접등록·졸업·시간표·LMS 전부 세리프/페이퍼/줄바꿈 확인.
+
+DEPLOY: PR #9 squash 머지(98bdf1e) → published-personal cb47218
+→ wrangler deploy 6e641e75-d8d7-4109-a02a-150fa9d05e08 →
+엔드포인트 전부 200 + 라이브 CSS 마커(Gowun Batang/font-display/
+#fbfaf7/keep-all) + JS 마커(수업·계획/활동·일정/직접 등록/반가워요)
+확인.
+
+BLOCKER: 없음. 라이브 6e641e75.
+NOTE: 프로세스 정리 중 npm.*start 패턴이 무관한 AIR-NOTE 프로젝트의
+next start(PID 19748)도 종료됨 — 사용자에게 고지.
+
+## 2026-10-10 — 디자인 v3: 정밀 다듬기(잿빛 파스텔·언더라인 탭·정합화) (ISSUE-32)
+
+TRIGGER: 사용자 — '좀 더 세련되게'. v2 토대 위에서 컴포넌트 수준의
+정밀함·일관성·팔레트 채도를 다듬는 패스.
+
+DONE (CSS 전용, 구조 변경 없음):
+- 팔레트 — --nt-tint-* 8종을 종이색(--nt-paper) 방향으로 채도 한 단계
+  낮춘 "잿빛 파스텔"로 재지정. timetable 블록·mini-art·badge·stat-tag
+  등 tint 소비처 전체가 한 번에 차분해짐.
+- .tabs — 채운 세그먼트 → 언더라인 인디케이터 탭(2px primary).
+  hover는 hairline 언더라인, active는 primary 언더라인+굵기.
+- .page-heading — 하단 --nt-hairline-soft 룰 + padding-bottom으로
+  문서 마스터헤드 구조.
+- 테두리 다이어트 — .secondary를 hairline으로(hover시 strong),
+  bottom-grid/week-list 날짜 칩·today-item·demo-note 테두리 제거.
+  today-item은 무테 로우 + hover 서피스.
+- 포커스 통일 — input/select/.field에 3px 소프트 링(primary 13%)
+  적용하고 focus-visible outline은 버튼/링크 전용으로 분리해
+  이중 표시 해소.
+- 선택 상태 수렴 — 설문 chosen·온보딩 selected·year-table my-col·
+  ai-mark·saved:hover·band-setup dot·profile-hint의 라벤더/퍼플
+  잔재를 --nt-tint-sky·hairline-strong로 통일.
+- 호버 언어 통일 — 카드 hover = border hairline-strong + shadow-1
+  (activity는 shadow-2 단독이던 것 교정). .task translateY 잔재 제거.
+- dialog radius 20px → 16px, toast shadow-modal → shadow-2.
+- DESIGN.md v3 변경 이력 추가.
+
+TESTS: tsc clean, oxlint 0, 매트릭스 12파일 전부 OK, 빌드 green,
+로컬 8787 CDP 캡처 데스크톱 1440 + 모바일 390 — 언더라인 탭·
+마스터헤드 룰·무테 로우·바랜 파스텔 확인.
+
+DEPLOY: PR #11 squash 머지(c32246e) → published-personal 동기화·빌드
+→ wrangler deploy 86aeb3a1-6185-4802-9f22-814e90c25dcc →
+엔드포인트 전부 200 + 라이브 CSS 마커(#f7ebdf/#e5eef4/#eae8f1,
+tabs 언더라인, page-heading 룰, today-item 무테) 확인.
+
+BLOCKER: 없음. 라이브 86aeb3a1.
+
+## 2026-10-10 — 종합정보 자동 수집: 이수 내역·비교과 포인트·사정표·학적 (ISSUE-33)
+
+TRIGGER: P0 — 졸업요건의 실질 가치를 좌우하던 수동 입력 갭 해소.
+로그인 시 이미 열리는 info.hansung.ac.kr 세션을 재사용하는 서버 수집
+파이프라인을 LMS 수집 패턴과 동일하게 구축.
+
+DONE:
+- lib/data/info.ts — InfoSnapshot·InfoCourse·InfoAuditRow,
+  validateInfo(수화 검증·클램프), mergeCompleted(수집본 우선·수동
+  목록 불변·코드/정규화 이름 dedup), infoCategory(학교 이수구분 →
+  앱 어휘, 미지 구분 원문 유지).
+- lib/server/info.ts — parseInfoMenu(anchor·onclick·JS 쌍 + bare
+  서블릿명), SLOTS 우선순위 매칭(누적성적 > 금학기), 헤더 기반
+  테이블 파서(과목코드·교과목명·이수구분·학점·등급·학기 컬럼 발견),
+  학기 중간 헤더 행 추적, 미이수 등급(F·FA·NP·N·U·I·낙제·불합격·
+  미이수·포기) 제외, 소계/합계 행 제외(과목명 '통계'·'회계' 보존),
+  UTF-8 선행 + U+FFFD 감지 시 EUC-KR 폴백 디코딩, isLoginWall 감지,
+  parsePoints(합계 행 우선 → 본문 패턴 폴백), parseAudit(원문 행
+  보존 — 수치 강제 변환 없음), parseIdentity(성명·소속·학번→입학연도),
+  collectInfo 오케스트레이션(병렬 fetch·예외는 diag.ok로 표면화·
+  메뉴/타겟/페이지 성공 여부를 diag로 기록 — 실계정 첫 수집 시 실제
+  메뉴 구조가 드러남).
+- school.ts — deferInfo 채널 추가. LMS 결과와 무관하게 포털 세션으로
+  진행. 인라인 수집 폴백(deferInfo 없으면 로그인 안에서 즉시 수집).
+- 라우트 — login + lms-refresh에 infoPending 마커·waitUntil 지연
+  수집·checkedAt 가드 json_patch·실패 시 infoFailedAt·이전 스냅샷
+  보존(lmsData/infoData 각각).
+- 클라이언트 — data.info 수화(validateInfo + applyInfo: year/dept/
+  name 빈칸·기본값만 채움, 사용자 입력 절대 덮어쓰지 않음),
+  LMS·info 동시 폴링(각각 완료·실패까지), collectStale 공용화
+  (5분 예산 초과 pending → 실패 분류), 데모 수화에도 applyInfo 적용.
+- 졸업 UI — merged 이수 목록(수집 행 '수집' 배지·삭제 버튼 없음,
+  수동 행만 삭제 가능), info.points 우선 계산(수동 입력 폴백·미입력≠0
+  유지), 인트로 수집 배지+신선도, 수집 과목 수·취득학점·평점 meta,
+  학교 졸업가사정표 <details>(원문·참고용 고지), 실패 시
+  '수동 입력 + 다음 로그인 재시도' 안내.
+- 홈 — 이수학점·비교과 포인트 타일이 수집값 우선 + '학교 수집' 출처
+  라벨, 수집된 경우 입력 유도 태스크 억제.
+- 프로필/온보딩 — '연결 시 자동 입력' 힌트, 동의 문구에 학사 정보
+  조회 명시(체크박스 문구도 강의→강의·학사로 확장).
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK(신규
+info.test.mjs 51건 — 메뉴 파싱·슬롯 우선순위·성적/포인트/사정표/
+학적 파서·로그인 벽·collectInfo·mergeCompleted·validateInfo) ·
+빌드 green. 로컬 CDP 캡처 — info 주입 데모에서 수집 배지·병합
+목록(수집/수동 구분)·사정표 details·홈 타일 확인. 로그인 라우트
+401 경로 확인(학교 서버 도달·자격 거부).
+
+DEPLOY: PR #13 squash 머지(43b5df8) → published-personal 동기화·빌드
+→ wrangler deploy 00befe87-b92a-443f-9e37-85f44eeb558c →
+엔드포인트 전부 200 + 라이브 CSS(.info-audit/.conn-warn) + page
+청크 JS 마커(infoPending/info-hansung/infoData/학교 수집) 확인.
+배포 리포 bcaf6b7.
+
+BLOCKER: 없음. 라이브 00befe87.
+NOTE: 실계정 페이지 마크업은 미검증 — 파서는 메뉴 발견 + 일반 테이블
+기반이라 첫 실로그인의 diag(menu·pages)로 실제 구조 확인 필요.
+매칭 실패 시 안전하게 빈 스냅샷 + 수동 입력 안내로 수렴.
+
+## 2026-10-11 — ISSUE-33 실계정 검증 + 실마크업 수집기 재보정
+
+TRIGGER: 첫 실계정 로그인 수집의 diag가 {"menu":[],"pages":[]}로 수렴
+— 파서가 추측한 구조와 실제 종합정보 마크업이 달랐다. 실계정 HTML을
+덤프해 실제 구조로 재보정.
+
+DONE (PR #19 → 71b669a, PR #20 → ce7d01d, 라이브 e8a0c347):
+- 메뉴 소스 수정 — dae_top_menu는 링크 없는 헤더바. 실제 메뉴는
+  dae_main 프레임셋의 name=left 프레임(fuz/common/include/left/
+  left.jsp)과 우측 프레임(infohaksamain_portal.jsp)의 사이드바.
+  frameSrcs로 프레임 src 발견 → fetch → parseInfoMenu. 프레임 없는
+  구형 레이아웃이면 s_gong.gong_dae_left_menu 폴백. 수집된 페이지의
+  사이드바로 누락 슬롯 2차 재탐색.
+- parseInfoMenu 버그 수정 — li>a 중첩 시 li 컨테이너 매칭이 안쪽
+  앵커를 삼켜 메뉴 누락(실제 1건만 발견되던 것이 78건으로). a/area/
+  img/input 직접 스캔 + li/td 속성 경로 2차 스캔으로 분리. 'ac.kr'
+  도메인 꼬리 오캡처(kr/x.jsp) 수정.
+- parseGrades 실마크업 대응 — '구분/교과명/교과코드/학점/성적/
+  현재트랙' 헤더('교과' 추가 — '교과명'이 '과목' 미포함), 성적 열
+  필수로 '이수한 학점' 요약 테이블 오염 차단, 미확정 성적 행 제외
+  (표 전체가 빈 성적 열이면 구형 포맷으로 간주해 유지), 학기 카드
+  헤더 '2026 학년도 1 학기' 인식(윈도우 2000자), 페이지 전체 첫
+  취득학점/평균평점 총계 폴백, A0 등급 통과.
+- parseIdentity 실마크업 대응 — '<font>이름 : X</font>'·'학부(과) :
+  Y' 패턴, 성적 페이지 신원 라인 '이름 (학번) 학과', 7자리 학번
+  입학연도 규칙(앞 2자리+2000 — 기존 앞 4자리 규칙은 7자리 학번에서
+  실패). ctx.studentId를 최종 폴백으로 라우트에서 전달.
+- SLOTS — grades 첫 패턴을 /누적|전체 성적|이수 (내역|현황)/으로
+  확장해 '성적조회(누적)'이 '성적조회(현학기)'보다 우선 선택.
+- diag 확장 — 메뉴 소스 fetch(slot=menu)와 미검출 슬롯(path '-')
+  기록. 비교과 포인트는 메뉴상 hsportal 외부 링크라 info 세션으로
+  수집 불가 → 미검출로 정직히 기록(수동 입력 유지).
+- tests/info.test.mjs — 실계정 덤프 재현 픽스처(익명화)로 e2e 추가.
+  72건.
+
+VERIFY (실계정 prod 수집, 2026-10-11):
+- prod 로그인 200 → infoPending → D1 infoData 확인:
+  menu 78항목 발견(left.jsp 정상 파싱), menu 소스 4페이지 ok,
+  grades=jsp_21/student/grade/total_grade.jsp ok,
+  audit=joluprequire_track.jsp ok, points='-'(미검출),
+  credits=50, gpa=2.87, courses=18, name/dept/admitYear 실데이터.
+  사정표는 계정 미보유(2학년 — 정상), 포인트는 hsportal 외부 링크.
+- 실계정 left.jsp 덤프로 parseInfoMenu 78항목 로컬 재확인.
+
+BLOCKER: 없음. 라이브 e8a0c347, 배포 리포 a8971e8.
+NOTE: 사정표·포인트 수집은 계정 조건에 따라 자료가 없거나 외부
+링크라 미수집이 정상 — 이수 내역·학적 중심으로 실데이터 확보.
+
+
+## 2026-10-10 — 동시 접속 안정화: IP 리밋·서브리퀘스트 예산·프로필 충돌 가드 (ISSUE-34)
+
+TRIGGER: 300명+ 동시 접속 안정성 요구 — 코드 리뷰로 찾은 동시성
+리스크 3종(IP NAT 차단·서브리퀘스트 초과·프로필 last-write-wins)
+과 운영 강화 2종(정리 쿼리·관측성)을 한 패스로 처리.
+
+DONE:
+- login/route.ts — IP 레이트리밋 20→150/15분(캠퍼스 NAT 공유망
+  대응, 계정별 3회는 무차별 대입 방어로 유지). 만료 세션·리밋
+  DELETE를 매 로그인 → ~5% 확률 실행으로 이동해 핫패스 쓰기 축소.
+- lib/server/lms.ts — collectLms에 서브리퀘스트 예산(40) —
+  waitUntil이 로그인 invocation 예산(무료 50)을 공유하므로 초과를
+  방지 + 학교 서버 버스트 억제. 초과 시 남은 과목은 errors:['budget']
+  로 부분 보존. 퀴즈 응시 확인은 과목당 12개 상한, 초과분은
+  uncertain:true + quiz-check 표기.
+- app/sections/lms.tsx — ERROR_LABELS에 'budget' 라벨 추가.
+- profile/route.ts — 낙관적 잠금: profile.rev를 조건부 UPDATE의
+  COALESCE 비교로 검증, 불일치 시 409 + conflict:true 반환.
+  rev 미전송(구 클라이언트)은 저장 rev 기준으로 통과 — 회귀 없음.
+- page.tsx — persist 직렬화 큐(같은 탭 연속 저장의 자기 충돌 방지),
+  전송 시점 최신 rev 사용(dataRef), 성공 시 서버 rev 반영, 409
+  수신 시 /api/account 재수화로 데이터 유실 차단 + 안내 토스트.
+- app/api/health/route.ts — 업타임 모니터링 엔드포인트 추가.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK · 빌드
+green(/api/health 라우트 등록 확인).
+
+DEPLOY: PR #15 squash 머지(799f6c8) → published-personal 동기화·빌드
+→ wrangler deploy 17f59ca1-3503-48b6-acfa-2cb16034b696 →
+엔드포인트 전부 200(/api/health 200 {ok:true}) + 라이브 청크
+마커(conflict·budget) 확인. 배포 리포 a3b4db2.
+
+BLOCKER: 없음. 라이브 17f59ca1.
+NOTE: 실계정 동시성은 합성 부하 미검증 — 잔여로 부하 테스트
+스크립트(공개 엔드포인트 + 로그인 경로)를 BACKLOG에 등록.
+
+
+## 2026-10-10 — 활동 라이프사이클 리마인드 + 합성 부하 테스트 + 백로그 정리 (ISSUE-35)
+
+TRIGGER: 다음 개선 후보 중 에이전트 단독 진행 가능한 3건 —
+활동 루프 마지막 고리(actStatus 리마인드), "300명 안정"의
+실측 검증(부하 테스트), 오래된 needs-verification 문서 정리.
+
+DONE:
+- lib/data/notifs.ts — deriveNotifs에 단계 리마인드 추가.
+  actStatus 기준: joined + 종료 7일 이내 → '활동 종료 D-N',
+  joined + 종료 경과(30일 내) → '수료 확인', done + 포인트
+  활동 + 종료 경과(60일 내) → '포인트 반영 확인'(hsportal
+  확인 안내). 직접 등록 활동도 extById로 대상에 포함.
+  알림함 상한 3건 — 단계 알림이 마감 알림을 밀어내지 않게 함.
+- scripts/load-test.mts — 합성 부하 측정(동시성·라운드 인자).
+  공개 읽기 경로만 대상('/, health, courses, activities,
+  schedule + /api/account 401 경로) — 로그인은 학교 서버
+  부하를 주므로 제외. 지연 분포·상태×경로·오류율 출력,
+  오류율 >1%면 exit 1.
+- 프로덕션 부하 테스트 실행: 300-동시 × 5라운드 = 1,500요청,
+  실패 0건 (0.0%), p50=389ms p95=2057ms max=2318ms.
+  첫 라운드 콜드스타트 2.5s wall, 이후 ~1.1s 안정.
+- BACKLOG 정리 — ISSUE-18/21/22/23/29를 needs-verification →
+  verified로 갱신(전부 배포·실사용·테스트 커버 확인됨).
+  ISSUE-23은 간헐 수집 실패가 ISSUE-34 예산 작업으로 진단·
+  완화됐음을 명시. ISSUE-29/34의 완료된 follow-up 교차 참조.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 13파일 전부 OK
+(notifs 27/27 — 단계 리마인드 7건 추가) · 빌드 green.
+
+DEPLOY: PR #17 squash 머지(dd8165e) → published-personal
+동기화·빌드 → wrangler deploy dc7f7711-b99b-49ee-ad8a-
+d0b2258edf0e → 엔드포인트 전부 200 + 라이브 page 청크에
+stage-·수료 확인·포인트 반영·actStatus 마커 확인.
+배포 리포 58fda61.
+
+BLOCKER: 없음. 라이브 dc7f7711.
+NOTE: 로그인 경로의 동시성은 학교 서버 부하 때문에 합성 부하
+불가 — 구조적 대비(IP 리밋·예산)가 답이며 실측은 실사용으로
+확인 필요.

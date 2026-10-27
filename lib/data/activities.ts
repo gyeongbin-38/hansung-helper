@@ -52,6 +52,63 @@ export type ActivitySnapshot = {
   items: Activity[];
 };
 
+/** 사용자가 직접 등록한 외부 활동 — hsportal 공개 목록 밖(대외활동·
+ *  공모전 사이트 등). 프로필에 저장되며 학교 공식 데이터가 아니다. */
+export type ExtActivity = {
+  /** 'ext-…' 접두 id — hsportal 'hs-…' id와 구분 */
+  id: string;
+  title: string;
+  /** 주최 기관 또는 출처 사이트 */
+  org: string;
+  /** 'YYYY-MM-DD' 또는 ''(미정) */
+  applyStart: string;
+  applyEnd: string;
+  runStart: string;
+  runEnd: string;
+  /** 숫자 문자열 또는 ''(없음/미확인) */
+  points: string;
+  url: string;
+  addedAt: string;
+};
+
+/** 활동 진행 단계 — 본인 확인용 기록. 학교 포인트 반영 여부와 무관 */
+export const ACT_STAGES = [
+  ['applied', '신청함'],
+  ['joined', '참여 중'],
+  ['done', '수료'],
+  ['credited', '포인트 확인'],
+] as const;
+export type ActStage = (typeof ACT_STAGES)[number][0];
+
+/** 직접 등록 활동을 목록·상세 렌더용 Activity 형태로 변환한다.
+ *  status는 날짜가 있으면 liveStatus가 재계산하고, 없으면 '직접 등록'으로 표시 */
+export function extToActivity(e: ExtActivity): Activity {
+  // 시작일은 09:00, 종료일은 23:59 KST — 마감 당일에 '오늘 마감'이 보이도록
+  const start = (s: string) => (s ? `${s}T09:00:00+09:00` : null);
+  const end = (s: string) => (s ? `${s}T23:59:59+09:00` : null);
+  const pts = parseInt(e.points, 10);
+  return {
+    id: e.id,
+    key: '',
+    title: e.title,
+    dept: e.org || '직접 등록',
+    status: 'unknown',
+    statusLabel: '직접 등록',
+    applyStart: start(e.applyStart),
+    applyEnd: end(e.applyEnd),
+    runStart: start(e.runStart),
+    runEnd: end(e.runEnd),
+    dday: null,
+    points: Number.isInteger(pts) ? pts : null,
+    team: null,
+    applicants: null,
+    capacity: null,
+    certified: false,
+    url: e.url || '',
+    cover: null,
+  };
+}
+
 const HOST = 'https://hsportal.hansung.ac.kr';
 const STATUS_MAP: Record<string, [ActivityStatus, string]> = {
   APPROACHING: ['upcoming', '접수예정'],
@@ -305,6 +362,46 @@ export function actScore(
         reasons.push('높은 포인트');
       } else if (a.points != null && a.points > 0) score += 1;
     }
+  }
+  return { score, reasons: [...new Set(reasons)] };
+}
+
+/**
+ * 졸업 포인트 결핍 기반 추천 — 남은 필요 포인트(deficit)가 있을 때
+ * 신청 가능한 포인트 부여 활동을 커버율·마감 시급성·인증 순으로 매긴다.
+ * 추천 근거를 함께 반환해 화면에 '왜 뜬 건지' 보여준다.
+ * deficit<=0, 신청 불가 상태, 무포인트 활동은 score 0으로 제외된다.
+ */
+export function pointScore(
+  a: Activity,
+  deficit: number,
+  now: number,
+): { score: number; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+  if (deficit <= 0) return { score, reasons };
+  const st = liveStatus(a, now).status;
+  if (st !== 'open' && st !== 'closing' && st !== 'upcoming')
+    return { score, reasons };
+  const pts = a.points ?? 0;
+  if (pts <= 0) return { score, reasons };
+  // 결핍 대비 커버율 — 작은 포인트도 후보에 두되 큰 것을 앞에
+  score += Math.max(1, Math.min(4, Math.round((pts / deficit) * 4)));
+  reasons.push(`포인트 +${pts}`);
+  if (pts >= deficit) reasons.push('부족분 한 번에 충족');
+  if (st === 'closing') {
+    score += 3;
+    reasons.push('마감 임박');
+  } else if (st === 'open') {
+    score += 2;
+    reasons.push('접수 중');
+  } else {
+    score += 1;
+    reasons.push('곧 접수');
+  }
+  if (a.certified) {
+    score += 1;
+    reasons.push('인재인증');
   }
   return { score, reasons: [...new Set(reasons)] };
 }

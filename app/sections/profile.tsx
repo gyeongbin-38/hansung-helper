@@ -83,17 +83,22 @@ export function ProfileSection({
         <div className="form-grid">
           {[
             ['name', '표시 이름', data.name, 'text'],
-            ['year', '입학연도', data.year, 'number'],
-            ['dept', '소속 학과·학부 (직접 입력)', data.dept, 'text'],
+            ['year', '입학연도 (연결 시 자동 입력)', data.year, 'number'],
+            [
+              'dept',
+              '소속 학과·학부 (연결 시 자동 입력)',
+              data.dept,
+              'text',
+            ],
             [
               'credits',
-              '이수학점 (모르면 비워두세요)',
+              '이수학점 (학교 수집값이 우선입니다)',
               data.credits,
               'number',
             ],
             [
               'points',
-              '비교과 포인트 (모르면 비워두세요)',
+              '비교과 포인트 (학교 수집값이 우선입니다)',
               data.points,
               'number',
             ],

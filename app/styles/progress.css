@@ -4,8 +4,9 @@
    so overrides here need higher specificity than the base rules. */
 
 /* ---------- 졸업요건 ---------- */
+/* 졸업 인트로 — 노트 첫 페이지처럼 따뜻한 크림, 파스텔 라벤더 금지 */
 .card.pad.grad-intro {
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-cream);
   border-color: transparent;
 }
 .pad.grad-intro > p {
@@ -173,19 +174,19 @@
 }
 .year-table th,
 .year-table td {
-  border: 1px solid var(--nt-line, #e4e4e7);
+  border: 1px solid var(--nt-hairline);
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
 }
 .year-table th {
-  background: var(--nt-tint-lavender, #f4f4f5);
+  background: var(--nt-surface);
   font-weight: 600;
   white-space: nowrap;
 }
 .year-table .my-col {
-  background: var(--nt-tint-lavender, #f4f4f5);
-  outline: 2px solid var(--nt-primary, #5b5bd6);
+  background: var(--nt-tint-sky);
+  outline: 2px solid var(--nt-primary);
   outline-offset: -2px;
 }
 .dept-conds {
@@ -248,13 +249,44 @@
   color: var(--nt-steel);
   font-size: 12.5px;
 }
+/* ---------- 종합정보 수집 결과 ---------- */
+.info-audit {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: var(--nt-surface);
+  border-radius: 10px;
+}
+.info-audit summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.info-audit .rule-lines {
+  margin: 10px 0 4px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-audit .rule-lines li {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.info-audit .rule-lines small {
+  color: var(--nt-steel);
+  font-size: 12px;
+}
+.info-audit .meta {
+  color: var(--nt-steel);
+  font-size: 12.5px;
+}
 .rules-image {
   margin: 10px 0 14px;
 }
 .rules-image img {
   display: block;
   max-width: 100%;
-  border: 1px solid var(--nt-line);
+  border: 1px solid var(--nt-hairline);
   border-radius: 10px;
 }
 
@@ -281,8 +313,8 @@
   width: 64px;
   height: 64px;
   border-radius: var(--nt-r-xl);
-  background: var(--nt-tint-lavender);
-  color: var(--nt-primary);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
 }
 .chips {
   display: flex;
@@ -399,7 +431,7 @@
 /* ---------- 설문 다이얼로그 ---------- */
 dialog {
   border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-xxl);
+  border-radius: var(--nt-r-xl);
   padding: 32px;
   width: min(560px, calc(100% - 32px));
   color: var(--nt-ink);
@@ -440,7 +472,7 @@ dialog p {
 .survey-options .chosen {
   border-color: var(--nt-primary);
   color: var(--nt-ink);
-  background: var(--nt-tint-lavender);
+  background: var(--nt-tint-sky);
 }
 
 @media (max-width: 1199px) {

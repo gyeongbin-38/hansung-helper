@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import {
   CalendarDays,
-  Sparkles,
   ArrowUpRight,
   ArrowRight,
   ChevronLeft,
@@ -23,6 +22,7 @@ import {
   pendingTasks,
 } from '@/lib/data/lms';
 import { liveStatus } from '@/lib/data/activities';
+import { staleLabel } from '@/lib/data/freshness';
 import { useActivities, useNow, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
@@ -81,7 +81,6 @@ function TodayStrip({
     <section className="today-strip card pad" aria-label="오늘 처리할 일">
       <div className="section-heading">
         <h2>오늘 처리할 일</h2>
-        <span className="meta">확정된 마감 기준</span>
       </div>
       {top.map((t, i) => (
         <button className="today-item" key={i} onClick={() => go(t.route)}>
@@ -157,6 +156,21 @@ export function Home({
         route: 'activities/' + a.id,
       });
   }
+  // 직접 등록한 외부 활동도 신청 마감이 임박하면 함께 올린다
+  for (const e of data.extActivities ?? []) {
+    if (!e.applyEnd) continue;
+    const dd = Math.ceil(
+      (Date.parse(e.applyEnd + 'T23:59:59') - now) / 86400000,
+    );
+    if (dd >= 0 && dd <= 7)
+      week.push({
+        dday: dd,
+        kind: '비교과',
+        title: e.title,
+        sub: e.org + ' · 직접 등록',
+        route: 'activities/' + e.id,
+      });
+  }
   for (const e of sched?.items ?? []) {
     const dd = Math.ceil(
       (Date.parse((e.end ?? e.start).slice(0, 10) + 'T23:59:59') - now) /
@@ -167,7 +181,7 @@ export function Home({
         dday: dd,
         kind: '학사일정',
         title: e.title,
-        sub: 'hansung.ac.kr 공식 일정',
+        sub: '',
         route: 'calendar',
       });
   }
@@ -218,14 +232,14 @@ export function Home({
       '개설강의와 연결하면 수강 추정과 시간표 표시가 정확해져요.',
       'lms',
     ]);
-  if (!(data.completed ?? []).length)
+  if (!(data.completed ?? []).length && !data.info?.completed.length)
     tasks.push([
       '03',
       '이수 내역 입력하기',
       '이수한 과목이 없어 졸업 계산이 대기 중이에요.',
       'graduation',
     ]);
-  else if (!data.credits)
+  else if (!data.credits && data.info?.credits === undefined)
     tasks.push([
       '03',
       '총 이수학점 입력하기',
@@ -260,24 +274,6 @@ export function Home({
   ).length;
   return (
     <>
-      <section className="home-summary">
-        <div className="between">
-          <div>
-            <span className="home-eyebrow">
-              <Sparkles size={13} aria-hidden="true" />
-              한성 학사 도우미
-            </span>
-            <h2>
-              {account ? '내 수업부터 확인해요' : '내 학사 정보를 한곳에서'}
-            </h2>
-            <p>
-              {account
-                ? '코스모스에서 확인한 강의와 개인 계획을 구분해 관리해요.'
-                : '학교 계정을 연결하면 실제 코스모스 강의 목록을 볼 수 있어요.'}
-            </p>
-          </div>
-        </div>
-      </section>
       <TodayStrip
         lmsDue={lmsDue}
         acts={acts?.items ?? []}
@@ -325,7 +321,7 @@ export function Home({
                       t.title
                     )}
                   </b>
-                  <small>{t.sub}</small>
+                  {t.sub && <small>{t.sub}</small>}
                 </div>
                 <ArrowUpRight size={15} aria-hidden="true" />
               </button>
@@ -335,9 +331,26 @@ export function Home({
             )}
             <p className="meta">
               {lmsSnap
-                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집 · `
+                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
                 : ''}
+              {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
+                <>
+                  {' '}
+                  <span className="badge orange">
+                    {staleLabel(lmsSnap.fetchedAt, now, 7)}
+                  </span>
+                </>
+              )}
+              {lmsSnap && acts ? ' · ' : ''}
               {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
+              {acts && staleLabel(acts.fetchedAt, now) && (
+                <>
+                  {' '}
+                  <span className="badge orange">
+                    {staleLabel(acts.fetchedAt, now)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </section>
@@ -357,7 +370,6 @@ export function Home({
           <h2>
             내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
           </h2>
-          <span>입력·확인이 필요한 항목</span>
         </div>
         {shownTasks.length ? (
           <div className="tasks">
@@ -515,25 +527,31 @@ export function Home({
             ],
             [
               '총 이수학점',
-              data.credits ? data.credits + ' 학점' : '입력 전',
-              data.credits
-                ? '사용자 입력 · 미검증'
-                : '내 정보에서 입력할 수 있어요',
+              data.info?.credits !== undefined
+                ? data.info.credits + ' 학점'
+                : data.credits
+                  ? data.credits + ' 학점'
+                  : '입력 전',
+              data.info?.credits !== undefined
+                ? '학교 수집 · 종합정보'
+                : data.credits
+                  ? '사용자 입력 · 미검증'
+                  : '내 정보에서 입력할 수 있어요',
               'sky',
             ],
             [
               '비교과 포인트',
-              data.points ? data.points + ' P' : '입력 전',
-              data.points
-                ? '사용자 입력 · 미검증'
-                : '학교 인정 내역 확인 필요',
+              data.info?.points !== undefined
+                ? data.info.points + ' P'
+                : data.points
+                  ? data.points + ' P'
+                  : '입력 전',
+              data.info?.points !== undefined
+                ? '학교 수집 · 종합정보'
+                : data.points
+                  ? '사용자 입력 · 미검증'
+                  : '학교 인정 내역 확인 필요',
               'mint',
-            ],
-            [
-              '다음 학기 계획',
-              planned.reduce((n, s) => n + s.credits, 0) + ' 학점',
-              planned.length + '개 과목 · 이수학점과 별도',
-              'peach',
             ],
           ].map(([l, v, s, tone]) => (
             <div className={'card stat ' + tone} key={l}>
@@ -557,7 +575,6 @@ export function Home({
               <span className="event-date">{e.start.slice(5)}</span>
               <div>
                 <b>{e.title}</b>
-                <small>공식 학사일정 · hansung.ac.kr</small>
               </div>
             </div>
           ))}
@@ -567,7 +584,7 @@ export function Home({
                 <span className="event-date">{e.date.slice(5)}</span>
                 <div>
                   <b>{e.title}</b>
-                  <small>개인 일정 · 사용자 입력</small>
+                  <small>개인 일정</small>
                 </div>
               </div>
             ))
@@ -612,7 +629,6 @@ export function Home({
                         {c.name}
                       </a>
                     </b>
-                    <small>코스모스 조회</small>
                   </div>
                 </div>
               ))}

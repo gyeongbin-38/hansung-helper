@@ -1,4 +1,5 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 @import 'tailwindcss';
 @import './styles/shell.css';
 @import './styles/auth.css';
@@ -20,13 +21,13 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #1a1a1a;
+  color: #37352f;
   background: #ffffff;
   font-synthesis: none;
-  /* brand + primary */
-  --nt-primary: #5645d4;
-  --nt-primary-pressed: #4534b3;
-  --nt-primary-deep: #3a2a99;
+  /* brand + primary — 잉크 네이비: 행동 버튼은 차분한 굵은 잉크 톤 */
+  --nt-primary: #33415c;
+  --nt-primary-pressed: #27334a;
+  --nt-primary-deep: #1f2a3e;
   --nt-on-primary: #ffffff;
   --nt-navy: #0a1530;
   --nt-navy-deep: #070f24;
@@ -47,25 +48,29 @@
   --nt-green-deep: #127a2b;
   --nt-yellow: #f5d75e;
   --nt-brown: #523410;
-  /* pastel card tints */
-  --nt-tint-peach: #ffe8d4;
-  --nt-tint-rose: #fde0ec;
-  --nt-tint-mint: #d9f3e1;
-  --nt-tint-lavender: #e6e0f5;
-  --nt-tint-sky: #dcecfa;
-  --nt-tint-yellow: #fef7d6;
-  --nt-tint-yellow-bold: #f9e79f;
-  --nt-tint-cream: #f8f5e8;
+  /* pastel card tints — 종이색을 향해 한 단계 바랜 "잿빛 파스텔" */
+  --nt-tint-peach: #f7ebdf;
+  --nt-tint-rose: #f7e7ed;
+  --nt-tint-mint: #e2efe5;
+  --nt-tint-lavender: #eae8f1;
+  --nt-tint-sky: #e5eef4;
+  --nt-tint-yellow: #f7f1dc;
+  --nt-tint-yellow-bold: #f2e6ae;
+  --nt-tint-cream: #f6f3e9;
   --nt-tint-gray: #f0eeec;
-  /* surface */
+  /* surface — 종이색 캔버스 + 노션 회색 패널 */
   --nt-canvas: #ffffff;
-  --nt-surface: #f6f5f4;
-  --nt-surface-soft: #fafaf9;
+  --nt-paper: #fbfaf7;
+  --nt-surface: #f7f6f3;
+  --nt-surface-soft: #fbfbfa;
+  /* display — 노션 세리프 모드: 제목·숫자·날짜만 한글 세리프로 인쇄물 계층 */
+  --nt-font-display:
+    'Gowun Batang', 'Noto Serif KR', 'Source Serif 4', serif;
   --nt-hairline: #e5e3df;
   --nt-hairline-soft: #ede9e4;
   --nt-hairline-strong: #c8c4be;
-  /* text */
-  --nt-ink: #1a1a1a;
+  /* text — 순수 검정 대신 따뜻한 잉크 */
+  --nt-ink: #37352f;
   --nt-charcoal: #37352f;
   --nt-slate: #5d5b54;
   --nt-steel: #6f6c66;
@@ -99,7 +104,29 @@
 body {
   margin: 0;
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.6;
+  background: var(--nt-paper);
+  /* 한글 어절 단위 줄바꿈 — 음절 중간 절개 금지.
+     긴 영문/URL은 overflow-wrap이 마지막 수단으로 절개한다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+::selection {
+  background: color-mix(in srgb, var(--nt-primary) 16%, transparent);
+}
+/* 얇은 스크롤바 — 콘텐츠와 경쟁하지 않는다 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--nt-hairline-strong);
+  border-radius: var(--nt-r-pill);
+  border: 2px solid var(--nt-paper);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nt-stone);
 }
 button,
 input {
@@ -137,6 +164,7 @@ h3 {
   margin: 0;
   font-weight: 600;
   color: var(--nt-ink);
+  text-wrap: balance;
 }
 h1 {
   font-size: 34px;
@@ -154,6 +182,25 @@ small {
   font-size: 13px;
   color: var(--nt-stone);
   line-height: 1.5;
+}
+/* ---- display serif: 페이지 제목·섹션 제목·큰 숫자·D-day에만 적용.
+   본문·라벨·버튼은 산스 유지 — 문서 계층과 UI 크롬을 서체로 분리한다 ---- */
+.page-heading h1,
+.section-heading h2,
+.detail > h2,
+.grad-intro h2,
+.auth-panel h1,
+.notif-panel-head h2,
+.advisor h2,
+.hc-body h3,
+.stat strong,
+.plan-stats b,
+.builder-sum strong,
+.grad-intro > strong,
+.mini-art strong,
+.event-date b {
+  font-family: var(--nt-font-display);
+  letter-spacing: -0.01em;
 }
 /* ---- shared primitives (card-base / buttons / badges / fields) ---- */
 .card {
@@ -235,11 +282,12 @@ small {
 }
 .secondary {
   background: var(--nt-canvas);
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-hairline);
   color: var(--nt-ink);
 }
 .secondary:hover {
   background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
 }
 .link {
   display: inline-flex;
@@ -290,8 +338,12 @@ input {
 input::placeholder {
   color: var(--nt-muted);
 }
-input:focus {
+input:focus,
+select:focus,
+.field:focus {
   border-color: var(--nt-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nt-primary) 13%, transparent);
+  outline: none;
 }
 select {
   border: 1px solid var(--nt-hairline-strong);
@@ -367,10 +419,12 @@ select {
   color: var(--nt-steel);
   font-weight: 500;
 }
+/* 출처·수집일·면책 같은 보조 문구 — 읽을 수는 있되 시선을 뺏지 않게 */
 .meta {
   font-size: 12px;
-  color: var(--nt-steel);
-  margin: 14px 0;
+  color: var(--nt-muted);
+  line-height: 1.55;
+  margin: 10px 0;
 }
 .demo-note {
   display: flex;
@@ -384,7 +438,6 @@ select {
   font-size: 13px;
   line-height: 1.6;
   margin-bottom: 23px;
-  border: 1px solid var(--nt-hairline);
 }
 .demo-note b {
   font-weight: 600;
@@ -464,8 +517,8 @@ select {
   color: var(--nt-ink);
 }
 .saved {
-  color: var(--nt-primary);
-  background: var(--nt-tint-lavender);
+  color: var(--nt-primary-deep);
+  background: var(--nt-tint-sky);
 }
 .avatar {
   display: grid;
@@ -473,8 +526,8 @@ select {
   width: 39px;
   height: 39px;
   border-radius: 50%;
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -502,10 +555,14 @@ select {
   font-size: 11px;
 }
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--nt-primary);
+}
+/* 필드류 포커스는 소프트 링 하나로 — 이중 표시 방지 */
+input:focus-visible,
+select:focus-visible,
+.field:focus-visible {
+  outline: none;
 }
 /* ---- skeleton loading: placeholder blocks keep layout + reading order ---- */
 .sk-status {

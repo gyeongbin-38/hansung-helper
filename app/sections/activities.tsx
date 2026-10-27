@@ -1,16 +1,29 @@
 'use client';
-import { Bookmark, ArrowUpRight, Search } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Bookmark,
+  ArrowUpRight,
+  Search,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import type { Data } from './data';
 import { useActivities, useNow } from './catalog';
 import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
+import { staleLabel } from '@/lib/data/freshness';
 import {
   activityMatch,
   actScore,
+  pointScore,
   liveStatus,
+  extToActivity,
+  ACT_STAGES,
   type Activity,
+  type ExtActivity,
 } from '@/lib/data/activities';
 
+/* '직접 등록'은 필터가 아니라 등록 행동 — 툴바의 액션 버튼으로 뺐다 */
 const TABS = [
   '전체',
   '신청 가능',
@@ -24,17 +37,34 @@ const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
 const period = (a: string | null, b: string | null) =>
   a || b ? `${fmt(a)} ~ ${fmt(b)}` : '기간 미정';
 
+const isExt = (a: Activity) => a.id.startsWith('ext-');
+const stageLabel = (id: string) =>
+  ACT_STAGES.find(([k]) => k === id)?.[1] ?? id;
+
 // 상태는 스냅샷 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
 function inTab(a: Activity, tab: string, saved: string[], now: number) {
+  if (tab === '직접 등록') return isExt(a);
+  if (isExt(a)) return tab === '전체' || tab === '저장한 활동';
   const st = liveStatus(a, now).status;
   if (tab === '신청 가능') return st === 'open' || st === 'closing';
   if (tab === '접수예정') return st === 'upcoming';
   if (tab === '운영·마감')
     return st === 'running' || st === 'closed';
   if (tab === '저장한 활동') return saved.includes(a.id);
-  if (tab === '취향 추천') return true; // 정렬은 actScore가 담당
+  if (tab === '취향 추천' || tab === '포인트 채우기') return true; // 점수 함수가 걸러줌
   return true;
 }
+
+const EMPTY_EXT = {
+  title: '',
+  org: '',
+  applyStart: '',
+  applyEnd: '',
+  runStart: '',
+  runEnd: '',
+  points: '',
+  url: '',
+};
 
 export function Activities({
   detail,
@@ -45,6 +75,9 @@ export function Activities({
   data,
   go,
   save,
+  setActStage,
+  addExtActivity,
+  removeExtActivity,
   onSurvey,
 }: {
   detail: string | undefined;
@@ -55,18 +88,28 @@ export function Activities({
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
+  /** 활동 진행 단계 기록 (본인 확인용) */
+  setActStage: (id: string, stage: string | null) => void;
+  /** hsportal 외 외부 활동 직접 등록 */
+  addExtActivity: (fields: Omit<ExtActivity, 'id' | 'addedAt'>) => string;
+  removeExtActivity: (id: string) => void;
   /** 비교과 취향 설문 다이얼로그를 연다 */
   onSurvey: () => void;
 }) {
   const { snap, failed, retry } = useActivities();
   const now = useNow(30000);
-  const items = snap?.items ?? [];
+  const [extForm, setExtForm] = useState({ ...EMPTY_EXT });
+  const [extError, setExtError] = useState('');
+  const extItems = (data.extActivities ?? []).map(extToActivity);
+  const items = [...(snap?.items ?? []), ...extItems];
   const a = items.find((x) => x.id === detail);
-  // 졸업요건 연결 컨텍스트 — 입력된 포인트와 필요량(override>공식 800P)
+  // 졸업요건 연결 컨텍스트 — 학교 수집 포인트를 우선한다(졸업 페이지와 동일)
   const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
-  const ptsRaw = parseInt(data.points, 10);
+  const ptsRaw = data.info?.points ?? parseInt(data.points, 10);
   const ptsSet = Number.isInteger(ptsRaw);
   const ptsReq = data.ruleOverrides?.points ?? 800;
+  const ptsDeficit = ptsSet ? Math.max(0, ptsReq - ptsRaw) : 0;
+  const actStale = snap ? staleLabel(snap.fetchedAt, now) : null;
   const pointsBand = (
     <div className="card pad act-band">
       <div>
@@ -91,6 +134,169 @@ export function Activities({
           졸업요건에서 확인
         </button>
       </div>
+    </div>
+  );
+
+  // 진행 단계 스테퍼 — 저장한 활동 또는 직접 등록 활동에 표시
+  const stageRow = (a: Activity) => {
+    const tracked = data.saved.includes(a.id) || isExt(a);
+    if (!tracked) return null;
+    const stage = data.actStatus?.[a.id];
+    return (
+      <fieldset className="act-steps" aria-label="활동 진행 단계">
+        <span className={stage ? 'act-step done' : 'act-step active'}>
+          저장됨
+        </span>
+        {ACT_STAGES.map(([id, label]) => (
+          <button
+            type="button"
+            key={id}
+            className={
+              'act-step' +
+              (stage === id
+                ? ' active'
+                : stage &&
+                    ACT_STAGES.findIndex(([k]) => k === stage) >
+                      ACT_STAGES.findIndex(([k]) => k === id)
+                  ? ' done'
+                  : '')
+            }
+            aria-pressed={stage === id}
+            onClick={() => setActStage(a.id, stage === id ? null : id)}
+          >
+            {label}
+          </button>
+        ))}
+      </fieldset>
+    );
+  };
+
+  function submitExt() {
+    const f = extForm;
+    if (!f.title.trim() || !f.org.trim())
+      return setExtError('활동명과 주최 기관을 입력해 주세요.');
+    if (f.url.trim() && !/^https?:\/\//.test(f.url.trim()))
+      return setExtError('링크는 http:// 또는 https://로 시작해야 합니다.');
+    if (f.points.trim() && !/^\d{1,4}$/.test(f.points.trim()))
+      return setExtError('포인트는 숫자만 입력해 주세요.');
+    if (f.applyStart && f.applyEnd && f.applyEnd < f.applyStart)
+      return setExtError('신청 마감일이 시작일보다 빠릅니다.');
+    if (f.runStart && f.runEnd && f.runEnd < f.runStart)
+      return setExtError('운영 종료일이 시작일보다 빠릅니다.');
+    const id = addExtActivity({
+      title: f.title.trim(),
+      org: f.org.trim(),
+      applyStart: f.applyStart,
+      applyEnd: f.applyEnd,
+      runStart: f.runStart,
+      runEnd: f.runEnd,
+      points: f.points.trim(),
+      url: f.url.trim(),
+    });
+    setExtForm({ ...EMPTY_EXT });
+    setExtError('');
+    go('activities/' + id);
+  }
+
+  const extFormNode = (
+    <div className="card pad ext-form">
+      <h3>외부 활동 직접 등록</h3>
+      <p className="meta">
+        학교 공개 목록에 없는 대외활동·공모전·외부 프로그램을 기록합니다.
+        입력한 내용은 공식 공고가 아닌 본인 메모입니다.
+      </p>
+      <div className="ext-grid">
+        <label>
+          활동명 *
+          <input
+            value={extForm.title}
+            onChange={(e) =>
+              setExtForm({ ...extForm, title: e.target.value })
+            }
+            placeholder="예: 00공모전, 해커톤, 서포터즈"
+            maxLength={100}
+          />
+        </label>
+        <label>
+          주최 기관·출처 *
+          <input
+            value={extForm.org}
+            onChange={(e) =>
+              setExtForm({ ...extForm, org: e.target.value })
+            }
+            placeholder="예: 00재단, 공모전 사이트명"
+            maxLength={60}
+          />
+        </label>
+        <label>
+          신청 시작
+          <input
+            type="date"
+            value={extForm.applyStart}
+            onChange={(e) =>
+              setExtForm({ ...extForm, applyStart: e.target.value })
+            }
+          />
+        </label>
+        <label>
+          신청 마감
+          <input
+            type="date"
+            value={extForm.applyEnd}
+            onChange={(e) =>
+              setExtForm({ ...extForm, applyEnd: e.target.value })
+            }
+          />
+        </label>
+        <label>
+          운영 시작
+          <input
+            type="date"
+            value={extForm.runStart}
+            onChange={(e) =>
+              setExtForm({ ...extForm, runStart: e.target.value })
+            }
+          />
+        </label>
+        <label>
+          운영 종료
+          <input
+            type="date"
+            value={extForm.runEnd}
+            onChange={(e) =>
+              setExtForm({ ...extForm, runEnd: e.target.value })
+            }
+          />
+        </label>
+        <label>
+          포인트(있다면)
+          <input
+            inputMode="numeric"
+            value={extForm.points}
+            onChange={(e) =>
+              setExtForm({ ...extForm, points: e.target.value })
+            }
+            placeholder="예: 50"
+            maxLength={4}
+          />
+        </label>
+        <label>
+          공고 링크
+          <input
+            type="url"
+            value={extForm.url}
+            onChange={(e) =>
+              setExtForm({ ...extForm, url: e.target.value })
+            }
+            placeholder="https://…"
+            maxLength={300}
+          />
+        </label>
+      </div>
+      {extError && <p className="form-error">{extError}</p>}
+      <button className="primary" onClick={submitExt}>
+        <Plus size={16} /> 활동 추가
+      </button>
     </div>
   );
 
@@ -120,8 +326,9 @@ export function Activities({
               ? ' · ' + liveStatus(a, now).dday
               : ''}
           </span>
+          {isExt(a) && <span className="badge">직접 등록</span>}
           <h2>{a.title}</h2>
-          <p>{a.dept}에서 운영하는 비교과 프로그램입니다.</p>
+          <p>{a.dept}</p>
           <div className="detail-grid">
             {[
               ['신청 기간', period(a.applyStart, a.applyEnd)],
@@ -148,7 +355,7 @@ export function Activities({
               </div>
             ))}
           </div>
-          {a.points != null && (
+          {a.points != null && !isExt(a) && (
             <p className="meta">
               이 활동 완료 시 +{a.points}P
               {ptsSet
@@ -161,29 +368,57 @@ export function Activities({
               . 비교과 포인트 인정 여부는 학교 기준을 따릅니다.
             </p>
           )}
+          {stageRow(a)}
+          {data.actStatus?.[a.id] === 'credited' && (
+            <p className="meta">
+              포인트가 반영됐다면{' '}
+              <button className="link" onClick={() => go('profile')}>
+                내 정보에서 누적 포인트 갱신
+              </button>
+              으로 졸업요건 계산에 이어집니다.
+            </p>
+          )}
           <div className="actions">
-            <button className="primary" onClick={() => save(a.id)}>
-              <Bookmark size={18} />
-              {data.saved.includes(a.id) ? '저장 해제' : '활동 저장'}
-            </button>
-            <a
-              className="secondary"
-              href={a.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              공고 보기 · 신청은 학교 시스템에서{' '}
-              <ArrowUpRight size={16} />
-            </a>
+            {!isExt(a) && (
+              <button className="primary" onClick={() => save(a.id)}>
+                <Bookmark size={18} />
+                {data.saved.includes(a.id) ? '저장 해제' : '활동 저장'}
+              </button>
+            )}
+            {a.url && (
+              <a
+                className="secondary"
+                href={a.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {isExt(a) ? '등록한 링크 열기 ' : '공고 보기 · 신청은 학교 시스템에서 '}
+                <ArrowUpRight size={16} />
+              </a>
+            )}
+            {isExt(a) && (
+              <button
+                className="secondary"
+                onClick={() => {
+                  removeExtActivity(a.id);
+                  go('activities');
+                }}
+              >
+                <Trash2 size={16} /> 등록 삭제
+              </button>
+            )}
           </div>
+          {/* 안내·출처는 한 줄로 병합 — 면책은 유지하되 설명 블록을 늘리지 않는다 */}
           <p className="meta">
-            활동 내용·참여 대상·수료 조건·신청 절차는 공고 원문에서
-            확인하세요. 목록 데이터에는 포함되지 않습니다.
-          </p>
-          <p className="meta">
-            출처: hsportal.hansung.ac.kr 공개 목록 ·{' '}
-            {snap ? snap.fetchedAt.slice(0, 10) : ''} 수집 · 신청·승인은
-            학교 시스템이 결정합니다
+            {isExt(a)
+              ? `직접 등록 ${
+                  (data.extActivities ?? [])
+                    .find((x) => x.id === a.id)
+                    ?.addedAt.slice(0, 10) ?? ''
+                } 추가 · 단계 기록은 본인 확인용 · 포인트 인정은 학교에서 확인`
+              : `출처: hsportal ${
+                  snap ? snap.fetchedAt.slice(0, 10) + ' 수집' : ''
+                }${actStale ? ` · ${actStale}` : ''} · 단계 기록은 본인 확인용 · 신청은 학교 시스템에서`}
           </p>
         </section>
       </>
@@ -201,15 +436,18 @@ export function Activities({
   const scored = new Map<string, { score: number; reasons: string[] }>();
   if (filter === '취향 추천' && hasActPrefs)
     for (const x of items) scored.set(x.id, actScore(x, data.actPrefs, now));
+  if (filter === '포인트 채우기' && ptsDeficit > 0)
+    for (const x of items) scored.set(x.id, pointScore(x, ptsDeficit, now));
+  const isScoredTab = filter === '취향 추천' || filter === '포인트 채우기';
   const shown = items
     .filter(
       (x) =>
         inTab(x, filter, data.saved, now) &&
         activityMatch(x, query, koreanMatch),
     )
-    .filter((x) => filter !== '취향 추천' || (scored.get(x.id)?.score ?? 0) > 0)
+    .filter((x) => !isScoredTab || (scored.get(x.id)?.score ?? 0) > 0)
     .sort((x, y) =>
-      filter === '취향 추천'
+      isScoredTab
         ? (scored.get(y.id)?.score ?? 0) - (scored.get(x.id)?.score ?? 0)
         : 0,
     );
@@ -218,7 +456,10 @@ export function Activities({
       {pointsBand}
       <div className="toolbar">
         <div className="tabs">
-          {TABS.map((f) => (
+          {(ptsDeficit > 0
+            ? [...TABS.slice(0, 5), '포인트 채우기', ...TABS.slice(5)]
+            : TABS
+          ).map((f) => (
             <button
               className={filter === f ? 'active' : ''}
               key={f}
@@ -228,21 +469,32 @@ export function Activities({
               {f}
               {f === '저장한 활동'
                 ? ' ' +
-                  data.saved.filter((id) =>
+                  (data.saved.filter((id) =>
                     items.some((x) => x.id === id),
-                  ).length
+                  ).length +
+                    extItems.length)
                 : ''}
             </button>
           ))}
         </div>
-        <input
-          className="field"
-          aria-label="활동명 검색"
-          placeholder="활동명, 운영기관 검색"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="toolbar-side">
+          <input
+            className="field"
+            aria-label="활동명 검색"
+            placeholder="활동명, 운영기관 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            className="secondary"
+            aria-pressed={filter === '직접 등록'}
+            onClick={() => setFilter('직접 등록')}
+          >
+            <Plus size={15} /> 직접 등록
+          </button>
+        </div>
       </div>
+      {filter === '직접 등록' && extFormNode}
       {failed ? (
         <div className="card empty-small">
           <Search />
@@ -260,7 +512,7 @@ export function Activities({
             </a>
           </p>
         </div>
-      ) : !snap ? (
+      ) : !snap && filter !== '직접 등록' ? (
         <SkeletonCards />
       ) : filter === '취향 추천' && !hasActPrefs ? (
         <div className="card empty-small">
@@ -281,30 +533,40 @@ export function Activities({
             go={go}
             save={save}
             now={now}
-            scores={filter === '취향 추천' ? scored : undefined}
+            scores={isScoredTab ? scored : undefined}
           />
           <p className="meta">
-            {shown.length !== snap.itemCount
+            {shown.length !== (snap?.itemCount ?? 0) + extItems.length &&
+            filter === '전체'
               ? `조건에 맞는 ${shown.length}건 표시 중 · 전체 `
               : ''}
-            {snap.itemCount}건 수집 · 공식 출처 hsportal ·{' '}
-            {snap.fetchedAt.slice(0, 10)} · 신청·승인은 학교 시스템에서 진행
+            {snap ? `공식 목록 ${snap.itemCount}건` : ''}
+            {extItems.length
+              ? `${snap ? ' + ' : ''}직접 등록 ${extItems.length}건`
+              : ''}
+            {snap ? ` · hsportal ${snap.fetchedAt.slice(0, 10)} 수집` : ''}
+            {actStale ? ` · ${actStale}` : ''}
           </p>
         </>
       ) : (
-        <div className="card empty-small">
-          <Search />
-          <h3>조건에 맞는 활동이 없어요.</h3>
-          <button
-            className="secondary"
-            onClick={() => {
-              setFilter('전체');
-              setQuery('');
-            }}
-          >
-            필터 초기화
-          </button>
-        </div>
+        filter !== '직접 등록' && (
+          <div className="card empty-small">
+            <Search />
+            <h3>조건에 맞는 활동이 없어요.</h3>
+            <p className="meta">
+              외부 활동은 ‘직접 등록’으로 추가할 수 있어요.
+            </p>
+            <button
+              className="secondary"
+              onClick={() => {
+                setFilter('전체');
+                setQuery('');
+              }}
+            >
+              필터 초기화
+            </button>
+          </div>
+        )
       )}
     </>
   );
@@ -331,6 +593,7 @@ function ActivityCards({
       {items.map((a, i) => {
         const live = liveStatus(a, now);
         const sc = scores?.get(a.id);
+        const stage = data.actStatus?.[a.id];
         return (
         <article className="card activity" key={a.id}>
           <div
@@ -345,39 +608,46 @@ function ActivityCards({
                 : undefined
             }
           >
-            <span>{live.label}</span>
+            <span>{isExt(a) ? '직접 등록' : live.label}</span>
             <strong>
               {live.dday ?? (i + 1).toString().padStart(2, '0')}
               <ArrowUpRight size={34} strokeWidth={1.2} />
             </strong>
-            <small>HANSUNG · {a.dept.slice(0, 12)}</small>
+            <small>
+              {isExt(a) ? a.dept.slice(0, 12) : `HANSUNG · ${a.dept.slice(0, 12)}`}
+            </small>
           </div>
           <div className="pad">
             <div className="between">
               <span className="badge">
-                {live.label}
+                {isExt(a) ? '직접 등록' : live.label}
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>
+              {stage && (
+                <span className="badge purple">{stageLabel(stage)}</span>
+              )}
               {sc && sc.score > 0 && (
                 <span
                   className="badge purple act-match"
                   title={
                     sc.reasons.length
-                      ? `취향 매칭: ${sc.reasons.join(' · ')}`
-                      : '취향 매칭'
+                      ? `추천 근거: ${sc.reasons.join(' · ')}`
+                      : '추천'
                   }
                 >
                   맞춤 {sc.score}
                 </span>
               )}
-              <button
-                className={'icon ' + (data.saved.includes(a.id) ? 'saved' : '')}
-                aria-label="활동 저장 전환"
-                onClick={() => save(a.id)}
-              >
-                <Bookmark size={19} />
-              </button>
+              {!isExt(a) && (
+                <button
+                  className={'icon ' + (data.saved.includes(a.id) ? 'saved' : '')}
+                  aria-label="활동 저장 전환"
+                  onClick={() => save(a.id)}
+                >
+                  <Bookmark size={19} />
+                </button>
+              )}
             </div>
             <h3>
               <button
@@ -388,9 +658,7 @@ function ActivityCards({
               </button>
             </h3>
             <p>{a.dept}</p>
-            <small>
-              신청 {period(a.applyStart, a.applyEnd)} · {live.label}
-            </small>
+            <small>신청 {period(a.applyStart, a.applyEnd)}</small>
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

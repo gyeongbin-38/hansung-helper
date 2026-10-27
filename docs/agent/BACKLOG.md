@@ -148,7 +148,8 @@ blocking regressions.
   표시 전용으로 구현(LMS 학점·코드 부재로 집계 미반영 — 이름 매칭
   기반 '수강 중' 배지 + 졸업 '현재 수강 중' 정보 스트립).
   잔여: 다른 학과 ruleset 수집·검증, 수강중의 공식 이수 상태 연동
-  (COSMOS에 학점·코드 데이터가 없어 추가 소스 필요).
+  (COSMOS에 학점·코드 데이터가 없어 추가 소스 필요). 이수 내역
+  자동 수집은 ISSUE-33에서 종합정보 경로로 구현.
 - **Labels**: agent-ready, priority:p2, area:graduation, area:data
 - **Objective**: upgrade v0 engine to dept × admission-year versioned
   rulesets (`lib/data/rules/*.json`) with structured `source`/`asOf`
@@ -358,7 +359,8 @@ blocking regressions.
 
 ## ISSUE-18 — 상세 라우트 부재 (spec §6)
 
-- **Status**: implemented — **needs-verification** (전 라우트)
+- **Status**: **verified** (2026-10-10 정리 — 전 라우트 구현·배포·
+  실사용 확인됨: courses/:id, graduation/:id, calendar/:id)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: `/courses/:id`, `/graduation/:id`, `/calendar/:id` 상세
   라우트 없음(activities/:id만 존재). 브레드크럼 포함.
@@ -489,7 +491,8 @@ blocking regressions.
 
 ## ISSUE-21 — advisor 자유질문에 학사일정 검색 포함
 
-- **Status**: implemented — **needs-verification**
+- **Status**: **verified** (2026-10-10 정리 — 구현·단위테스트·
+  배포 완료, 검색 테스트로 커버됨)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: advisor.tsx의 searchAll이 과목·활동만 검색 — "수강신청
   언제" 같은 질문에 공식 학사일정 타이틀 매칭이 안 됨. useSchedule
@@ -506,7 +509,8 @@ blocking regressions.
 
 ## ISSUE-22 — 저장한 활동 우선 마감 알림
 
-- **Status**: implemented — **needs-verification**
+- **Status**: **verified** (2026-10-10 정리 — 구현·단위테스트·
+  배포 완료, notifs.test로 커버됨)
 - **Labels**: agent-ready, priority:p3, area:frontend
 - **Objective**: deriveNotifs의 활동 마감 알림이 전체 open/closing
   대상 — 저장한 활동(data.saved)은 별도 강조하거나, 저장 활동만으로
@@ -521,7 +525,9 @@ blocking regressions.
 
 ## ISSUE-23 — COSMOS LMS 수업 현황 연동 (돋부기 참조)
 
-- **Status**: implemented — **needs-verification** (2026-09-18 이터레이션 10)
+- **Status**: **verified** (2026-10-10 정리 — 확장·서버·파일 3경로
+  모두 실사용 검증됨. 간헐 수집 실패는 ISSUE-34에서 서브리퀘스트
+  예산으로 진단·완화)
 - **Labels**: agent-ready, priority:p1, area:frontend, area:data
 - **Objective**: 학교 LMS(COSMOS, learn.hansung.ac.kr, Moodle 기반)의
   수강 상태를 앱에서 확인 — 수강한/남은 온라인 강의, 미제출 과제,
@@ -774,3 +780,178 @@ blocking regressions.
 - **Follow-ups**: 시나리오 이름 자유 입력(현재 A/B/C 고정), 시나리오
   간 과목 diff 뷰, lmsMatch 매핑의 신뢰도 표시(수동=확정/자동=추정),
   온보딩 이수 단계의 학점 자동 합산 표시.
+
+## ISSUE-28 — design-slop 스킬 감사: 사이드탭 보더 + 죽은 CSS 변수
+
+- **Status**: **verified** (2026-09-21 — tsc/oxlint/매트릭스/빌드 통과,
+  토큰 감사 스크립트로 미정의 참조 0 확인)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: skills.sh 디자인 감사 스킬(design-slop,
+  frontend-design-deslop) 체크리스트로 라이브 UI를 심사하고
+  실제 위반을 최소 수정으로 제거한다.
+- **Resolution**:
+  - 하드체크 위반 수정 — .lms-match-warn의 card+3px left border를
+    조건부 peach tint(.needs)로 교체. 미매칭 과목이 있을 때만
+    경고 색상, 모두 연결된 상태는 흰 카드.
+  - 죽은 토큰 버그 — --nt-tint-blue/--nt-line/--nt-bg-soft/
+    --nt-ink-2/--nt-ink-3 미정의 참조 6곳이 선언 무효화를 유발
+    (.lms-refresh 패널보더·무배경, enrolled-pick-row 무반응
+    호버 등). 실제 토큰으로 매핑하고 스크립트로 전체 CSS 재감사.
+  - .profile-hint 3px→2px 경량화.
+  - 감사 통과 항목 기록: Pretendard, 토큰 계약 주석, reduced-motion,
+    프린트 스타일, 기능적 그라디언트/블러만 사용, pill은 태그/필터
+    전용, 페이지당 primary 하나.
+- **Follow-ups**: 프라이머리 인디고(#5645d4) 색역은 브랜드 판단
+  사항으로 보류, 토스트 겹침(transient overlay라 허용), DESIGN.md
+  도입 여부(frontend-deslop의 Phase 3 산출물).
+
+## ISSUE-29 — 활동 라이프사이클 + 외부 활동 직접 등록 + 수집 신선도
+
+- **Status**: **verified** (2026-10-10 정리 — 전 항목 구현·배포·
+  실사용 확인됨. actStatus 리마인드는 ISSUE-35로 분리 완료)
+- **Labels**: agent-ready, priority:p1, area:frontend, area:data
+- **Objective**: 외부 리뷰 지적 해소 — (a) 활동이 발견·저장에서 멈추고
+  신청→참여→수료→포인트 이력 추적 부재, (b) hsportal 공개 목록 외
+  대외활동 데이터 부재로 '교내외 통합' 명칭 부정확, (c) 스냅샷 수집일은
+  있으나 stale 경고 없음, (d) 온라인 강좌+강의실 동시 표기 혼동.
+- **Done**:
+  - `Data.actStatus` — 활동별 진행 단계(신청함/참여 중/수료/포인트 확인)
+    스테퍼. 공식 인증 아닌 본인 기록임을 UI에 명시.
+  - `Data.extActivities` + '직접 등록' 탭 + 등록 폼 — 외부 활동을
+    본인 메모로 기록. `extToActivity`가 공통 Activity로 정규화해
+    목록·상세·홈 마감·검색에 자연 통합. 삭제 시 saved/actStatus 정리.
+  - `lib/data/freshness.ts` — staleLabel 공용 헬퍼. 학사일정·학과
+    규정·LMS 수강중 카드·홈 마감에 'N일 전 수집' 배지.
+  - 시간표 상세 수업방식/강의실 필드 분리 + 동시 표기 원자료 안내.
+- **Follow-ups**: ~~종합정보시스템 이수 내역 자동 수집~~(ISSUE-33
+  완료), ~~actStatus 단계 기반 알림~~(ISSUE-35 완료 — 종료 임박/
+  수료 확인/포인트 반영 리마인드), 외부 활동 공개 공고 수집원
+  (링크모음 등 — 자동 크롤링은 출처 정책 검토 필요).
+
+## ISSUE-30 — 디자인 개편: 학생 플래너 방향(B) + 한글 줄바꿈 + 기능 노출 축소
+
+- **Status**: **verified** (2026-10-09 — 게이트/빌드/로컬 캡처/프로덕션
+  마커 전부 확인)
+- **Labels**: agent-ready, priority:p1, area:frontend
+- **Objective**: '기능·설명 과다 노출로 사용자 피로' 해소 + 한글
+  전용 줄바꿈 + B방향(학생 플래너, Notion 레퍼런스) 적용.
+- **Done**:
+  - `DESIGN.md` — 디자인 계약 문서(팔레트·한글 타이포·점진적 공개·
+    하드체크 규칙). 이후 디자인 작업의 기준 문서.
+  - 토큰 리맵 — 잉크 네이비 primary + 노션 잉크 본문 + 노션 회색
+    서피스. 컴포넌트 코드 변경 없이 전체 톤 전환.
+  - 한글 타이포 — keep-all 어절 줄바꿈 + pretty/balance text-wrap.
+  - 노출 축소 — 홈 히어로·현황 중복 타일·상시 배지·로어 텍스트 제거,
+    사이드바 그룹 캡션, 비교과 탭 7→6 + 직접 등록 액션화, 활동 상세
+    안내문 병합, .meta 리세스.
+- **Follow-ups**: 졸업 페이지 규정 카드들의 안내문도 detail 병합과
+  같은 <details> 패턴으로 점진적 공개 적용 여지, 온보딩/설문 등
+  나머지 화면의 설명 밀도 재감사, .tabs 스타일이 재사용되는 다른
+  화면(필요 시) 동일 적용.
+
+## ISSUE-31 — 디자인 v2: 세리프 디스플레이 + 페이퍼 배경 + 텍스트 대폭 절감
+
+- **Status**: **verified** (2026-10-10 — 게이트/빌드/로컬 캡처/프로덕션
+  마커 전부 확인)
+- **Labels**: agent-ready, priority:p1, area:frontend
+- **Objective**: '글·설명이 너무 많아 어지럽다' 해소 + 디자인 감성
+  강화 요청('개쩔게'). B방향 위에 시그니처 무브와 카피 다이어트를 올림.
+- **Done**:
+  - 시그니처 — 고운바탕 디스플레이 세리프(--nt-font-display)로 문서
+    계층과 UI 크롬을 서체로 분리. 제목·큰 수치·D-day·활동 대형
+    글리프만 세리프.
+  - 페이퍼 배경 — --nt-paper #fbfaf7. 톱바·auth 페이지 포함.
+  - 텍스트 절감 — SECTION_SUB 폐지(페이지 설명 문단 삭제), 홈
+    아이브로우=오늘 날짜, 행 단위 출처·상태 라벨 중복 제거,
+    졸업/활동 산문 설명 대폭 압축, 시간표 중복 제목 제거.
+  - 팔레트 정합 — 라벤더 가구색 → 네이비 tint 통일,
+    grad-intro 라벤더 → 크림.
+  - 디테일 — ::selection 틴트, 얇은 스크롤바, AccountBar 압축.
+- **Follow-ups**: 온보딩/설문/설정/알림 등 나머지 화면의 설명 밀도
+  재감사(이번엔 홈·비교과·졸업·시간표만), 공지 없는 대시보드의
+  섹션별 안내는 details 패턴으로 접는 방식 검토.
+
+## ISSUE-32 — 디자인 v3: 정밀 다듬기(잿빛 파스텔·언더라인 탭·상태 정합화)
+
+- **Status**: **verified** (2026-10-10 — 게이트/빌드/로컬 캡처/프로덕션
+  마커 전부 확인)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: '좀 더 세련되게' — v2의 방향은 유지하면서 컴포넌트
+  수준의 정밀함·팔레트 채도·상태 일관성을 끌어올린다.
+- **Done**:
+  - tint 8종을 종이 방향 저채도로 재지정 — 파스텔 면적 소음 축소.
+  - 언더라인 탭 / 마스터헤드 룰 / 무테 로우(today-item)·보더리스 칩.
+  - 필드 포커스 = 소프트 링 하나로 통일(focus-visible과 중복 해소).
+  - 선택·픽 hover·저장 등 상태색 전부 --nt-tint-sky 계열로 수렴.
+  - 카드 hover = border-strong + shadow-1 단일 패턴, dialog 16px.
+- **Follow-ups**: 온보딩/설문/설정/알림 화면의 설명 밀도·details
+  패턴 적용은 ISSUE-31 follow-up과 동일. mini-art 대형 글리프의
+  카테고리별 아트 디렉션(현재는 tint 회전)은 별도 판단.
+
+## ISSUE-33 — 종합정보 자동 수집 (이수 내역·포인트·사정표·학적)
+
+- **Status**: **verified** (2026-10-11 — 라이브 e8a0c347 실계정 수집
+  확인: 메뉴 78항목 발견, 취득학점 50·평점 2.87·이수 18과목·
+  학적(이름·소속·입학연도) 실데이터, 사정표·포인트 정직 미검출)
+- **Labels**: agent-ready, priority:p1, area:data, area:account
+- **Objective**: 로그인 시 열리는 info.hansung.ac.kr 세션으로 학적·
+  이수 내역·비교과 포인트·졸업가사정표를 자동 수집 — 졸업 계산이
+  수동 입력 대기에서 실수치로 전환.
+- **Done**: 서버 collectInfo(dae_main 프레임셋→좌/우 프레임 fetch →
+  사이드바 메뉴 발견 → 슬롯별 페이지 fetch → 헤더 기반 테이블 파서 ·
+  미이수 등급 제외 · 소계 행 제외 · 미확정 성적 제외 · EUC-KR 폴백
+  디코딩 · 로그인 벽 감지 · diag 계측 + 2차 사이드바 재탐색),
+  SchoolSnapshot.infoData/infoPending/infoFailedAt, login+lms-refresh
+  라우트 waitUntil 지연 수집 + checkedAt 가드 + 이전 스냅샷 보존,
+  클라이언트 data.info 수화(빈칸만 채움), 졸업 mergeCompleted 병합 +
+  수집 배지 + 사정표 details + 실패 안내, 홈 타일 수집값 우선 + 출처
+  라벨, 동의 문구 갱신. tests/info.test.mjs 72건(실계정 덤프 재현
+  픽스처 포함).
+- **실계정 검증 로그 (2026-10-11)**: 첫 수집은 diag={"menu":[],
+  "pages":[]}로 수렴 → 실계정 HTML 덤프 분석으로 두 가지 구조적
+  불일치 수정: ① 메뉴 소스 — dae_top_menu는 링크 없는 헤더바,
+  실제 메뉴는 프레임셋 left.jsp(78항목). li>a 중첩 컨테이너 스캔
+  버그도 수정(PR #20). ② 성적 헤더 — 실제 '구분/교과명/교과코드/
+  학점/성적' (PR #19). 재수집 결과 credits 50 · gpa 2.87 · 18과목 ·
+  name/dept/admitYear 실데이터, audit는 계정 미보유(정상), points
+  미검출 기록.
+- **Follow-ups**: 비교과 포인트는 메뉴상 hsportal 외부 링크라 info
+  세션으로 수집 불가 — hsportal 로그인(iModule AJAX) 별도 구현 필요.
+  졸업가사정표는 해당 학기 생성 전 계정엔 자료 없음 — 실제 사정표
+  구조는 졸업 학기 계정으로 추가 검증 권장. 수집 주기는 로그인/
+  lms-refresh 시점 — 장기 미로그인 시 신선도 저하는 infoStale 배지가
+  표시.
+
+
+## ISSUE-34 — 동시 접속 안정화 (리밋·예산·충돌 가드)
+
+- **Status**: **verified** (2026-10-10 — 라이브 17f59ca1 +
+  합성 부하 300-동시 1,500요청 0실패 확인, scripts/load-test.mts)
+- **Labels**: agent-ready, priority:p1, area:account, area:infra
+- **Objective**: 300명+ 동시 접속 시 정당한 사용자 차단·데이터
+  꼬임·수집 실패를 구조적으로 예방.
+- **Done**: IP 리밋 20→150(NAT 대응), 만료 행 정리 ~5% 확률화,
+  collectLms 서브리퀘스트 예산 40 + 퀴즈 확인 12 상한,
+  profile.rev 낙관적 잠금 + 409 재수화 + persist 직렬화,
+  /api/health 추가.
+- **Follow-ups**: ① wrangler 플랜의 서브리퀘스트 한도 확인 — 유료
+  1000이면 예산 상향 여지, 무료 50이면 LMS 수집량 상한이 실효
+  제약. ~~② 합성 부하 테스트 스크립트~~(ISSUE-35 완료 — 공개
+  엔드포인트 300-동시 0실패. 로그인 경로는 학교 서버 부하로 제외).
+  ③ 프로필 409 시 필드 단위 자동 병합은 미구현 — 현재는 서버
+  상태 우선 + 사용자 재확인. ④ UptimeRobot/CF Health Checks로
+  /api/health 외부 모니터링 등록.
+
+## ISSUE-35 — 활동 라이프사이클 리마인드 (수료·포인트 확인)
+
+- **Status**: **verified** (2026-10-10 — 구현·단위테스트·배포 완료)
+- **Labels**: agent-ready, priority:p2, area:frontend
+- **Objective**: actStatus 단계를 알림 루프에 연결 — 발견→신청→
+  참여→수료→포인트 반영의 마지막 고리.
+- **Done**: deriveNotifs에 단계 리마인드 — joined+종료 7일 이내
+  '활동 종료 D-N', joined+종료 경과(30일 내) '수료 확인',
+  done+포인트 활동+종료 경과(60일 내) '포인트 반영 확인'.
+  직접 등록 활동(extActivities)도 대상. 최대 3건 상한.
+  tests/notifs.test.mjs 27/27.
+- **Follow-ups**: 브라우저 OS 알림(reminderTargets)에도 단계
+  리마인드 추가 가능 — 현재는 알림함/벨 배지만.

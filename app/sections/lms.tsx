@@ -48,6 +48,7 @@ const ERROR_LABELS: Record<string, string> = {
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
   timeout: '수집 시간 초과',
+  budget: '수집량 한도 도달',
 };
 
 /** 수강 기간 원문 'YYYY-MM-DD … ~ YYYY-MM-DD …' → 'MM-DD ~ MM-DD' 축약 */
@@ -789,7 +790,12 @@ function MatchFixer({
     setOpen(null);
   };
   return (
-    <section className="card pad lms-match-warn" role="note">
+    <section
+      className={
+        'card pad lms-match-warn' + (pending.length > 0 ? ' needs' : '')
+      }
+      role="note"
+    >
       {pending.length > 0 ? (
         <b>
           {snap.courses.length}과목 중 {pending.length}과목이 개설강의
