@@ -7,8 +7,17 @@
   },
   "scripts": {
     "dev": "vinext dev",
+    "dev:backend": "npm run build && npm run db:migrate:local && npm run start",
     "build": "vinext build",
-    "start": "wrangler dev --config dist/server/wrangler.json",
+    "start": "wrangler dev --local --config dist/server/wrangler.json --persist-to .wrangler/state --ip 127.0.0.1 --port 8787",
+    "db:migrate:local": "wrangler d1 migrations apply site-creator-d1 --local --config wrangler.local.jsonc --persist-to .wrangler/state",
+    "db:local": "wrangler d1 execute site-creator-d1 --local --config wrangler.local.jsonc --persist-to .wrangler/state",
+    "typecheck": "tsc --noEmit",
+    "lint:app": "oxlint app/ lib/",
+    "test": "node scripts/run-python.mjs scripts/_run_tests.py",
+    "test:db": "node scripts/run-python.mjs tests/account-db.py",
+    "test:http": "node scripts/run-python.mjs tests/http-check.py",
+    "verify": "npm run typecheck && npm run lint:app && npm test && npm run test:db && npm run build",
     "lint": "oxlint",
     "format": "oxfmt"
   },

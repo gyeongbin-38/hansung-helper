@@ -2,15 +2,17 @@
 
 ## 로컬 실행
 - `npm run dev` → vinext dev (보통 :3000/:3001). **D1 미바인딩 — 로그인·저장 불가, 체험 모드만 동작**
-- `npm run build && npm run start` → wrangler dev on **http://127.0.0.1:8787** (D1 바인딩, 전체 기능 동작)
+- `npm run dev:backend` → 빌드·로컬 마이그레이션 후 **http://127.0.0.1:8787** (D1 바인딩). 학교 인증·수집은 실제 학교 서버 사용
+- 팀원 시작점: `README.md` / `docs/BACKEND_ONBOARDING.md`. 기본 로컬 개발은 Cloudflare 로그인 없이 가능
 
 ## 로컬 D1 주의
-- 로컬 D1 state는 `dist/server/.wrangler/state/` 안에 생성됨 → **`dist` 삭제/재빌드 시 DB 초기화됨**
-- 재빌드 후 계정 기능 사용 전에 마이그레이션 재적용:
-  `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --file drizzle/0000_academic_accounts.sql`
+- 공통 명령의 로컬 D1 state는 프로젝트 루트 **`.wrangler/state/`** → `dist` 재빌드 후에도 보존
+- `npm run db:migrate:local`로 미적용 `drizzle/*.sql`만 적용 (이력 관리, 재실행 가능). `npm run start`도 동일한 `--persist-to` 사용
+- 과거 `dist/server/.wrangler/state/`의 자료는 자동 이관하지 않음. 개발자별 신규 로컬 DB로 시작하며 운영 데이터 복사 금지
 - 좀비 `workerd.exe`가 `dist`를 잠그면: `tasklist`로 PID 확인 → `taskkill /F /PID <pid>` 후 삭제
 
 ## 검증 명령
+- `npm run verify` — 아래 타입·린트·단위 테스트·SQLite 검사·빌드 일괄 실행 (CI와 동일)
 - `npx tsc --noEmit` / `npx oxlint app/ lib/` / `npm run build`
 - `node --experimental-strip-types tests/catalog.test.mjs`
 - `node --experimental-strip-types tests/activities.test.mjs`
@@ -19,12 +21,12 @@
 - `node --experimental-transform-types tests/info.test.mjs` (종합정보 수집 파서)
 - `python scripts/_run_tests.py` (전체 매트릭스)
 - 실계정 COSMOS 검증: `node --experimental-transform-types scripts/cosmos-live.mts`
-- `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
+- `npm run test:db` (메모리 SQLite, 서버 불필요), `npm run test:http` (8787 서버 필요)
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
 - 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (drizzle/0000_academic_accounts.sql) + `public_snapshots` (drizzle/0001_public_snapshots.sql — 게시 스크립트가 DROP/CREATE하므로 별도 적용 불필요)
-- 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
-- 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
+- 로컬 조회: `npm run db:local -- --command "SELECT ..."` (`wrangler.local.jsonc`, 로컬 DB 전용)
+- 리모트 조회: 소유자만 `published-personal`의 배포 설정으로 조회. 로컬 명령을 원격 명령으로 바꾸지 않음
 - 또는 Cloudflare 대시보드 → D1 → site-creator-d1 → SQL Editor
 
 ## 데이터

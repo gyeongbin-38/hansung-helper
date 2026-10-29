@@ -14,9 +14,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npx oxlint app/ lib/
-      - name: Unit tests
-        run: python3 scripts/_run_tests.py
-      - run: npm run build
+      - name: Typecheck, lint, unit and SQLite checks, production build
+        run: npm run verify
+      - name: Apply local D1 migrations and check repeatability
+        run: |
+          npm run db:migrate:local
+          npm run db:migrate:local

@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Local D1 commands only. The placeholder matches vite.config.ts.
+  // Runtime uses the built dist/server/wrangler.json with the same persist-to.
+  "name": "hansung-helper-local",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "site-creator-d1",
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}
