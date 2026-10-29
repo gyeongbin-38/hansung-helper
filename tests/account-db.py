@@ -1,5 +1,7 @@
 ﻿import sqlite3,pathlib
-conn=sqlite3.connect(':memory:');conn.execute('PRAGMA foreign_keys=ON');conn.executescript(pathlib.Path('drizzle/0000_academic_accounts.sql').read_text(encoding='utf-8'))
+conn=sqlite3.connect(':memory:');conn.execute('PRAGMA foreign_keys=ON')
+for migration in sorted(pathlib.Path('drizzle').glob('*.sql')):
+ conn.executescript(migration.read_text(encoding='utf-8'))
 for account in ['a','b']:
  conn.execute("INSERT INTO academic_accounts(id,student_mask,created_at,consent_at) VALUES(?,?,0,0)",(account,account))
  conn.execute('INSERT INTO academic_sessions VALUES(?,?,?)',('session-'+account,account,999))

@@ -1,0 +1,24 @@
+name: 버그 제보
+description: 재현 순서와 예상 결과를 기록합니다.
+title: "[버그] "
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 재현 순서
+      description: 접속 화면, 누른 버튼, 브라우저·기기를 적습니다. 학번·비밀번호·쿠키·원본 LMS JSON은 첨부하지 않습니다.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 결과
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 결과
+      description: 오류 문구와 개인정보를 가린 화면을 첨부할 수 있습니다.
+    validations:
+      required: true
