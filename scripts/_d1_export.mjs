@@ -11,7 +11,9 @@ const local = process.argv.includes('--local');
 const remote = process.argv.includes('--remote');
 if (local === remote) throw new Error('choose exactly one mode: --local or --remote');
 
-const configPath = join(repo, 'dist', 'server', 'wrangler.json');
+const configPath = local
+  ? join(repo, 'wrangler.local.jsonc')
+  : join(repo, 'dist', 'server', 'wrangler.json');
 const backupDir = resolve(repo, '.d1-backups');
 const requested = process.argv.find((arg) => arg.startsWith('--output='))?.slice(9);
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');

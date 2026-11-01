@@ -6,12 +6,8 @@ import sqlite3
 
 db = sqlite3.connect(":memory:")
 db.execute("PRAGMA foreign_keys=ON")
-db.executescript(
-    pathlib.Path("drizzle/0000_academic_accounts.sql").read_text(encoding="utf-8")
-)
-db.executescript(
-    pathlib.Path("drizzle/0001_public_snapshots.sql").read_text(encoding="utf-8")
-)
+for migration in sorted(pathlib.Path("drizzle").glob("*.sql")):
+    db.executescript(migration.read_text(encoding="utf-8"))
 db.execute(
     "INSERT INTO public_snapshots(kind, part, payload, fetched_at, updated_at) "
     "VALUES('fixture', 0, '{\"items\":[]}', '2026-10-26T00:00:00Z', 1)"

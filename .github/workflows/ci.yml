@@ -19,18 +19,23 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npx oxlint app/ lib/
-      - name: Unit tests
-        run: python3 scripts/_run_tests.py
+      - name: Typecheck, lint, unit and SQLite checks, production build
+        run: npm run verify
       - name: Python operation tests
         run: |
-          python3 tests/account-db.py
           python3 tests/monitor-alert.test.py
           python3 tests/verify-prod.test.py
-      - run: npm run build
       - name: Apply local D1 migrations twice
         run: |
+          npm run db:migrate:local
           npm run d1:migrate:local
-          npm run d1:migrate:local
+      - name: Verify local snapshot publication and backup use the migrated database
+        run: |
+          node scripts/_publish_snapshots.mjs --local
+          npm run d1:backup:local
+          grep -q 'academic_accounts' .d1-backups/*.sql
+          grep -q 'public_snapshots' .d1-backups/*.sql

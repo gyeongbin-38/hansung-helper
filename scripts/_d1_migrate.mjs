@@ -33,6 +33,7 @@ const result = spawnSync(
     'apply',
     'site-creator-d1',
     local ? '--local' : '--remote',
+    ...(local ? ['--persist-to', join(repo, '.wrangler', 'state')] : []),
     '--config',
     configPath,
   ],

@@ -3,7 +3,7 @@
 ## Environment boundary
 
 - The app binds D1 as `DB`. `wrangler dev` uses the project-local database in
-  `dist/server/.wrangler/state/`; it does not point at production.
+  `.wrangler/state/`; it does not point at production.
 - The generated preview binding uses an unset placeholder ID. `wrangler dev
   --remote` therefore fails until a separate preview D1 database is configured,
   instead of silently using production.
