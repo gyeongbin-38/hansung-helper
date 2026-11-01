@@ -24,4 +24,13 @@ jobs:
       - run: npx oxlint app/ lib/
       - name: Unit tests
         run: python3 scripts/_run_tests.py
+      - name: Python operation tests
+        run: |
+          python3 tests/account-db.py
+          python3 tests/monitor-alert.test.py
+          python3 tests/verify-prod.test.py
       - run: npm run build
+      - name: Apply local D1 migrations twice
+        run: |
+          npm run d1:migrate:local
+          npm run d1:migrate:local

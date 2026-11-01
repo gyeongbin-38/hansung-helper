@@ -118,42 +118,49 @@ async function collectLms({ createTab }) {
 // 중복으로 두드리지 않게 한다. 실패는 hsuLmsErr로 남겨 콘솔·진단에 쓴다.
 let inflight = null;
 let cacheGeneration = 0;
+let storageWrites = Promise.resolve();
+function queueStorageWrite(write) {
+  const pending = storageWrites.then(write);
+  storageWrites = pending.catch(() => {});
+  return pending;
+}
 async function requestCollect(opts) {
+  const generation = cacheGeneration;
+  await storageWrites;
   const { hsuLmsAt, hsuLms } = await chrome.storage.session.get([
     'hsuLmsAt',
     'hsuLms',
   ]);
+  if (generation !== cacheGeneration) return failure('cache-cleared');
   // force=true(앱의 명시적 새로고침·주기 갱신)면 단기 캐시를 건너뛰되
   // 진행 중 수집은 그대로 공유한다.
   if (!opts.force && hsuLmsAt && Date.now() - hsuLmsAt < RECENT_MS && hsuLms)
     return success(hsuLms, true);
-  const generation = cacheGeneration;
   // 'known': 이번 브라우저 세션에서 성공 수집이 있었을 때만 탭 생성 —
   // 한 번도 수집한 적 없는 브라우저에 무작위 탭을 띄우지 않기 위함.
   const createTab = opts.createTab === 'known' ? !!hsuLmsAt : opts.createTab;
   if (!inflight) {
-    const generation = cacheGeneration;
-    inflight = collectLms({ createTab })
+    const current = collectLms({ createTab })
       .then(async (result) => {
-        if (result.payload && generation === cacheGeneration) {
-          await chrome.storage.session.set({
-            hsuLms: result.payload,
-            hsuLmsAt: Date.now(),
-          });
+        if (result.payload) {
+          await queueStorageWrite(() => generation === cacheGeneration
+            ? chrome.storage.session.set({ hsuLms: result.payload, hsuLmsAt: Date.now() })
+            : undefined);
         }
         return result;
       })
       .finally(() => {
-        inflight = null;
+        if (inflight === current) inflight = null;
       });
+    inflight = current;
   }
   const res = await inflight;
   if (generation !== cacheGeneration) return failure('cache-cleared');
   if (res.error) {
     console.warn('[학사도우미] 수집 실패:', res.error);
-    void chrome.storage.session.set({
-      hsuLmsErr: { error: res.error, at: Date.now() },
-    });
+    void queueStorageWrite(() => generation === cacheGeneration
+      ? chrome.storage.session.set({ hsuLmsErr: { error: res.error, at: Date.now() } })
+      : undefined);
     return failure(res.error);
   }
   if (!res.payload) return failure('empty-payload');
@@ -163,17 +170,20 @@ async function requestCollect(opts) {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'hsu-clear-cache') {
     cacheGeneration += 1;
-    chrome.storage.session
-      .remove(['hsuLms', 'hsuLmsAt', 'hsuLmsErr'])
+    inflight = null;
+    queueStorageWrite(() => chrome.storage.session.remove(['hsuLms', 'hsuLmsAt', 'hsuLmsErr']))
       .then(() => sendResponse({ ok: true }))
       .catch(() => sendResponse(failure('cache-clear-failed')));
     return true;
   }
   if (msg?.type === 'hsu-get-cache') {
-    chrome.storage.session
-      .get(['hsuLms', 'hsuLmsAt'])
+    const generation = cacheGeneration;
+    storageWrites
+      .then(() => chrome.storage.session.get(['hsuLms', 'hsuLmsAt']))
       .then(({ hsuLms, hsuLmsAt }) =>
-        sendResponse({ payload: hsuLms ?? null, at: hsuLmsAt ?? null }),
+        sendResponse(generation === cacheGeneration
+          ? { payload: hsuLms ?? null, at: hsuLmsAt ?? null }
+          : { payload: null, at: null }),
       )
       .catch(() => sendResponse({ error: 'cache-unavailable' }));
     return true;

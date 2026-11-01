@@ -35,7 +35,6 @@ const result = spawnSync(
     local ? '--local' : '--remote',
     '--config',
     configPath,
-    '--yes',
   ],
   { cwd: repo, encoding: 'utf-8' },
 );

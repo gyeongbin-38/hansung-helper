@@ -26,7 +26,7 @@ async function backgroundHarness(scriptResult) {
     scripting: {
       executeScript: async () => {
         markScriptStarted();
-        return [{ result: await scriptResult }];
+        return [{ result: await (typeof scriptResult === 'function' ? scriptResult() : scriptResult) }];
       },
     },
     storage: {
@@ -86,6 +86,29 @@ assert.deepEqual(JSON.parse(JSON.stringify(await oldCollection)), {
   error: 'cache-cleared',
 });
 assert.equal(switchingWorker.storage.hsuLms, undefined);
+
+// An old completion must neither satisfy a new request nor clear the new in-flight job.
+let finishOld, finishNew;
+const oldResult = new Promise((resolve) => (finishOld = resolve));
+const newResult = new Promise((resolve) => (finishNew = resolve));
+let calls = 0;
+const isolated = await backgroundHarness(() => (++calls === 1 ? oldResult : newResult));
+const oldRequest = isolated.send({ type: 'hsu-refresh', force: true });
+await isolated.scriptStarted;
+await isolated.send({ type: 'hsu-clear-cache' });
+const newRequest = isolated.send({ type: 'hsu-refresh', force: true });
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(calls, 2);
+finishOld({ payload });
+assert.equal((await oldRequest).error, 'cache-cleared');
+const sharedNewRequest = isolated.send({ type: 'hsu-refresh', force: true });
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(calls, 2);
+const newPayload = { ...payload, courses: [{ id: 'new-account' }] };
+finishNew({ payload: newPayload });
+assert.deepEqual(JSON.parse(JSON.stringify((await newRequest).payload)), newPayload);
+assert.deepEqual(JSON.parse(JSON.stringify((await sharedNewRequest).payload)), newPayload);
+assert.deepEqual(JSON.parse(JSON.stringify(isolated.storage.hsuLms)), newPayload);
 
 async function bridgeHarness(refreshResult) {
   const messages = [];

@@ -149,7 +149,7 @@ export async function POST(request: Request) {
                         infoFailedAt: new Date().toISOString(),
                       },
                 ),
-                account.id,
+                id,
                 snapshot.checkedAt,
               )
               .run();
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
                     infoPending: null,
                     infoFailedAt: new Date().toISOString(),
                   }),
-                  account.id,
+                  id,
                   snapshot.checkedAt,
                 )
                 .run();

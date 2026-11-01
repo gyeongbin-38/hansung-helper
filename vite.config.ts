@@ -25,8 +25,7 @@ const localBindingConfig = {
           // Local dev uses Wrangler's local D1. Remote preview fails closed
           // until a separate development database has been configured.
           preview_database_id: DEV_PREVIEW_DATABASE_ID,
-          migrations_dir: '../../drizzle',
-          migrations_pattern: '../../drizzle/*.sql',
+          migrations_dir: 'drizzle',
         },
       ]
     : [],
