@@ -46,6 +46,17 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     name: scalar(base.name, local.name, remote.name),
     year: scalar(base.year, local.year, remote.year),
     dept: scalar(base.dept, local.dept, remote.dept),
+    semester: scalar(base.semester, local.semester, remote.semester),
+    graduationTarget: scalar(
+      base.graduationTarget,
+      local.graduationTarget,
+      remote.graduationTarget,
+    ),
+    onboardingStep: scalar(
+      base.onboardingStep,
+      local.onboardingStep,
+      remote.onboardingStep,
+    ),
     credits: scalar(base.credits, local.credits, remote.credits),
     points: scalar(base.points, local.points, remote.points),
     saved: setMerge(base.saved, local.saved, remote.saved, (x) => x),

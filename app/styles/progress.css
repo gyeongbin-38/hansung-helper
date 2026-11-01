@@ -405,6 +405,11 @@
   color: var(--nt-stone);
   flex-shrink: 0;
 }
+.settings .event-line small a {
+  color: var(--nt-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .settings .between {
   flex-wrap: wrap;
   padding: 20px 0;

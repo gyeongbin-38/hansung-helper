@@ -248,6 +248,13 @@ nav button.selected svg {
   padding: 0;
   color: var(--nt-ink);
 }
+.topbar .global-search {
+  min-width: 0;
+}
+.topbar .mobile-home {
+  flex-shrink: 0;
+  color: var(--nt-primary);
+}
 .global-search kbd {
   border: 1px solid var(--nt-hairline);
   background: var(--nt-canvas);

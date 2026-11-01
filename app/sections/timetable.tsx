@@ -42,6 +42,7 @@ import {
   recommend,
 } from './catalog';
 import { matchEnrollment } from '@/lib/data/lms';
+import { filterRecommendationCandidates } from '@/lib/data/recommendation';
 import { RetryButton, SkeletonRows } from './skeleton';
 import type { Data } from './data';
 
@@ -288,6 +289,8 @@ export function Timetable({
   const [selected, setSelected] = useState<CourseSection | null>(null);
   const [dragging, setDragging] = useState<CourseSection | null>(null);
   const [dragPlan, setDragPlan] = useState(false);
+  const [avoidedDays, setAvoidedDays] = useState<number[]>([]);
+  const [maxCreditsInput, setMaxCreditsInput] = useState('');
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
@@ -327,10 +330,27 @@ export function Timetable({
       return dayOk && bandOk;
     });
   }, [catalog, dept, cat, q, day, band, myDept, deptPool]);
-  const recs = useMemo(
-    () => (catalog ? recommend(catalog.sections, data, planned) : []),
-    [catalog, data, planned],
-  );
+  const maxCreditsNumber = Number(maxCreditsInput);
+  const maxCreditsValid =
+    maxCreditsInput === '' ||
+    (Number.isInteger(maxCreditsNumber) &&
+      maxCreditsNumber >= 1 &&
+      maxCreditsNumber <= 30);
+  const maxCredits =
+    maxCreditsInput !== '' && maxCreditsValid ? maxCreditsNumber : undefined;
+  const recs = useMemo(() => {
+    if (!catalog) return [];
+    const ranked = recommend(
+      catalog.sections,
+      data,
+      planned,
+      catalog.sections.length,
+    );
+    return filterRecommendationCandidates(ranked, planned, {
+      avoidedDays,
+      maxCredits,
+    }).slice(0, 6);
+  }, [catalog, data, planned, avoidedDays, maxCredits]);
   const untimedPlanned = planned.filter((s) => s.untimed);
   const credits = planned.reduce((n, s) => n + s.credits, 0);
   const curConflicts = planned.filter(
@@ -898,10 +918,103 @@ export function Timetable({
                 <p className="meta">
                   학과·학년·설문 선호·시간 충돌을 반영한 규칙 기반 추천입니다.
                   {data.prefs.some((p) =>
-                    ['이론', '실습', '프로젝트', '시험', '개인 과제', '팀 프로젝트'].includes(p),
+                    [
+                      '이론',
+                      '실습',
+                      '프로젝트',
+                      '시험',
+                      '개인 과제',
+                      '팀 프로젝트',
+                    ].includes(p),
                   ) &&
                     ' 수업방식·평가방식 선호는 과목별 평가 정보가 없어 아직 반영하지 않습니다.'}
                 </p>
+                <fieldset className="rec-constraints">
+                  <legend>추가 추천 조건</legend>
+                  <div className="rec-condition-row">
+                    <span className="rec-condition-label">피할 요일</span>
+                    <div
+                      className="rec-day-buttons"
+                      aria-label="피할 요일 선택"
+                    >
+                      {DAY_SHORT.map((label, dayIndex) => {
+                        const active = avoidedDays.includes(dayIndex);
+                        return (
+                          <button
+                            type="button"
+                            className={active ? 'active' : ''}
+                            aria-pressed={active}
+                            key={label}
+                            onClick={() =>
+                              setAvoidedDays((days) =>
+                                active
+                                  ? days.filter((day) => day !== dayIndex)
+                                  : [...days, dayIndex],
+                              )
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <label className="rec-credit-limit">
+                    <span className="rec-condition-label">최대 학점</span>
+                    <span className="rec-credit-input">
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        step="1"
+                        inputMode="numeric"
+                        value={maxCreditsInput}
+                        aria-invalid={!maxCreditsValid}
+                        aria-describedby="rec-credit-help"
+                        placeholder="미적용"
+                        onChange={(event) =>
+                          setMaxCreditsInput(event.target.value)
+                        }
+                      />
+                      <span>학점</span>
+                    </span>
+                  </label>
+                  <p
+                    id="rec-credit-help"
+                    className={'meta' + (!maxCreditsValid ? ' error' : '')}
+                    role={!maxCreditsValid ? 'alert' : undefined}
+                  >
+                    {maxCreditsValid
+                      ? '계획에 담은 학점을 포함해 계산합니다. 비워 두면 적용하지 않습니다.'
+                      : '1~30 사이의 정수를 입력해 주세요.'}
+                  </p>
+                  <div className="rec-condition-foot">
+                    <span className="meta">
+                      이 조건은 현재 화면에서만 임시로 적용됩니다.
+                    </span>
+                    {(avoidedDays.length > 0 || maxCreditsInput !== '') && (
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => {
+                          setAvoidedDays([]);
+                          setMaxCreditsInput('');
+                        }}
+                      >
+                        조건 초기화
+                      </button>
+                    )}
+                  </div>
+                </fieldset>
+                {avoidedDays.length > 0 &&
+                  recs.some(
+                    ({ section }) => section.untimed || !section.slots.length,
+                  ) && (
+                    <p className="rec-unknown-note">
+                      시간 미정 과목은 피할 요일을 확인할 수 없어 후보에
+                      남겼습니다. 수강신청 전에 요일을 확인해 주세요.
+                    </p>
+                  )}
                 {recs.map((r) => (
                   <div className="rec" key={r.section.id}>
                     <div>
@@ -915,6 +1028,10 @@ export function Timetable({
                             {x}
                           </span>
                         ))}
+                        {avoidedDays.length > 0 &&
+                          (r.section.untimed || !r.section.slots.length) && (
+                            <span className="badge">피할 요일 확인 불가</span>
+                          )}
                       </div>
                     </div>
                     <button
@@ -928,7 +1045,9 @@ export function Timetable({
                 ))}
                 {!recs.length && catalog && (
                   <p className="meta">
-                    추천할 과목이 없습니다. 필터나 계획을 조정해 보세요.
+                    {avoidedDays.length > 0 || maxCredits !== undefined
+                      ? '선택한 요일·학점 조건에 맞는 추천이 없습니다. 조건을 조정하거나 초기화해 보세요.'
+                      : '추천할 과목이 없습니다. 필터나 계획을 조정해 보세요.'}
                   </p>
                 )}
               </>

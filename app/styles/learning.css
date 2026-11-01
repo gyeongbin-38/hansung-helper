@@ -886,6 +886,101 @@
 .builder-recs > h3:first-child {
   margin-top: 0;
 }
+.rec-constraints {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 10px;
+  padding: 12px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-surface);
+}
+.rec-constraints legend {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.rec-condition-row,
+.rec-credit-limit,
+.rec-condition-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rec-condition-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nt-slate);
+}
+.rec-day-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.rec-day-buttons button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--nt-hairline-strong);
+  border-radius: 50%;
+  background: var(--nt-canvas);
+  color: var(--nt-slate);
+  font-size: 12px;
+}
+.rec-day-buttons button.active {
+  border-color: var(--nt-purple);
+  background: var(--nt-purple);
+  color: #fff;
+}
+.rec-day-buttons button:focus-visible,
+.rec-credit-input input:focus-visible {
+  outline: 2px solid var(--nt-purple);
+  outline-offset: 2px;
+}
+.rec-credit-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--nt-slate);
+}
+.rec-credit-input input {
+  width: 74px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--nt-hairline-strong);
+  border-radius: var(--nt-r-sm);
+  background: var(--nt-canvas);
+  font: inherit;
+}
+.rec-credit-input input[aria-invalid='true'] {
+  border-color: var(--nt-error);
+}
+.rec-constraints .meta {
+  margin: 0;
+  font-size: 11px;
+}
+.rec-constraints .meta.error {
+  color: var(--nt-error);
+}
+.rec-condition-foot {
+  align-items: flex-start;
+}
+.rec-condition-foot .link {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.rec-unknown-note {
+  margin: 10px 0 4px;
+  padding: 9px 10px;
+  border-radius: var(--nt-r-sm);
+  background: var(--nt-tint-yellow);
+  color: var(--nt-orange-deep);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .rec {
   display: flex;
   align-items: flex-start;
@@ -956,6 +1051,14 @@
   }
   .builder-head {
     flex-wrap: wrap;
+  }
+  .rec-condition-row,
+  .rec-credit-limit {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .rec-day-buttons {
+    justify-content: flex-start;
   }
 }
 
