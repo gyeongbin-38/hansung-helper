@@ -1,4 +1,4 @@
-CREATE TABLE public_snapshots (
+CREATE TABLE IF NOT EXISTS public_snapshots (
  kind TEXT NOT NULL,
  part INTEGER NOT NULL,
  payload TEXT NOT NULL,

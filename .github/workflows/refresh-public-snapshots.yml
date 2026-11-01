@@ -1,0 +1,56 @@
+name: Refresh public snapshots
+
+on:
+  schedule:
+    # 03:30 KST daily. GitHub Actions schedules use UTC.
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: refresh-public-snapshots
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      HANSUNG_D1_DATABASE_ID: ${{ secrets.HANSUNG_D1_DATABASE_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Collect current school data
+        run: |
+          node --experimental-strip-types scripts/crawl-activities.mts
+          node --experimental-strip-types scripts/crawl-schedule.mts
+      - name: Build generated Wrangler config
+        run: npm run build
+      - name: Publish snapshots to D1
+        run: node scripts/_publish_snapshots.mjs --remote
+      - name: Verify production APIs and freshness
+        run: python scripts/_verify_snapshots.py
+      - name: Open or update the alert issue
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONITOR_NAME: Public snapshot refresh
+          MONITOR_RESULT: failure
+        run: python scripts/_notify_monitor.py
+      - name: Close the alert issue after recovery
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONITOR_NAME: Public snapshot refresh
+          MONITOR_RESULT: success
+        run: python scripts/_notify_monitor.py

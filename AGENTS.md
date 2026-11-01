@@ -7,7 +7,7 @@
 ## 로컬 D1 주의
 - 로컬 D1 state는 `dist/server/.wrangler/state/` 안에 생성됨 → **`dist` 삭제/재빌드 시 DB 초기화됨**
 - 재빌드 후 계정 기능 사용 전에 마이그레이션 재적용:
-  `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --file drizzle/0000_academic_accounts.sql`
+  `npm run d1:migrate:local` (0000 계정 + 0001 공개 스냅샷)
 - 좀비 `workerd.exe`가 `dist`를 잠그면: `tasklist`로 PID 확인 → `taskkill /F /PID <pid>` 후 삭제
 
 ## 검증 명령
@@ -22,28 +22,33 @@
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
-- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (drizzle/0000_academic_accounts.sql) + `public_snapshots` (drizzle/0001_public_snapshots.sql — 게시 스크립트가 DROP/CREATE하므로 별도 적용 불필요)
+- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`). 두 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
 - 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
+- 백업: `npm run d1:backup:local` 또는 소유자 승인 후 `HANSUNG_D1_DATABASE_ID` 설정 + `npm run d1:backup:remote`; 백업은 gitignore된 `.d1-backups/`에 저장
+- 복구 연습: `npm run d1:restore:rehearsal -- .d1-backups/<backup>.sql` (격리된 로컬 DB만 대상)
 - 또는 Cloudflare 대시보드 → D1 → site-creator-d1 → SQL Editor
 
 ## 데이터
 - COSMOS 수집 경로 3개: ① 로그인 시 서버 자동 수집(`lib/server/lms.ts`) ② **`extension/` 크롬 확장**(chrome://extensions → 개발자 모드 → 압축해제된 확장 로드 — **앱 열 때 자동 수집**(background 워커가 LMS 탭에서 `__hsCollect` 실행 → postMessage) + LMS 페이지 수집 버튼 + 4h 주기 수집, 가장 견고) ③ `public/lms-collect.js` 콘솔 붙여넣기(백업)
+- 확장은 LMS와 프로덕션 앱 도메인에만 접근한다. 학사 스냅샷은 브라우저 세션 메모리에만 저장되며 브라우저 종료 시 지워진다.
 - 강의 카탈로그: `scripts/import-courses.py` → `lib/data/catalog-2026-2.json` → `GET /api/courses` (로컬 데이터만, 학교 사이트 실시간 요청 없음)
 - 비교과: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록)
 - 학사일정: `node --experimental-strip-types scripts/crawl-schedule.mts` → `lib/data/schedule.json` → `GET /api/schedule` (hansung.ac.kr 공식 학사일정, month/year2 POST)
 - 크롤러 공통: 이상 감지(급감) 시 기존 스냅샷 유지, 사용자 요청 경로에서 라이브 수집 없음
 - 원본 xlsx: `data/source/` (재임포트용)
-- **스냅샷 게시**: `node scripts/_publish_snapshots.mjs` — 4개 공개 JSON을 remote D1 `public_snapshots`에 청크 저장 (`--local`이면 로컬). API는 D1 우선+번들 폴백이므로 **크롤링→게시만으로 재배포 없이 데이터 갱신 가능**. `lib/server/snapshots.ts`가 60초 아이솔레이트 캐시 + fetched_at 비교로 처리
+- **스냅샷 게시**: `node scripts/_publish_snapshots.mjs --remote` 또는 명시적 로컬 `--local`; 원격은 `HANSUNG_D1_DATABASE_ID` 필요. 4개 JSON을 기존 행에 안전하게 upsert한다. API는 D1 우선+번들 폴백이며 `lib/server/snapshots.ts`가 60초 아이솔레이트 캐시 + fetched_at 비교로 처리
+- GitHub Actions: 매일 03:30 KST 공개 스냅샷 갱신, 15분마다 API·신선도 점검. 갱신 워크플로는 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `HANSUNG_D1_DATABASE_ID` 저장소 Actions secrets가 필요하다. 실패는 중복 방지 GitHub 이슈로 알림
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요
 
 ## 프로덕션 (2026-09-18부터 라이브)
 - **URL**: https://hansung-helper.gyeongbin-38.workers.dev (워커 `hansung-helper`)
-- Cloudflare 계정: gyeongbinb38@gmail.com (account `49fee188…`), workers.dev 서브도메인 `gyeongbin-38`
-- 원격 D1: `site-creator-d1` = `27aa326b-5433-4bcb-bc38-1b63bd66f67b` (APAC), 마이그레이션 적용됨
-- **재배포**: `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
-  (생성된 wrangler.json의 placeholder DB ID·워커명을 실값으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
-- **프로덕션 검증**: `python scripts/_verify_prod.py` (모든 라이브 엔드포인트 200 확인)
+- Cloudflare 계정·데이터베이스 식별자와 비밀값은 저장소에 기록하지 않고 소유자 대시보드에서 확인한다.
+- 계정·로그인 IP 인덱스는 `ACCOUNT_INDEX_HMAC_KEY`로 HMAC 처리한다. 로컬 `.dev.vars` 또는 Worker 비밀값으로 32바이트 이상의 무작위 키를 설정하고, 계정 ID 마이그레이션 없이 키를 교체하지 않는다.
+- 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
+- **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
+  (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
+- **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)
 - GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)
 
 ## 커밋/PR 규칙 (에이전트 포함 전원)

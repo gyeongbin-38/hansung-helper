@@ -1,9 +1,10 @@
+import os
 import re
 import subprocess
 import sys
 
-SRC = r'C:\Users\82107\Desktop\학사 도우미'
-DST = r'C:\Users\82107\Desktop\학사 도우미\published-personal'
+SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DST = os.path.join(SRC, 'published-personal')
 
 DIRS = ['app', 'lib', 'tests', 'scripts', 'docs', 'drizzle', 'data', 'public', 'extension']
 FILES = [
@@ -11,6 +12,7 @@ FILES = [
     'package-lock.json',
     'tsconfig.json',
     'vite.config.ts',
+    'next.config.ts',
     'AGENTS.md',
     'PROJECT_ARCHITECTURE.md',
     'wrangler.toml',
@@ -30,6 +32,20 @@ def sync_dir(d):
         '_*',
         'cloudflared.exe',
         '_tunnel.log',
+        '.env*',
+        '.dev.vars*',
+        '.npmrc',
+        'lms-data.json',
+        '*.pem',
+        '*.key',
+        '*.p12',
+        '*.pfx',
+        '*.jks',
+        '*.ppk',
+        '*.crt',
+        '*.der',
+        '*.ovpn',
+        'id_rsa',
         '/XD',
         'node_modules',
         '.next',

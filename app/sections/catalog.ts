@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { resolveDept } from '@/lib/data/dept';
+import { apiData, apiFetch } from '@/lib/data/api';
 import {
   conflicts,
   type Catalog,
@@ -28,11 +29,8 @@ export function useNow(tickMs = 30000) {
 
 let cache: Promise<Catalog> | null = null;
 function load() {
-  cache ??= fetch('/api/courses')
-    .then((r) => {
-      if (!r.ok) throw new Error('catalog');
-      return r.json() as Promise<Catalog>;
-    })
+  cache ??= apiFetch('/api/courses')
+    .then((r) => apiData<Catalog>(r))
     .catch((e) => {
       cache = null;
       throw e;
@@ -62,11 +60,8 @@ export function useCatalog() {
 
 let actCache: Promise<ActivitySnapshot> | null = null;
 function loadActivities() {
-  actCache ??= fetch('/api/activities')
-    .then((r) => {
-      if (!r.ok) throw new Error('activities');
-      return r.json() as Promise<ActivitySnapshot>;
-    })
+  actCache ??= apiFetch('/api/activities')
+    .then((r) => apiData<ActivitySnapshot>(r))
     .catch((e) => {
       actCache = null;
       throw e;
@@ -95,11 +90,8 @@ export function useActivities() {
 
 let schCache: Promise<ScheduleSnapshot> | null = null;
 function loadSchedule() {
-  schCache ??= fetch('/api/schedule')
-    .then((r) => {
-      if (!r.ok) throw new Error('schedule');
-      return r.json() as Promise<ScheduleSnapshot>;
-    })
+  schCache ??= apiFetch('/api/schedule')
+    .then((r) => apiData<ScheduleSnapshot>(r))
     .catch((e) => {
       schCache = null;
       throw e;
@@ -128,11 +120,8 @@ export function useSchedule() {
 
 let deptRulesCache: Promise<DeptRulesSnapshot> | null = null;
 function loadDeptRules() {
-  deptRulesCache ??= fetch('/api/dept-rules')
-    .then((r) => {
-      if (!r.ok) throw new Error('dept-rules');
-      return r.json() as Promise<DeptRulesSnapshot>;
-    })
+  deptRulesCache ??= apiFetch('/api/dept-rules')
+    .then((r) => apiData<DeptRulesSnapshot>(r))
     .catch((e) => {
       deptRulesCache = null;
       throw e;

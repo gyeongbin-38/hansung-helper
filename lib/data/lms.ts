@@ -5,6 +5,10 @@
  */
 import type { Catalog, CourseSection } from './catalog';
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+export const kstDateNumber = (timestamp: number) =>
+  Math.floor((timestamp + KST_OFFSET_MS) / 86400000);
+
 export type LmsTask = {
   title: string;
   url?: string;
@@ -149,13 +153,13 @@ export type LmsPending = {
 /** now 기준 현재 학기 시작 — 3/1(1학기)·9/1(2학기) 중 가장 최근.
  *  카탈로그 학기 문자열을 모를 때의 일반적 기본값. */
 export function currentSemesterStart(now: number): number {
-  const d = new Date(now);
-  const y = d.getFullYear();
-  const sep = new Date(y, 8, 1).getTime();
+  const d = new Date(now + KST_OFFSET_MS);
+  const y = d.getUTCFullYear();
+  const sep = Date.UTC(y, 8, 1) - KST_OFFSET_MS;
   if (now >= sep) return sep;
-  const mar = new Date(y, 2, 1).getTime();
+  const mar = Date.UTC(y, 2, 1) - KST_OFFSET_MS;
   if (now >= mar) return mar;
-  return new Date(y - 1, 8, 1).getTime();
+  return Date.UTC(y - 1, 8, 1) - KST_OFFSET_MS;
 }
 
 /** 마감 시각이 before보다 이전이면 지난 학기 항목.
@@ -402,16 +406,36 @@ export function bingeQueue(
 /** 'YYYY-MM-DD HH:mm' 또는 범위 'a ~ b'의 마감(끝) 시각 — 파싱 불가면 null */
 export const parseDue = (due: string | null): number | null => {
   if (!due) return null;
-  // 'YYYY-MM-DD HH:mm' — range 'a ~ b' 형태면 끝(마감) 쪽 날짜가 매칭됨
-  const m = due.match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?\s*$/);
+  // A range such as 'a ~ b' uses its last date. Moodle dates are KST unless
+  // an explicit timezone is present, so parsing is independent of browser TZ.
+  const matches = [
+    ...due.matchAll(
+      /(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?/g,
+    ),
+  ];
+  const m = matches.at(-1);
   if (!m) return null;
-  return new Date(
-    +m[1],
-    +m[2] - 1,
-    +m[3],
-    +(m[4] ?? 23),
-    +(m[5] ?? 59),
-  ).getTime();
+  const year = +m[1],
+    month = +m[2],
+    day = +m[3],
+    hour = +(m[4] ?? 23),
+    minute = +(m[5] ?? 59);
+  const utc = Date.UTC(year, month - 1, day, hour, minute);
+  const check = new Date(utc);
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day ||
+    hour > 23 ||
+    minute > 59
+  )
+    return null;
+  if (m[6]) {
+    const time = `${m[1]}-${m[2]}-${m[3]}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}${m[6]}`;
+    const explicit = Date.parse(time);
+    return Number.isNaN(explicit) ? null : explicit;
+  }
+  return utc - KST_OFFSET_MS;
 };
 
 export type EnrolledMatch = {

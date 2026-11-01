@@ -5,12 +5,17 @@ on:
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
@@ -19,4 +24,17 @@ jobs:
       - run: npx oxlint app/ lib/
       - name: Unit tests
         run: python3 scripts/_run_tests.py
+      - name: Python operation tests
+        run: |
+          python3 tests/account-db.py
+          python3 tests/monitor-alert.test.py
+          python3 tests/verify-prod.test.py
       - run: npm run build
+      - name: Apply local D1 migrations twice
+        run: |
+          npm run d1:migrate:local
+          npm run d1:migrate:local
+      - name: Exercise local backup and restore
+        run: |
+          npm run d1:backup:local
+          npm run d1:restore:rehearsal -- .d1-backups/*.sql

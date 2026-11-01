@@ -3,9 +3,14 @@ import {
   accountView,
   database,
   hash,
+  ipRateLimitKey,
   json,
   limited,
+  migrateLegacyStudentAccount,
+  PayloadTooLargeError,
+  readTextLimited,
   sessionCookie,
+  studentAccountId,
   validOrigin,
   type AccountRow,
 } from '@/lib/server/account';
@@ -16,12 +21,8 @@ import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
-  if (Number(request.headers.get('content-length') || 0) > 4096)
-    return json({ error: '입력 크기를 초과했습니다.' }, 413);
   try {
-    const raw = await request.text();
-    if (raw.length > 4096)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+    const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
     if (!input || typeof input !== 'object')
       return json(
@@ -40,9 +41,10 @@ export async function POST(request: Request) {
         { error: '학번, 비밀번호와 정보 조회·보관 동의를 확인해 주세요.' },
         400,
       );
-    const id = await hash('hansung:' + input.studentId);
-    const ip = await hash(
-      'ip:' + (request.headers.get('cf-connecting-ip') || 'unknown'),
+    const id = await studentAccountId(input.studentId);
+    const legacyId = await hash('hansung:' + input.studentId);
+    const ip = await ipRateLimitKey(
+      request.headers.get('cf-connecting-ip') || 'unknown',
     );
     // 만료 행 정리는 핫패스에서 매번 돌리지 않는다 — 로그인의 ~5%만
     // 담당해 쓰기 부담을 줄이고, 인덱스가 있어 오래된 행 조회 비용도 작다.
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
       },
     });
     input.password = '';
+    await migrateLegacyStudentAccount(id, legacyId);
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
@@ -229,6 +232,8 @@ export async function POST(request: Request) {
       );
     return json(accountView(row!), 200, { 'Set-Cookie': sessionCookie(token) });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: '입력 크기를 초과했습니다.' }, 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')
