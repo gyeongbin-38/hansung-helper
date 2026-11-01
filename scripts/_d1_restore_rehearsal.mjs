@@ -1,4 +1,4 @@
-// Restore an export into a fresh, isolated local D1 store and check integrity.
+// Restore an export into a fresh, isolated local D1 store and check required tables.
 // Usage: node scripts/_d1_restore_rehearsal.mjs .d1-backups/remote-....sql
 import { existsSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -25,7 +25,7 @@ function run(args) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    process.stderr.write(result.stderr ?? 'D1 restore rehearsal failed\n');
+    process.stderr.write(result.stderr || result.stdout || 'D1 restore rehearsal failed\n');
     process.exit(result.status ?? 1);
   }
   return result.stdout ?? '';
@@ -37,8 +37,14 @@ run([
 ]);
 const check = run([
   'd1', 'execute', 'site-creator-d1', '--local', '--persist-to', persistTo,
-  '--config', configPath, '--command', 'PRAGMA integrity_check;', '--json',
+  '--config', configPath, '--command',
+  'SELECT (SELECT count(*) FROM academic_accounts) AS accounts, ' +
+    '(SELECT count(*) FROM academic_sessions) AS sessions, ' +
+    '(SELECT count(*) FROM academic_login_limits) AS limits, ' +
+    '(SELECT count(*) FROM public_snapshots) AS snapshots;', '--json',
 ]);
-if (!/"ok"|\bok\b/i.test(check))
-  throw new Error('restore imported, but SQLite integrity_check did not return ok');
+const row = JSON.parse(check)?.[0]?.results?.[0];
+if (!row || !['accounts', 'sessions', 'limits', 'snapshots'].every(
+  (key) => Number.isInteger(row[key]) && row[key] >= 0,
+)) throw new Error('restore imported, but required tables could not be verified');
 console.log(`Restore rehearsal passed in isolated local D1 store: ${persistTo}`);

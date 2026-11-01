@@ -34,3 +34,7 @@ jobs:
         run: |
           npm run d1:migrate:local
           npm run d1:migrate:local
+      - name: Exercise local backup and restore
+        run: |
+          npm run d1:backup:local
+          npm run d1:restore:rehearsal -- .d1-backups/*.sql
