@@ -21,6 +21,12 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--nt-ink);
+  text-decoration: none;
+}
+.auth-brand:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 4px;
+  border-radius: var(--nt-r-md);
 }
 .auth-brand svg {
   width: 40px;

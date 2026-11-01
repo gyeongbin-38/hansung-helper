@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { ArrowRight, Check, ArrowLeft, Plus, X } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
-import type { Catalog } from '@/lib/data/catalog';
 
 export type Profile = {
   name: string;
@@ -15,7 +15,12 @@ export type Profile = {
   planned: string[];
   /** 시간표 시나리오 A/B/C — 키 → 카탈로그 section.id 배열 */
   plans?: Record<string, string[]>;
-  completed: { code: string; name: string; category: string; credits: number }[];
+  completed: {
+    code: string;
+    name: string;
+    category: string;
+    credits: number;
+  }[];
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
@@ -51,9 +56,13 @@ export function SignIn({
     [mode, setMode] = useState<'signup' | 'login'>('signup');
   return (
     <div className="auth-page">
-      <div className="auth-brand">
+      <Link
+        className="auth-brand"
+        href="/"
+        aria-label="처음 로그인 화면으로 돌아가기"
+      >
         <Logo /> 한성 학사 도우미
-      </div>
+      </Link>
       <section className="auth-panel">
         <span className="auth-step-label">
           {mode === 'signup' ? '01 · 학교 계정 연결' : '다시 만나 반가워요'}
@@ -145,12 +154,11 @@ export function SignIn({
             <summary>어떤 정보를 연결하나요?</summary>
             <p>
               학교 로그인 확인과 함께 코스모스의 강의명·강의 링크와
-              종합정보시스템의 이수 과목·비교과 포인트·소속·입학연도·조회
-              시각을 가져옵니다. 이 정보와 입력한 프로필·선호·계획을 계정에
-              보관합니다. 비밀번호는 학교 인증 요청에만 사용하고 저장하지
-              않습니다. 학교 세션도 조회 후 보관하지 않습니다. 가입한 계정은
-              다음 로그인에도 이어지며, 설정에서 연결 정보와 계정 자료를
-              삭제할 수 있습니다.
+              종합정보시스템의 이수 과목·비교과 포인트·소속·입학연도·조회 시각을
+              가져옵니다. 이 정보와 입력한 프로필·선호·계획을 계정에 보관합니다.
+              비밀번호는 학교 인증 요청에만 사용하고 저장하지 않습니다. 학교
+              세션도 조회 후 보관하지 않습니다. 가입한 계정은 다음 로그인에도
+              이어지며, 설정에서 연결 정보와 계정 자료를 삭제할 수 있습니다.
             </p>
           </details>
           <label>
@@ -210,53 +218,62 @@ const questions = [
 export function Onboarding({
   profile,
   onSave,
-  catalog,
+  onReturnToLogin,
 }: {
   profile: Profile;
   onSave: (profile: Profile, complete: boolean) => Promise<boolean>;
-  /** 이수 과목 빠른 추가용 개설강의 카탈로그 — 로딩 중엔 없을 수 있다 */
-  catalog?: Catalog | null;
+  onReturnToLogin: () => void;
 }) {
-  const [stage, setStage] = useState(profile.onboardingStep || 0),
+  const [stage, setStage] = useState(
+      profile.onboardingStep === 1 ? 2 : profile.onboardingStep || 0,
+    ),
     [draft, setDraft] = useState(profile),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
-    [courseQ, setCourseQ] = useState('');
-  // 0 기본 정보 → 1 이수 현황 → 2..7 수업 성향 설문(6문항)
+    [error, setError] = useState('');
+  // 0 기본 정보 → 2..7 수업 성향 설문(기존 저장 인덱스 유지)
   const TOTAL = 8;
+  const visibleStep = stage === 0 ? 1 : stage;
+  const VISIBLE_TOTAL = 7;
   async function advance(next: Profile, complete = false) {
     setBusy(true);
     setError('');
     if (
       await onSave(
-        { ...next, onboardingStep: complete ? TOTAL : stage + 1 },
+        {
+          ...next,
+          onboardingStep: complete ? TOTAL : stage === 0 ? 2 : stage + 1,
+        },
         complete,
       )
     ) {
       setDraft(next);
-      if (!complete) setStage(stage + 1);
+      if (!complete) setStage(stage === 0 ? 2 : stage + 1);
     } else
       setError('저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요.');
     setBusy(false);
   }
   return (
     <div className="auth-page">
-      <div className="auth-brand">
+      <button
+        type="button"
+        className="auth-brand"
+        aria-label="처음 로그인 화면으로 돌아가기"
+        onClick={onReturnToLogin}
+        disabled={busy}
+      >
         <Logo /> 한성 학사 도우미
-      </div>
+      </button>
       <section className="auth-panel">
         <progress
           className="auth-progress"
-          aria-label={`초기 설정 ${stage + 1}/${TOTAL}`}
-          value={stage + 1}
-          max={TOTAL}
+          aria-label={`초기 설정 ${visibleStep}/${VISIBLE_TOTAL}`}
+          value={visibleStep}
+          max={VISIBLE_TOTAL}
         />
         <span className="auth-step-label">
           {stage === 0
             ? '02 · 기본 정보'
-            : stage === 1
-              ? '03 · 이수 현황'
-              : '04 · 수업 성향 ' + (stage - 1) + '/6'}
+            : '03 · 수업 성향 ' + (stage - 1) + '/6'}
         </span>
         <h1>
           {stage === 0 ? (
@@ -265,12 +282,6 @@ export function Onboarding({
               <br />
               하고 있나요?
             </>
-          ) : stage === 1 ? (
-            <>
-              지금까지 무엇을
-              <br />
-              이수했나요?
-            </>
           ) : (
             questions[stage - 2][0]
           )}
@@ -278,9 +289,7 @@ export function Onboarding({
         <p>
           {stage === 0
             ? '학교 계정 연결을 마쳤어요. 필요한 기본 정보만 알려주세요.'
-            : stage === 1
-              ? '졸업요건 계산과 과목 추천의 바탕이 됩니다. 지금 모르면 비워두고 나중에 졸업요건 화면에서 입력해도 됩니다.'
-              : '설문은 선택 사항이에요. 답변은 내 정보에서 언제든 바꿀 수 있어요.'}
+            : '설문은 선택 사항이에요. 답변은 내 정보에서 언제든 바꿀 수 있어요.'}
         </p>
         {stage === 0 ? (
           <form
@@ -363,162 +372,8 @@ export function Onboarding({
               </p>
             )}
             <button className="primary" disabled={busy}>
-              {busy ? '저장 중…' : '다음 — 이수 현황'}
+              {busy ? '저장 중…' : '다음 — 수업 성향'}
               <ArrowRight size={18} />
-            </button>
-          </form>
-        ) : stage === 1 ? (
-          <form
-            className="auth-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const fields = new FormData(e.currentTarget);
-              await advance({
-                ...draft,
-                credits: ((fields.get('credits') as string) || '').trim(),
-                points: ((fields.get('points') as string) || '').trim(),
-              });
-            }}
-          >
-            <label>
-              총 이수학점 (선택)
-              <input
-                name="credits"
-                type="number"
-                min="0"
-                max="200"
-                defaultValue={draft.credits || ''}
-                placeholder="예: 84"
-                disabled={busy}
-              />
-            </label>
-            <label>
-              비교과 포인트 (선택)
-              <input
-                name="points"
-                type="number"
-                min="0"
-                max="3000"
-                defaultValue={draft.points || ''}
-                placeholder="hsportal 마이페이지에서 확인"
-                disabled={busy}
-              />
-            </label>
-            {catalog ? (
-              <div className="ob-courses">
-                <span className="ob-courses-label">
-                  이수한 과목 (선택) — {catalog.semester} 개설강의 기준
-                </span>
-                {(draft.completed ?? []).length > 0 && (
-                  <div className="ob-completed">
-                    {(draft.completed ?? []).map((c, i) => (
-                      <span className="badge" key={c.code + i}>
-                        {c.name} · {c.credits}학점
-                        <button
-                          type="button"
-                          className="icon"
-                          aria-label={c.name + ' 제거'}
-                          onClick={() =>
-                            setDraft({
-                              ...draft,
-                              completed: (draft.completed ?? []).filter(
-                                (_, j) => j !== i,
-                              ),
-                            })
-                          }
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <input
-                  placeholder="과목명 검색 — 예: 자료구조"
-                  value={courseQ}
-                  onChange={(e) => setCourseQ(e.target.value)}
-                  disabled={busy}
-                  aria-label="이수 과목 검색"
-                />
-                {courseQ.trim().length >= 2 && (
-                  <div className="ob-course-hits">
-                    {catalog.sections
-                      .filter(
-                        (s) =>
-                          !(draft.completed ?? []).some(
-                            (c) => c.code === s.code,
-                          ) &&
-                          (s.name + s.code + s.dept).includes(courseQ.trim()),
-                      )
-                      .filter(
-                        (s, i, arr) =>
-                          arr.findIndex((x) => x.code === s.code) === i,
-                      )
-                      .slice(0, 6)
-                      .map((s) => (
-                        <button
-                          type="button"
-                          className="ob-course-hit"
-                          key={s.code}
-                          onClick={() => {
-                            setDraft({
-                              ...draft,
-                              completed: [
-                                ...(draft.completed ?? []),
-                                {
-                                  code: s.code,
-                                  name: s.name,
-                                  category: s.category,
-                                  credits: s.credits,
-                                },
-                              ],
-                            });
-                            setCourseQ('');
-                          }}
-                        >
-                          <b>{s.name}</b>
-                          <small>
-                            {s.dept} · {s.credits}학점
-                          </small>
-                          <Plus size={14} />
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="meta">
-                개설강의 목록을 불러오는 중입니다 — 이수 과목은 졸업요건
-                화면에서도 추가할 수 있어요.
-              </p>
-            )}
-            {error && (
-              <p className="auth-error" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="auth-actions">
-              <button
-                type="button"
-                className="secondary"
-                disabled={busy}
-                onClick={() => setStage(0)}
-              >
-                <ArrowLeft size={17} />
-                이전
-              </button>
-              <button className="primary" disabled={busy}>
-                {busy ? '저장 중…' : '다음 — 수업 성향'}
-                <ArrowRight size={18} />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="link"
-              disabled={busy}
-              onClick={() => void advance(draft)}
-            >
-              지금은 건너뛸게요
             </button>
           </form>
         ) : (
@@ -557,7 +412,7 @@ export function Onboarding({
               <button
                 className="secondary"
                 disabled={busy}
-                onClick={() => setStage(stage - 1)}
+                onClick={() => setStage(stage === 2 ? 0 : stage - 1)}
               >
                 <ArrowLeft size={17} />
                 이전

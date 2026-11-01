@@ -59,7 +59,7 @@ export function Sidebar({
     <>
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
         <div className="sidebar-head">
-          <button className="brand" onClick={() => go('home')}>
+          <button className="brand" aria-label="한성 학사 도우미 홈으로" onClick={() => go('home')}>
             <span className="brand-icon">
               <Logo size={20} />
             </span>
@@ -173,6 +173,14 @@ export function Topbar({
         onClick={onMenu}
       >
         <Menu />
+      </button>
+      <button
+        className="icon mobile mobile-home"
+        aria-label="한성 학사 도우미 홈으로"
+        title="홈으로"
+        onClick={() => go('home')}
+      >
+        <Logo size={21} />
       </button>
       {onExpandSide && (
         <button
@@ -320,7 +328,7 @@ export function AccountBar({
     );
   return (
     <div className="demo-note">
-      <span>체험용 예시 · 저장 내용은 이 브라우저에만 남습니다.</span>
+      <span>체험 모드 · 저장 내용은 이 브라우저에만 남습니다.</span>
       <button className="primary" onClick={onConnect}>
         학교 계정 연결 <ArrowRight size={16} />
       </button>
