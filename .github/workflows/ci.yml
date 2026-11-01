@@ -39,3 +39,4 @@ jobs:
           npm run d1:backup:local
           grep -q 'academic_accounts' .d1-backups/*.sql
           grep -q 'public_snapshots' .d1-backups/*.sql
+          npm run d1:restore:rehearsal -- .d1-backups/*.sql

@@ -38,7 +38,9 @@ database:
 npm run d1:restore:rehearsal -- .d1-backups/remote-<timestamp>.sql
 ```
 
-The rehearsal imports into a fresh, isolated local D1 store and runs
-`PRAGMA integrity_check`. It leaves that store and the export in the ignored
+The rehearsal imports into a fresh, isolated local D1 store and checks that the
+required account and snapshot tables can be read. D1 does not permit
+`PRAGMA integrity_check`, so this is not a full SQLite integrity check. It leaves
+that store and the export in the ignored
 backup directory for inspection. This repository change does not run a
 production export, migration, or restore; those operations stay owner-only.
