@@ -424,11 +424,7 @@ button.event-line.as-link > svg {
   border-top: 1px solid var(--nt-hairline-soft);
 }
 .notif-item.unread {
-  background: color-mix(
-    in srgb,
-    var(--nt-tint-sky) 42%,
-    var(--nt-canvas)
-  );
+  background: color-mix(in srgb, var(--nt-tint-sky) 42%, var(--nt-canvas));
 }
 .notif-item.unread::after {
   content: '';
@@ -453,11 +449,7 @@ button.event-line.as-link > svg {
 }
 .notif-item.unread .notif-ico {
   background: var(--nt-tint-sky);
-  border-color: color-mix(
-    in srgb,
-    var(--nt-primary-deep) 14%,
-    transparent
-  );
+  border-color: color-mix(in srgb, var(--nt-primary-deep) 14%, transparent);
   color: var(--nt-primary-deep);
 }
 .notif-body {
@@ -546,19 +538,23 @@ button.event-line.as-link > svg {
   }
 }
 
-/* The dashboard reads like a planner: deadlines first, supporting details alongside. */
-.home-dashboard {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
-  align-items: start;
-  gap: 32px;
-}
+/* The dashboard reads like a planner: priorities above, supporting context below. */
+.home-dashboard,
 .home-primary,
 .home-secondary {
   display: grid;
   align-content: start;
   min-width: 0;
   gap: 28px;
+}
+.home-dashboard {
+  gap: 32px;
+}
+.home-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+  align-items: start;
+  gap: 32px;
 }
 .home-dashboard .section-heading {
   margin: 0 0 16px;
@@ -591,15 +587,14 @@ button.event-line.as-link > svg {
   background: transparent;
   padding: 8px 12px 8px 0;
 }
-.home-primary .tasks {
+.home-tasks .tasks {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  overflow: hidden;
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   background: var(--nt-canvas);
 }
-.home-primary .task.card {
+.home-tasks .task.card {
   min-width: 0;
   padding: 16px 20px;
   border: 0;
@@ -607,22 +602,34 @@ button.event-line.as-link > svg {
   background: transparent;
   box-shadow: none;
 }
-.home-primary .task.card + .task.card {
+.home-tasks .task.card:first-child {
+  border-radius: var(--nt-r-lg) var(--nt-r-lg) 0 0;
+}
+.home-tasks .task.card:last-child {
+  border-radius: 0 0 var(--nt-r-lg) var(--nt-r-lg);
+}
+.home-tasks .task.card:only-child {
+  border-radius: var(--nt-r-lg);
+}
+.home-tasks .task.card + .task.card {
   border-top: 1px solid var(--nt-hairline-soft);
 }
-.home-primary .task.card:hover {
+.home-tasks .task.card:hover {
   background: var(--nt-surface);
 }
-.home-primary .task-num {
-  min-width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--nt-steel);
+.home-tasks .task.card:focus-visible {
+  position: relative;
+  z-index: 1;
 }
-.home-primary .task > span:nth-child(2) {
+.home-tasks .task-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--nt-primary);
+  box-shadow: 0 0 0 4px var(--nt-tint-sky);
+}
+.home-tasks .task > span:nth-child(2) {
   min-width: 0;
 }
 .home-secondary > * {
@@ -632,57 +639,62 @@ button.event-line.as-link > svg {
 .home-secondary > .card.pad {
   padding: 20px 24px;
 }
-.home-secondary .stats {
-  grid-template-columns: minmax(0, 1fr);
+.home-status .stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   background: var(--nt-canvas);
 }
-.home-secondary .stat.card {
+.home-status .stat.card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 16px;
-  padding: 16px 20px;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px 20px;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
-.home-secondary .stat.card + .stat.card {
-  border-top: 1px solid var(--nt-hairline-soft);
+.home-status .stat.card + .stat.card {
+  border-left: 1px solid var(--nt-hairline-soft);
 }
-.home-secondary .stat-tag {
+.home-status .stat-tag {
   justify-self: start;
   padding: 0;
   background: transparent;
   color: var(--nt-slate);
 }
-.home-secondary .stat strong {
-  margin: 0;
-  font-size: 18px;
-  text-align: right;
+.home-status .stat strong {
+  margin: 3px 0 0;
+  font-size: 20px;
 }
-.home-secondary .stat small {
-  grid-column: 1 / -1;
-}
-.home-secondary .bottom-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
+.home-dashboard > .bottom-grid {
   margin: 0;
 }
-.home-secondary .bottom-grid .section-heading .link {
+.home-dashboard > .bottom-grid .section-heading .link {
   white-space: nowrap;
 }
-@media (max-width: 1199px) {
-  .home-dashboard {
+@media (max-width: 1359px) {
+  .home-top {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
   }
 }
+@media (max-width: 899px) and (min-width: 768px) {
+  .home-status .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-status .stat.card:nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--nt-hairline-soft);
+    border-left: 0;
+  }
+}
 @media (max-width: 767px) {
   .home-dashboard,
+  .home-top,
   .home-primary,
   .home-secondary {
     gap: 24px;
@@ -693,10 +705,20 @@ button.event-line.as-link > svg {
   .home-secondary > .card.pad {
     padding: 16px 20px;
   }
-  .home-primary .task.card {
+  .home-tasks .tasks,
+  .home-status .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-tasks .task.card {
     padding: 16px;
   }
-  .home-secondary .stat strong {
+  .home-status .stat.card + .stat.card {
+    border-top: 1px solid var(--nt-hairline-soft);
+  }
+  .home-status .stat.card + .stat.card {
+    border-left: 0;
+  }
+  .home-status .stat strong {
     font-size: 16px;
   }
 }
