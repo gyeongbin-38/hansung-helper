@@ -59,7 +59,7 @@ export function Sidebar({
     <>
       <aside className={'sidebar ' + (drawer ? 'open' : '')}>
         <div className="sidebar-head">
-          <button className="brand" onClick={() => go('home')}>
+          <button className="brand" aria-label="한성 학사 도우미 홈으로" onClick={() => go('home')}>
             <span className="brand-icon">
               <Logo size={20} />
             </span>
@@ -90,6 +90,7 @@ export function Sidebar({
               )}
               <button
                 className={section === key ? 'selected' : ''}
+                aria-current={section === key ? 'page' : undefined}
                 aria-label={name}
                 title={name}
                 onClick={() => go(key)}
@@ -174,6 +175,14 @@ export function Topbar({
       >
         <Menu />
       </button>
+      <button
+        className="icon mobile mobile-home"
+        aria-label="한성 학사 도우미 홈으로"
+        title="홈으로"
+        onClick={() => go('home')}
+      >
+        <Logo size={21} />
+      </button>
       {onExpandSide && (
         <button
           className="icon side-expand"
@@ -222,7 +231,7 @@ export function Topbar({
   );
 }
 
-/** 아이브로우 — 홈은 오늘 날짜(플래너 페이지 넘기는 느낌), 나머지는 네비 그룹 */
+/** 제목 아래 문맥 — 홈은 오늘 날짜, 나머지는 네비 그룹 */
 const NAV_GROUP_OF: Record<string, string> = {
   timetable: '수업·계획',
   lms: '수업·계획',
@@ -253,14 +262,16 @@ export function PageHeading({
   });
   return (
     <div className="page-heading">
-      <div>
-        <div className="eyebrow">
-          {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
-        </div>
+      <div className="page-heading-copy">
         <h1>{section === 'home' ? `${name}님, 반가워요.` : label}</h1>
+        <div className="heading-context">
+          <span>
+            {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
+          </span>
+          <span>2026학년도 2학기</span>
+        </div>
       </div>
       <div className="page-heading-side">
-        <span className="date-label">2026학년도 2학기</span>
         {onSurvey && (
           <button
             className="secondary survey-trigger"
@@ -320,7 +331,7 @@ export function AccountBar({
     );
   return (
     <div className="demo-note">
-      <span>체험용 예시 · 저장 내용은 이 브라우저에만 남습니다.</span>
+      <span>체험 모드 · 저장 내용은 이 브라우저에만 남습니다.</span>
       <button className="primary" onClick={onConnect}>
         학교 계정 연결 <ArrowRight size={16} />
       </button>

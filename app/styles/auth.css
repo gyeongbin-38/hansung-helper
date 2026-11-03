@@ -21,6 +21,12 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--nt-ink);
+  text-decoration: none;
+}
+.auth-brand:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 4px;
+  border-radius: var(--nt-r-md);
 }
 .auth-brand svg {
   width: 40px;
@@ -73,7 +79,6 @@
 .auth-progress::-webkit-progress-value {
   background: var(--nt-primary);
   border-radius: var(--nt-r-pill);
-  transition: width 0.3s var(--nt-ease);
 }
 .auth-progress::-moz-progress-bar {
   background: var(--nt-primary);
@@ -97,7 +102,7 @@
   width: 100%;
   min-height: 48px;
   padding: 12px 16px;
-  border: 1px solid var(--nt-hairline);
+  border: 1px solid var(--nt-muted);
   border-radius: var(--nt-r-md);
   background: var(--nt-canvas);
   color: var(--nt-ink);

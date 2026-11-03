@@ -65,7 +65,6 @@
 .progress-track::-webkit-progress-value {
   background: var(--nt-primary);
   border-radius: var(--nt-r-pill);
-  transition: width 0.45s var(--nt-ease);
 }
 .progress-track::-moz-progress-bar {
   background: var(--nt-primary);
@@ -404,6 +403,11 @@
 .settings .event-line > svg {
   color: var(--nt-stone);
   flex-shrink: 0;
+}
+.settings .event-line small a {
+  color: var(--nt-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .settings .between {
   flex-wrap: wrap;

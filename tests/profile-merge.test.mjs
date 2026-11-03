@@ -181,3 +181,93 @@ test('같은 탭 연속 쓰기 — 내 변경이 직전 저장(remote) 위에 �
   const merged = mergeProfile(s0, staleNext, synced);
   assert.deepEqual(new Set(merged.saved), new Set(['a1', 'a2', 'a3']));
 });
+
+test('온보딩 단계 0→2 변경을 원격 수집 결과와 함께 보존한다', () => {
+  const initial = d({ onboardingStep: 0 });
+  const merged = mergeProfile(
+    initial,
+    { ...initial, onboardingStep: 2 },
+    {
+      ...initial,
+      lms: { fetchedAt: 'remote-lms' },
+      info: { fetchedAt: 'remote-info', name: '수집 이름' },
+      rev: 6,
+    },
+  );
+
+  assert.equal(merged.onboardingStep, 2);
+  assert.equal(merged.lms.fetchedAt, 'remote-lms');
+  assert.equal(merged.info.fetchedAt, 'remote-info');
+  assert.equal(merged.rev, 6);
+});
+
+test('기존 온보딩 단계 1→2 및 완료 단계 8 변경을 병합한다', () => {
+  const stepOne = d({ onboardingStep: 1 });
+  assert.equal(
+    mergeProfile(stepOne, { ...stepOne, onboardingStep: 2 }, stepOne)
+      .onboardingStep,
+    2,
+  );
+
+  const stepTwo = d({ onboardingStep: 2 });
+  assert.equal(
+    mergeProfile(stepTwo, { ...stepTwo, onboardingStep: 8 }, stepTwo)
+      .onboardingStep,
+    8,
+  );
+});
+
+test('학기와 졸업 목표의 로컬 변경은 충돌 시 우선하고 다른 필드는 회귀하지 않는다', () => {
+  const initial = d({
+    semester: '2026-1',
+    graduationTarget: '2028-1',
+    onboardingStep: 2,
+  });
+  const merged = mergeProfile(
+    initial,
+    {
+      ...initial,
+      semester: '2026-2',
+      graduationTarget: '2027-2',
+    },
+    {
+      ...initial,
+      semester: '2025-2',
+      graduationTarget: '2029-1',
+      dept: '원격 변경 학과',
+      saved: ['a1', 'a3'],
+      lms: { fetchedAt: 'remote-new' },
+      rev: 9,
+    },
+  );
+
+  assert.equal(merged.semester, '2026-2');
+  assert.equal(merged.graduationTarget, '2027-2');
+  assert.equal(merged.onboardingStep, 2);
+  assert.equal(merged.dept, '원격 변경 학과');
+  assert.deepEqual(merged.saved, ['a1', 'a3']);
+  assert.equal(merged.lms.fetchedAt, 'remote-new');
+  assert.equal(merged.rev, 9);
+});
+
+test('로컬에서 바꾸지 않은 온보딩 스칼라는 원격 변경을 따른다', () => {
+  const initial = d({
+    semester: '2026-1',
+    graduationTarget: '2028-1',
+    onboardingStep: 1,
+  });
+  const merged = mergeProfile(
+    initial,
+    { ...initial },
+    {
+      ...initial,
+      semester: '2026-2',
+      graduationTarget: '2027-2',
+      onboardingStep: 8,
+    },
+  );
+
+  assert.equal(merged.semester, '2026-2');
+  assert.equal(merged.graduationTarget, '2027-2');
+  assert.equal(merged.onboardingStep, 8);
+});

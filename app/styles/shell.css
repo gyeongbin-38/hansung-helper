@@ -3,7 +3,7 @@
 .shell {
   min-height: 100dvh;
 }
-/* ---- sidebar: Notion-style quiet nav on gray surface ---- */
+/* ---- sidebar: quiet blue-gray navigation with a clear active state ---- */
 .sidebar {
   position: fixed;
   width: 240px;
@@ -13,7 +13,7 @@
   z-index: 30;
   display: flex;
   flex-direction: column;
-  padding: 14px 10px 12px;
+  padding: 16px 10px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -28,7 +28,7 @@
 }
 .side-collapse {
   flex-shrink: 0;
-  color: var(--nt-stone);
+  color: var(--nt-steel);
 }
 .brand {
   display: flex;
@@ -39,27 +39,26 @@
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: var(--nt-r-md);
   white-space: nowrap;
   color: var(--nt-ink);
   transition: background-color 0.15s ease;
 }
 .brand:hover {
-  background: var(--nt-tint-gray);
+  background: var(--nt-surface-soft);
 }
 .brand small {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-top: 3px;
-  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+  font-weight: 500;
   color: var(--nt-stone);
 }
 .brand-icon {
-  background: var(--nt-navy);
-  color: var(--nt-on-dark);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
   border-radius: var(--nt-r-md);
   width: 32px;
   height: 32px;
@@ -68,12 +67,11 @@
   flex-shrink: 0;
 }
 .nav-caption {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--nt-stone);
-  margin: 20px 10px 6px;
+  margin: 18px 10px 6px;
 }
 nav {
   display: grid;
@@ -86,8 +84,9 @@ nav button,
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 6px 10px;
-  border-radius: var(--nt-r-sm);
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--nt-r-md);
   font-size: 14px;
   font-weight: 400;
   color: var(--nt-slate);
@@ -99,19 +98,30 @@ nav button svg,
 .sidebar-bottom > button svg {
   color: var(--nt-steel);
   flex-shrink: 0;
+  stroke-width: 1.8;
 }
 nav button:hover,
 .sidebar-bottom > button:hover {
-  background: var(--nt-tint-gray);
+  background: var(--nt-surface-soft);
   color: var(--nt-charcoal);
 }
 nav button.selected {
-  background: var(--nt-hairline);
-  color: var(--nt-ink);
-  font-weight: 500;
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
+  font-weight: 600;
 }
 nav button.selected svg {
-  color: var(--nt-ink);
+  color: var(--nt-primary);
+  stroke-width: 2.1;
+}
+.brand:focus-visible,
+nav button:focus-visible,
+.sidebar-bottom > button:focus-visible,
+.topbar button:focus-visible,
+.account-bar button:focus-visible,
+.demo-note button:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 2px;
 }
 .tiny {
   font-size: 10px;
@@ -193,21 +203,13 @@ nav button.selected svg {
     display: none;
   }
 }
-@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
-  .sidebar {
-    transition: width 0.2s var(--nt-ease);
-  }
-  .workspace {
-    transition: margin-left 0.2s var(--nt-ease);
-  }
-}
 /* ---- workspace / topbar ---- */
 .workspace {
   margin-left: 240px;
 }
 .topbar {
   height: 56px;
-  background: var(--nt-paper);
+  background: var(--nt-canvas);
   border-bottom: 1px solid var(--nt-hairline);
   display: flex;
   align-items: center;
@@ -217,7 +219,7 @@ nav button.selected svg {
   top: 0;
   z-index: 20;
 }
-/* fake quick-find: filled surface, muted icon, kbd chip */
+/* Search stays quiet until focus, then uses the same blue as selected navigation. */
 .global-search {
   display: flex;
   align-items: center;
@@ -225,20 +227,22 @@ nav button.selected svg {
   width: 300px;
   height: 32px;
   padding: 0 6px 0 10px;
-  color: var(--nt-stone);
+  color: var(--nt-steel);
   background: var(--nt-surface);
-  border: 1px solid transparent;
+  border: 1px solid var(--nt-muted);
   border-radius: var(--nt-r-md);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
 }
 .global-search:hover {
-  border-color: var(--nt-hairline);
+  background: var(--nt-surface-soft);
+  border-color: var(--nt-muted);
 }
 .global-search:focus-within {
   background: var(--nt-canvas);
-  border-color: var(--nt-hairline-strong);
+  border-color: var(--nt-primary);
+  box-shadow: 0 0 0 3px var(--nt-tint-sky);
 }
 .global-search input {
   background: none;
@@ -248,9 +252,23 @@ nav button.selected svg {
   padding: 0;
   color: var(--nt-ink);
 }
+.global-search input:focus {
+  outline: 0;
+}
+.global-search input::placeholder {
+  color: var(--nt-steel);
+  opacity: 1;
+}
+.topbar .global-search {
+  min-width: 0;
+}
+.topbar .mobile-home {
+  flex-shrink: 0;
+  color: var(--nt-primary);
+}
 .global-search kbd {
   border: 1px solid var(--nt-hairline);
-  background: var(--nt-canvas);
+  background: var(--nt-surface-soft);
   border-radius: var(--nt-r-xs);
   padding: 0 5px;
   font-family: inherit;
@@ -261,6 +279,21 @@ nav button.selected svg {
 .notification {
   position: relative;
 }
+.topbar > button.icon,
+.topbar > button.avatar {
+  color: var(--nt-steel);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.topbar > button.icon:hover,
+.topbar > button.avatar:hover {
+  background: var(--nt-surface);
+  color: var(--nt-primary-deep);
+}
+.topbar > button.icon svg {
+  stroke-width: 1.8;
+}
 .notification i {
   position: absolute;
   right: 8px;
@@ -269,7 +302,7 @@ nav button.selected svg {
   height: 7px;
   background: var(--nt-primary);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--nt-paper);
+  box-shadow: 0 0 0 2px var(--nt-canvas);
 }
 main {
   max-width: 1280px;
@@ -280,32 +313,28 @@ main {
 .page-heading {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 24px;
-  margin-bottom: 26px;
-  padding-bottom: 20px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--nt-hairline-soft);
 }
-.eyebrow {
-  font-size: 11px;
+.page-heading-copy {
+  min-width: 0;
+}
+.heading-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
   color: var(--nt-stone);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  margin-top: 8px;
 }
 .page-heading h1 {
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-.date-label {
-  font-size: 13px;
-  color: var(--nt-stone);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 3px;
-  white-space: nowrap;
 }
 .page-heading-side {
   display: flex;
@@ -330,11 +359,19 @@ button.survey-trigger {
   min-width: 0;
 }
 .account-id .avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 .account-id b {
   font-size: 14px;
+}
+.account-bar {
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: var(--nt-r-md);
+}
+.account-bar small {
+  margin-top: 1px;
 }
 /* purple CTA inside the demo note beats the quiet .demo-note button */
 .demo-note button.primary {
@@ -560,14 +597,10 @@ footer {
   .cookie {
     left: calc(50% + 105px);
   }
-  .date-label {
-    display: none;
-  }
 }
 @media (max-width: 767px) {
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.2s var(--nt-ease);
     width: 255px;
   }
   .sidebar.open {
@@ -607,7 +640,21 @@ footer {
     font-size: 26px;
   }
   .page-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
     margin-bottom: 20px;
+  }
+  .page-heading-copy {
+    flex: 1 1 100%;
+  }
+  .page-heading-side {
+    align-items: flex-start;
+    flex: 1 1 100%;
+  }
+  button.survey-trigger {
+    width: 100%;
+    justify-content: center;
   }
   .demo-note {
     font-size: 13px;
@@ -644,5 +691,11 @@ footer {
   .event-line {
     gap: 10px;
     flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 767px) {
+  .sidebar {
+    transition: transform 0.2s var(--nt-ease);
   }
 }

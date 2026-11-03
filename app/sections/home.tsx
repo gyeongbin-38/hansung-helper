@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CalendarDays,
   ArrowUpRight,
@@ -28,6 +28,47 @@ import { useActivities, useNow, useSchedule } from './catalog';
 type Planned = CourseSection[];
 
 type Urgent = { label: string; desc: string; route: string };
+
+function activityDateLabel(value: string, now: number) {
+  const [year, month, day] = value.slice(0, 10).split('-');
+  const yearLabel =
+    Number(year) === new Date(now).getFullYear() ? '' : `${Number(year)}년 `;
+  return `${yearLabel}${Number(month)}월 ${Number(day)}일`;
+}
+
+function ActivityCover({ src }: { src: string }) {
+  const [imageState, setImageState] = useState<{
+    src: string;
+    status: 'loading' | 'loaded' | 'failed';
+  }>({ src, status: 'loading' });
+
+  useEffect(() => {
+    let active = true;
+    const image = new Image();
+    image.onload = () => {
+      if (active) setImageState({ src, status: 'loaded' });
+    };
+    image.onerror = () => {
+      if (active) setImageState({ src, status: 'failed' });
+    };
+    image.src = src;
+    return () => {
+      active = false;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, [src]);
+
+  const status = imageState.src === src ? imageState.status : 'loading';
+  if (status === 'failed') return null;
+  return (
+    <span
+      className="hc-cover"
+      style={status === 'loaded' ? { backgroundImage: `url(${src})` } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
 
 /** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동 + 필수 입력.
  *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
@@ -199,6 +240,13 @@ export function Home({
     .slice(0, 5);
   const idx = Math.min(slide, Math.max(slides.length - 1, 0));
   const cur = slides[idx];
+  const curStatus = cur ? liveStatus(cur, now) : null;
+  const applicationPeriod =
+    curStatus?.status === 'upcoming' && cur?.applyStart
+      ? `${activityDateLabel(cur.applyStart, now)}부터 신청`
+      : cur?.applyEnd
+        ? `${activityDateLabel(cur.applyEnd, now)}까지 신청`
+        : null;
   const schoolNext = (sched?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 3);
@@ -273,244 +321,239 @@ export function Home({
     (s) => conflicts(s, planned).length,
   ).length;
   return (
-    <>
-      <TodayStrip
-        lmsDue={lmsDue}
-        acts={acts?.items ?? []}
-        saved={data.saved}
-        missingProfile={missingProfile}
-        missingLabel={missingLabel}
-        profileRoute={profileRoute}
-        now={now}
-        go={go}
-      />
-      {week.length > 0 && (
-        <section>
-          <div className="section-heading">
-            <h2>
-              이번 주 마감 <span className="count">{week.length}</span>
-            </h2>
-            <button className="link" onClick={() => go('lms')}>
-              수업 현황 <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="card pad week-list">
-            {week.slice(0, 5).map((t, i) => (
-              <button
-                className="event-line as-link"
-                key={i}
-                onClick={() => go(t.route)}
-              >
-                <span className="event-date">
-                  <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
-                  <small>{t.kind}</small>
-                </span>
-                <div>
-                  <b>
-                    {t.url ? (
-                      <a
-                        className="link title-link"
-                        href={t.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {t.title}
-                      </a>
-                    ) : (
-                      t.title
-                    )}
-                  </b>
-                  {t.sub && <small>{t.sub}</small>}
-                </div>
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </button>
-            ))}
-            {week.length > 5 && (
-              <p className="meta">외 {week.length - 5}건</p>
-            )}
-            <p className="meta">
-              {lmsSnap
-                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
-                : ''}
-              {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
-                <>
-                  {' '}
-                  <span className="badge orange">
-                    {staleLabel(lmsSnap.fetchedAt, now, 7)}
-                  </span>
-                </>
-              )}
-              {lmsSnap && acts ? ' · ' : ''}
-              {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
-              {acts && staleLabel(acts.fetchedAt, now) && (
-                <>
-                  {' '}
-                  <span className="badge orange">
-                    {staleLabel(acts.fetchedAt, now)}
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
-        </section>
-      )}
-      {!week.length && lmsSnap != null && lmsPending > 0 && (
-        <section>
-          <div className="card pad">
-            <p className="meta">
-              7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
-              있어요.
-            </p>
-          </div>
-        </section>
-      )}
-      <section>
-        <div className="section-heading">
-          <h2>
-            내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
-          </h2>
-        </div>
-        {shownTasks.length ? (
-          <div className="tasks">
-            {shownTasks.map(([n, t, d, r]) => (
-              <button className="task card" key={t} onClick={() => go(r)}>
-                <span className="task-num">{n}</span>
-                <span>
-                  <b>{t}</b>
-                  <small>{d}</small>
-                </span>
-                <ArrowUpRight size={19} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-small card">
-            <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
-          </div>
-        )}
-      </section>
-      <section className="card pad">
-        <div className="section-heading">
-          <h2>다음 학기 계획</h2>
-          <button className="link" onClick={() => go('timetable')}>
-            시간표 <ArrowRight size={16} />
-          </button>
-        </div>
-        {planned.length ? (
-          <>
-            <div className="plan-stats">
-              <div>
-                <b>{planned.length}</b>
-                <small>담은 과목</small>
+    <div className="home-dashboard">
+      <div className="home-top">
+        <div className="home-primary">
+          <TodayStrip
+            lmsDue={lmsDue}
+            acts={acts?.items ?? []}
+            saved={data.saved}
+            missingProfile={missingProfile}
+            missingLabel={missingLabel}
+            profileRoute={profileRoute}
+            now={now}
+            go={go}
+          />
+          {week.length > 0 && (
+            <section>
+              <div className="section-heading">
+                <h2>
+                  이번 주 마감 <span className="count">{week.length}</span>
+                </h2>
+                <button className="link" onClick={() => go('lms')}>
+                  수업 현황 <ArrowRight size={16} />
+                </button>
               </div>
-              <div>
-                <b>{plannedCredits}</b>
-                <small>계획 학점</small>
-              </div>
-              <div>
-                <b className={conflictCount ? 'warn' : ''}>
-                  {conflictCount ? `${conflictCount}건` : '없음'}
-                </b>
-                <small>시간 충돌</small>
-              </div>
-            </div>
-            <div className="plan-list">
-              {planned.slice(0, 4).map((s) => (
-                <span className="badge" key={s.id}>
-                  {s.name} {s.section}
-                </span>
-              ))}
-              {planned.length > 4 && (
-                <span className="badge">외 {planned.length - 4}과목</span>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="meta">
-              아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
-              학기를 미리 그려보세요.
-            </p>
-            <button className="link" onClick={() => go('courses')}>
-              과목 둘러보기 <ArrowUpRight size={15} />
-            </button>
-          </>
-        )}
-      </section>
-      {acts && slides.length > 0 && cur && (
-        <section
-          className="hero-carousel"
-          aria-roledescription="carousel"
-          aria-label="지금 신청할 수 있는 비교과 프로그램"
-        >
-          <div className="hc-slide" key={cur.id}>
-            {cur.cover && (
-              <span
-                className="hc-cover"
-                style={{ backgroundImage: `url(${cur.cover})` }}
-                aria-hidden="true"
-              />
-            )}
-            <div className="hc-body">
-              <span className="badge blue">
-                {liveStatus(cur, now).label}
-                {liveStatus(cur, now).dday
-                  ? ' · ' + liveStatus(cur, now).dday
-                  : ''}
-                {cur.points != null ? ` · ${cur.points}P` : ''}
-              </span>
-              <h3>{cur.title}</h3>
-              <p>
-                {cur.dept}
-                {cur.applyEnd
-                  ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
-                  : ''}
-              </p>
-              <button
-                className="link"
-                onClick={() => go('activities/' + cur.id)}
-              >
-                자세히 보기 <ArrowUpRight size={15} />
-              </button>
-            </div>
-          </div>
-          {slides.length > 1 && (
-            <div className="hc-nav">
-              <button
-                className="hc-arrow"
-                aria-label="이전 프로그램"
-                onClick={() =>
-                  setSlide((idx - 1 + slides.length) % slides.length)
-                }
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <div className="hc-dots">
-                {slides.map((s, j) => (
+              <div className="card pad week-list">
+                <p className="meta week-source">
+                  {lmsSnap
+                    ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
+                    : ''}
+                  {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
+                    <span className="badge orange">
+                      {staleLabel(lmsSnap.fetchedAt, now, 7)}
+                    </span>
+                  )}
+                  {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
+                  {acts && staleLabel(acts.fetchedAt, now) && (
+                    <span className="badge orange">
+                      {staleLabel(acts.fetchedAt, now)}
+                    </span>
+                  )}
+                </p>
+                {week.slice(0, 5).map((t, i) => (
                   <button
-                    key={s.id}
-                    aria-label={`${j + 1}번째: ${s.title}`}
-                    aria-current={j === idx}
-                    onClick={() => setSlide(j)}
-                  />
+                    className="event-line as-link"
+                    key={i}
+                    onClick={() => go(t.route)}
+                  >
+                    <span className="event-date">
+                      <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
+                      <small>{t.kind}</small>
+                    </span>
+                    <div>
+                      <b>
+                        {t.url ? (
+                          <a
+                            className="link title-link"
+                            href={t.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {t.title}
+                          </a>
+                        ) : (
+                          t.title
+                        )}
+                      </b>
+                      {t.sub && <small>{t.sub}</small>}
+                    </div>
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </button>
+                ))}
+                {week.length > 5 && (
+                  <p className="meta">외 {week.length - 5}건</p>
+                )}
+              </div>
+            </section>
+          )}
+          {!week.length && lmsSnap != null && lmsPending > 0 && (
+            <section>
+              <div className="card pad">
+                <p className="meta">
+                  7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
+                  있어요.
+                </p>
+              </div>
+            </section>
+          )}
+          <section className="home-tasks">
+            <div className="section-heading">
+              <h2>
+                확인할 항목 <span className="count">{shownTasks.length}</span>
+              </h2>
+            </div>
+            {shownTasks.length ? (
+              <div className="tasks">
+                {shownTasks.map(([, t, d, r]) => (
+                  <button className="task card" key={t} onClick={() => go(r)}>
+                    <span className="task-marker" aria-hidden="true" />
+                    <span>
+                      <b>{t}</b>
+                      <small>{d}</small>
+                    </span>
+                    <ArrowUpRight size={19} />
+                  </button>
                 ))}
               </div>
-              <button
-                className="hc-arrow"
-                aria-label="다음 프로그램"
-                onClick={() => setSlide((idx + 1) % slides.length)}
-              >
-                <ChevronRight size={18} />
+            ) : (
+              <div className="empty-small card">
+                <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
+              </div>
+            )}
+          </section>
+        </div>
+        <div className="home-secondary">
+          <section className="card pad">
+            <div className="section-heading">
+              <h2>다음 학기 계획</h2>
+              <button className="link" onClick={() => go('timetable')}>
+                시간표 <ArrowRight size={16} />
               </button>
             </div>
+            {planned.length ? (
+              <>
+                <div className="plan-stats">
+                  <div>
+                    <b>{planned.length}</b>
+                    <small>담은 과목</small>
+                  </div>
+                  <div>
+                    <b>{plannedCredits}</b>
+                    <small>계획 학점</small>
+                  </div>
+                  <div>
+                    <b className={conflictCount ? 'warn' : ''}>
+                      {conflictCount ? `${conflictCount}건` : '없음'}
+                    </b>
+                    <small>시간 충돌</small>
+                  </div>
+                </div>
+                <div className="plan-list">
+                  {planned.slice(0, 4).map((s) => (
+                    <span className="badge" key={s.id}>
+                      {s.name} {s.section}
+                    </span>
+                  ))}
+                  {planned.length > 4 && (
+                    <span className="badge">외 {planned.length - 4}과목</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="meta">
+                  아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
+                  학기를 미리 그려보세요.
+                </p>
+                <button className="link" onClick={() => go('courses')}>
+                  과목 둘러보기 <ArrowUpRight size={15} />
+                </button>
+              </>
+            )}
+          </section>
+          {acts && slides.length > 0 && cur && (
+            <section
+              className="hero-carousel"
+              aria-roledescription="carousel"
+              aria-label="눈여겨볼 비교과 프로그램"
+            >
+              <div className="hc-heading">
+                <h2>눈여겨볼 활동</h2>
+                <button className="link" onClick={() => go('activities')}>
+                  전체 보기 <ArrowUpRight size={15} />
+                </button>
+              </div>
+              <div className="hc-slide" key={cur.id}>
+                {cur.cover && <ActivityCover src={cur.cover} />}
+                <div className="hc-body">
+                  <div className="hc-meta" aria-label="프로그램 신청 정보">
+                    <span className="badge blue">{curStatus?.label}</span>
+                    {curStatus?.dday && <span>{curStatus.dday}</span>}
+                    {cur.points != null && <span>{cur.points}P</span>}
+                  </div>
+                  <h3>{cur.title}</h3>
+                  <p className="hc-dept">{cur.dept}</p>
+                  {applicationPeriod && (
+                    <p className="hc-deadline">{applicationPeriod}</p>
+                  )}
+                  <button
+                    className="link"
+                    onClick={() => go('activities/' + cur.id)}
+                  >
+                    내용 확인 <ArrowUpRight size={15} />
+                  </button>
+                </div>
+              </div>
+              {slides.length > 1 && (
+                <div className="hc-nav">
+                  <button
+                    className="hc-arrow"
+                    aria-label="이전 프로그램"
+                    onClick={() =>
+                      setSlide((idx - 1 + slides.length) % slides.length)
+                    }
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="hc-dots">
+                    {slides.map((s, j) => (
+                      <button
+                        key={s.id}
+                        aria-label={`${j + 1}번째: ${s.title}`}
+                        aria-current={j === idx}
+                        onClick={() => setSlide(j)}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    className="hc-arrow"
+                    aria-label="다음 프로그램"
+                    onClick={() => setSlide((idx + 1) % slides.length)}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              )}
+              <p className="hc-src">
+                hsportal 공개 목록 · {acts.fetchedAt.slice(0, 10)} 수집
+              </p>
+            </section>
           )}
-          <p className="hc-src">
-            hsportal 공개 목록 · {acts.fetchedAt.slice(0, 10)} 수집
-          </p>
-        </section>
-      )}
-      <section>
+        </div>
+      </div>
+      <section className="home-status">
         <div className="section-heading">
           <h2>나의 학사 현황</h2>
           <button className="link" onClick={() => go('graduation')}>
@@ -648,6 +691,6 @@ export function Home({
           )}
         </section>
       </div>
-    </>
+    </div>
   );
 }

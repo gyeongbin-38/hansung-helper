@@ -769,11 +769,29 @@ export default function App() {
     );
   if (account && !account.onboarded)
     return (
-      <Onboarding
-        profile={data}
-        catalog={catalog}
-        onSave={(next, complete) => persist(next, '', complete)}
-      />
+      <>
+        <Onboarding
+          profile={data}
+          onReturnToLogin={() => void logout()}
+          onSave={(next, complete) =>
+            persist(
+              {
+                ...dataRef.current,
+                name: next.name,
+                year: next.year,
+                dept: next.dept,
+                semester: next.semester,
+                graduationTarget: next.graduationTarget,
+                prefs: next.prefs,
+                onboardingStep: next.onboardingStep,
+              },
+              '',
+              complete,
+            )
+          }
+        />
+        <ToastStack toasts={toasts} onClose={dismissToast} />
+      </>
     );
   return (
     <div className={'shell' + (sideCollapsed ? ' side-collapsed' : '')}>
@@ -814,7 +832,9 @@ export default function App() {
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
           />
-          <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {(section === 'home' || !account) && (
+            <AccountBar account={account} go={go} onConnect={exitDemo} />
+          )}
           {section === 'home' ? (
             <Home
               data={data}
