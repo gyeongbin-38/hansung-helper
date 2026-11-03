@@ -1,6 +1,5 @@
 'use client';
-import { useState } from 'react';
-import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
@@ -54,15 +53,31 @@ export function SignIn({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<'signup' | 'login'>('signup');
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function returnToStart() {
+    if (busy) return;
+    formRef.current?.reset();
+    setError('');
+    setMode('signup');
+  }
+
+  function toggleMode() {
+    setError('');
+    setMode((current) => (current === 'signup' ? 'login' : 'signup'));
+  }
+
   return (
     <div className="auth-page">
-      <Link
+      <button
+        type="button"
         className="auth-brand"
-        href="/"
         aria-label="처음 로그인 화면으로 돌아가기"
+        onClick={returnToStart}
+        disabled={busy}
       >
         <Logo /> 한성 학사 도우미
-      </Link>
+      </button>
       <section className="auth-panel">
         <span className="auth-step-label">
           {mode === 'signup' ? '01 · 학교 계정 연결' : '다시 만나 반가워요'}
@@ -83,6 +98,7 @@ export function SignIn({
           </p>
         )}
         <form
+          ref={formRef}
           className="auth-form"
           onSubmit={async (e) => {
             e.preventDefault();
@@ -186,7 +202,7 @@ export function SignIn({
           <button
             className="link"
             disabled={busy}
-            onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
+            onClick={toggleMode}
           >
             {mode === 'signup' ? '이미 가입했어요' : '처음 이용해요'}
           </button>
