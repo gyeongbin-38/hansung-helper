@@ -590,7 +590,6 @@ button.event-line.as-link > svg {
 .home-tasks .tasks {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  overflow: hidden;
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   background: var(--nt-canvas);
@@ -603,11 +602,24 @@ button.event-line.as-link > svg {
   background: transparent;
   box-shadow: none;
 }
+.home-tasks .task.card:first-child {
+  border-radius: var(--nt-r-lg) var(--nt-r-lg) 0 0;
+}
+.home-tasks .task.card:last-child {
+  border-radius: 0 0 var(--nt-r-lg) var(--nt-r-lg);
+}
+.home-tasks .task.card:only-child {
+  border-radius: var(--nt-r-lg);
+}
 .home-tasks .task.card + .task.card {
   border-top: 1px solid var(--nt-hairline-soft);
 }
 .home-tasks .task.card:hover {
   background: var(--nt-surface);
+}
+.home-tasks .task.card:focus-visible {
+  position: relative;
+  z-index: 1;
 }
 .home-tasks .task-marker {
   width: 8px;
@@ -664,10 +676,20 @@ button.event-line.as-link > svg {
 .home-dashboard > .bottom-grid .section-heading .link {
   white-space: nowrap;
 }
-@media (max-width: 1199px) {
+@media (max-width: 1359px) {
   .home-top {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
+  }
+}
+@media (max-width: 899px) and (min-width: 768px) {
+  .home-status .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-status .stat.card:nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--nt-hairline-soft);
+    border-left: 0;
   }
 }
 @media (max-width: 767px) {
