@@ -101,6 +101,10 @@
 * {
   box-sizing: border-box;
 }
+html,
+body {
+  overflow-x: clip;
+}
 body {
   margin: 0;
   font-size: 16px;
@@ -327,7 +331,7 @@ small {
 }
 .field,
 input {
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-muted);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -346,7 +350,7 @@ select:focus,
   outline: none;
 }
 select {
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-muted);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -422,7 +426,7 @@ select {
 /* 출처·수집일·면책 같은 보조 문구 — 읽을 수는 있되 시선을 뺏지 않게 */
 .meta {
   font-size: 12px;
-  color: var(--nt-muted);
+  color: var(--nt-steel);
   line-height: 1.55;
   margin: 10px 0;
 }
@@ -555,7 +559,9 @@ select {
   font-size: 11px;
 }
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid var(--nt-primary);
 }
 /* 필드류 포커스는 소프트 링 하나로 — 이중 표시 방지 */
@@ -563,6 +569,11 @@ input:focus-visible,
 select:focus-visible,
 .field:focus-visible {
   outline: none;
+}
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 3px;
 }
 /* ---- skeleton loading: placeholder blocks keep layout + reading order ---- */
 .sk-status {
@@ -645,7 +656,10 @@ select:focus-visible,
 }
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
+  color: var(--nt-steel);
+  opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
   * {

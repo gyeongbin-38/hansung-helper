@@ -65,7 +65,6 @@
 .progress-track::-webkit-progress-value {
   background: var(--nt-primary);
   border-radius: var(--nt-r-pill);
-  transition: width 0.45s var(--nt-ease);
 }
 .progress-track::-moz-progress-bar {
   background: var(--nt-primary);

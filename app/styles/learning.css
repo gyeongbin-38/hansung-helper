@@ -91,9 +91,9 @@
 }
 .mini-art > span,
 .mini-art > small {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.7px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: normal;
 }
 .mini-art strong {
   display: flex;
@@ -487,8 +487,11 @@
   white-space: nowrap;
 }
 .builder-actions .secondary:disabled {
-  opacity: 0.45;
-  cursor: default;
+  background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
+  color: var(--nt-steel);
+  cursor: not-allowed;
+  opacity: 1;
 }
 .gap-chips {
   display: flex;
@@ -932,7 +935,7 @@
 .rec-day-buttons button.active {
   border-color: var(--nt-purple);
   background: var(--nt-purple);
-  color: #fff;
+  color: var(--nt-on-primary);
 }
 .rec-day-buttons button:focus-visible,
 .rec-credit-input input:focus-visible {
@@ -1336,7 +1339,7 @@
 }
 .band-metrics > div + div {
   margin-left: 18px;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid color-mix(in srgb, var(--nt-on-dark) 14%, transparent);
 }
 .band-metrics dt {
   font-size: 11px;
@@ -1379,8 +1382,11 @@
   background: var(--nt-tint-sky);
 }
 .band-cta:disabled {
-  opacity: 0.55;
-  cursor: default;
+  background: var(--nt-navy-mid);
+  border-color: var(--nt-navy-mid);
+  color: var(--nt-on-dark-muted);
+  cursor: not-allowed;
+  opacity: 1;
 }
 .band-cta .spin {
   animation: lms-spin 1s linear infinite;
@@ -1563,7 +1569,7 @@
   .band-metrics {
     grid-column: 1 / -1;
     padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid color-mix(in srgb, var(--nt-on-dark) 14%, transparent);
   }
   .band-metrics > div:first-child {
     padding-left: 0;
@@ -1584,7 +1590,7 @@
   }
   .band-metrics {
     grid-column: 1;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid color-mix(in srgb, var(--nt-on-dark) 14%, transparent);
     padding-top: 14px;
     flex-wrap: wrap;
     row-gap: 10px;
@@ -1798,7 +1804,7 @@ input[aria-invalid='true'] {
   font-size: 14px;
 }
 .act-band small {
-  color: var(--nt-slate, #5d5b54);
+  color: var(--nt-slate);
   font-size: 12px;
 }
 .rule-actions {
@@ -1833,14 +1839,14 @@ input[aria-invalid='true'] {
 }
 .done-text {
   text-decoration: line-through;
-  color: var(--nt-steel, #787671);
+  color: var(--nt-steel);
   font-weight: 400;
 }
 .rule-lines .req-item {
   list-style: none;
 }
 .rule-lines .req-item small {
-  color: var(--nt-slate, #5d5b54);
+  color: var(--nt-slate);
 }
 .detail-cover {
   width: 100%;
