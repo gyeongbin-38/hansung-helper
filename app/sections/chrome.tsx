@@ -230,7 +230,7 @@ export function Topbar({
   );
 }
 
-/** 아이브로우 — 홈은 오늘 날짜(플래너 페이지 넘기는 느낌), 나머지는 네비 그룹 */
+/** 제목 아래 문맥 — 홈은 오늘 날짜, 나머지는 네비 그룹 */
 const NAV_GROUP_OF: Record<string, string> = {
   timetable: '수업·계획',
   lms: '수업·계획',
@@ -261,14 +261,16 @@ export function PageHeading({
   });
   return (
     <div className="page-heading">
-      <div>
-        <div className="eyebrow">
-          {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
-        </div>
+      <div className="page-heading-copy">
         <h1>{section === 'home' ? `${name}님, 반가워요.` : label}</h1>
+        <div className="heading-context">
+          <span>
+            {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
+          </span>
+          <span>2026학년도 2학기</span>
+        </div>
       </div>
       <div className="page-heading-side">
-        <span className="date-label">2026학년도 2학기</span>
         {onSurvey && (
           <button
             className="secondary survey-trigger"

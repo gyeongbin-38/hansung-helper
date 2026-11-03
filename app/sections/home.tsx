@@ -273,381 +273,376 @@ export function Home({
     (s) => conflicts(s, planned).length,
   ).length;
   return (
-    <>
-      <TodayStrip
-        lmsDue={lmsDue}
-        acts={acts?.items ?? []}
-        saved={data.saved}
-        missingProfile={missingProfile}
-        missingLabel={missingLabel}
-        profileRoute={profileRoute}
-        now={now}
-        go={go}
-      />
-      {week.length > 0 && (
-        <section>
-          <div className="section-heading">
-            <h2>
-              이번 주 마감 <span className="count">{week.length}</span>
-            </h2>
-            <button className="link" onClick={() => go('lms')}>
-              수업 현황 <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="card pad week-list">
-            {week.slice(0, 5).map((t, i) => (
-              <button
-                className="event-line as-link"
-                key={i}
-                onClick={() => go(t.route)}
-              >
-                <span className="event-date">
-                  <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
-                  <small>{t.kind}</small>
-                </span>
-                <div>
-                  <b>
-                    {t.url ? (
-                      <a
-                        className="link title-link"
-                        href={t.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {t.title}
-                      </a>
-                    ) : (
-                      t.title
-                    )}
-                  </b>
-                  {t.sub && <small>{t.sub}</small>}
-                </div>
-                <ArrowUpRight size={15} aria-hidden="true" />
+    <div className="home-dashboard">
+      <div className="home-primary">
+        <TodayStrip
+          lmsDue={lmsDue}
+          acts={acts?.items ?? []}
+          saved={data.saved}
+          missingProfile={missingProfile}
+          missingLabel={missingLabel}
+          profileRoute={profileRoute}
+          now={now}
+          go={go}
+        />
+        {week.length > 0 && (
+          <section>
+            <div className="section-heading">
+              <h2>
+                이번 주 마감 <span className="count">{week.length}</span>
+              </h2>
+              <button className="link" onClick={() => go('lms')}>
+                수업 현황 <ArrowRight size={16} />
               </button>
-            ))}
-            {week.length > 5 && (
-              <p className="meta">외 {week.length - 5}건</p>
-            )}
-            <p className="meta">
-              {lmsSnap
-                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
-                : ''}
-              {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
-                <>
-                  {' '}
+            </div>
+            <div className="card pad week-list">
+              <p className="meta week-source">
+                {lmsSnap ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집` : ''}
+                {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
                   <span className="badge orange">
                     {staleLabel(lmsSnap.fetchedAt, now, 7)}
                   </span>
-                </>
-              )}
-              {lmsSnap && acts ? ' · ' : ''}
-              {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
-              {acts && staleLabel(acts.fetchedAt, now) && (
-                <>
-                  {' '}
+                )}
+                {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
+                {acts && staleLabel(acts.fetchedAt, now) && (
                   <span className="badge orange">
                     {staleLabel(acts.fetchedAt, now)}
                   </span>
-                </>
-              )}
-            </p>
-          </div>
-        </section>
-      )}
-      {!week.length && lmsSnap != null && lmsPending > 0 && (
-        <section>
-          <div className="card pad">
-            <p className="meta">
-              7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
-              있어요.
-            </p>
-          </div>
-        </section>
-      )}
-      <section>
-        <div className="section-heading">
-          <h2>
-            내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
-          </h2>
-        </div>
-        {shownTasks.length ? (
-          <div className="tasks">
-            {shownTasks.map(([n, t, d, r]) => (
-              <button className="task card" key={t} onClick={() => go(r)}>
-                <span className="task-num">{n}</span>
-                <span>
-                  <b>{t}</b>
-                  <small>{d}</small>
-                </span>
-                <ArrowUpRight size={19} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-small card">
-            <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
-          </div>
-        )}
-      </section>
-      <section className="card pad">
-        <div className="section-heading">
-          <h2>다음 학기 계획</h2>
-          <button className="link" onClick={() => go('timetable')}>
-            시간표 <ArrowRight size={16} />
-          </button>
-        </div>
-        {planned.length ? (
-          <>
-            <div className="plan-stats">
-              <div>
-                <b>{planned.length}</b>
-                <small>담은 과목</small>
-              </div>
-              <div>
-                <b>{plannedCredits}</b>
-                <small>계획 학점</small>
-              </div>
-              <div>
-                <b className={conflictCount ? 'warn' : ''}>
-                  {conflictCount ? `${conflictCount}건` : '없음'}
-                </b>
-                <small>시간 충돌</small>
-              </div>
-            </div>
-            <div className="plan-list">
-              {planned.slice(0, 4).map((s) => (
-                <span className="badge" key={s.id}>
-                  {s.name} {s.section}
-                </span>
-              ))}
-              {planned.length > 4 && (
-                <span className="badge">외 {planned.length - 4}과목</span>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="meta">
-              아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
-              학기를 미리 그려보세요.
-            </p>
-            <button className="link" onClick={() => go('courses')}>
-              과목 둘러보기 <ArrowUpRight size={15} />
-            </button>
-          </>
-        )}
-      </section>
-      {acts && slides.length > 0 && cur && (
-        <section
-          className="hero-carousel"
-          aria-roledescription="carousel"
-          aria-label="지금 신청할 수 있는 비교과 프로그램"
-        >
-          <div className="hc-slide" key={cur.id}>
-            {cur.cover && (
-              <span
-                className="hc-cover"
-                style={{ backgroundImage: `url(${cur.cover})` }}
-                aria-hidden="true"
-              />
-            )}
-            <div className="hc-body">
-              <span className="badge blue">
-                {liveStatus(cur, now).label}
-                {liveStatus(cur, now).dday
-                  ? ' · ' + liveStatus(cur, now).dday
-                  : ''}
-                {cur.points != null ? ` · ${cur.points}P` : ''}
-              </span>
-              <h3>{cur.title}</h3>
-              <p>
-                {cur.dept}
-                {cur.applyEnd
-                  ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
-                  : ''}
+                )}
               </p>
-              <button
-                className="link"
-                onClick={() => go('activities/' + cur.id)}
-              >
-                자세히 보기 <ArrowUpRight size={15} />
-              </button>
-            </div>
-          </div>
-          {slides.length > 1 && (
-            <div className="hc-nav">
-              <button
-                className="hc-arrow"
-                aria-label="이전 프로그램"
-                onClick={() =>
-                  setSlide((idx - 1 + slides.length) % slides.length)
-                }
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <div className="hc-dots">
-                {slides.map((s, j) => (
-                  <button
-                    key={s.id}
-                    aria-label={`${j + 1}번째: ${s.title}`}
-                    aria-current={j === idx}
-                    onClick={() => setSlide(j)}
-                  />
-                ))}
-              </div>
-              <button
-                className="hc-arrow"
-                aria-label="다음 프로그램"
-                onClick={() => setSlide((idx + 1) % slides.length)}
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
-          <p className="hc-src">
-            hsportal 공개 목록 · {acts.fetchedAt.slice(0, 10)} 수집
-          </p>
-        </section>
-      )}
-      <section>
-        <div className="section-heading">
-          <h2>나의 학사 현황</h2>
-          <button className="link" onClick={() => go('graduation')}>
-            자세히 보기 <ArrowRight size={16} />
-          </button>
-        </div>
-        <div className="stats">
-          {[
-            [
-              '졸업요건 체크리스트',
-              '계산 대기',
-              '적용 졸업 규정 확인 필요',
-              'lavender',
-            ],
-            [
-              '총 이수학점',
-              data.info?.credits !== undefined
-                ? data.info.credits + ' 학점'
-                : data.credits
-                  ? data.credits + ' 학점'
-                  : '입력 전',
-              data.info?.credits !== undefined
-                ? '학교 수집 · 종합정보'
-                : data.credits
-                  ? '사용자 입력 · 미검증'
-                  : '내 정보에서 입력할 수 있어요',
-              'sky',
-            ],
-            [
-              '비교과 포인트',
-              data.info?.points !== undefined
-                ? data.info.points + ' P'
-                : data.points
-                  ? data.points + ' P'
-                  : '입력 전',
-              data.info?.points !== undefined
-                ? '학교 수집 · 종합정보'
-                : data.points
-                  ? '사용자 입력 · 미검증'
-                  : '학교 인정 내역 확인 필요',
-              'mint',
-            ],
-          ].map(([l, v, s, tone]) => (
-            <div className={'card stat ' + tone} key={l}>
-              <span className="stat-tag">{l}</span>
-              <strong>{v}</strong>
-              <small>{s}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-      <div className="bottom-grid">
-        <section className="card pad">
-          <div className="section-heading">
-            <h2>다가오는 일정</h2>
-            <button className="link" onClick={() => go('calendar')}>
-              일정 보기 <ArrowRight size={16} />
-            </button>
-          </div>
-          {schoolNext.map((e) => (
-            <div className="event-line" key={e.id}>
-              <span className="event-date">{e.start.slice(5)}</span>
-              <div>
-                <b>{e.title}</b>
-              </div>
-            </div>
-          ))}
-          {data.events.length ? (
-            data.events.slice(0, 3).map((e, i) => (
-              <div className="event-line" key={i}>
-                <span className="event-date">{e.date.slice(5)}</span>
-                <div>
-                  <b>{e.title}</b>
-                  <small>개인 일정</small>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="empty-small">
-              <CalendarDays />
-              <p>
-                {schoolNext.length
-                  ? '개인 일정은 아직 없어요.'
-                  : '아직 등록한 일정이 없어요.'}
-              </p>
-              <button className="link" onClick={() => go('calendar')}>
-                첫 일정 추가하기 +
-              </button>
-            </div>
-          )}
-        </section>
-        <section className="card pad">
-          <div className="section-heading">
-            <h2>코스모스 강의</h2>
-            <a
-              className="link"
-              href="https://learn.hansung.ac.kr/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              코스모스 열기 <ArrowUpRight size={15} />
-            </a>
-          </div>
-          {account && account.snapshot.courses.length ? (
-            <>
-              {account.snapshot.courses.slice(0, 5).map((c) => (
-                <div className="event-line" key={c.id}>
+              {week.slice(0, 5).map((t, i) => (
+                <button
+                  className="event-line as-link"
+                  key={i}
+                  onClick={() => go(t.route)}
+                >
+                  <span className="event-date">
+                    <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
+                    <small>{t.kind}</small>
+                  </span>
                   <div>
                     <b>
-                      <a
-                        className="link title-link"
-                        href={c.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {c.name}
-                      </a>
+                      {t.url ? (
+                        <a
+                          className="link title-link"
+                          href={t.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {t.title}
+                        </a>
+                      ) : (
+                        t.title
+                      )}
                     </b>
+                    {t.sub && <small>{t.sub}</small>}
                   </div>
-                </div>
+                  <ArrowUpRight size={15} aria-hidden="true" />
+                </button>
               ))}
-              <p className="meta">{account.snapshot.courseScope}</p>
-            </>
-          ) : (
-            <>
-              <p>
-                {account
-                  ? '확인된 강의가 없습니다. 코스모스에서 직접 확인해 주세요.'
-                  : '학교 계정을 연결하면 코스모스 강의 목록을 볼 수 있어요.'}
+              {week.length > 5 && (
+                <p className="meta">외 {week.length - 5}건</p>
+              )}
+            </div>
+          </section>
+        )}
+        {!week.length && lmsSnap != null && lmsPending > 0 && (
+          <section>
+            <div className="card pad">
+              <p className="meta">
+                7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
+                있어요.
               </p>
-              <button className="link" onClick={() => go('lms')}>
-                수업 현황 열기 <ArrowUpRight size={15} />
-              </button>
-            </>
+            </div>
+          </section>
+        )}
+        <section>
+          <div className="section-heading">
+            <h2>
+              확인할 항목 <span className="count">{shownTasks.length}</span>
+            </h2>
+          </div>
+          {shownTasks.length ? (
+            <div className="tasks">
+              {shownTasks.map(([n, t, d, r]) => (
+                <button className="task card" key={t} onClick={() => go(r)}>
+                  <span className="task-num">{n}</span>
+                  <span>
+                    <b>{t}</b>
+                    <small>{d}</small>
+                  </span>
+                  <ArrowUpRight size={19} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-small card">
+              <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
+            </div>
           )}
         </section>
       </div>
-    </>
+      <div className="home-secondary">
+        <section className="card pad">
+          <div className="section-heading">
+            <h2>다음 학기 계획</h2>
+            <button className="link" onClick={() => go('timetable')}>
+              시간표 <ArrowRight size={16} />
+            </button>
+          </div>
+          {planned.length ? (
+            <>
+              <div className="plan-stats">
+                <div>
+                  <b>{planned.length}</b>
+                  <small>담은 과목</small>
+                </div>
+                <div>
+                  <b>{plannedCredits}</b>
+                  <small>계획 학점</small>
+                </div>
+                <div>
+                  <b className={conflictCount ? 'warn' : ''}>
+                    {conflictCount ? `${conflictCount}건` : '없음'}
+                  </b>
+                  <small>시간 충돌</small>
+                </div>
+              </div>
+              <div className="plan-list">
+                {planned.slice(0, 4).map((s) => (
+                  <span className="badge" key={s.id}>
+                    {s.name} {s.section}
+                  </span>
+                ))}
+                {planned.length > 4 && (
+                  <span className="badge">외 {planned.length - 4}과목</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="meta">
+                아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
+                학기를 미리 그려보세요.
+              </p>
+              <button className="link" onClick={() => go('courses')}>
+                과목 둘러보기 <ArrowUpRight size={15} />
+              </button>
+            </>
+          )}
+        </section>
+        {acts && slides.length > 0 && cur && (
+          <section
+            className="hero-carousel"
+            aria-roledescription="carousel"
+            aria-label="지금 신청할 수 있는 비교과 프로그램"
+          >
+            <div className="hc-slide" key={cur.id}>
+              {cur.cover && (
+                <span
+                  className="hc-cover"
+                  style={{ backgroundImage: `url(${cur.cover})` }}
+                  aria-hidden="true"
+                />
+              )}
+              <div className="hc-body">
+                <span className="badge blue">
+                  {liveStatus(cur, now).label}
+                  {liveStatus(cur, now).dday
+                    ? ' · ' + liveStatus(cur, now).dday
+                    : ''}
+                  {cur.points != null ? ` · ${cur.points}P` : ''}
+                </span>
+                <h3>{cur.title}</h3>
+                <p>
+                  {cur.dept}
+                  {cur.applyEnd
+                    ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
+                    : ''}
+                </p>
+                <button
+                  className="link"
+                  onClick={() => go('activities/' + cur.id)}
+                >
+                  자세히 보기 <ArrowUpRight size={15} />
+                </button>
+              </div>
+            </div>
+            {slides.length > 1 && (
+              <div className="hc-nav">
+                <button
+                  className="hc-arrow"
+                  aria-label="이전 프로그램"
+                  onClick={() =>
+                    setSlide((idx - 1 + slides.length) % slides.length)
+                  }
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <div className="hc-dots">
+                  {slides.map((s, j) => (
+                    <button
+                      key={s.id}
+                      aria-label={`${j + 1}번째: ${s.title}`}
+                      aria-current={j === idx}
+                      onClick={() => setSlide(j)}
+                    />
+                  ))}
+                </div>
+                <button
+                  className="hc-arrow"
+                  aria-label="다음 프로그램"
+                  onClick={() => setSlide((idx + 1) % slides.length)}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+            <p className="hc-src">
+              hsportal 공개 목록 · {acts.fetchedAt.slice(0, 10)} 수집
+            </p>
+          </section>
+        )}
+        <section>
+          <div className="section-heading">
+            <h2>나의 학사 현황</h2>
+            <button className="link" onClick={() => go('graduation')}>
+              자세히 보기 <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="stats">
+            {[
+              [
+                '졸업요건 체크리스트',
+                '계산 대기',
+                '적용 졸업 규정 확인 필요',
+                'lavender',
+              ],
+              [
+                '총 이수학점',
+                data.info?.credits !== undefined
+                  ? data.info.credits + ' 학점'
+                  : data.credits
+                    ? data.credits + ' 학점'
+                    : '입력 전',
+                data.info?.credits !== undefined
+                  ? '학교 수집 · 종합정보'
+                  : data.credits
+                    ? '사용자 입력 · 미검증'
+                    : '내 정보에서 입력할 수 있어요',
+                'sky',
+              ],
+              [
+                '비교과 포인트',
+                data.info?.points !== undefined
+                  ? data.info.points + ' P'
+                  : data.points
+                    ? data.points + ' P'
+                    : '입력 전',
+                data.info?.points !== undefined
+                  ? '학교 수집 · 종합정보'
+                  : data.points
+                    ? '사용자 입력 · 미검증'
+                    : '학교 인정 내역 확인 필요',
+                'mint',
+              ],
+            ].map(([l, v, s, tone]) => (
+              <div className={'card stat ' + tone} key={l}>
+                <span className="stat-tag">{l}</span>
+                <strong>{v}</strong>
+                <small>{s}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+        <div className="bottom-grid">
+          <section className="card pad">
+            <div className="section-heading">
+              <h2>다가오는 일정</h2>
+              <button className="link" onClick={() => go('calendar')}>
+                일정 보기 <ArrowRight size={16} />
+              </button>
+            </div>
+            {schoolNext.map((e) => (
+              <div className="event-line" key={e.id}>
+                <span className="event-date">{e.start.slice(5)}</span>
+                <div>
+                  <b>{e.title}</b>
+                </div>
+              </div>
+            ))}
+            {data.events.length ? (
+              data.events.slice(0, 3).map((e, i) => (
+                <div className="event-line" key={i}>
+                  <span className="event-date">{e.date.slice(5)}</span>
+                  <div>
+                    <b>{e.title}</b>
+                    <small>개인 일정</small>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="empty-small">
+                <CalendarDays />
+                <p>
+                  {schoolNext.length
+                    ? '개인 일정은 아직 없어요.'
+                    : '아직 등록한 일정이 없어요.'}
+                </p>
+                <button className="link" onClick={() => go('calendar')}>
+                  첫 일정 추가하기 +
+                </button>
+              </div>
+            )}
+          </section>
+          <section className="card pad">
+            <div className="section-heading">
+              <h2>코스모스 강의</h2>
+              <a
+                className="link"
+                href="https://learn.hansung.ac.kr/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                코스모스 열기 <ArrowUpRight size={15} />
+              </a>
+            </div>
+            {account && account.snapshot.courses.length ? (
+              <>
+                {account.snapshot.courses.slice(0, 5).map((c) => (
+                  <div className="event-line" key={c.id}>
+                    <div>
+                      <b>
+                        <a
+                          className="link title-link"
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {c.name}
+                        </a>
+                      </b>
+                    </div>
+                  </div>
+                ))}
+                <p className="meta">{account.snapshot.courseScope}</p>
+              </>
+            ) : (
+              <>
+                <p>
+                  {account
+                    ? '확인된 강의가 없습니다. 코스모스에서 직접 확인해 주세요.'
+                    : '학교 계정을 연결하면 코스모스 강의 목록을 볼 수 있어요.'}
+                </p>
+                <button className="link" onClick={() => go('lms')}>
+                  수업 현황 열기 <ArrowUpRight size={15} />
+                </button>
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -13,7 +13,7 @@
   z-index: 30;
   display: flex;
   flex-direction: column;
-  padding: 14px 10px 12px;
+  padding: 16px 10px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -39,7 +39,7 @@
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: var(--nt-r-md);
   white-space: nowrap;
   color: var(--nt-ink);
@@ -50,11 +50,10 @@
 }
 .brand small {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-top: 3px;
-  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+  font-weight: 500;
   color: var(--nt-stone);
 }
 .brand-icon {
@@ -68,12 +67,11 @@
   flex-shrink: 0;
 }
 .nav-caption {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--nt-stone);
-  margin: 20px 10px 6px;
+  margin: 18px 10px 6px;
 }
 nav {
   display: grid;
@@ -112,6 +110,15 @@ nav button.selected {
 }
 nav button.selected svg {
   color: var(--nt-ink);
+}
+.brand:focus-visible,
+nav button:focus-visible,
+.sidebar-bottom > button:focus-visible,
+.topbar button:focus-visible,
+.account-bar button:focus-visible,
+.demo-note button:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 2px;
 }
 .tiny {
   font-size: 10px;
@@ -193,14 +200,6 @@ nav button.selected svg {
     display: none;
   }
 }
-@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
-  .sidebar {
-    transition: width 0.2s var(--nt-ease);
-  }
-  .workspace {
-    transition: margin-left 0.2s var(--nt-ease);
-  }
-}
 /* ---- workspace / topbar ---- */
 .workspace {
   margin-left: 240px;
@@ -226,19 +225,20 @@ nav button.selected svg {
   height: 32px;
   padding: 0 6px 0 10px;
   color: var(--nt-stone);
-  background: var(--nt-surface);
-  border: 1px solid transparent;
+  background: var(--nt-canvas);
+  border: 1px solid var(--nt-steel);
   border-radius: var(--nt-r-md);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
 }
 .global-search:hover {
-  border-color: var(--nt-hairline);
+  border-color: var(--nt-slate);
 }
 .global-search:focus-within {
   background: var(--nt-canvas);
-  border-color: var(--nt-hairline-strong);
+  border-color: var(--nt-primary);
+  box-shadow: 0 0 0 2px var(--nt-tint-sky);
 }
 .global-search input {
   background: none;
@@ -247,6 +247,9 @@ nav button.selected svg {
   font-size: 13px;
   padding: 0;
   color: var(--nt-ink);
+}
+.global-search input:focus {
+  outline: 0;
 }
 .topbar .global-search {
   min-width: 0;
@@ -287,32 +290,28 @@ main {
 .page-heading {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 24px;
-  margin-bottom: 26px;
-  padding-bottom: 20px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--nt-hairline-soft);
 }
-.eyebrow {
-  font-size: 11px;
+.page-heading-copy {
+  min-width: 0;
+}
+.heading-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
   color: var(--nt-stone);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  margin-top: 8px;
 }
 .page-heading h1 {
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-.date-label {
-  font-size: 13px;
-  color: var(--nt-stone);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 3px;
-  white-space: nowrap;
 }
 .page-heading-side {
   display: flex;
@@ -337,11 +336,19 @@ button.survey-trigger {
   min-width: 0;
 }
 .account-id .avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 .account-id b {
   font-size: 14px;
+}
+.account-bar {
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: var(--nt-r-md);
+}
+.account-bar small {
+  margin-top: 1px;
 }
 /* purple CTA inside the demo note beats the quiet .demo-note button */
 .demo-note button.primary {
@@ -567,14 +574,10 @@ footer {
   .cookie {
     left: calc(50% + 105px);
   }
-  .date-label {
-    display: none;
-  }
 }
 @media (max-width: 767px) {
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.2s var(--nt-ease);
     width: 255px;
   }
   .sidebar.open {
@@ -614,7 +617,21 @@ footer {
     font-size: 26px;
   }
   .page-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
     margin-bottom: 20px;
+  }
+  .page-heading-copy {
+    flex: 1 1 100%;
+  }
+  .page-heading-side {
+    align-items: flex-start;
+    flex: 1 1 100%;
+  }
+  button.survey-trigger {
+    width: 100%;
+    justify-content: center;
   }
   .demo-note {
     font-size: 13px;
@@ -651,5 +668,11 @@ footer {
   .event-line {
     gap: 10px;
     flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 767px) {
+  .sidebar {
+    transition: transform 0.2s var(--nt-ease);
   }
 }
