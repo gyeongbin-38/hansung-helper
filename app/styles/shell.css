@@ -3,7 +3,7 @@
 .shell {
   min-height: 100dvh;
 }
-/* ---- sidebar: Notion-style quiet nav on gray surface ---- */
+/* ---- sidebar: quiet blue-gray navigation with a clear active state ---- */
 .sidebar {
   position: fixed;
   width: 240px;
@@ -28,7 +28,7 @@
 }
 .side-collapse {
   flex-shrink: 0;
-  color: var(--nt-stone);
+  color: var(--nt-steel);
 }
 .brand {
   display: flex;
@@ -46,7 +46,7 @@
   transition: background-color 0.15s ease;
 }
 .brand:hover {
-  background: var(--nt-tint-gray);
+  background: var(--nt-surface-soft);
 }
 .brand small {
   display: block;
@@ -57,8 +57,8 @@
   color: var(--nt-stone);
 }
 .brand-icon {
-  background: var(--nt-navy);
-  color: var(--nt-on-dark);
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
   border-radius: var(--nt-r-md);
   width: 32px;
   height: 32px;
@@ -84,8 +84,9 @@ nav button,
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 6px 10px;
-  border-radius: var(--nt-r-sm);
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--nt-r-md);
   font-size: 14px;
   font-weight: 400;
   color: var(--nt-slate);
@@ -97,19 +98,21 @@ nav button svg,
 .sidebar-bottom > button svg {
   color: var(--nt-steel);
   flex-shrink: 0;
+  stroke-width: 1.8;
 }
 nav button:hover,
 .sidebar-bottom > button:hover {
-  background: var(--nt-tint-gray);
+  background: var(--nt-surface-soft);
   color: var(--nt-charcoal);
 }
 nav button.selected {
-  background: var(--nt-hairline);
-  color: var(--nt-ink);
-  font-weight: 500;
+  background: var(--nt-tint-sky);
+  color: var(--nt-primary-deep);
+  font-weight: 600;
 }
 nav button.selected svg {
-  color: var(--nt-ink);
+  color: var(--nt-primary);
+  stroke-width: 2.1;
 }
 .brand:focus-visible,
 nav button:focus-visible,
@@ -206,7 +209,7 @@ nav button:focus-visible,
 }
 .topbar {
   height: 56px;
-  background: var(--nt-paper);
+  background: var(--nt-canvas);
   border-bottom: 1px solid var(--nt-hairline);
   display: flex;
   align-items: center;
@@ -216,7 +219,7 @@ nav button:focus-visible,
   top: 0;
   z-index: 20;
 }
-/* fake quick-find: filled surface, muted icon, kbd chip */
+/* Search stays quiet until focus, then uses the same blue as selected navigation. */
 .global-search {
   display: flex;
   align-items: center;
@@ -224,21 +227,22 @@ nav button:focus-visible,
   width: 300px;
   height: 32px;
   padding: 0 6px 0 10px;
-  color: var(--nt-stone);
-  background: var(--nt-canvas);
-  border: 1px solid var(--nt-steel);
+  color: var(--nt-steel);
+  background: var(--nt-surface);
+  border: 1px solid var(--nt-muted);
   border-radius: var(--nt-r-md);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
 }
 .global-search:hover {
-  border-color: var(--nt-slate);
+  background: var(--nt-surface-soft);
+  border-color: var(--nt-muted);
 }
 .global-search:focus-within {
   background: var(--nt-canvas);
   border-color: var(--nt-primary);
-  box-shadow: 0 0 0 2px var(--nt-tint-sky);
+  box-shadow: 0 0 0 3px var(--nt-tint-sky);
 }
 .global-search input {
   background: none;
@@ -251,6 +255,10 @@ nav button:focus-visible,
 .global-search input:focus {
   outline: 0;
 }
+.global-search input::placeholder {
+  color: var(--nt-steel);
+  opacity: 1;
+}
 .topbar .global-search {
   min-width: 0;
 }
@@ -260,7 +268,7 @@ nav button:focus-visible,
 }
 .global-search kbd {
   border: 1px solid var(--nt-hairline);
-  background: var(--nt-canvas);
+  background: var(--nt-surface-soft);
   border-radius: var(--nt-r-xs);
   padding: 0 5px;
   font-family: inherit;
@@ -271,6 +279,21 @@ nav button:focus-visible,
 .notification {
   position: relative;
 }
+.topbar > button.icon,
+.topbar > button.avatar {
+  color: var(--nt-steel);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.topbar > button.icon:hover,
+.topbar > button.avatar:hover {
+  background: var(--nt-surface);
+  color: var(--nt-primary-deep);
+}
+.topbar > button.icon svg {
+  stroke-width: 1.8;
+}
 .notification i {
   position: absolute;
   right: 8px;
@@ -279,7 +302,7 @@ nav button:focus-visible,
   height: 7px;
   background: var(--nt-primary);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--nt-paper);
+  box-shadow: 0 0 0 2px var(--nt-canvas);
 }
 main {
   max-width: 1280px;

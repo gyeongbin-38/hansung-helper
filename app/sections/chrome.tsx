@@ -90,6 +90,7 @@ export function Sidebar({
               )}
               <button
                 className={section === key ? 'selected' : ''}
+                aria-current={section === key ? 'page' : undefined}
                 aria-label={name}
                 title={name}
                 onClick={() => go(key)}

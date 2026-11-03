@@ -1,3 +1,17 @@
+# Active design direction (2026-11-03)
+
+The user requested a Toss-inspired student planner. This section supersedes conflicting visual choices in the historical notes below; the notes remain as project history.
+
+- Use Pretendard Variable and system sans-serif fallbacks for headings, numbers, and body text. Do not include Toss Product Sans without a redistribution licence.
+- Use cool, light surfaces: page `#f9fafb`, card `#ffffff`, secondary `#f2f4f6`, and divider `#e5e8eb`. Text uses `#191f28` and `#4e5968`; small secondary text uses `#596574` for contrast.
+- Use blue `#1b64da` for primary actions and links, with `#e8f3ff` as a weak surface. The darker blue preserves contrast for small white button text.
+- Keep deadlines and next actions easy to find. Do not overlay oversized deadline text on activity posters; show real status and dates in readable card content.
+- Preserve existing routes, data provenance, keyboard focus, responsive layouts, and reduced-motion preferences. Reuse existing icons and tokens.
+
+---
+
+## Historical design direction (superseded where inconsistent)
+
 # DESIGN.md — 한성 학사 도우미 디자인 방향
 
 ## 방향: B — 학생 노트·플래너 톤 (레퍼런스: Notion)

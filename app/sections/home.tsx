@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CalendarDays,
   ArrowUpRight,
@@ -28,6 +28,47 @@ import { useActivities, useNow, useSchedule } from './catalog';
 type Planned = CourseSection[];
 
 type Urgent = { label: string; desc: string; route: string };
+
+function activityDateLabel(value: string, now: number) {
+  const [year, month, day] = value.slice(0, 10).split('-');
+  const yearLabel =
+    Number(year) === new Date(now).getFullYear() ? '' : `${Number(year)}년 `;
+  return `${yearLabel}${Number(month)}월 ${Number(day)}일`;
+}
+
+function ActivityCover({ src }: { src: string }) {
+  const [imageState, setImageState] = useState<{
+    src: string;
+    status: 'loading' | 'loaded' | 'failed';
+  }>({ src, status: 'loading' });
+
+  useEffect(() => {
+    let active = true;
+    const image = new Image();
+    image.onload = () => {
+      if (active) setImageState({ src, status: 'loaded' });
+    };
+    image.onerror = () => {
+      if (active) setImageState({ src, status: 'failed' });
+    };
+    image.src = src;
+    return () => {
+      active = false;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, [src]);
+
+  const status = imageState.src === src ? imageState.status : 'loading';
+  if (status === 'failed') return null;
+  return (
+    <span
+      className="hc-cover"
+      style={status === 'loaded' ? { backgroundImage: `url(${src})` } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
 
 /** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동 + 필수 입력.
  *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
@@ -199,6 +240,13 @@ export function Home({
     .slice(0, 5);
   const idx = Math.min(slide, Math.max(slides.length - 1, 0));
   const cur = slides[idx];
+  const curStatus = cur ? liveStatus(cur, now) : null;
+  const applicationPeriod =
+    curStatus?.status === 'upcoming' && cur?.applyStart
+      ? `${activityDateLabel(cur.applyStart, now)}부터 신청`
+      : cur?.applyEnd
+        ? `${activityDateLabel(cur.applyEnd, now)}까지 신청`
+        : null;
   const schoolNext = (sched?.items ?? [])
     .filter((e) => (e.end ?? e.start) >= today)
     .slice(0, 3);
@@ -439,36 +487,32 @@ export function Home({
             <section
               className="hero-carousel"
               aria-roledescription="carousel"
-              aria-label="지금 신청할 수 있는 비교과 프로그램"
+              aria-label="눈여겨볼 비교과 프로그램"
             >
+              <div className="hc-heading">
+                <h2>눈여겨볼 활동</h2>
+                <button className="link" onClick={() => go('activities')}>
+                  전체 보기 <ArrowUpRight size={15} />
+                </button>
+              </div>
               <div className="hc-slide" key={cur.id}>
-                {cur.cover && (
-                  <span
-                    className="hc-cover"
-                    style={{ backgroundImage: `url(${cur.cover})` }}
-                    aria-hidden="true"
-                  />
-                )}
+                {cur.cover && <ActivityCover src={cur.cover} />}
                 <div className="hc-body">
-                  <span className="badge blue">
-                    {liveStatus(cur, now).label}
-                    {liveStatus(cur, now).dday
-                      ? ' · ' + liveStatus(cur, now).dday
-                      : ''}
-                    {cur.points != null ? ` · ${cur.points}P` : ''}
-                  </span>
+                  <div className="hc-meta" aria-label="프로그램 신청 정보">
+                    <span className="badge blue">{curStatus?.label}</span>
+                    {curStatus?.dday && <span>{curStatus.dday}</span>}
+                    {cur.points != null && <span>{cur.points}P</span>}
+                  </div>
                   <h3>{cur.title}</h3>
-                  <p>
-                    {cur.dept}
-                    {cur.applyEnd
-                      ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
-                      : ''}
-                  </p>
+                  <p className="hc-dept">{cur.dept}</p>
+                  {applicationPeriod && (
+                    <p className="hc-deadline">{applicationPeriod}</p>
+                  )}
                   <button
                     className="link"
                     onClick={() => go('activities/' + cur.id)}
                   >
-                    자세히 보기 <ArrowUpRight size={15} />
+                    내용 확인 <ArrowUpRight size={15} />
                   </button>
                 </div>
               </div>
