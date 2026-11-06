@@ -44,6 +44,7 @@ export function Graduation({
   const [q, setQ] = useState('');
   const [withPlan, setWithPlan] = useState(false);
   const [pace, setPace] = useState('');
+  const [admissionType, setAdmissionType] = useState<'' | 'freshman' | 'transfer'>('');
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
@@ -104,6 +105,7 @@ export function Graduation({
     const pts = infoPoints ?? parseInt(data.points, 10);
     return evaluate(merged, planned, data.ruleOverrides, {
       admitYear: Number.isInteger(year) ? year : undefined,
+      admissionType: admissionType || undefined,
       points: Number.isInteger(pts) ? pts : undefined,
       deptTargets: deptTargets ?? undefined,
     });
@@ -115,6 +117,7 @@ export function Graduation({
     data.points,
     infoPoints,
     deptTargets,
+    admissionType,
   ]);
   const total = results[0];
   // 졸업 전망 역산 — 학기당 목표 학점은 사용자가 조정할 수 있다.
@@ -473,7 +476,9 @@ export function Graduation({
           참고용입니다.
         </p>
         <p className="meta">
-          {deptTargets
+          {admissionType !== 'freshman' || !data.year
+            ? '입학 구분과 연도에 적용되는 기준 확인 필요'
+            : deptTargets
             ? `내 학과 규정표 ${deptTargets.columnLabel} 기준 적용`
             : '학교 전역 기준(2016학번 이후) 적용'}
           {' · '}
@@ -483,6 +488,16 @@ export function Graduation({
           · 확인일 {GLOBAL_RULE_SOURCE.asOf}
           {!data.year && ' · 입학연도 미입력 — 참고값'}
         </p>
+        <label>
+          입학 구분{' '}
+          <select value={admissionType} onChange={(event) => setAdmissionType(event.target.value as '' | 'freshman' | 'transfer')}>
+            <option value="">선택해 주세요</option>
+            <option value="freshman">신입학</option>
+            <option value="transfer">편입학</option>
+          </select>
+        </label>
+        {admissionType === 'transfer' && <p className="meta">편입학 기준은 개인별 인정학점과 입학 전형에 따라 다를 수 있어 확인이 필요합니다.</p>}
+        {results.some((r) => r.uncertainCredits) && <p className="meta">동일 과목코드가 여러 번 있어 재수강·중복 이수 여부 확인이 필요합니다. 해당 학점은 합산에서 제외했습니다.</p>}
         <progress
           className="progress-track"
           aria-label="전체 졸업요건 충족률"

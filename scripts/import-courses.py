@@ -1,4 +1,4 @@
-"""Import Hansung 2026-2 course catalog xlsx -> lib/data/catalog-2026-2.json
+"""Import a Hansung course catalog xlsx -> lib/data/catalog-YYYY-S.json
 
 Source: data/source/hansung_all_departments_2026_2_exact_times.xlsx
 Sheet used: '요일별 시간' (one row per course-section per meeting day).
@@ -7,17 +7,16 @@ Normalizes each (과목코드, 분반) into a section record with minute-precisi
 day/time slots. Sections without parseable times keep `untimed: true`
 (online/async courses) instead of being dropped or faked.
 
-Usage: python scripts/import-courses.py
+Usage: python scripts/import-courses.py --semester 2027-1 --source path/to/catalog.xlsx
 """
 import json
+import argparse
 import re
 import sys
+from pathlib import Path
 from datetime import datetime, timezone
 
-import openpyxl
-
 SRC = r'data/source/hansung_all_departments_2026_2_exact_times.xlsx'
-OUT = r'lib/data/catalog-2026-2.json'
 
 DAY = {'월요일': 0, '화요일': 1, '수요일': 2, '목요일': 3, '금요일': 4, '토요일': 5, '일요일': 6}
 # tokens inside 강의실및교시 that encode schedule, not location
@@ -50,7 +49,17 @@ def room_of(raw):
 
 
 def main():
-    wb = openpyxl.load_workbook(SRC, read_only=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--semester', default='2026-2')
+    parser.add_argument('--source', default=SRC)
+    args = parser.parse_args()
+    if not re.fullmatch(r'20\d{2}-[12]', args.semester):
+        parser.error('semester must be YYYY-1 or YYYY-2')
+    if args.semester != '2026-2' and args.source == SRC:
+        parser.error('provide the matching source file with --source')
+    import openpyxl
+    out_path = f'lib/data/catalog-{args.semester}.json'
+    wb = openpyxl.load_workbook(args.source, read_only=True)
     ws = wb['요일별 시간']
     rows = ws.iter_rows(values_only=True)
     header = [str(c) for c in next(rows)]
@@ -111,18 +120,18 @@ def main():
     out_sections.sort(key=lambda s: (s['dept'], s['code'], s['section']))
 
     catalog = {
-        'semester': '2026-2',
+        'semester': args.semester,
         'source': '한성대학교 종합정보시스템 개설강의 시간표 (업로드 파일)',
-        'sourceFile': 'hansung_all_departments_2026_2_exact_times.xlsx',
+        'sourceFile': Path(args.source).name,
         'generatedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'sectionCount': len(out_sections),
         'untimedCount': sum(1 for s in out_sections if s.get('untimed')),
         'sections': out_sections,
     }
-    with open(OUT, 'w', encoding='utf-8') as f:
+    with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(',', ':'))
     print(f'sections={len(out_sections)} untimed={catalog["untimedCount"]} unparsed_rows={skipped}')
-    print('wrote', OUT)
+    print('wrote', out_path)
 
 
 if __name__ == '__main__':

@@ -25,6 +25,7 @@ export type LmsVod = {
   /** 출석 상태 원문 (O/X/P 등) */
   status?: string;
   attended: boolean;
+  uncertain?: boolean;
   /** 주차 출석 원문 (일괄출석인정 포함) */
   weeklyStatus?: string;
   /** 수강 기간 원문 */
@@ -101,6 +102,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           week: typeof t.week === 'number' ? t.week : undefined,
           status: typeof t.status === 'string' ? t.status : undefined,
           attended: !!t.attended,
+          uncertain: t.uncertain === true ? true : undefined,
           weeklyStatus:
             typeof t.weeklyStatus === 'string' ? t.weeklyStatus : undefined,
           range: typeof t.range === 'string' ? t.range : undefined,
@@ -155,10 +157,19 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     const vod = all || errors.has('vod');
     const assign = all || errors.has('assign');
     const quiz = all || errors.has('quiz');
-    if (!vod && !assign && !quiz) return course;
+    let preserved = vod || assign || quiz;
+    const retainTaskStatus = (current: LmsTask[], prior: LmsTask[]) => current.map((task) => {
+      if (!task.uncertain) return task;
+      const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
+      if (matches.length !== 1 || matches[0].uncertain) return task;
+      preserved = true;
+      return { ...task, submitted: matches[0].submitted };
+    });
+    const assigns = assign ? old.assigns : retainTaskStatus(course.assigns, old.assigns);
+    const quizzes = quiz ? old.quizzes : retainTaskStatus(course.quizzes, old.quizzes);
+    if (!preserved) return course;
     return { ...course, vods: vod ? old.vods : course.vods,
-      assigns: assign ? old.assigns : course.assigns,
-      quizzes: quiz ? old.quizzes : course.quizzes,
+      assigns, quizzes,
       retainedAt: old.retainedAt || previous.fetchedAt };
   }) };
 }
@@ -236,8 +247,8 @@ export function relTime(iso: string, now: number): string {
 /** 과목별 수강 진행 (온라인 강의 기준) */
 export function courseProgress(c: LmsCourse): { done: number; total: number } {
   return {
-    done: c.vods.filter((v) => v.attended).length,
-    total: c.vods.length,
+    done: c.vods.filter((v) => v.attended && !v.uncertain).length,
+    total: c.vods.filter((v) => !v.uncertain).length,
   };
 }
 
@@ -253,7 +264,7 @@ export type WeekProgress = {
 export function weekProgress(c: LmsCourse): WeekProgress[] {
   const map = new Map<number, WeekProgress>();
   for (const v of c.vods) {
-    if (typeof v.week !== 'number') continue;
+    if (typeof v.week !== 'number' || v.uncertain) continue;
     const g =
       map.get(v.week) ?? { week: v.week, done: 0, total: 0 };
     g.total += 1;
@@ -283,9 +294,10 @@ export function pendingTasks(
           title: v.title,
           url: v.url,
           due: v.range ?? null,
+          uncertain: v.uncertain,
         });
     for (const a of c.assigns)
-      if (!a.submitted)
+      if (!a.submitted || a.uncertain)
         push({
           course: c.title,
           kind: '과제',
@@ -295,7 +307,7 @@ export function pendingTasks(
           uncertain: a.uncertain,
         });
     for (const q of c.quizzes)
-      if (!q.submitted)
+      if (!q.submitted || q.uncertain)
         push({
           course: c.title,
           kind: '퀴즈',
@@ -384,6 +396,7 @@ export type BingeItem = {
   range?: string;
   /** 출석 상태 원문 (O/X/P 등) */
   status?: string;
+  uncertain?: boolean;
   /** 주차 출석 원문 (일괄출석인정 포함) */
   weeklyStatus?: string;
   /** 수강 기간 끝(마감) 시각 — 파싱 불가면 null */
@@ -417,6 +430,7 @@ export function bingeQueue(
           url: v.url,
           range: v.range,
           status: v.status,
+          uncertain: v.uncertain,
           weeklyStatus: v.weeklyStatus,
           dueTs: parseDue(v.range ?? null),
           past: isPast(parseDue(v.range ?? null), before) || undefined,
@@ -478,6 +492,7 @@ export type EnrolledMatch = {
   manual?: boolean;
   /** 사용자가 '해당 과목 없음'으로 제외한 과목 — 매칭 경고에서 빠진다 */
   ignored?: boolean;
+  semesterMismatch?: boolean;
 };
 
 /** 과목명 정규화 — 학기 표기·괄호 장식·공백을 제거해 이름 비교에 사용 */
@@ -530,6 +545,11 @@ export function matchEnrollment(
   return lms.courses.map((course) => {
     const ov = overrides?.[course.id];
     if (ov === 'ignore') return { course, sections: [], ignored: true };
+    const titleSemester = course.title.match(/(20\d{2})\s*(?:학년도\s*)?(?:[-./]\s*)?([12])\s*학기/);
+    const catalogSemester = catalog.semester.match(/^(20\d{2})-([12])$/);
+    if (titleSemester && catalogSemester &&
+        (titleSemester[1] !== catalogSemester[1] || titleSemester[2] !== catalogSemester[2]))
+      return { course, sections: [], semesterMismatch: true };
     if (ov) {
       const sec = byId.get(ov);
       if (sec)

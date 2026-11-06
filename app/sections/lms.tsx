@@ -158,12 +158,13 @@ function CourseCard({
         title: v.title,
         url: v.url,
         due: v.range ?? null,
+        uncertain: v.uncertain,
         watched: v.watched,
         required: v.required,
         past: pastCourse || isPast(parseDue(v.range ?? null), before),
       })),
     ...c.assigns
-      .filter((a) => !a.submitted)
+      .filter((a) => !a.submitted || a.uncertain)
       .map((a) => ({
         kind: '과제',
         title: a.title,
@@ -173,7 +174,7 @@ function CourseCard({
         past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
-      .filter((q) => !q.submitted)
+      .filter((q) => !q.submitted || q.uncertain)
       .map((q) => ({
         kind: '퀴즈',
         title: q.title,
@@ -220,6 +221,7 @@ function CourseCard({
               </small>
             </>
           )}
+          {c.vods.some((v) => v.uncertain) && <small>출석 확인 필요 {c.vods.filter((v) => v.uncertain).length}건</small>}
           <small>
             {pastCourse ? (
               <span className="badge">지난 학기</span>
@@ -242,6 +244,9 @@ function CourseCard({
           직접 확인해 주세요.
           {c.retainedAt ? ` 실패한 항목에는 이전 결과 (${formatLmsTime(c.retainedAt)})를 표시합니다.` : ''}
         </p>
+      ) : null}
+      {c.retainedAt && !c.errors?.length ? (
+        <p className="meta">일부 상태를 확인하지 못해 이전 결과 ({formatLmsTime(c.retainedAt)})를 보존했습니다. COSMOS에서 확인해 주세요.</p>
       ) : null}
       {weeks.length > 0 && (
         <div className="lms-weeks" aria-label="주차별 강의 진도">
@@ -305,6 +310,7 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
         )}
         <small>
           {b.course}
+          {b.uncertain ? ' · 출석 상태 확인 실패' : ''}
           {b.range ? ` · ${shortRange(b.range)}` : ''}
           {dd !== null
             ? dd < 0
@@ -354,7 +360,7 @@ function BingeView({
   return (
     <>
       <p className="meta">
-        안 들은 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
+        미수강 또는 확인 필요 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
         · 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
         수강 반영은 재수집 후 확인됩니다.
       </p>
@@ -403,16 +409,16 @@ function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
       <span
         className={
           'badge ' +
-          (s.submitted ? 'green' : s.uncertain ? 'purple' : 'orange')
+          (s.uncertain ? 'purple' : s.submitted ? 'green' : 'orange')
         }
       >
-        {s.submitted
+        {s.uncertain
+          ? `${s.kind} 상태 확인 실패`
+          : s.submitted
           ? s.kind === '퀴즈'
             ? '응시 완료'
             : '제출 완료'
-          : s.uncertain
-            ? `${s.kind} 상태 확인 실패`
-            : s.kind === '퀴즈'
+          : s.kind === '퀴즈'
               ? '미응시'
               : '미제출'}
       </span>
@@ -905,16 +911,17 @@ function MatchFixRow({
           <small>
             {m.course.prof || '교수 미기재'}
             {m.course.community ? ' · 커뮤니티' : ''}
+            {m.semesterMismatch ? ` · ${catalog.semester}와 다른 학기` : ''}
           </small>
         </div>
         <span className="enrolled-actions">
-          <button
+          {!m.semesterMismatch && <button
             className="secondary"
             onClick={onToggle}
             aria-expanded={open}
           >
             {open ? '후보 닫기' : '직접 연결'}
-          </button>
+          </button>}
           <button className="link" onClick={onIgnore}>
             해당 없음
           </button>

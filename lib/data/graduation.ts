@@ -80,6 +80,8 @@ export type RuleResult = {
   /** required가 확정된 경우의 출처 (null이면 미설정) */
   requiredSource?: RequiredSource;
   status: RuleStatus;
+  /** 재수강·중복 여부를 판정할 수 없는 동일 과목이 있는 경우 */
+  uncertainCredits?: boolean;
 };
 
 function sumByGroups(
@@ -104,6 +106,7 @@ export function evaluate(
   overrides: Record<string, number> = {},
   opts: {
     admitYear?: number;
+    admissionType?: 'freshman' | 'transfer';
     points?: number;
     /**
      * 학과 규정표(dept-rules yearTable)에서 해석된 학번별 기준.
@@ -113,13 +116,24 @@ export function evaluate(
   } = {},
 ): RuleResult[] {
   // 입학연도 미입력 → null(참고 기본값 적용), 2016+ → true, 이전 → false(미수집)
-  const post16 =
-    opts.admitYear === undefined ? null : opts.admitYear >= 2016;
+  const post16 = opts.admitYear !== undefined && opts.admitYear >= 2016;
   // 이수 완료로 등록된 과목이 계획에도 남아 있으면 이중 집계된다 —
   // earned가 확정분이므로 계획 측에서는 빼고 '남은 이수 예정'만 센다.
   const doneCodes = new Set(completed.map((c) => c.code));
+  const counts = new Map<string, number>();
+  for (const c of completed) {
+    const key = c.code?.trim();
+    if (key && key !== '미확인') counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const ambiguous = completed.filter((c) => (counts.get(c.code?.trim()) ?? 0) > 1);
+  const verifiedCompleted = completed.filter((c) => (counts.get(c.code?.trim()) ?? 0) <= 1);
+  const plannedCodes = new Set<string>();
   const plannedItems = planned
-    .filter((s) => !doneCodes.has(s.code))
+    .filter((s) => {
+      if (doneCodes.has(s.code) || plannedCodes.has(s.code)) return false;
+      plannedCodes.add(s.code);
+      return true;
+    })
     .map((s) => ({
       category: s.category,
       credits: s.credits,
@@ -136,27 +150,28 @@ export function evaluate(
     if (overrides[rule.id] !== undefined) {
       required = overrides[rule.id];
       requiredSource = 'override';
-    } else if (deptVal !== undefined) {
+    } else if (deptVal !== undefined && opts.admitYear !== undefined && opts.admissionType === 'freshman') {
       required = deptVal;
       requiredSource = 'dept';
-    } else if (post16 === false) {
-      // 2015학번 이전의 전역 기준은 수집하지 않았다 — 추측하지 않는다.
+    } else if (!post16 || opts.admissionType !== 'freshman') {
+      // 미확인 입학구분·편입생·이전 입학연도는 전역 기준을 추측하지 않는다.
       required = null;
     } else {
       required = rule.required;
       requiredSource = required === null ? undefined : 'global';
     }
     const isPoints = rule.source === 'points';
-    const earned = isPoints ? (opts.points ?? 0) : sumByGroups(completed, rule.groups);
+    const earned = isPoints ? (opts.points ?? 0) : sumByGroups(verifiedCompleted, rule.groups);
     const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
     const missingInput = isPoints && opts.points === undefined;
+    const uncertainCredits = !isPoints && ambiguous.some((c) => rule.groups.includes(gradGroup(c.category)));
     const status: RuleStatus =
-      required === null || missingInput
+      required === null || missingInput || uncertainCredits
         ? 'unknown'
         : earned >= required
           ? 'met'
           : 'progress';
-    return { rule, earned, planned: plan, required, requiredSource, status };
+    return { rule, earned, planned: plan, required, requiredSource, status, uncertainCredits: uncertainCredits || undefined };
   });
 }
 

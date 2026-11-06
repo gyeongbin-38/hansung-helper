@@ -149,11 +149,8 @@ export async function POST(request: Request) {
                 snapshot.checkedAt,
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[lms] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[lms] deferred collect failed');
             try {
               await database()
                 .prepare(
@@ -208,11 +205,8 @@ export async function POST(request: Request) {
                 snapshot.checkedAt,
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[info] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[info] deferred collect failed');
             try {
               await database()
                 .prepare(

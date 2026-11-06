@@ -70,26 +70,28 @@ test('default rules carry honest provenance note and sane shape', () => {
 });
 
 test('official global baseline applies only for 2016+ entrants', () => {
-  const r16 = evaluate([], [], {}, { admitYear: 2023 });
+  const r16 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r16.find((x) => x.rule.id === 'total').required, 130);
   const r15 = evaluate([], [], {}, { admitYear: 2015 });
   // 2015학번 이전 전역 기준은 미수집 — 추측하지 않고 UNKNOWN
   assert.equal(r15.find((x) => x.rule.id === 'total').required, null);
   assert.equal(r15.find((x) => x.rule.id === 'total').status, 'unknown');
   const rNone = evaluate([], []);
-  assert.equal(rNone.find((x) => x.rule.id === 'total').required, 130);
+  assert.equal(rNone.find((x) => x.rule.id === 'total').required, null);
+  const transfer = evaluate([], [], {}, { admissionType: 'transfer', admitYear: 2023, points: 800 });
+  assert.equal(transfer.find((x) => x.rule.id === 'points').status, 'unknown');
   // 사용자가 직접 기준을 입력하면 미수집 연도에도 적용
   const rOver = evaluate([], [], { total: 140 }, { admitYear: 2014 });
   assert.equal(rOver.find((x) => x.rule.id === 'total').required, 140);
 });
 
 test('비교과 포인트 rule: 800P official, missing input stays unknown', () => {
-  const r = evaluate([], [], {}, { admitYear: 2023 });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   const pts = r.find((x) => x.rule.id === 'points');
   assert.equal(pts.required, 800);
   assert.equal(pts.rule.unit, 'P');
   assert.equal(pts.status, 'unknown'); // 입력 전 — 0/800으로 표시하지 않음
-  const r2 = evaluate([], [], {}, { admitYear: 2023, points: 900 });
+  const r2 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023, points: 900 });
   const pts2 = r2.find((x) => x.rule.id === 'points');
   assert.equal(pts2.earned, 900);
   assert.equal(pts2.status, 'met');
@@ -98,7 +100,7 @@ test('비교과 포인트 rule: 800P official, missing input stays unknown', () 
 // 학과 규정표(yearTable) 해석 기준 — 검증된 학과만 엔진에 연결
 test('deptTargets: 학과 기준이 미수집 전역 기준을 메운다 (pre-2016)', () => {
   // 2015학번: 전역 기준 미수집이지만 학과 규정표에 140학점 명시
-  const r = evaluate([], [], {}, { admitYear: 2015, deptTargets: { total: 140 } });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2015, deptTargets: { total: 140 } });
   const total = r.find((x) => x.rule.id === 'total');
   assert.equal(total.required, 140);
   assert.equal(total.requiredSource, 'dept');
@@ -116,7 +118,7 @@ test('deptTargets: 사용자 override가 학과 기준보다 우선한다', () =
 });
 
 test('deptTargets: 비교과 포인트도 학과 기준으로 확정 가능', () => {
-  const r = evaluate([], [], {}, { admitYear: 2015, points: 500, deptTargets: { points: 800 } });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2015, points: 500, deptTargets: { points: 800 } });
   const pts = r.find((x) => x.rule.id === 'points');
   assert.equal(pts.required, 800);
   assert.equal(pts.requiredSource, 'dept');
@@ -136,11 +138,19 @@ test('planned already-completed code is not double counted', () => {
   assert.equal(total.planned, 3); // A1 계획분은 제외 — 6이 아니라 3
 });
 
+test('duplicate completed codes require review rather than counting retakes twice', () => {
+  const r = evaluate([done('A', '전필', 3), done('A', '전필', 3)], [], { total: 6 });
+  const total = r.find((x) => x.rule.id === 'total');
+  assert.equal(total.earned, 0);
+  assert.equal(total.status, 'unknown');
+  assert.equal(total.uncertainCredits, true);
+});
+
 test('requiredSource: 전역 기준 경로는 global로 표시', () => {
-  const r = evaluate([], [], {}, { admitYear: 2023 });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');
   // 학과 기준이 있어도 total/points 외 규정에는 영향 없음
-  const r2 = evaluate([], [], {}, { admitYear: 2023, deptTargets: { total: 130, points: 800 } });
+  const r2 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023, deptTargets: { total: 130, points: 800 } });
   assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, undefined);
 });
 

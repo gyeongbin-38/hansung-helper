@@ -170,6 +170,8 @@ t('match: 모든 과목 반환', em.length === 8);
 t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
 t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
 t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
+const oldSemesterCourse = { ...lmsMatch, courses: [{ ...lmsMatch.courses[0], title: '[2025-1학기] 운영체제' }] };
+t('match: 과목 학기가 다르면 같은 이름이나 수동 보정도 연결하지 않음', matchEnrollment(oldSemesterCourse, catalog2, { '1': 'a1' })[0].sections.length === 0);
 
 // ── matchEnrollment overrides (수동 보정) ──────────────────
 const emOv = matchEnrollment(lmsMatch, catalog2, {
@@ -288,12 +290,17 @@ const unSnap = {
   }],
 };
 const unPend = pendingTasks(unSnap);
+const uncertainVodSnap = { ...unSnap, courses: [{ ...unSnap.courses[0], vods: [{ title: '출석 확인 실패', attended: false, uncertain: true }] }] };
+t('uncertain: 출석 확인 실패 플래그 전달', pendingTasks(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true && bingeQueue(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true);
 const oldLms = { source: 'cosmos-lms', fetchedAt: '2026-09-19T00:00:00Z', courses: [{ id: '301', title: '과목', vods: [{ title: '이전 강의', attended: true }], assigns: [{ title: '이전 과제', submitted: true }], quizzes: [{ title: '이전 퀴즈', submitted: true }] }] };
 const partialLms = { ...unSnap, fetchedAt: '2026-09-20T00:00:00Z', courses: [{ ...unSnap.courses[0], vods: [], assigns: [], errors: ['vod', 'assign'] }] };
 const mergedLms = mergeLmsSnapshot(oldLms, partialLms);
 t('merge: 실패한 출석·과제는 이전 값 유지', mergedLms.courses[0].vods[0]?.title === '이전 강의' && mergedLms.courses[0].assigns[0]?.title === '이전 과제');
 t('merge: 성공한 퀴즈는 새 값 사용하고 실패 표시 유지', mergedLms.courses[0].quizzes[0]?.title === '확인된미응시' && mergedLms.courses[0].errors.includes('vod'));
 t('merge: 이전 값의 수집 시각 보존', validateLms(mergedLms).courses[0].retainedAt === oldLms.fetchedAt);
+const individualFailure = { ...partialLms, courses: [{ ...partialLms.courses[0], errors: ['quiz-check'], quizzes: [{ title: '이전 퀴즈', submitted: false, uncertain: true }] }] };
+const preservedQuiz = mergeLmsSnapshot(oldLms, individualFailure);
+t('merge: 퀴즈 개별 확인 실패 시 이전 응시 상태를 보존하고 확인 실패 표시', preservedQuiz.courses[0].quizzes[0].submitted && preservedQuiz.courses[0].quizzes[0].uncertain && pendingTasks(preservedQuiz).some((task) => task.title === '이전 퀴즈' && task.uncertain));
 t('merge: 성공한 빈 목록은 이전 값을 되살리지 않음', mergeLmsSnapshot(oldLms, { ...partialLms, courses: [{ ...partialLms.courses[0], errors: [] }] }).courses[0].assigns.length === 0);
 t('merge: 다른 과목 결과를 혼합하지 않음', mergeLmsSnapshot(oldLms, { ...partialLms, courses: [{ ...partialLms.courses[0], id: 'other' }] }).courses[0].vods.length === 0);
 t('time: 수집 시각은 한국 시간', formatLmsTime('2026-09-19T00:00:00Z').includes('09:00'));

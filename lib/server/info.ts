@@ -538,11 +538,8 @@ export async function collectInfo(
     '[info] collect:',
     JSON.stringify({
       menu: menu.length,
-      targets,
       pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : 'fail'}`),
       courses: snap.completed.length,
-      points: snap.points ?? null,
-      credits: snap.credits ?? null,
       name: snap.name ? 'yes' : 'no',
       dept: snap.dept ? 'yes' : 'no',
     }),

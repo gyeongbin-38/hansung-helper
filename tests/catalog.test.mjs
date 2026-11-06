@@ -53,9 +53,9 @@ test('no personal/student data leaked into the public catalog', () => {
 });
 
 test('semesterStartTs maps YYYY-1→3/1, YYYY-2→9/1, unknown→null', () => {
-  assert.equal(semesterStartTs('2026-1'), new Date(2026, 2, 1).getTime());
-  assert.equal(semesterStartTs('2026-2'), new Date(2026, 8, 1).getTime());
-  assert.equal(semesterStartTs('2025-2'), new Date(2025, 8, 1).getTime());
+  assert.equal(semesterStartTs('2026-1'), Date.parse('2026-03-01T00:00:00+09:00'));
+  assert.equal(semesterStartTs('2026-2'), Date.parse('2026-09-01T00:00:00+09:00'));
+  assert.equal(semesterStartTs('2025-2'), Date.parse('2025-09-01T00:00:00+09:00'));
   assert.equal(semesterStartTs('garbage'), null);
   assert.equal(semesterStartTs('2026-3'), null);
 });

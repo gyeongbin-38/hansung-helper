@@ -31,14 +31,14 @@ export type Catalog = {
   sections: CourseSection[];
 };
 export const DAY_SHORT = ['월', '화', '수', '목', '금', '토', '일'];
-/** '2026-2' 같은 학기 문자열 → 학기 시작 로컬 시각 (1학기 3/1, 2학기 9/1).
+/** '2026-2' 같은 학기 문자열 → 한국 시간 기준 학기 시작 시각 (1학기 3/1, 2학기 9/1).
  *  해석 불가하면 null — 학기를 지어내지 않는다. */
 export function semesterStartTs(semester: string): number | null {
   const m = semester.match(/(\d{4})\s*[-./]?\s*(\d)/);
   if (!m) return null;
   const y = +m[1];
-  if (m[2] === '1') return new Date(y, 2, 1).getTime();
-  if (m[2] === '2') return new Date(y, 8, 1).getTime();
+  if (m[2] === '1') return Date.UTC(y, 2, 1) - 9 * 3600_000;
+  if (m[2] === '2') return Date.UTC(y, 8, 1) - 9 * 3600_000;
   return null;
 }
 /** 원본 이수구분 → 졸업요건 계산용 그룹. 카탈로그의 표시용 catGroup과는 별도 축. */
