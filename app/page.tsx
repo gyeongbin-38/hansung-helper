@@ -67,7 +67,8 @@ function applyInfo(prev: Data, info: InfoSnapshot): Data {
  *  info는 서버 작성 전용이라 snapshot 값이 유일한 출처다. */
 function accountData(result: Account): Data {
   const merged = { ...empty, ...result.profile };
-  const serverLms = result.snapshot?.lmsData;
+  merged.lms = validateLms(merged.lms) ?? undefined;
+  const serverLms = validateLms(result.snapshot?.lmsData);
   if (
     serverLms &&
     (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
@@ -95,12 +96,16 @@ export default function App() {
   const { items: toasts, push: setToast, dismiss: dismissToast } =
     useToasts();
   const [account, setAccount] = useState<Account | null>(null);
+  // 비동기 요청이 로그아웃·계정 전환 뒤 새 세션에 반영되지 않도록 한다.
+  const accountGeneration = useRef(0);
+  const renderedGeneration = accountGeneration.current;
   const [demo, setDemo] = useState(false);
   const accountRef = useRef(account);
   accountRef.current = account;
   const demoRef = useRef(demo);
   demoRef.current = demo;
   const allowExtensionImport = useRef(false);
+  const sessionChannel = useRef<BroadcastChannel | null>(null);
   const [accountError, setAccountError] = useState('');
   // 데스크톱 사이드바 아이콘 레일 — 로컬 기기 설정으로 영속화
   const [sideCollapsed, setSideCollapsed] = useState(false);
@@ -110,15 +115,42 @@ export default function App() {
   const { snap: schedSnap } = useSchedule();
   // 벨 배지·패널의 마감 계산도 실제 시각을 따라가도록 주기 갱신
   const notifNow = useNow(30000);
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    let channel: BroadcastChannel;
+    try {
+      channel = new BroadcastChannel('hansung-session-v1');
+    } catch {
+      return;
+    }
+    sessionChannel.current = channel;
+    channel.onmessage = (event) => {
+      if (event.data?.type !== 'session-ended' || demoRef.current) return;
+      accountGeneration.current += 1;
+      allowExtensionImport.current = false;
+      setAccount(null);
+      setData(empty);
+      setDraft([]);
+      setActDraft([]);
+      setRoute('home');
+      location.hash = 'home';
+      setAccountError('다른 탭에서 로그아웃했거나 계정을 삭제했습니다.');
+    };
+    return () => {
+      sessionChannel.current = null;
+      channel.close();
+    };
+  }, []);
   // Browser storage is read after hydration to keep the initial server render stable.
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
     let active = true;
+    const generation = accountGeneration.current;
     apiFetch('/api/account', { cache: 'no-store' })
       .then(async (response) => {
         if (response.ok) {
           const result = await apiData<Account>(response);
-          if (active) {
+          if (active && generation === accountGeneration.current) {
             allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
@@ -163,7 +195,7 @@ export default function App() {
   // 서버 스냅샷의 lmsData가 로컬보다 새로우면 흡수한다 — 로그인 응답에
   // 실린 데이터, 지연 수집 완료, 재수집 결과 모두 이 경로로 반영된다.
   useEffect(() => {
-    const serverLms = account?.snapshot.lmsData;
+    const serverLms = validateLms(account?.snapshot.lmsData);
     if (!serverLms) return;
     setData((prev) =>
       !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
@@ -179,6 +211,7 @@ export default function App() {
   const infoPending = account?.snapshot.infoPending === true;
   useEffect(() => {
     if (!lmsPending && !infoPending) return;
+    const generation = accountGeneration.current;
     let cancelled = false,
       tries = 0,
       timer: ReturnType<typeof setTimeout>;
@@ -188,8 +221,9 @@ export default function App() {
         const res = await apiFetch('/api/account', { cache: 'no-store' });
         if (res.ok) {
           const result = await apiData<Account>(res);
+          if (cancelled || generation !== accountGeneration.current) return;
           setAccount(result);
-          const serverLms = result.snapshot?.lmsData;
+          const serverLms = validateLms(result.snapshot?.lmsData);
           if (serverLms)
             setData((prev) =>
               !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
@@ -459,6 +493,7 @@ export default function App() {
     msg = '저장했습니다.',
     complete?: boolean,
   ) {
+    const generation = accountGeneration.current;
     try {
       if (account) {
         // 호출 시점의 화면 상태를 base로 둔다 — 큐에서 기다리는 동안 앞선
@@ -467,6 +502,7 @@ export default function App() {
         const baseAtCall = dataRef.current;
         let send = next;
         const response = await enqueue(() => {
+          if (generation !== accountGeneration.current) throw new Error('session-changed');
           send = mergeProfile(baseAtCall, next, dataRef.current);
           return apiFetch('/api/account/profile', {
             method: 'PUT',
@@ -480,6 +516,7 @@ export default function App() {
             }),
           });
         });
+        if (generation !== accountGeneration.current) return false;
         if (!response.ok) {
           let errorMessage = '저장하지 못했습니다.';
           try {
@@ -513,11 +550,13 @@ export default function App() {
       if (msg) setToast(msg);
       return true;
     } catch {
+      if (generation !== accountGeneration.current) return false;
       setToast('저장하지 못했습니다. 입력 내용은 유지됩니다.');
       return false;
     }
   }
   async function logout() {
+    accountGeneration.current += 1;
     allowExtensionImport.current = false;
     try {
       const response = await apiFetch('/api/account/logout', {
@@ -526,6 +565,7 @@ export default function App() {
         body: '{}',
       });
       if (!response.ok) throw new Error();
+      try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 로그아웃을 방해하지 않는다 */ }
       clearExtensionCache();
       setAccount(null);
       setDemo(false);
@@ -545,6 +585,7 @@ export default function App() {
       )
     )
       return;
+    accountGeneration.current += 1;
     allowExtensionImport.current = false;
     try {
       const response = await apiFetch('/api/account', {
@@ -553,6 +594,7 @@ export default function App() {
         body: '{}',
       });
       if (!response.ok) throw new Error();
+      try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 탈퇴를 방해하지 않는다 */ }
       clearExtensionCache();
       setAccount(null);
       setData(empty);
@@ -720,6 +762,7 @@ export default function App() {
         <SignIn
           notice={accountError || undefined}
           onAuthenticated={(result) => {
+            accountGeneration.current += 1;
             clearExtensionCache();
             allowExtensionImport.current = true;
             setAccount(result);
@@ -729,6 +772,7 @@ export default function App() {
             go('home');
           }}
           onDemo={() => {
+            accountGeneration.current += 1;
             clearExtensionCache();
             allowExtensionImport.current = false;
             setDemo(true);
@@ -764,6 +808,7 @@ export default function App() {
                   (d.lms === undefined || typeof d.lms === 'object')
                 ) {
                   const next = { ...empty, ...d };
+                  next.lms = validateLms(d.lms) ?? undefined;
                   const info = validateInfo(d.info);
                   setData(info ? applyInfo(next, info) : next);
                 }
@@ -920,7 +965,10 @@ export default function App() {
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               lmsError={account?.snapshot.lmsError}
               studentMask={account?.studentMask}
-              onAccount={setAccount}
+              onAccount={(result) => {
+                if (renderedGeneration === accountGeneration.current && accountRef.current)
+                  setAccount(result);
+              }}
               ext={ext}
               onExtRefresh={() => requestLmsRefresh(true)}
               catalog={catalog}

@@ -81,10 +81,11 @@ export async function POST(request: Request) {
         /* 이전 스냅샷 손상은 무시 */
       }
     }
-    await database()
-      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ?')
-      .bind(JSON.stringify(snapshot), id)
+    const updated = await database()
+      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
+      .bind(JSON.stringify(snapshot), id, account.session_hash, Date.now())
       .run();
+    if (!updated.meta.changes) return json({ error: '다시 로그인해 주세요.' }, 401);
     if (deferredCollect)
       waitUntil(
         (async () => {
@@ -92,12 +93,14 @@ export async function POST(request: Request) {
             const lmsData = mergeLmsSnapshot(oldLms, await deferredCollect());
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify({ lmsData, lmsPending: null }),
                 id,
                 snapshot.checkedAt,
+                account.session_hash,
+                Date.now(),
               )
               .run();
           } catch {
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -114,6 +117,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  account.session_hash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -138,7 +143,7 @@ export async function POST(request: Request) {
               : null;
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify(
@@ -151,6 +156,8 @@ export async function POST(request: Request) {
                 ),
                 id,
                 snapshot.checkedAt,
+                account.session_hash,
+                Date.now(),
               )
               .run();
           } catch {
@@ -158,7 +165,7 @@ export async function POST(request: Request) {
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -167,6 +174,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  account.session_hash,
+                  Date.now(),
                 )
                 .run();
             } catch {

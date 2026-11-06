@@ -121,11 +121,12 @@ export async function POST(request: Request) {
     const token = [...crypto.getRandomValues(new Uint8Array(32))]
       .map((x) => x.toString(16).padStart(2, '0'))
       .join('');
+    const tokenHash = await hash(token);
     await database()
       .prepare(
         'INSERT INTO academic_sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)',
       )
-      .bind(await hash(token), id, Date.now() + 86400000)
+      .bind(tokenHash, id, Date.now() + 86400000)
       .run();
     const row = await database()
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
@@ -141,12 +142,14 @@ export async function POST(request: Request) {
             const lmsData = mergeLmsSnapshot(oldLms, await deferredCollect());
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify({ lmsData, lmsPending: null }),
                 id,
                 snapshot.checkedAt,
+                tokenHash,
+                Date.now(),
               )
               .run();
           } catch {
@@ -154,7 +157,7 @@ export async function POST(request: Request) {
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -163,6 +166,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  tokenHash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -190,7 +195,7 @@ export async function POST(request: Request) {
               : null;
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify(
@@ -203,6 +208,8 @@ export async function POST(request: Request) {
                 ),
                 id,
                 snapshot.checkedAt,
+                tokenHash,
+                Date.now(),
               )
               .run();
           } catch {
@@ -210,7 +217,7 @@ export async function POST(request: Request) {
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -219,6 +226,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  tokenHash,
+                  Date.now(),
                 )
                 .run();
             } catch {

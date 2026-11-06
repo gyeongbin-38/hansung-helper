@@ -6,16 +6,19 @@ import ts from 'typescript';
 const source = await readFile('app/api/account/profile/route.ts', 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 let profile = {};
+let active = true;
 const modules = {
   '@/lib/server/account': {
-    authenticated: async () => ({ id: 'a', profile: JSON.stringify(profile), onboarded: 0 }),
-    database: () => ({ prepare: () => ({ bind: (json, _onboarded, _id, expected) => ({ run: async () => {
-      if ((profile.rev ?? 0) !== expected) return { meta: { changes: 0 } };
+    authenticated: async () => active ? ({ id: 'a', profile: JSON.stringify(profile), onboarded: 0, session_hash: 'token-hash' }) : null,
+    database: () => ({ prepare: (sql) => ({ bind: (json, _onboarded, _id, expected, tokenHash) => ({ run: async () => {
+      assert.match(sql, /EXISTS \(SELECT 1 FROM academic_sessions/);
+      assert.equal(tokenHash, 'token-hash');
+      if (!active || (profile.rev ?? 0) !== expected) return { meta: { changes: 0 } };
       profile = JSON.parse(json); return { meta: { changes: 1 } };
     } }) }) }),
     json: (body, status = 200) => ({ body, status }),
     validOrigin: () => true,
-    readTextLimited: async (request) => request.body,
+    readTextLimited: async (request) => { if (request.revoke) active = false; return request.body; },
     PayloadTooLargeError: class extends Error {},
   },
   '@/lib/data/lms': { validateLms: (v) => v },
@@ -29,5 +32,7 @@ assert.equal((await exports.PUT({ body: JSON.stringify(input) })).status, 200);
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, name: '오래된 탭' }) })).status, 409);
 assert.equal(profile.name, '처음');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 1, name: '새 저장' }) })).status, 200);
+assert.equal(profile.name, '새 저장');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 2, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
 assert.equal(profile.name, '새 저장');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');

@@ -86,6 +86,9 @@ const snap = {
 
 // ── validateLms ─────────────────────────────────────────────
 t('validate: 정상 스냅샷 통과', validateLms(snap) !== null);
+const maliciousLinks = { ...snap, courses: [{ ...snap.courses[0], vods: [{ title: 'script', attended: false, url: 'javascript:alert(1)' }], assigns: [{ title: '외부 링크', submitted: false, url: 'https://learn.hansung.ac.kr.evil.example/test' }], quizzes: [{ title: '인증정보', submitted: false, url: 'https://name:secret@learn.hansung.ac.kr/test' }] }] };
+const safeLinks = validateLms(maliciousLinks).courses[0];
+t('validate: 스크립트·다른 도메인·인증정보 포함 링크는 제거', !safeLinks.vods[0].url && !safeLinks.assigns[0].url && !safeLinks.quizzes[0].url);
 t('validate: source 불일치 거부', validateLms({ ...snap, source: 'x' }) === null);
 t('validate: courses 비배열 거부', validateLms({ source: 'cosmos-lms', courses: 'x' }) === null);
 t('validate: course 필수필드 누락 거부', validateLms({

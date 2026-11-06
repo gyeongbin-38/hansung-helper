@@ -64,6 +64,19 @@ export type LmsSnapshot = {
   };
 };
 
+/** 수집 파일의 링크는 인증된 학교 LMS 주소만 허용한다. */
+function safeLmsUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.origin !== 'https://learn.hansung.ac.kr' || url.username || url.password)
+      return undefined;
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
 /** 수집 JSON 검증 — 형식이 맞지 않으면 null (부분 보정 없이 거부) */
 export function validateLms(raw: unknown): LmsSnapshot | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -83,7 +96,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
         if (typeof t.title !== 'string') return [];
         return {
           title: t.title,
-          url: typeof t.url === 'string' ? t.url : undefined,
+          url: safeLmsUrl(t.url),
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
           uncertain: t.uncertain === true ? true : undefined,
@@ -106,7 +119,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           weeklyStatus:
             typeof t.weeklyStatus === 'string' ? t.weeklyStatus : undefined,
           range: typeof t.range === 'string' ? t.range : undefined,
-          url: typeof t.url === 'string' ? t.url : undefined,
+          url: safeLmsUrl(t.url),
           watched: typeof t.watched === 'string' ? t.watched : undefined,
           required: typeof t.required === 'string' ? t.required : undefined,
         };

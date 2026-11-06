@@ -256,15 +256,19 @@ export async function PUT(request: Request) {
     profile.consent = input.consent === true;
     const written = await database()
       .prepare(
-        "UPDATE academic_accounts SET profile = ?, onboarded = ? WHERE id = ? AND COALESCE(json_extract(profile, '$.rev'), 0) = ?",
+        "UPDATE academic_accounts SET profile = ?, onboarded = ? WHERE id = ? AND COALESCE(json_extract(profile, '$.rev'), 0) = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
       )
       .bind(
         JSON.stringify(profile),
         input.onboarded === true || row.onboarded ? 1 : 0,
         row.id,
         expected,
+        row.session_hash,
+        Date.now(),
       )
       .run();
+    if (!written.meta.changes && !(await authenticated(request)))
+      return json({ error: '다시 로그인해 주세요.' }, 401);
     if (!written.meta.changes)
       return json(
         {
