@@ -1915,8 +1915,10 @@ input[aria-invalid='true'] {
 /* ---------- 학사 캘린더 — 월 그리드 + 선택일 agenda ---------- */
 .cal-head-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
+  justify-content: flex-end;
 }
 .cal-head-actions .link {
   display: inline-flex;
@@ -1929,6 +1931,9 @@ input[aria-invalid='true'] {
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 20px;
   margin-top: 12px;
+}
+.cal-main {
+  min-width: 0;
 }
 .cal-nav {
   display: flex;
@@ -1949,7 +1954,7 @@ input[aria-invalid='true'] {
 }
 .cal-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   font-size: 11px;
   color: var(--nt-muted);
   text-align: center;
@@ -1958,10 +1963,19 @@ input[aria-invalid='true'] {
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
   border-left: 1px solid var(--nt-hairline-soft);
 }
 .cal-cell {
+  min-width: 0;
   min-height: 84px;
   padding: 4px 4px 2px;
   border-right: 1px solid var(--nt-hairline-soft);
@@ -2069,6 +2083,9 @@ input[aria-invalid='true'] {
   color: var(--nt-muted);
   padding-left: 4px;
 }
+.cal-mobile-summary {
+  display: none;
+}
 .cal-side {
   border-left: 1px solid var(--nt-hairline);
   padding-left: 18px;
@@ -2125,6 +2142,7 @@ input[aria-invalid='true'] {
   font-size: 13px;
   font-weight: 500;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 .cal-agenda-row small {
   font-size: 11px;
@@ -2169,5 +2187,140 @@ input[aria-invalid='true'] {
   }
   .cal-cell {
     min-height: 64px;
+  }
+}
+@media (max-width: 640px) {
+  .cal-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .cal-heading h2 {
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+  .cal-head-actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px 14px;
+  }
+  .cal-head-actions .link {
+    min-height: 40px;
+  }
+  .cal-nav {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px auto;
+    gap: 4px;
+  }
+  .cal-nav .icon {
+    width: 40px;
+    min-height: 40px;
+  }
+  .cal-ym {
+    min-width: 0;
+    font-size: 17px;
+  }
+  .cal-today {
+    margin-left: 2px;
+    min-height: 40px;
+    padding-inline: 6px;
+  }
+  .cal-weekdays {
+    font-size: 12px;
+    padding-bottom: 6px;
+  }
+  .cal-cell {
+    min-height: 58px;
+    padding: 5px 2px 4px;
+    align-items: center;
+    gap: 5px;
+    text-align: center;
+  }
+  .cal-dayno {
+    justify-content: center;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .cal-dayno i,
+  .cal-bands,
+  .cal-chips {
+    display: none;
+  }
+  .cal-mobile-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--nt-muted);
+    font-size: 10px;
+    line-height: 12px;
+  }
+  .cal-mobile-summary b {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-mobile-dots {
+    display: flex;
+    gap: 2px;
+  }
+  .cal-mobile-dots i {
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--nt-primary);
+  }
+  .cal-mobile-dots i.lms {
+    background: var(--nt-pink-deep);
+  }
+  .cal-mobile-dots i.personal {
+    background: var(--nt-green-deep);
+  }
+  .cal-side {
+    padding-top: 18px;
+  }
+  .cal-side-date {
+    flex-wrap: wrap;
+    font-size: 17px;
+  }
+  .cal-agenda {
+    max-height: none;
+    overflow: visible;
+  }
+  .cal-agenda-row {
+    min-height: 48px;
+    align-items: center;
+  }
+  .cal-agenda-row b,
+  .cal-agenda-row .title-link {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .cal-agenda-row .icon {
+    flex: 0 0 40px;
+    width: 40px;
+    min-height: 40px;
+  }
+  .cal-quick {
+    align-items: stretch;
+  }
+  .cal-quick input {
+    min-height: 44px;
+  }
+  .cal-quick .primary {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .cal-preview {
+    line-height: 18px;
+    overflow-wrap: anywhere;
+  }
+  .cal-preview .link {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
   }
 }
