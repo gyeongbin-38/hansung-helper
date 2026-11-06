@@ -58,11 +58,17 @@ assert db.execute(query, ("session-a2", 1)).fetchone()[0] == "a"
 # account-scoped login/refresh throttles without affecting B.
 db.execute("INSERT INTO academic_login_limits VALUES('a', 1, 999)")
 db.execute("INSERT INTO academic_login_limits VALUES('refresh:a', 1, 999)")
-db.execute("DELETE FROM academic_sessions WHERE account_id=?", ("a",))
-db.execute("DELETE FROM academic_accounts WHERE id=?", ("a",))
+db.execute("DELETE FROM academic_sessions WHERE token_hash=?", ("session-a2",))
+delete_sql = ("DELETE FROM academic_accounts WHERE id = ? AND EXISTS "
+              "(SELECT 1 FROM academic_sessions WHERE token_hash = ? "
+              "AND account_id = academic_accounts.id AND expires_at > ?)")
+assert db.execute(delete_sql, ("a", "session-a2", 1)).rowcount == 0
+assert db.execute(delete_sql, ("a", "session-b", 1)).rowcount == 0
+assert db.execute(delete_sql, ("a", "session-a", 1000)).rowcount == 0
+assert db.execute(delete_sql, ("a", "session-a", 1)).rowcount == 1
 db.execute(
-    "DELETE FROM academic_login_limits WHERE key IN (?, ?)",
-    ("a", "refresh:a"),
+    "DELETE FROM academic_login_limits WHERE key IN (?, ?) AND NOT EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)",
+    ("a", "refresh:a", "a"),
 )
 assert db.execute(query, ("session-a", 1)).fetchone() is None
 assert db.execute(query, ("session-a2", 1)).fetchone() is None

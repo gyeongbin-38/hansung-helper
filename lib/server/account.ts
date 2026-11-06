@@ -232,17 +232,17 @@ export type AccountRow = {
 };
 export async function authenticated(
   request: Request,
-): Promise<AccountRow | null> {
+): Promise<(AccountRow & { session_hash: string }) | null> {
   const token = request.headers
     .get('cookie')
     ?.match(/(?:^|;\s*)__Host-hansung_session=([a-f0-9]{64})(?:;|$)/)?.[1];
   if (!token) return null;
   return database()
     .prepare(
-      'SELECT a.id, a.profile, a.snapshot, a.onboarded, a.student_mask FROM academic_accounts a JOIN academic_sessions s ON s.account_id = a.id WHERE s.token_hash = ? AND s.expires_at > ?',
+      'SELECT a.id, a.profile, a.snapshot, a.onboarded, a.student_mask, s.token_hash AS session_hash FROM academic_accounts a JOIN academic_sessions s ON s.account_id = a.id WHERE s.token_hash = ? AND s.expires_at > ?',
     )
     .bind(await hash(token), Date.now())
-    .first<AccountRow>();
+    .first<AccountRow & { session_hash: string }>();
 }
 export function accountView(row: AccountRow) {
   return {

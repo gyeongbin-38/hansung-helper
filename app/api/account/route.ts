@@ -21,16 +21,14 @@ export async function DELETE(request: Request) {
   const account = await authenticated(request);
   if (!account) return json({ error: '로그인이 필요합니다.' }, 401);
   const db = database();
-  await db.batch([
+  const result = await db.batch([
     db
-      .prepare('DELETE FROM academic_sessions WHERE account_id = ?')
-      .bind(account.id),
+      .prepare('DELETE FROM academic_accounts WHERE id = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
+      .bind(account.id, account.session_hash, Date.now()),
     db
-      .prepare('DELETE FROM academic_accounts WHERE id = ?')
-      .bind(account.id),
-    db
-      .prepare('DELETE FROM academic_login_limits WHERE key IN (?, ?)')
-      .bind(account.id, `refresh:${account.id}`),
+      .prepare('DELETE FROM academic_login_limits WHERE key IN (?, ?) AND NOT EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)')
+      .bind(account.id, `refresh:${account.id}`, account.id),
   ]);
+  if (!result[0].meta.changes) return json({ error: '로그인이 필요합니다.' }, 401);
   return json({ deleted: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
 }
