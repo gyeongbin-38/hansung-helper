@@ -2,11 +2,12 @@
 // 재배포 없이 공개 스냅샷을 갱신한다 (API는 D1 우선, 번들 폴백).
 // D1 문장 크기 제한 때문에 페이로드를 part 청크로 나눠 저장한다.
 // 사용: node scripts/_publish_snapshots.mjs --local|--remote
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..');
@@ -18,8 +19,11 @@ const configPath = join(repo, 'dist', 'server', 'wrangler.json');
 
 const CHUNK = 60_000; // D1 단일 문장 크기 제한 여유치
 
+const courseFiles = readdirSync(join(repo, 'lib/data')).filter((name) => /^catalog-20\d{2}-[12]\.json$/.test(name)).sort();
+if (!courseFiles.length) throw new Error('no course catalog found');
 const KINDS = {
-  courses: 'catalog-2026-2.json',
+  courses: courseFiles.at(-1),
+  ...Object.fromEntries(courseFiles.map((file) => [`courses:${file.slice(8, -5)}`, file])),
   activities: 'activities.json',
   schedule: 'schedule.json',
   'dept-rules': 'dept-rules.json',
@@ -45,28 +49,37 @@ const stmts = [
  );`,
 ];
 const now = Date.now();
+const generation = randomUUID();
 for (const [kind, file] of Object.entries(KINDS)) {
   const raw = readFileSync(join(repo, 'lib/data', file), 'utf-8');
   const json = JSON.parse(raw); // 파싱 실패 시 즉시 중단 — 깨진 파일 게시 방지
-  if (!SHAPE[kind](json)) throw new Error(`${file}: 예상 형식이 아닙니다`);
+  const shape = kind.startsWith('courses:') ? SHAPE.courses : SHAPE[kind];
+  if (!shape(json)) throw new Error(`${file}: 예상 형식이 아닙니다`);
+  if (kind.startsWith('courses') && json.semester !== file.slice(8, -5))
+    throw new Error(`${file}: semester does not match filename`);
   const fetchedAt = json.fetchedAt ?? json.generatedAt ?? '';
   if (!fetchedAt || Number.isNaN(Date.parse(fetchedAt)))
     throw new Error(`${file}: fetchedAt/generatedAt이 없거나 올바르지 않습니다`);
   if ((kind === 'activities' || kind === 'schedule') && json.items.length === 0)
     throw new Error(`${file}: 비어 있는 스냅샷은 게시하지 않습니다`);
   const parts = Math.ceil(raw.length / CHUNK);
+  const stagedKind = `${kind}@${generation}`;
   for (let p = 0; p < parts; p++) {
     const chunk = raw.slice(p * CHUNK, (p + 1) * CHUNK);
     stmts.push(
       `INSERT INTO public_snapshots (kind, part, payload, fetched_at, updated_at)` +
-        ` VALUES ('${kind}', ${p}, '${esc(chunk)}', '${fetchedAt}', ${now})` +
+        ` VALUES ('${stagedKind}', ${p}, '${esc(chunk)}', '${fetchedAt}', ${now})` +
         ` ON CONFLICT(kind, part) DO UPDATE SET payload = excluded.payload,` +
         ` fetched_at = excluded.fetched_at, updated_at = excluded.updated_at;`,
     );
   }
-  // Remove trailing chunks only after all replacement chunks were written.
+  // 포인터 한 행만 교체한다. 청크가 빠졌다면 이전 포인터를 그대로 둔다.
+  const manifest = esc(JSON.stringify({ kind: stagedKind, parts }));
   stmts.push(
-    `DELETE FROM public_snapshots WHERE kind = '${kind}' AND part >= ${parts};`,
+    `INSERT INTO public_snapshots (kind, part, payload, fetched_at, updated_at) ` +
+    `SELECT '${kind}@active', -1, '${manifest}', '${esc(fetchedAt)}', ${now} ` +
+    `WHERE (SELECT COUNT(*) FROM public_snapshots WHERE kind = '${stagedKind}' AND part >= 0 AND part < ${parts}) = ${parts} ` +
+    `ON CONFLICT(kind, part) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at, updated_at = excluded.updated_at;`,
   );
   console.log(
     `${kind}: ${file} (${raw.length}B → ${parts} part, fetched ${fetchedAt})`,

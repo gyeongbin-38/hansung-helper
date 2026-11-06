@@ -50,6 +50,7 @@ for (const outcome of ['success', 'empty', 'failure']) {
       return { checkedAt: 'current' };
     } },
     '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
+    '@/lib/data/lms': { mergeLmsSnapshot: (_old, current) => current },
     '@/lib/data/notifs': { infoChanges: () => [] },
   };
   const exports = {};

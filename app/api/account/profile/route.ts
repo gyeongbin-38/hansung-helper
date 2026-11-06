@@ -15,7 +15,7 @@ export async function PUT(request: Request) {
     const raw = await readTextLimited(request, 200000);
     const input = JSON.parse(raw),
       profile: Record<string, unknown> = {};
-    if (!input || typeof input !== 'object')
+    if (!input || typeof input !== 'object' || Array.isArray(input))
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     for (const key of [
       'name',
@@ -224,23 +224,10 @@ export async function PUT(request: Request) {
     profile.lmsMatch = lmsMatch;
     // 낙관적 잠금 — 클라이언트가 보낸 rev와 저장된 rev가 다르면 다른
     // 기기/탭이 먼저 쓴 것이므로 덮어쓰지 않고 409로 알린다. rev를
-    // 보내지 않는 구 클라이언트는 저장값 기준으로 통과시킨다.
-    const baseRev = (() => {
-      try {
-        const old = JSON.parse(row.profile) as { rev?: unknown };
-        return typeof old.rev === 'number' && Number.isInteger(old.rev)
-          ? old.rev
-          : 0;
-      } catch {
-        return 0;
-      }
-    })();
-    const expected =
-      typeof input.rev === 'number' &&
-      Number.isInteger(input.rev) &&
-      input.rev >= 0
-        ? input.rev
-        : baseRev;
+    // 버전이 없는 요청은 오래된 탭의 덮어쓰기를 방지하기 위해 거절한다.
+    if (!Number.isSafeInteger(input.rev) || input.rev < 0)
+      return json({ error: '저장 버전을 확인해 주세요. 페이지를 새로고침해 주세요.' }, 400);
+    const expected = input.rev as number;
     profile.rev = expected + 1;
     const plans: Record<string, string[]> = {};
     if (input.plans && typeof input.plans === 'object') {

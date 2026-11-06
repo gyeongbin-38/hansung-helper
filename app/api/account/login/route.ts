@@ -16,6 +16,7 @@ import {
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import { mergeLmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
     // 수집본을 보존한다 — fetchedAt이 기준 시각을 그대로 보여주므로 신선도 유지.
     // oldInfo는 아래 지연 수집 완료 시 '무엇이 바뀌었나' 비교 기준으로도 쓴다.
     let oldInfo: InfoSnapshot | undefined;
+    let oldLms: LmsSnapshot | undefined;
     if (!snapshot.lmsData || !snapshot.infoData) {
       const prior = await database()
         .prepare('SELECT snapshot FROM academic_accounts WHERE id = ?')
@@ -94,7 +96,8 @@ export async function POST(request: Request) {
               infoData?: InfoSnapshot;
             })
           : null;
-        if (old?.lmsData) snapshot.lmsData = old.lmsData;
+        oldLms = old?.lmsData;
+        if (!snapshot.lmsData && oldLms) snapshot.lmsData = oldLms;
         oldInfo = old?.infoData;
         if (oldInfo) snapshot.infoData = oldInfo;
       } catch {
@@ -135,7 +138,7 @@ export async function POST(request: Request) {
       waitUntil(
         (async () => {
           try {
-            const lmsData = await deferredCollect();
+            const lmsData = mergeLmsSnapshot(oldLms, await deferredCollect());
             await database()
               .prepare(
                 "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
@@ -146,11 +149,8 @@ export async function POST(request: Request) {
                 snapshot.checkedAt,
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[lms] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[lms] deferred collect failed');
             try {
               await database()
                 .prepare(
@@ -205,11 +205,8 @@ export async function POST(request: Request) {
                 snapshot.checkedAt,
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[info] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[info] deferred collect failed');
             try {
               await database()
                 .prepare(

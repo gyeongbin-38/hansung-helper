@@ -5,8 +5,11 @@ import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog'
 import {
   evaluate,
   GLOBAL_RULE_SOURCE,
+  TRANSFER_RULE_SOURCE,
   graduationOutlook,
+  type AdmissionType,
 } from '@/lib/data/graduation';
+import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import { mergeCompleted } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import {
@@ -42,8 +45,9 @@ export function Graduation({
   infoFailed?: boolean;
 }) {
   const [q, setQ] = useState('');
-  const [withPlan, setWithPlan] = useState(false);
   const [pace, setPace] = useState('');
+  const [admissionType, setAdmissionType] = useState<AdmissionType>('unknown');
+  const guide = verifiedDeptGuide(data.dept, Number(data.year));
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
@@ -104,6 +108,7 @@ export function Graduation({
     const pts = infoPoints ?? parseInt(data.points, 10);
     return evaluate(merged, planned, data.ruleOverrides, {
       admitYear: Number.isInteger(year) ? year : undefined,
+      admissionType,
       points: Number.isInteger(pts) ? pts : undefined,
       deptTargets: deptTargets ?? undefined,
     });
@@ -115,6 +120,7 @@ export function Graduation({
     data.points,
     infoPoints,
     deptTargets,
+    admissionType,
   ]);
   const total = results[0];
   // 졸업 전망 역산 — 학기당 목표 학점은 사용자가 조정할 수 있다.
@@ -215,8 +221,7 @@ export function Graduation({
     );
   }
 
-  const shown = (r: (typeof results)[number]) =>
-    withPlan ? r.earned + r.planned : r.earned;
+  const shown = (r: (typeof results)[number]) => r.earned;
   const pct = (r: (typeof results)[number]) =>
     r.required ? Math.min(100, Math.round((shown(r) / r.required) * 100)) : 0;
 
@@ -235,7 +240,7 @@ export function Graduation({
     const isPoints = r.rule.source === 'points';
     const inGroups = (cat: string) =>
       r.rule.groups.includes(gradGroup(cat));
-    const contrib = data.completed.filter((c) => inGroups(c.category));
+    const contrib = merged.filter((c) => inGroups(c.category));
     const contribPlan = planned.filter((s) => inGroups(s.category));
     return (
       <>
@@ -300,7 +305,7 @@ export function Graduation({
                 )}
               </>
             ) : (
-              `공식 전역 기준(2016학번 이후) · 출처: ${GLOBAL_RULE_SOURCE.label} · 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
+              `입학유형·학번별 기준은 공식 이수체계와 편입생 안내를 확인하세요. 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
             )}
           </p>
           <label className="rule-target">
@@ -436,10 +441,10 @@ export function Graduation({
         {pendingSteps.length ? (
           <span className="badge orange">계산 대기</span>
         ) : (
-          <span className="badge green">공식 전역 기준 적용</span>
+          <span className="badge">기준 및 개인 적용 조건 확인 필요</span>
         )}
-        {deptTargets && (
-          <span className="badge green">내 학과 규정표 반영</span>
+        {deptTargets && admissionType === 'freshman' && (
+          <span className="badge">내 학과 규정표 참고</span>
         )}
         {info ? (
           <span className="badge green">
@@ -473,9 +478,11 @@ export function Graduation({
           참고용입니다.
         </p>
         <p className="meta">
-          {deptTargets
+          {admissionType === 'unknown' || !data.year
+            ? '입학 구분과 연도에 적용되는 기준 확인 필요'
+            : admissionType === 'freshman' && deptTargets
             ? `내 학과 규정표 ${deptTargets.columnLabel} 기준 적용`
-            : '학교 전역 기준(2016학번 이후) 적용'}
+            : '입학유형과 연도에 따른 기본 기준 적용'}
           {' · '}
           <a href={GLOBAL_RULE_SOURCE.url} target="_blank" rel="noreferrer">
             {GLOBAL_RULE_SOURCE.label}
@@ -483,6 +490,17 @@ export function Graduation({
           · 확인일 {GLOBAL_RULE_SOURCE.asOf}
           {!data.year && ' · 입학연도 미입력 — 참고값'}
         </p>
+        <label>
+          입학 구분{' '}
+          <select value={admissionType} onChange={(event) => setAdmissionType(event.target.value as AdmissionType)}>
+            <option value="unknown">선택해 주세요 / 기타 유형</option>
+            <option value="freshman">신입학</option>
+            <option value="general-transfer">일반편입 (3학년)</option>
+            <option value="bachelor-transfer">학사편입 (3학년)</option>
+          </select>
+        </label>
+        <p className="meta">입학 구분은 이번 확인에만 사용됩니다. 외국인 편입·재입학·전과 등은 학교에 확인해 주세요. 편입 인정학점과 개인별 세부 조건도 확인이 필요합니다. <a href={TRANSFER_RULE_SOURCE.url} target="_blank" rel="noreferrer">{TRANSFER_RULE_SOURCE.label}</a></p>
+        {results.some((r) => r.uncertainCredits) && <p className="meta">동일 과목코드가 여러 번 있어 재수강·중복 이수 여부 확인이 필요합니다. 해당 학점은 합산에서 제외했습니다.</p>}
         <progress
           className="progress-track"
           aria-label="전체 졸업요건 충족률"
@@ -513,23 +531,24 @@ export function Graduation({
             계산됩니다.
           </p>
         )}
-        {total.planned > 0 && !withPlan && (
+        {total.planned > 0 && (
           <p className="meta">+{total.planned}학점 계획 중</p>
         )}
-        <label className="check-line">
-          <input
-            type="checkbox"
-            checked={withPlan}
-            onChange={(e) => setWithPlan(e.target.checked)}
-          />
-          계획 과목까지 포함해서 보기
-        </label>
         <button className="secondary" onClick={() => go('profile')}>
           프로필에서 소속·입학연도 수정
         </button>
       </div>
 
-      {outlook.ok && !missingInput(total) && (
+      {guide && (
+        <section className="card pad">
+          <h3>{guide.department} 공식 요건 확인 안내</h3>
+          <p className="meta">{guide.cohorts} · 확인일 {guide.checkedAt} · 충족 여부는 자동 판정하지 않습니다.</p>
+          <ul>{guide.items.map((item) => <li key={item}>{item}</li>)}</ul>
+          <a href={guide.url} target="_blank" rel="noreferrer">학과 공식 원문 확인</a>
+        </section>
+      )}
+
+      {outlook.ok && !missingInput(total) && !total.uncertainCredits && (
         <section className="card pad grad-outlook">
           <div className="between">
             <h3>졸업 전망</h3>
@@ -933,7 +952,7 @@ export function Graduation({
               max={100}
               value={pct(r)}
             />
-            {r.planned > 0 && !withPlan && (
+            {r.planned > 0 && (
               <p className="meta">+{r.planned}학점 계획 중</p>
             )}
             {missingInput(r) && (

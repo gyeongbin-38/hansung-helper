@@ -5,7 +5,7 @@ import {
   type ExtActivity,
 } from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
-import { dueSoon, type LmsSnapshot } from './lms.ts';
+import { dueSoon, kstDateNumber, type LmsSnapshot } from './lms.ts';
 import type { InfoSnapshot } from './info.ts';
 
 export type NotifItem = {
@@ -66,20 +66,16 @@ export function reminderTargets(
   before?: number | null,
 ): Reminder[] {
   const out: Reminder[] = [];
-  const dayStart = (ts: number) => {
-    const d = new Date(ts);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  };
   for (const t of dueSoon(lms, now, horizonDays, horizonDays, before)) {
     if (t.dueTs <= now) continue; // 마감이 지난 항목은 울리지 않는다
     // 캘린더 날짜 차이 — 24시간 블록이 아니라 오늘/내일의 일반적 의미
-    const dd = Math.round((dayStart(t.dueTs) - dayStart(now)) / DAY);
+    const dd = kstDateNumber(t.dueTs) - kstDateNumber(now);
     const when = dd <= 0 ? '오늘 마감' : dd === 1 ? '내일 마감' : `D-${dd} 마감`;
     out.push({
       id: `lms-${t.course}-${t.kind}-${t.title}-${t.dueTs}`.slice(0, 120),
       fireAt: Math.max(now, t.dueTs - leadMs),
       title: `${when}: ${t.title}`,
-      body: `${t.course} · ${t.kind}${t.uncertain ? ' (응시 여부 확인 실패)' : ''}`,
+      body: `${t.course} · ${t.kind}${t.uncertain ? ' (상태 확인 실패)' : ''}`,
     });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
