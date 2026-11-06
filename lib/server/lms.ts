@@ -225,7 +225,7 @@ export function parseProgress(html: string): LmsVod[] {
       title,
       week: curWeek,
       status,
-      attended: /^[Oo]$/.test(status) || status.includes('출석'),
+      attended: /^[Oo]$/.test(status) || (status.includes('출석') && !/(미출석|결석)/.test(status)),
       weeklyStatus: weekly || undefined,
     };
   });

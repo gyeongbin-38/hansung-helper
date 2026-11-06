@@ -15,6 +15,7 @@ import {
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import { mergeLmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
@@ -65,12 +66,14 @@ export async function POST(request: Request) {
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다.
     // oldInfo는 지연 수집 완료 시 변동 지표 비교 기준으로도 쓴다.
     let oldInfo: InfoSnapshot | undefined;
+    let oldLms: LmsSnapshot | undefined;
     if (!snapshot.lmsData || !snapshot.infoData) {
       try {
         const old = JSON.parse(account.snapshot) as {
           lmsData?: LmsSnapshot;
           infoData?: InfoSnapshot;
         };
+        oldLms = old.lmsData;
         if (!snapshot.lmsData && old.lmsData) snapshot.lmsData = old.lmsData;
         oldInfo = old.infoData;
         if (!snapshot.infoData && oldInfo) snapshot.infoData = oldInfo;
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
       waitUntil(
         (async () => {
           try {
-            const lmsData = await deferredCollect();
+            const lmsData = mergeLmsSnapshot(oldLms, await deferredCollect());
             await database()
               .prepare(
                 "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",

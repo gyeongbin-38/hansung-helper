@@ -4,7 +4,8 @@
  * 수동/주기 실행용 (node --experimental-strip-types scripts/crawl-activities.mts).
  * 사용자 요청 경로에서 실행되지 않는다. 이상 감지 시 기존 스냅샷 유지.
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { fetchTextWithRetry, writeSnapshotAtomic } from './crawl-utils.mts';
 import {
   isAnomalous,
   parseProgramList,
@@ -21,23 +22,24 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchPage(page: number): Promise<string> {
   const url = page === 1 ? BASE : `${BASE}/${page}`;
-  const res = await fetch(url, {
+  return fetchTextWithRetry(url, {
     headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`page ${page}: HTTP ${res.status}`);
-  return res.text();
 }
 
 const seen = new Map<string, Activity>();
 const first = await fetchPage(1);
 const { items, pageTotal } = parseProgramList(first);
+if (!items.length || !Number.isSafeInteger(pageTotal) || pageTotal < 1 || pageTotal > 500)
+  throw new Error('page 1: empty or invalid program list');
 for (const it of items) seen.set(it.key, it);
 console.log(`page 1/${pageTotal}: ${items.length} items`);
 
 for (let p = 2; p <= pageTotal; p++) {
   await sleep(DELAY_MS);
-  const { items: more } = await parseProgramList(await fetchPage(p));
+  const { items: more } = parseProgramList(await fetchPage(p));
+  if (!more.length || more.every((item) => seen.has(item.key)))
+    throw new Error(`page ${p}: empty or repeated program list`);
   for (const it of more) seen.set(it.key, it);
   console.log(`page ${p}/${pageTotal}: ${more.length} items`);
 }
@@ -60,5 +62,5 @@ if (anomaly) {
   process.exit(2);
 }
 
-await writeFile(OUT, JSON.stringify(next, null, 2) + '\n');
+await writeSnapshotAtomic(OUT, next);
 console.log(`wrote ${seen.size} items -> lib/data/activities.json`);

@@ -8,7 +8,8 @@
  * 각 페이지에서 규정 문구를 원문(verbatim) 추출. 수치 해석 없음 —
  * 졸업 사정이 아니라 학과 공식 요건 안내다.
  */
-import { writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { fetchTextWithRetry, writeSnapshotAtomic } from './crawl-utils.mts';
 import {
   extractAttachment,
   extractContentImage,
@@ -37,24 +38,23 @@ const SLUGS = ['CreCon', 'Design', 'HmnArt', 'futureplus', 'CSE', 'SclScn', 'glo
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, {
+  return fetchTextWithRetry(url, {
     headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-  return res.text();
 }
 
 const catalog = catalogJson as Catalog;
 const catalogDepts = [...new Set(catalog.sections.map((s) => s.dept))];
 
 const items: DeptRuleset[] = [];
+let incomplete = false;
 for (const slug of SLUGS) {
   const sitemapUrl = `${HOST}/sitemap/${slug}/view.do`;
   let links;
   try {
     links = parseSitemapLinks(await fetchText(sitemapUrl), slug);
   } catch (e) {
+    incomplete = true;
     console.log(`${slug}: sitemap fetch failed — ${(e as Error).message}`);
     await sleep(DELAY_MS);
     continue;
@@ -75,7 +75,7 @@ for (const slug of SLUGS) {
       if (!multi && deptLabel) {
         r = resolveDept(deptLabel, catalogDepts) as typeof r;
         // 트랙/학과 명칭만 다른 동일 학과 (예: 문학문화콘텐츠트랙→학과)
-        if (!r.dept && /트랙$/.test(deptLabel)) {
+        if (!r.dept && deptLabel.endsWith('트랙')) {
           r = resolveDept(
             deptLabel.replace(/트랙$/, '학과'),
             catalogDepts,
@@ -93,6 +93,7 @@ for (const slug of SLUGS) {
         yearTable: parseYearTable(html) ?? undefined,
       };
       if (isRulesetAnomalous(ruleset)) {
+        incomplete = true;
         console.log(
           `  ${deptLabel || '(학과 미확정)'} ${url}: 본문 추출 부족(${lines.length}줄) — 제외`,
         );
@@ -103,6 +104,7 @@ for (const slug of SLUGS) {
         );
       }
     } catch (e) {
+      incomplete = true;
       console.log(`  ${p.deptLabel} ${url}: ${(e as Error).message}`);
     }
     await sleep(DELAY_MS);
@@ -118,10 +120,15 @@ const next: DeptRulesSnapshot = {
 };
 
 // 이상 감지 — 전체 학과가 사라지거나 본문이 전멸하면 기존 유지
-if (!items.length) {
-  console.error('ANOMALY: no dept rulesets collected — keeping previous snapshot');
+const previous: DeptRulesSnapshot | null = await readFile(OUT, 'utf8')
+  .then((value) => JSON.parse(value))
+  .catch(() => null);
+const collectedUrls = new Set(items.map((item) => item.url));
+const missingPrevious = previous?.items?.filter((item) => !collectedUrls.has(item.url)) ?? [];
+if (!items.length || incomplete || missingPrevious.length) {
+  console.error(`ANOMALY: incomplete dept rules collection (missing previous: ${missingPrevious.length}) — keeping previous snapshot`);
   process.exit(2);
 }
 
-await writeFile(OUT, JSON.stringify(next, null, 2) + '\n');
+await writeSnapshotAtomic(OUT, next);
 console.log(`wrote ${items.length} rulesets -> lib/data/dept-rules.json`);

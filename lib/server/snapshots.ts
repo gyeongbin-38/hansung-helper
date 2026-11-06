@@ -16,7 +16,7 @@ const cache = new Map<
   { payload: string; fetchedAt: string; at: number }
 >();
 
-type SnapRow = { payload: string; fetched_at: string };
+type SnapRow = { part: number; payload: string; fetched_at: string; updated_at: number };
 
 function db(): D1Database {
   return (env as unknown as { DB: D1Database }).DB;
@@ -26,25 +26,28 @@ function db(): D1Database {
 async function d1Snapshot(
   kind: string,
 ): Promise<{ payload: string; fetched_at: string } | null> {
+  const hit = cache.get(kind);
   try {
-    const hit = cache.get(kind);
     if (hit && Date.now() - hit.at < TTL_MS)
       return { payload: hit.payload, fetched_at: hit.fetchedAt };
     const res = await db()
       .prepare(
-        'SELECT payload, fetched_at FROM public_snapshots WHERE kind = ? ORDER BY part',
+        'SELECT part, payload, fetched_at, updated_at FROM public_snapshots WHERE kind = ? ORDER BY part',
       )
       .bind(kind)
       .all<SnapRow>();
     const rows = res.results ?? [];
     if (!rows.length) return null;
+    if (rows.some((row, index) => row.part !== index ||
+      row.updated_at !== rows[0].updated_at || row.fetched_at !== rows[0].fetched_at))
+      return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
     const payload = rows.map((r) => r.payload).join('');
     JSON.parse(payload); // 깨진 페이로드는 서빙하지 않음
     const fetchedAt = rows[0].fetched_at ?? '';
     cache.set(kind, { payload, fetchedAt, at: Date.now() });
     return { payload, fetched_at: fetchedAt };
   } catch {
-    return null;
+    return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
   }
 }
 

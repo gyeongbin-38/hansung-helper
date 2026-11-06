@@ -61,6 +61,7 @@ const vods = parseProgress(PROGRESS_HTML);
 t('vod: 3개', vods.length === 3);
 t('vod: 출석 O', vods[0].attended === true && vods[0].status === 'O');
 t('vod: 미수강 X', vods[1].attended === false);
+t('vod: 미출석을 출석으로 판정하지 않음', parseProgress(PROGRESS_HTML.replace('<td>X</td>', '<td>미출석</td>'))[1].attended === false);
 t('vod: rowspan 주차 유지', vods[1].week === 1);
 t('vod: 주차 전이', vods[2].week === 2);
 t('vod: 일괄출석인정→O', vods[2].weeklyStatus === 'O');

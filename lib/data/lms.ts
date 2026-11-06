@@ -47,6 +47,8 @@ export type LmsCourse = {
   quizzes: LmsTask[];
   /** 수집 실패한 항목 (vod/assign/quiz/quiz-check) — 부분 수집 표시용 */
   errors?: string[];
+  /** 실패한 항목에 이전 수집 결과를 사용한 경우 그 수집 시각 */
+  retainedAt?: string;
 };
 
 export type LmsSnapshot = {
@@ -119,6 +121,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
       errors: Array.isArray(co.errors)
         ? co.errors.filter((e): e is string => typeof e === 'string')
         : undefined,
+      retainedAt: typeof co.retainedAt === 'string' ? co.retainedAt : undefined,
     });
   }
   const d = s.diag as Record<string, unknown> | undefined;
@@ -138,6 +141,33 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
         }
       : {}),
   };
+}
+
+/** 실패한 과목별 목록만 이전 결과로 보존하고 실패 표시는 유지한다. */
+export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSnapshot): LmsSnapshot {
+  if (!previous) return next;
+  const oldById = new Map(previous.courses.map((course) => [course.id, course]));
+  return { ...next, courses: next.courses.map((course) => {
+    const old = oldById.get(course.id);
+    if (!old) return course;
+    const errors = new Set(course.errors ?? []);
+    const all = errors.has('timeout') || errors.has('budget');
+    const vod = all || errors.has('vod');
+    const assign = all || errors.has('assign');
+    const quiz = all || errors.has('quiz');
+    if (!vod && !assign && !quiz) return course;
+    return { ...course, vods: vod ? old.vods : course.vods,
+      assigns: assign ? old.assigns : course.assigns,
+      quizzes: quiz ? old.quizzes : course.quizzes,
+      retainedAt: old.retainedAt || previous.fetchedAt };
+  }) };
+}
+
+/** 수집 시각은 기기 시간대와 무관하게 한국 시간으로 표시한다. */
+export function formatLmsTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '시각 미상';
+  return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date) + ' KST';
 }
 
 export type LmsPending = {
@@ -179,8 +209,8 @@ export function courseIsPast(
     ...c.vods.map((v) => parseDue(v.range ?? null)),
     ...c.assigns.map((a) => parseDue(a.due ?? null)),
     ...c.quizzes.map((q) => parseDue(q.due ?? null)),
-  ].filter((t): t is number => t !== null);
-  return ts.length > 0 && ts.every((t) => t < before);
+  ];
+  return ts.length > 0 && ts.every((t) => t !== null && t < before);
 }
 
 /** 스냅샷 수집 후 경과 일수 — fetchedAt 파싱 불가면 null */
@@ -262,6 +292,7 @@ export function pendingTasks(
           title: a.title,
           url: a.url,
           due: a.due ?? null,
+          uncertain: a.uncertain,
         });
     for (const q of c.quizzes)
       if (!q.submitted)
@@ -314,6 +345,7 @@ export function submissionItems(
         due: a.due ?? null,
         dueTs: parseDue(a.due ?? null),
         submitted: a.submitted,
+        uncertain: a.uncertain,
         past: isPast(parseDue(a.due ?? null), before) || undefined,
       });
     for (const q of c.quizzes)
@@ -535,6 +567,7 @@ export type MatchCandidate = {
   code: string;
   name: string;
   dept: string;
+  professor?: string;
   credits: number;
   sectionCount: number;
   /** override 저장에 쓰는 대표 분반 id */
@@ -543,6 +576,26 @@ export type MatchCandidate = {
   why: string[];
   score: number;
 };
+
+/** 사용자가 이름·교수·과목코드로 카탈로그를 직접 검색한다. */
+export function searchMatchCandidates(catalog: Catalog, query: string): MatchCandidate[] {
+  const term = query.trim().toLocaleLowerCase().replace(/\s+/g, '');
+  if (!term) return [];
+  const groups = new Map<string, MatchCandidate>();
+  for (const section of catalog.sections) {
+    const matches = [section.name, section.professor, section.code, section.dept]
+      .some((value) => value.toLocaleLowerCase().replace(/\s+/g, '').includes(term));
+    if (!matches) continue;
+    const existing = groups.get(section.code);
+    if (existing) existing.sectionCount++;
+    else groups.set(section.code, {
+      code: section.code, name: section.name, dept: section.dept, professor: section.professor,
+      credits: section.credits, sectionCount: 1, sectionId: section.id,
+      why: [], score: 0,
+    });
+  }
+  return [...groups.values()].slice(0, 30);
+}
 
 /** 정규화 문자열 두 개의 Dice bigram 유사도(0~1) — 짧은 과목명 비교용 */
 const diceSim = (a: string, b: string): number => {
@@ -615,6 +668,7 @@ export function suggestMatchCandidates(
         code: s.code,
         name: s.name,
         dept: s.dept,
+        professor: s.professor,
         credits: s.credits,
         sectionCount: 1,
         sectionId: s.id,

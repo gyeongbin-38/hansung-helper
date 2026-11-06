@@ -42,7 +42,7 @@ import {
   reminderTargets,
   stageReminderTargets,
 } from '@/lib/data/notifs';
-import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { validateLms, currentSemesterStart, mergeLmsSnapshot } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
@@ -365,7 +365,7 @@ export default function App() {
         return;
       }
       void persistRef.current?.(
-        { ...cur, lms: valid },
+        { ...cur, lms: mergeLmsSnapshot(cur.lms, valid) },
         '확장 프로그램이 최신 수업 현황을 가져왔습니다.',
       ).then((saved) => {
         endSync(

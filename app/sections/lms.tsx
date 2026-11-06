@@ -18,14 +18,17 @@ import {
   bingeQueue,
   courseIsPast,
   courseProgress,
+  formatLmsTime,
   currentSemesterStart,
   dueSoon,
   isPast,
   kstDateNumber,
   matchEnrollment,
+  mergeLmsSnapshot,
   parseDue,
   pendingTasks,
   relTime,
+  searchMatchCandidates,
   staleDays,
   submissionItems,
   suggestMatchCandidates,
@@ -166,6 +169,7 @@ function CourseCard({
         title: a.title,
         url: a.url,
         due: a.due ?? null,
+        uncertain: a.uncertain,
         past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
@@ -226,7 +230,7 @@ function CourseCard({
                 ? `남은 ${cur}건`
                 : pastCourse
                   ? '지난 학기 과목'
-                  : '모두 완료';
+                  : c.errors?.length ? '상태 확인 필요' : '모두 완료';
             })()}
           </small>
         </div>
@@ -236,6 +240,7 @@ function CourseCard({
           일부 항목을 수집하지 못했습니다:{' '}
           {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')}. COSMOS에서
           직접 확인해 주세요.
+          {c.retainedAt ? ` 실패한 항목에는 이전 결과 (${formatLmsTime(c.retainedAt)})를 표시합니다.` : ''}
         </p>
       ) : null}
       {weeks.length > 0 && (
@@ -589,7 +594,7 @@ export function LmsSection({
         return;
       }
       setErr('');
-      await persist({ ...data, lms: valid }, '수업 현황을 가져왔습니다.');
+      await persist({ ...data, lms: mergeLmsSnapshot(data.lms, valid) }, '수업 현황을 가져왔습니다.');
     } catch {
       setErr('JSON 파일을 읽지 못했습니다. 수집 스크립트를 다시 실행해 보세요.');
     }
@@ -799,14 +804,14 @@ function MatchFixer({
       {pending.length > 0 ? (
         <b>
           {snap.courses.length}과목 중 {pending.length}과목이 개설강의
-          카탈로그와 이름이 달라 매칭되지 않았습니다.
+          카탈로그에서 자동으로 연결되지 않았습니다.
         </b>
       ) : (
         <b>모든 수업 과목이 개설강의 카탈로그와 연결되었습니다.</b>
       )}
       <p className="meta">
         {pending.length > 0
-          ? '아래 후보에서 같은 과목을 골라 직접 연결하거나, 수업이 아닌 과목(커뮤니티·특강)은 제외할 수 있습니다. 매칭되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
+          ? '개설 학기가 다르거나 카탈로그에 과목이 없을 수 있습니다. 같은 과목을 검색해 직접 연결하거나, 수업이 아닌 항목은 제외할 수 있습니다. 연결되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
           : '이름으로 자동 연결되지 않은 과목을 직접 연결하거나 제외한 내역입니다.'}
       </p>
       <div className="matchfix-list">
@@ -883,7 +888,10 @@ function MatchFixRow({
   onIgnore: () => void;
 }) {
   const disp = courseDisplay(m.course);
-  const candidates = open ? suggestMatchCandidates(m.course, catalog) : [];
+  const [query, setQuery] = useState('');
+  const candidates = !open ? [] : query.trim()
+    ? searchMatchCandidates(catalog, query)
+    : suggestMatchCandidates(m.course, catalog);
   return (
     <div className="matchfix-course">
       <div className="matchfix-row">
@@ -914,6 +922,16 @@ function MatchFixRow({
       </div>
       {open && (
         <div className="matchfix-cands">
+          <label>
+            <span className="meta">{catalog.semester} 개설과목 검색</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="과목명, 교수, 과목코드 또는 학과"
+              aria-label={`${disp.title} 연결할 과목 검색`}
+            />
+          </label>
           {candidates.length ? (
             candidates.map((c) => (
               <button
@@ -925,6 +943,7 @@ function MatchFixRow({
                   <b>{c.name}</b>
                   <small>
                     {c.dept} · {c.credits}학점
+                    {c.professor ? ` · ${c.professor}` : ''}
                     {c.sectionCount > 1
                       ? ` · 분반 ${c.sectionCount}개`
                       : ''}
@@ -941,12 +960,13 @@ function MatchFixRow({
             ))
           ) : (
             <p className="meta">
-              비슷한 이름의 개설 과목을 찾지 못했습니다 — 수업이 아닌
-              과목이면 ‘해당 없음’으로 제외하세요.
+              {query.trim()
+                ? '검색 결과가 없습니다. 과목명이나 학기를 확인해 주세요.'
+                : '추천할 과목이 없습니다. 과목명이나 교수 이름으로 직접 검색해 보세요.'}
             </p>
           )}
           <p className="meta">
-            직접 연결은 수강 추정에만 쓰이며 이수 확정이 아닙니다.
+            같은 과목인지 이름과 교수를 확인해 주세요. 직접 연결은 수강 추정이며 이수 확정이 아닙니다.
           </p>
         </div>
       )}
@@ -1059,7 +1079,7 @@ function SyncBand({
             <dd>
               {relTime(snap.fetchedAt, now)}
               {snap.fetchedAt
-                ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})`
+                ? ` (${formatLmsTime(snap.fetchedAt)})`
                 : ''}
               {staleDays(snap, now) !== null && staleDays(snap, now)! >= 1 ? (
                 <span className="badge orange">오래된 데이터</span>
@@ -1271,7 +1291,7 @@ function ConnCard({
           <dt>마지막 동기화</dt>
           <dd>
             {snap.fetchedAt ? relTime(snap.fetchedAt, now) : '없음'}
-            {snap.fetchedAt ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})` : ''}
+            {snap.fetchedAt ? ` (${formatLmsTime(snap.fetchedAt)})` : ''}
           </dd>
         </div>
         <div>

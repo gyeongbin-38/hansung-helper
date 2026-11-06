@@ -266,7 +266,7 @@
         title,
         week: curWeek,
         status,
-        attended: /^[Oo]$/.test(status) || status.includes('출석'),
+        attended: /^[Oo]$/.test(status) || (status.includes('출석') && !/(미출석|결석)/.test(status)),
         weeklyStatus: weekly || undefined,
         required: req !== null ? cells[req] || undefined : undefined,
         watched: (cells[att - 1] ?? '').match(/^(\d{1,2}:\d{2}(:\d{2})?)/)?.[1],
