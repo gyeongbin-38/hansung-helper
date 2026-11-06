@@ -146,6 +146,22 @@ test('duplicate completed codes require review rather than counting retakes twic
   assert.equal(total.uncertainCredits, true);
 });
 
+test('confirmed admission types use their own baseline without applying freshman department targets to transfers', () => {
+  for (const [admissionType, total, points] of [['freshman', 130, 800], ['general-transfer', 130, 400], ['bachelor-transfer', 65, 400]]) {
+    const r = evaluate([], [], {}, { admitYear: 2025, admissionType, deptTargets: { total: 130, points: 800 } });
+    assert.equal(r[0].required, total);
+    assert.equal(r[1].required, points);
+  }
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'freshman' })[0].required, 140);
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'bachelor-transfer' })[0].required, 70);
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'freshman' })[1].required, null);
+});
+
+test('invalid admission year never receives a guessed baseline', () => {
+  for (const admitYear of [0, 1800, 9999, NaN])
+    assert.equal(evaluate([], [], {}, { admitYear, admissionType: 'freshman' })[0].required, null);
+});
+
 test('requiredSource: 전역 기준 경로는 global로 표시', () => {
   const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');
