@@ -1192,6 +1192,7 @@
   animation: band-pulse 1.6s var(--nt-ease) infinite;
 }
 .band-login .band-dot,
+.band-delayed .band-dot,
 .band-stale .band-dot {
   background: var(--nt-yellow);
 }

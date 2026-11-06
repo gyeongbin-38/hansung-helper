@@ -49,6 +49,7 @@ import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
+import { useSlowLoading } from './use-slow-loading';
 
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
@@ -209,7 +210,12 @@ export default function App() {
   // 갱신을 놓치지 않는다.
   const lmsPending = account?.snapshot.lmsPending === true;
   const infoPending = account?.snapshot.infoPending === true;
+  const [pollRetry, setPollRetry] = useState(0);
+  const [pollDelayed, setPollDelayed] = useState(false);
+  const slowAccount = useSlowLoading(!ready);
+  const slowCollect = useSlowLoading(lmsPending || infoPending, 20000);
   useEffect(() => {
+    setPollDelayed(false);
     if (!lmsPending && !infoPending) return;
     const generation = accountGeneration.current;
     let cancelled = false,
@@ -243,14 +249,17 @@ export default function App() {
       } catch {
         /* 다음 주기에 재시도 */
       }
-      if (!cancelled && tries < 8) timer = setTimeout(poll, 8000);
+      if (!cancelled && generation === accountGeneration.current) {
+        if (tries < 8) timer = setTimeout(poll, 8000);
+        else setPollDelayed(true);
+      }
     };
     timer = setTimeout(poll, 6000);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lmsPending, infoPending]);
+  }, [lmsPending, infoPending, pollRetry]);
   // 수집 예산(60s)+여유를 넘긴 pending은 워커 중도 종료로 간주 — 무한
   // "수집 중" 대신 지연 안내로 전환한다. 마커 도입 전의 스냅샷은
   // connected인데 lmsData·pending이 없는 상태로 남을 수 있어 그것도
@@ -273,14 +282,12 @@ export default function App() {
     Date.parse(account.snapshot.checkedAt) + 5 * 60e3 <= nowTick;
   const lmsFailed =
     !!account?.snapshot.lmsFailedAt ||
-    collectStale(lmsPending) ||
     (account?.snapshot.lms === 'connected' &&
       !account.snapshot.lmsData &&
       !account.snapshot.lmsPending);
   // 종합정보 수집 실패 — 포털은 연결됐는데 infoData가 없는 상태 포함
   const infoFailed =
     !!account?.snapshot.infoFailedAt ||
-    collectStale(infoPending) ||
     (account?.snapshot.portal === 'connected' &&
       !account.snapshot.infoData &&
       !account.snapshot.infoPending);
@@ -754,6 +761,7 @@ export default function App() {
           한성 학사 도우미
         </div>
         <p>내 정보를 확인하고 있어요…</p>
+        {slowAccount && <p aria-live="polite">서버 응답이 늦어지고 있어요. 잠시만 기다려 주세요.</p>}
       </div>
     );
   if (!account && !demo)
@@ -869,6 +877,12 @@ export default function App() {
             }
           />
           <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {(slowCollect || pollDelayed) && (
+            <div className="card pad" aria-live="polite">
+              <p>{pollDelayed ? '학교 정보 수집 결과를 아직 확인하지 못했어요. 서버에서 처리가 계속되고 있을 수 있습니다.' : '학교 정보 수집이 평소보다 오래 걸리고 있어요. 기존 자료가 있다면 계속 볼 수 있습니다.'}</p>
+              {pollDelayed && <button className="secondary" onClick={() => setPollRetry((n) => n + 1)}>수집 상태 다시 확인</button>}
+            </div>
+          )}
           {section === 'home' ? (
             <Home
               data={data}
@@ -910,7 +924,7 @@ export default function App() {
               persist={persist}
               detail={detail}
               infoPending={
-                infoPending && !collectStale(infoPending)
+                infoPending && !collectStale(infoPending) && !pollDelayed
               }
               infoFailed={infoFailed}
             />
@@ -960,8 +974,9 @@ export default function App() {
               persist={persist}
               notify={setToast}
               detail={detail}
-              serverCollecting={lmsPending && !collectStale(lmsPending)}
+              serverCollecting={lmsPending && !collectStale(lmsPending) && !pollDelayed}
               collectFailed={lmsFailed}
+              collectDelayed={collectStale(lmsPending) || (lmsPending && pollDelayed)}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               lmsError={account?.snapshot.lmsError}
               studentMask={account?.studentMask}

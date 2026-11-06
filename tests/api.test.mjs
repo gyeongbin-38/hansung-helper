@@ -24,6 +24,8 @@ await assert.rejects(
   apiData(new Response('not json')),
   (error) => error instanceof ApiRequestError && error.code === 'INVALID_RESPONSE',
 );
+const abortedBody = new Response(new ReadableStream({ start(controller) { controller.error(new DOMException('aborted', 'AbortError')); } }));
+await assert.rejects(apiData(abortedBody), (error) => error instanceof ApiRequestError && error.code === 'TIMEOUT');
 await assert.rejects(
   apiData(
     new Response(JSON.stringify({ ok: true, data }), { status: 503 }),
