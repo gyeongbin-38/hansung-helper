@@ -434,7 +434,13 @@ export function CalendarSection({
                 maxLength={80}
                 aria-invalid={!!eventErr}
               />
-              <button className="primary" type="submit">
+              <button
+                className="primary"
+                type="submit"
+                aria-label={
+                  preview ? '개인 일정 추가 확정' : '개인 일정 미리보기'
+                }
+              >
                 {preview ? '추가' : <Plus size={16} />}
               </button>
             </form>
