@@ -52,6 +52,12 @@ export type ActivitySnapshot = {
   items: Activity[];
 };
 
+/** 매일 갱신되는 공개 목록은 하루가 지나거나 수집 시각이 불명확하면 재확인이 필요하다. */
+export function activityNeedsVerification(fetchedAt: string | null | undefined, now: number): boolean {
+  const at = fetchedAt ? Date.parse(fetchedAt) : NaN;
+  return !Number.isFinite(at) || at > now || now - at >= 86400000;
+}
+
 /** 사용자가 직접 등록한 외부 활동 — hsportal 공개 목록 밖(대외활동·
  *  공모전 사이트 등). 프로필에 저장되며 학교 공식 데이터가 아니다. */
 export type ExtActivity = {

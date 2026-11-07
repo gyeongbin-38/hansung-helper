@@ -21,7 +21,7 @@ import {
   matchEnrollment,
   pendingTasks,
 } from '@/lib/data/lms';
-import { liveStatus } from '@/lib/data/activities';
+import { activityNeedsVerification, liveStatus } from '@/lib/data/activities';
 import { staleLabel } from '@/lib/data/freshness';
 import { useActivities, useNow, useSchedule } from './catalog';
 
@@ -110,6 +110,7 @@ export function Home({
   const { snap: acts } = useActivities();
   const [slide, setSlide] = useState(0);
   const now = useNow(30000);
+  const actsNeedVerification = acts ? activityNeedsVerification(acts.fetchedAt, now) : true;
   const today = new Date().toISOString().slice(0, 10);
   const lmsSnap = data.lms;
   // 학기 경계 — 지난 학기 항목은 현재 할 일·건수에서 제외한다
@@ -142,7 +143,7 @@ export function Home({
     url: t.url,
     route: 'lms',
   }));
-  for (const a of acts?.items ?? []) {
+  for (const a of actsNeedVerification ? [] : (acts?.items ?? [])) {
     if (!data.saved.includes(a.id) || !a.applyEnd) continue;
     const dd = Math.ceil(
       (Date.parse(a.applyEnd.slice(0, 10) + 'T23:59:59') - now) / 86400000,
@@ -276,7 +277,7 @@ export function Home({
     <>
       <TodayStrip
         lmsDue={lmsDue}
-        acts={acts?.items ?? []}
+        acts={actsNeedVerification ? [] : (acts?.items ?? [])}
         saved={data.saved}
         missingProfile={missingProfile}
         missingLabel={missingLabel}
@@ -442,7 +443,7 @@ export function Home({
         <section
           className="hero-carousel"
           aria-roledescription="carousel"
-          aria-label="지금 신청할 수 있는 비교과 프로그램"
+          aria-label="비교과 프로그램"
         >
           <div className="hc-slide" key={cur.id}>
             {cur.cover && (
@@ -454,8 +455,8 @@ export function Home({
             )}
             <div className="hc-body">
               <span className="badge blue">
-                {liveStatus(cur, now).label}
-                {liveStatus(cur, now).dday
+                {actsNeedVerification ? '현재 접수 여부 확인 필요' : liveStatus(cur, now).label}
+                {!actsNeedVerification && liveStatus(cur, now).dday
                   ? ' · ' + liveStatus(cur, now).dday
                   : ''}
                 {cur.points != null ? ` · ${cur.points}P` : ''}
@@ -464,7 +465,7 @@ export function Home({
               <p>
                 {cur.dept}
                 {cur.applyEnd
-                  ? ` · 신청 마감 ${cur.applyEnd.slice(0, 10)}`
+                  ? ` · ${actsNeedVerification ? '수집 당시 신청 마감' : '신청 마감'} ${cur.applyEnd.slice(0, 10)}`
                   : ''}
               </p>
               <button
@@ -473,6 +474,9 @@ export function Home({
               >
                 자세히 보기 <ArrowUpRight size={15} />
               </button>
+              <a className="link" href={cur.url || acts.sourceUrl} target="_blank" rel="noreferrer">
+                학교 원문 확인 <ArrowUpRight size={15} />
+              </a>
             </div>
           </div>
           {slides.length > 1 && (
