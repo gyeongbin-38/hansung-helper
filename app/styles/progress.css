@@ -92,10 +92,22 @@
 .rule-target {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 4px;
   font-size: 13px;
   color: var(--nt-steel);
+}
+.requirement-target {
+  margin-top: 14px;
+}
+.requirement-target .rule-target {
+  margin-top: 10px;
+}
+.requirement-target label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .rule-target input {
   width: 76px;

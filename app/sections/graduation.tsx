@@ -8,6 +8,7 @@ import {
   TRANSFER_RULE_SOURCE,
   graduationOutlook,
   type AdmissionType,
+  type RuleResult,
 } from '@/lib/data/graduation';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import { mergeCompleted } from '@/lib/data/info';
@@ -22,6 +23,57 @@ import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
+
+function RequirementTarget({ result, baseline, deptUrl, globalUrl, onSave, onReset }: {
+  result: RuleResult;
+  baseline: RuleResult;
+  deptUrl?: string;
+  globalUrl: string;
+  onSave: (id: string, value: number) => Promise<boolean>;
+  onReset: (id: string) => Promise<boolean>;
+}) {
+  const [value, setValue] = useState(result.required === null ? '' : String(result.required));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const unit = result.rule.unit ?? '학점';
+  const modified = result.requiredSource === 'override';
+  const source = baseline.requiredSource === 'dept' ? '학과 규정표 기준' : baseline.requiredSource === 'global' ? '학교 공통 기준' : '공식 기준 확인 필요';
+  const sourceUrl = baseline.requiredSource === 'dept' ? deptUrl : baseline.requiredSource === 'global' ? globalUrl : undefined;
+  return (
+    <div className="requirement-target">
+      <p className="meta">
+        기본 기준: {baseline.required === null ? '확인 필요' : `${baseline.required}${unit}`} · {source}
+        {sourceUrl && <> · <a href={sourceUrl} target="_blank" rel="noreferrer">학교 원문</a></>}
+      </p>
+      <p className="meta">현재 적용: {result.required === null ? '미확정' : `${result.required}${unit}`} · {modified ? '사용자 수정값 (공식 기준 아님)' : source}</p>
+      <form className="rule-target" onSubmit={async (e) => {
+        e.preventDefault();
+        const trimmed = value.trim();
+        const n = Number(trimmed);
+        if (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(n) || n < 1 || n > 2000) {
+          setError('1~2000 사이의 정수를 입력해 주세요.');
+          return;
+        }
+        if (n === result.required) { setError(''); return; }
+        setBusy(true);
+        const ok = await onSave(result.rule.id, n);
+        setBusy(false);
+        setError(ok ? '' : '저장하지 못했습니다. 다시 시도해 주세요.');
+      }}>
+        <label>개인 설정 ({unit}) <input type="number" min={1} max={2000} step={1} required value={value} onChange={(e) => { setValue(e.target.value); setError(''); }} aria-label={`${result.rule.label} 개인 설정`} /></label>
+        <button className="secondary" disabled={busy} type="submit">수정값 저장</button>
+        {modified && <button className="secondary" disabled={busy} type="button" onClick={async () => {
+          setBusy(true);
+          const ok = await onReset(result.rule.id);
+          setBusy(false);
+          setError(ok ? '' : '복원하지 못했습니다. 다시 시도해 주세요.');
+        }}>기본값 복원</button>}
+      </form>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {modified && <p className="meta">복원하면 {baseline.required === null ? '공식 기준 확인 필요 상태로 돌아갑니다.' : `기본 기준 ${baseline.required}${unit}이 다시 적용됩니다.`}</p>}
+    </div>
+  );
+}
 
 export function Graduation({
   data,
@@ -126,6 +178,16 @@ export function Graduation({
     deptTargets,
     admissionType,
   ]);
+  const baselineResults = useMemo(() => {
+    const year = parseInt(data.year, 10);
+    const pts = infoPoints ?? parseInt(data.points, 10);
+    return evaluate(merged, planned, {}, {
+      admitYear: Number.isInteger(year) ? year : undefined,
+      admissionType,
+      points: Number.isInteger(pts) ? pts : undefined,
+      deptTargets: deptTargets ?? undefined,
+    });
+  }, [merged, planned, data.year, data.points, infoPoints, deptTargets, admissionType]);
   const total = results[0];
   // 졸업 전망 역산 — 학기당 목표 학점은 사용자가 조정할 수 있다.
   // 입학연도는 수집본을 우선한다(수동 입력보다 정확).
@@ -214,15 +276,16 @@ export function Graduation({
       '이수 과목에서 제외했습니다.',
     );
   }
-  function setRequired(id: string, value: string) {
-    const n = parseInt(value, 10);
-    const next = { ...data.ruleOverrides };
-    if (Number.isInteger(n) && n > 0 && n <= 2000) next[id] = n;
-    else delete next[id];
-    void persist(
-      { ...data, ruleOverrides: next },
+  function setRequired(id: string, value: number) {
+    return persist(
+      { ...data, ruleOverrides: { ...data.ruleOverrides, [id]: value } },
       '졸업 기준을 저장했습니다. 입력값이며 공식 기준이 아닙니다.',
     );
+  }
+  function resetRequired(id: string) {
+    const next = { ...data.ruleOverrides };
+    delete next[id];
+    return persist({ ...data, ruleOverrides: next }, '개인 설정을 지우고 기본 기준으로 복원했습니다.');
   }
 
   const shown = (r: (typeof results)[number]) => r.earned;
@@ -242,6 +305,7 @@ export function Graduation({
         </section>
       );
     const isPoints = r.rule.source === 'points';
+    const baseline = baselineResults.find((item) => item.rule.id === r.rule.id)!;
     const inGroups = (cat: string) =>
       r.rule.groups.includes(gradGroup(cat));
     const contrib = merged.filter((c) => inGroups(c.category));
@@ -275,6 +339,7 @@ export function Graduation({
                     : ` / ${r.required}${r.rule.unit ?? '학점'}`
                 }`}
           </strong>
+          {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
           <progress
             className="progress-track"
             aria-label={r.rule.label + ' 충족률'}
@@ -284,7 +349,7 @@ export function Graduation({
             max={100}
             value={pct(r)}
           />
-          {r.requiredSource === 'dept' ? (
+          {baseline.requiredSource === 'dept' ? (
             <p className="meta">
               내 학과 졸업 규정표에서 해석된 학번별 기준입니다.
             </p>
@@ -292,9 +357,9 @@ export function Graduation({
             r.rule.note && <p className="meta">{r.rule.note}</p>
           )}
           <p className="meta">
-            {r.required === null ? (
+            {baseline.required === null ? (
               '이 규정의 공식 필요 수량은 수집되지 않았습니다. 학과별 세부 요건을 학교에서 확인하세요.'
-            ) : r.requiredSource === 'dept' && myRules && deptTargets ? (
+            ) : baseline.requiredSource === 'dept' && myRules && deptTargets ? (
               <>
                 내 학과 규정표 기준 ({deptTargets.columnLabel}) · 출처:{' '}
                 <a href={myRules.url} target="_blank" rel="noreferrer">
@@ -312,22 +377,7 @@ export function Graduation({
               `입학유형·학번별 기준은 공식 이수체계와 편입생 안내를 확인하세요. 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
             )}
           </p>
-          <label className="rule-target">
-            필요 {r.rule.unit ?? '학점'}
-            <input
-              type="number"
-              min={1}
-              max={2000}
-              defaultValue={r.required ?? ''}
-              placeholder="미확정"
-              aria-label={r.rule.label + ' 필요 수량'}
-              key={r.rule.id + ':' + (r.required ?? '')}
-              onBlur={(e) => setRequired(r.rule.id, e.target.value)}
-            />
-          </label>
-          {data.ruleOverrides[r.rule.id] !== undefined && (
-            <p className="meta">현재 입력값 기준입니다(공식 기준 아님).</p>
-          )}
+          <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baseline} deptUrl={myRules?.url} globalUrl={admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
         </section>
         <section className="card pad">
           {isPoints ? (
@@ -943,6 +993,7 @@ export function Graduation({
                   ? `계산 대기 · ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
                   : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
+            {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
             <progress
               className="progress-track"
               aria-label={r.rule.label + ' 충족률'}
@@ -995,19 +1046,7 @@ export function Graduation({
                   </button>
                 )}
             </div>
-            <label className="rule-target">
-              필요 {r.rule.unit ?? '학점'}
-              <input
-                type="number"
-                min={1}
-                max={2000}
-                defaultValue={r.required ?? ''}
-                placeholder="미확정"
-                aria-label={r.rule.label + ' 필요 학점'}
-                key={r.rule.id + ':' + (r.required ?? '')}
-                onBlur={(e) => setRequired(r.rule.id, e.target.value)}
-              />
-            </label>
+            <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baselineResults.find((item) => item.rule.id === r.rule.id)!} deptUrl={myRules?.url} globalUrl={admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
             {r.requiredSource === 'dept' && deptTargets ? (
               <p className="meta">
                 내 학과 규정표 기준 ({deptTargets.columnLabel})

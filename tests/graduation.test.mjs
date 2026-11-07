@@ -117,6 +117,20 @@ test('deptTargets: 사용자 override가 학과 기준보다 우선한다', () =
   assert.equal(total.requiredSource, 'override');
 });
 
+test('사용자 수정값 삭제 후 공식 기준 또는 미확정 상태로 복원된다', () => {
+  const opts = { admitYear: 2023, admissionType: 'freshman', deptTargets: { total: 140 } };
+  const modified = evaluate([], [], { total: 150, major: 60 }, opts);
+  assert.equal(modified.find((x) => x.rule.id === 'total').requiredSource, 'override');
+  assert.equal(modified.find((x) => x.rule.id === 'major').required, 60);
+  const restored = evaluate([], [], {}, opts);
+  assert.equal(restored.find((x) => x.rule.id === 'total').required, 140);
+  assert.equal(restored.find((x) => x.rule.id === 'total').requiredSource, 'dept');
+  assert.equal(restored.find((x) => x.rule.id === 'major').required, null);
+  assert.equal(restored.find((x) => x.rule.id === 'major').requiredSource, undefined);
+  const global = evaluate([], [], {}, { admitYear: 2023, admissionType: 'freshman' });
+  assert.equal(global.find((x) => x.rule.id === 'total').requiredSource, 'global');
+});
+
 test('deptTargets: 비교과 포인트도 학과 기준으로 확정 가능', () => {
   const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2015, points: 500, deptTargets: { points: 800 } });
   const pts = r.find((x) => x.rule.id === 'points');
