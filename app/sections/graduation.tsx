@@ -11,6 +11,7 @@ import {
   type RuleResult,
 } from '@/lib/data/graduation';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
+import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { mergeCompleted } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import {
@@ -98,8 +99,12 @@ export function Graduation({
 }) {
   const [q, setQ] = useState('');
   const completedRef = useRef<HTMLElement>(null);
+  const completedInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (detail === 'completed') completedRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (detail === 'completed') {
+      completedInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      completedInputRef.current?.focus({ preventScroll: true });
+    }
   }, [detail]);
   const [pace, setPace] = useState('');
   const [admissionType, setAdmissionType] = useState<AdmissionType>('unknown');
@@ -470,21 +475,28 @@ export function Graduation({
     !data.dept || data.dept === '소속 미입력' ? '학과' : '',
     !data.year ? '입학연도' : '',
   ].filter(Boolean);
-  const gradSteps: { label: string; done: boolean; route?: string }[] = [
+  const ruleLink = graduationRuleLink({
+    department: data.dept,
+    pool: catalog ? deptPoolOf(data.dept, [...new Set(catalog.sections.map((section) => section.dept))]) : null,
+    rule: myRules,
+    guide,
+    admissionType,
+  });
+  const gradSteps: { label: string; done: boolean; route?: string; input?: boolean; url?: string }[] = [
     {
       label: '내 정보에 소속 학과·입학연도 입력',
       done: profileMissing.length === 0,
       route: 'profile',
     },
     {
-      label: info
-        ? '이수 내역 학교 연동'
-        : '이수한 과목 입력',
+      label: merged.length ? '이수 내역 확인' : '이수한 과목 입력',
       done: merged.length > 0,
+      input: true,
     },
     {
-      label: '내 학과 공식 규정 확인',
-      done: !!myRules,
+      label: ruleLink.departmentSpecific ? '내 학과 공식 규정 확인' : '학교 공통 이수체계 확인 (학과 규정 확인 필요)',
+      done: ruleLink.departmentSpecific,
+      url: ruleLink.url,
     },
   ];
   const pendingSteps = gradSteps.filter((s) => !s.done);
@@ -511,22 +523,27 @@ export function Graduation({
           <span className="badge">사용자 입력 기반</span>
         )}
         <h2>졸업 준비는 정확한 기준부터.</h2>
-        {pendingSteps.length > 0 && (
           <ol className="grad-steps">
             {gradSteps.map((s, i) => (
               <li key={i} className={s.done ? 'done' : ''}>
-                {s.route && !s.done ? (
+                {s.url ? (
+                  <a className="link" href={s.url} target="_blank" rel="noreferrer">{s.label} <ArrowUpRight size={14} aria-hidden="true" /></a>
+                ) : s.input ? (
+                  <button className="link" onClick={() => {
+                    completedInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    completedInputRef.current?.focus({ preventScroll: true });
+                  }}>{s.label}</button>
+                ) : s.route && !s.done ? (
                   <button className="link" onClick={() => go(s.route!)}>
                     {s.label}
                   </button>
                 ) : (
                   s.label
                 )}
-                {s.done ? ' ✓' : ''}
+                {s.done && !s.url ? ' ✓' : ''}
               </li>
             ))}
           </ol>
-        )}
         <p>
           입력한 이수 내역으로 충족률을 계산합니다. 공식 사정이 아닌 계획
           참고용입니다.
@@ -1077,6 +1094,7 @@ export function Graduation({
         <label className="cat-search">
           <Search size={15} aria-hidden="true" />
           <input
+            ref={completedInputRef}
             aria-label="이수한 과목 검색"
             placeholder="과목명·코드로 검색해 이수 과목 추가"
             value={q}
