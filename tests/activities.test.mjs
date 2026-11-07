@@ -6,6 +6,7 @@ import {
   isAnomalous,
   activityMatch,
   liveStatus,
+  activityNeedsVerification,
   actScore,
   pointScore,
   extToActivity,
@@ -15,6 +16,16 @@ import { koreanMatch } from '../lib/data/hangul.ts';
 import snapshot from '../lib/data/activities.json' with { type: 'json' };
 
 const fixture = readFileSync('tests/fixtures/hsportal-list.html', 'utf-8');
+
+test('활동 수집 시각이 하루 이상 지났거나 불명확하면 학교 확인이 필요하다', () => {
+  const now = Date.parse('2026-11-07T12:00:00Z');
+  assert.equal(activityNeedsVerification('2026-11-06T12:00:01Z', now), false);
+  assert.equal(activityNeedsVerification('2026-11-06T12:00:00Z', now), true);
+  assert.equal(activityNeedsVerification('2026-09-18T12:00:00Z', now), true);
+  assert.equal(activityNeedsVerification(null, now), true);
+  assert.equal(activityNeedsVerification('invalid', now), true);
+  assert.equal(activityNeedsVerification('2026-11-08T12:00:00Z', now), true);
+});
 
 test('parser extracts card fields from real hsportal markup', () => {
   const { items, pageTotal } = parseProgramList(fixture);

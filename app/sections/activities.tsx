@@ -17,6 +17,7 @@ import {
   actScore,
   pointScore,
   liveStatus,
+  activityNeedsVerification,
   extToActivity,
   ACT_STAGES,
   type Activity,
@@ -110,6 +111,7 @@ export function Activities({
   const ptsReq = data.ruleOverrides?.points ?? 800;
   const ptsDeficit = ptsSet ? Math.max(0, ptsReq - ptsRaw) : 0;
   const actStale = snap ? staleLabel(snap.fetchedAt, now) : null;
+  const needsVerification = snap ? activityNeedsVerification(snap.fetchedAt, now) : true;
   const pointsBand = (
     <div className="card pad act-band">
       <div>
@@ -320,8 +322,8 @@ export function Activities({
             />
           )}
           <span className="badge blue">
-            {liveStatus(a, now).label}
-            {liveStatus(a, now).dday &&
+            {!isExt(a) && needsVerification ? '현재 접수 여부 확인 필요' : liveStatus(a, now).label}
+            {(isExt(a) || !needsVerification) && liveStatus(a, now).dday &&
             liveStatus(a, now).dday !== liveStatus(a, now).label
               ? ' · ' + liveStatus(a, now).dday
               : ''}
@@ -528,6 +530,7 @@ export function Activities({
       ) : shown.length ? (
         <>
           <ActivityCards
+            needsVerification={needsVerification}
             items={shown}
             data={data}
             go={go}
@@ -579,12 +582,14 @@ function ActivityCards({
   save,
   now,
   scores,
+  needsVerification,
 }: {
   items: Activity[];
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
   now: number;
+  needsVerification: boolean;
   /** 취향 추천 탭일 때만 전달 — 맞춤 점수·근거를 카드에 표시 */
   scores?: Map<string, { score: number; reasons: string[] }>;
 }) {
@@ -592,6 +597,7 @@ function ActivityCards({
     <div className="cards">
       {items.map((a, i) => {
         const live = liveStatus(a, now);
+        const uncertain = !isExt(a) && needsVerification;
         const sc = scores?.get(a.id);
         const stage = data.actStatus?.[a.id];
         return (
@@ -608,9 +614,9 @@ function ActivityCards({
                 : undefined
             }
           >
-            <span>{isExt(a) ? '직접 등록' : live.label}</span>
+            <span>{isExt(a) ? '직접 등록' : uncertain ? '현재 접수 여부 확인 필요' : live.label}</span>
             <strong>
-              {live.dday ?? (i + 1).toString().padStart(2, '0')}
+              {!uncertain && (live.dday ?? (i + 1).toString().padStart(2, '0'))}
               <ArrowUpRight size={34} strokeWidth={1.2} />
             </strong>
             <small>
@@ -620,7 +626,7 @@ function ActivityCards({
           <div className="pad">
             <div className="between">
               <span className="badge">
-                {isExt(a) ? '직접 등록' : live.label}
+                {isExt(a) ? '직접 등록' : uncertain ? '현재 접수 여부 확인 필요' : live.label}
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>

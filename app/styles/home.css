@@ -91,12 +91,45 @@
   color: var(--nt-stone);
 }
 @media (max-width: 640px) {
+  .hero-carousel {
+    padding: 18px 16px 14px;
+  }
   .hc-slide {
     flex-direction: column;
   }
   .hc-cover {
     width: 100%;
     height: 120px;
+  }
+  .hc-arrow {
+    width: 44px;
+    height: 44px;
+  }
+  .hc-dots {
+    gap: 0;
+  }
+  .hc-dots button {
+    width: 32px;
+    height: 44px;
+    background: transparent;
+    position: relative;
+  }
+  .hc-dots button::after {
+    content: '';
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--nt-ink) 18%, transparent);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .hc-dots button[aria-current='true'] {
+    background: transparent;
+  }
+  .hc-dots button[aria-current='true']::after {
+    background: var(--nt-primary);
   }
 }
 

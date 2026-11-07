@@ -59,14 +59,18 @@ export function useCatalog() {
 }
 
 let actCache: Promise<ActivitySnapshot> | null = null;
+let actCachedAt = 0;
 function loadActivities() {
-  actCache ??= apiFetch('/api/activities')
+  if (actCache && Date.now() - actCachedAt < 60_000) return actCache;
+  actCachedAt = Date.now();
+  const request = apiFetch('/api/activities')
     .then((r) => apiData<ActivitySnapshot>(r))
     .catch((e) => {
-      actCache = null;
+      if (actCache === request) actCache = null;
       throw e;
     });
-  return actCache;
+  actCache = request;
+  return request;
 }
 export function useActivities() {
   const [snap, setSnap] = useState<ActivitySnapshot | null>(null);
@@ -75,13 +79,18 @@ export function useActivities() {
   useEffect(() => {
     let on = true;
     loadActivities()
-      .then((s) => on && setSnap(s))
+      .then((s) => { if (on) { setSnap(s); setFailed(false); } })
       .catch(() => on && setFailed(true));
     return () => {
       on = false;
     };
   }, [tick]);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 5 * 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const retry = () => {
+    actCache = null;
     setFailed(false);
     setTick((t) => t + 1);
   };
