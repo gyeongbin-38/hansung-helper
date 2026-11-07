@@ -41,6 +41,18 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     return out;
   };
   const scalar = <T>(b: T, l: T, r: T): T => (l !== b ? l : r);
+  const semesterPlans = recMerge(base.semesterPlans, local.semesterPlans, remote.semesterPlans);
+  for (const [key, localPlan] of Object.entries(local.semesterPlans ?? {})) {
+    const basePlan = base.semesterPlans?.[key];
+    const remotePlan = remote.semesterPlans?.[key];
+    if (remotePlan && localPlan.sourceSemester === remotePlan.sourceSemester && (!basePlan || localPlan.sourceSemester === basePlan.sourceSemester)) {
+      semesterPlans[key] = {
+        sourceSemester: localPlan.sourceSemester,
+        planned: setMerge(basePlan?.planned ?? [], localPlan.planned, remotePlan.planned, (x) => x),
+        plans: recMerge(basePlan?.plans, localPlan.plans, remotePlan.plans),
+      };
+    }
+  }
   return {
     ...remote,
     name: scalar(base.name, local.name, remote.name),
@@ -51,6 +63,8 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     saved: setMerge(base.saved, local.saved, remote.saved, (x) => x),
     planned: setMerge(base.planned, local.planned, remote.planned, (x) => x),
     plans: recMerge(base.plans, local.plans, remote.plans),
+    planSemester: scalar(base.planSemester, local.planSemester, remote.planSemester),
+    semesterPlans,
     completed: setMerge(
       base.completed,
       local.completed,

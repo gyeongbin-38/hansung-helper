@@ -117,6 +117,16 @@ test('plans 시나리오도 키 단위 — local 수정본과 remote 신규 안 
   assert.deepEqual(merged.plans.B, ['s9']);
 });
 
+test('학기별 계획은 서로 다른 학기와 같은 학기의 동시 추가를 보존한다', () => {
+  const p = (planned) => ({ sourceSemester: '2026-2', planned, plans: {} });
+  const base = d({ semesterPlans: { '2027-1': p(['s1']) } });
+  const local = d({ semesterPlans: { '2027-1': p(['s1', 's2']) } });
+  const remote = d({ semesterPlans: { '2027-1': p(['s1', 's3']), '2027-2': p(['s4']) } });
+  const merged = mergeProfile(base, local, remote);
+  assert.deepEqual(merged.semesterPlans['2027-1'].planned.sort(), ['s1', 's2', 's3']);
+  assert.deepEqual(merged.semesterPlans['2027-2'].planned, ['s4']);
+});
+
 test('completed·events·extActivities는 키 기준 집합 병합', () => {
   const merged = mergeProfile(
     d(),

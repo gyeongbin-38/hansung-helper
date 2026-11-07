@@ -212,7 +212,7 @@ export function Courses({
           <div className="actions">
             <button className="primary" onClick={() => toggle(s)}>
               {added ? <Check size={17} /> : <Plus size={17} />}{' '}
-              {added ? '계획에서 빼기' : '다음 학기 계획에 담기'}
+              {added ? '계획에서 빼기' : '선택한 학기 계획에 담기'}
             </button>
             <button className="secondary" onClick={() => go('timetable')}>
               시간표에서 보기 <ArrowUpRight size={16} />
@@ -391,7 +391,7 @@ export function Courses({
               <small>{placeLabel(s)}</small>
               <button className="secondary full" onClick={() => toggle(s)}>
                 {added ? <Check size={17} /> : <Plus size={17} />}{' '}
-                {added ? '계획에서 빼기' : '다음 학기 계획에 담기'}
+                {added ? '계획에서 빼기' : '선택한 학기 계획에 담기'}
               </button>
             </article>
           );

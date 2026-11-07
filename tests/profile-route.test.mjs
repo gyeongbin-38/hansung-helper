@@ -33,6 +33,11 @@ assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, name: '오래
 assert.equal(profile.name, '처음');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 1, name: '새 저장' }) })).status, 200);
 assert.equal(profile.name, '새 저장');
-assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 2, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
-assert.equal(profile.name, '새 저장');
+const semesterPlans = { '2027-1': { sourceSemester: '2026-2', planned: ['course-1'], plans: { A: ['course-1'] } }, '2027-2': { sourceSemester: '2026-2', planned: ['course-2'], plans: {} } };
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 2, planSemester: '2027-1', semesterPlans }) })).status, 200);
+assert.equal(JSON.stringify(profile.semesterPlans), JSON.stringify(semesterPlans));
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 3, semesterPlans: { '2027-1': { sourceSemester: 'invalid', planned: [], plans: {} } } }) })).status, 400);
+assert.equal(JSON.stringify(profile.semesterPlans), JSON.stringify(semesterPlans));
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 3, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
+assert.equal(profile.name, '처음');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');

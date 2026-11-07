@@ -637,48 +637,66 @@ export default function App() {
         : '활동을 저장했습니다.',
     );
   }
+  const hasLegacyPlan = data.planned.length > 0 || Object.keys(data.plans ?? {}).length > 0;
+  const selectedSemester = data.planSemester ?? (hasLegacyPlan ? 'legacy' : (catalog?.semester ?? 'legacy'));
+  const storedPlan = data.semesterPlans?.[selectedSemester];
+  const sourceMismatch = !!storedPlan && !!catalog && storedPlan.sourceSemester !== catalog.semester;
+  const selectedIds = selectedSemester === 'legacy' ? data.planned : (storedPlan?.planned ?? []);
+  const selectedScenarios = selectedSemester === 'legacy' ? (data.plans ?? {}) : (storedPlan?.plans ?? {});
+  const visibleIds = sourceMismatch ? [] : selectedIds;
+  const planData = { ...data, planned: visibleIds, plans: sourceMismatch ? {} : selectedScenarios };
+  const planYears = Number(catalog?.semester.slice(0, 4)) || new Date().getFullYear();
+  const semesterOptions = [...new Set([
+    ...Array.from({ length: 7 }, (_, i) => [1, 2].map((half) => `${planYears - 2 + i}-${half}`)).flat(),
+    ...Object.keys(data.semesterPlans ?? {}),
+    ...(selectedSemester === 'legacy' ? [] : [selectedSemester]),
+  ])].sort();
+  function updatePlan(ids: string[], scenarios = selectedScenarios) {
+    if (selectedSemester === 'legacy') return { ...data, planned: ids, plans: scenarios };
+    if (!catalog || sourceMismatch) return null;
+    return { ...data, semesterPlans: { ...data.semesterPlans, [selectedSemester]: { sourceSemester: catalog.semester, planned: ids, plans: scenarios } } };
+  }
   function plan(id: string) {
+    const next = updatePlan(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+    if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return; }
     void persist(
-      {
-        ...data,
-        planned: data.planned.includes(id)
-          ? data.planned.filter((x) => x !== id)
-          : [...data.planned, id],
-      },
+      next,
       '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
     );
   }
   function swapPlan(fromId: string, toId: string) {
-    if (!data.planned.includes(fromId)) return;
+    if (!selectedIds.includes(fromId)) return;
+    const next = updatePlan(selectedIds.filter((x) => x !== fromId && x !== toId).concat(toId));
+    if (!next) return;
     void persist(
-      {
-        ...data,
-        planned: data.planned
-          .filter((x) => x !== fromId && x !== toId)
-          .concat(toId),
-      },
+      next,
       '',
     );
   }
   // 시간표 시나리오 — 현재 planned를 슬롯에 저장/복원한다
   function saveScenario(key: string) {
+    const next = updatePlan(selectedIds, { ...selectedScenarios, [key]: [...selectedIds] });
+    if (!next) return;
     void persist(
-      { ...data, plans: { ...data.plans, [key]: [...data.planned] } },
+      next,
       `안 ${key}에 현재 시간표를 저장했습니다.`,
     );
   }
   function loadScenario(key: string) {
-    const ids = data.plans?.[key];
+    const ids = selectedScenarios[key];
     if (!ids) return;
+    const next = updatePlan(ids);
+    if (!next) return;
     void persist(
-      { ...data, planned: ids },
+      next,
       `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
     );
   }
   function deleteScenario(key: string) {
-    const plans = { ...data.plans };
+    const plans = { ...selectedScenarios };
     delete plans[key];
-    void persist({ ...data, plans }, `안 ${key}를 삭제했습니다.`);
+    const next = updatePlan(selectedIds, plans);
+    if (next) void persist(next, `안 ${key}를 삭제했습니다.`);
   }
   // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
   function setActStage(id: string, stage: string | null) {
@@ -725,7 +743,7 @@ export default function App() {
   const section = route.split('/')[0],
     detail = route.split('/')[1],
     planned = (catalog?.sections ?? []).filter((s) =>
-      data.planned.includes(s.id),
+      visibleIds.includes(s.id),
     );
   const notifBefore =
     (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
@@ -877,6 +895,22 @@ export default function App() {
             }
           />
           <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {['courses', 'timetable', 'semester-plan'].includes(section) && (
+            <div className="card pad" style={{ marginBottom: 20 }}>
+              <label>계획 학기{' '}
+                <select className="field" aria-label="계획 학기" value={selectedSemester}
+                  onChange={(e) => { void persist({ ...data, planSemester: e.target.value }, '계획 학기를 변경했습니다.'); }}>
+                  {(hasLegacyPlan || selectedSemester === 'legacy') && <option value="legacy">기존 계획 (학기 미지정)</option>}
+                  {semesterOptions.map((semester) => <option key={semester} value={semester}>{semester}</option>)}
+                </select>
+              </label>
+              <p className="meta">
+                {catalog ? `${catalog.semester} 자료로 계획 연습 중 · 선택한 학기의 실제 개설 여부와 시간표는 학교 공지에서 확인하세요.` : '강의 자료를 불러오는 중입니다.'}
+              </p>
+              {sourceMismatch && <p className="form-error">이 계획은 {storedPlan?.sourceSemester} 자료로 저장되어 현재 자료로는 표시하거나 수정할 수 없습니다. 저장된 계획은 보존됩니다.</p>}
+              {selectedSemester === 'legacy' && hasLegacyPlan && <p className="meta">기존 계획의 학기와 기준 자료는 확인할 수 없어 미지정으로 보존했습니다.</p>}
+            </div>
+          )}
           {(slowCollect || pollDelayed) && (
             <div className="card pad" aria-live="polite">
               <p>{pollDelayed ? '학교 정보 수집 결과를 아직 확인하지 못했어요. 서버에서 처리가 계속되고 있을 수 있습니다.' : '학교 정보 수집이 평소보다 오래 걸리고 있어요. 기존 자료가 있다면 계속 볼 수 있습니다.'}</p>
@@ -890,6 +924,8 @@ export default function App() {
               go={go}
               planned={planned}
               catalog={catalog}
+              planSemester={selectedSemester}
+              planSourceMismatch={sourceMismatch}
             />
           ) : section === 'activities' ? (
             <Activities
@@ -930,7 +966,7 @@ export default function App() {
             />
           ) : section === 'courses' ? (
             <Courses
-              data={data}
+              data={planData}
               plan={plan}
               swap={swapPlan}
               detail={detail}
@@ -945,7 +981,7 @@ export default function App() {
               planned={planned}
               plan={plan}
               go={go}
-              semester={catalog?.semester}
+              semester={selectedSemester === 'legacy' ? undefined : selectedSemester}
             />
           ) : section === 'timetable' ? (
             <Timetable
@@ -953,7 +989,7 @@ export default function App() {
               failed={catalogFailed}
               retry={retryCatalog}
               planned={planned}
-              data={data}
+              data={planData}
               plan={plan}
               swap={swapPlan}
               notify={setToast}

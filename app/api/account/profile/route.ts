@@ -248,6 +248,20 @@ export async function PUT(request: Request) {
       }
     }
     profile.plans = plans;
+    if (input.planSemester !== undefined && (typeof input.planSemester !== 'string' || !/^(legacy|20\d{2}-[12])$/.test(input.planSemester)))
+      return json({ error: '계획 학기를 확인해 주세요.' }, 400);
+    if (input.planSemester !== undefined) profile.planSemester = input.planSemester;
+    if (input.semesterPlans !== undefined) {
+      if (!input.semesterPlans || typeof input.semesterPlans !== 'object' || Array.isArray(input.semesterPlans) || Object.keys(input.semesterPlans).length > 40)
+        return json({ error: '학기별 계획 형식을 확인해 주세요.' }, 400);
+      for (const [semester, value] of Object.entries(input.semesterPlans)) {
+        const entry = value as { sourceSemester?: unknown; planned?: unknown; plans?: unknown } | null;
+        const validIds = (ids: unknown) => Array.isArray(ids) && ids.length <= 100 && ids.every((id) => typeof id === 'string' && id.length <= 200);
+        if (!/^20\d{2}-[12]$/.test(semester) || !entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.sourceSemester !== 'string' || !/^20\d{2}-[12]$/.test(entry.sourceSemester) || !validIds(entry.planned) || !entry.plans || typeof entry.plans !== 'object' || Array.isArray(entry.plans) || Object.entries(entry.plans).some(([key, ids]) => !['A', 'B', 'C'].includes(key) || !validIds(ids)))
+          return json({ error: '학기별 계획 형식을 확인해 주세요.' }, 400);
+      }
+      profile.semesterPlans = input.semesterPlans;
+    }
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);
       if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);

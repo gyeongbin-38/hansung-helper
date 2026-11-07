@@ -41,6 +41,8 @@ export type Data = {
   /** 시간표 시나리오 — 'A'|'B'|'C' → 카탈로그 section.id 배열.
    *  planned는 현재 작업 중인 안이며, 시나리오는 저장·불러오기로만 연결된다 */
   plans?: Record<string, string[]>;
+  planSemester?: string;
+  semesterPlans?: Record<string, { sourceSemester: string; planned: string[]; plans: Record<string, string[]> }>;
   completed: Completed[];
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];

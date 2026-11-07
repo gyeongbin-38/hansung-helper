@@ -100,12 +100,16 @@ export function Home({
   go,
   planned,
   catalog,
+  planSemester,
+  planSourceMismatch,
 }: {
   data: Data;
   account: Account | null;
   go: (route: string) => void;
   planned: Planned;
   catalog: Catalog | null;
+  planSemester: string;
+  planSourceMismatch: boolean;
 }) {
   const { snap: sched } = useSchedule();
   const { snap: acts } = useActivities();
@@ -394,7 +398,7 @@ export function Home({
       </section>
       <section className="card pad">
         <div className="section-heading">
-          <h2>다음 학기 계획</h2>
+          <h2>{planSemester === 'legacy' ? '기존 계획 (학기 미지정)' : `${planSemester} 계획`}</h2>
           <button className="link" onClick={() => go('timetable')}>
             시간표 <ArrowRight size={16} />
           </button>
@@ -431,8 +435,7 @@ export function Home({
         ) : (
           <>
             <p className="meta">
-              아직 담은 과목이 없어요. 개설강의에서 관심 과목을 골라 다음
-              학기를 미리 그려보세요.
+              {planSourceMismatch ? '저장된 계획의 기준 자료가 달라 현재 표시할 수 없습니다.' : '아직 담은 과목이 없어요. 개설강의 자료로 계획을 연습해 보세요.'}
             </p>
             <button className="link" onClick={() => go('courses')}>
               과목 둘러보기 <ArrowUpRight size={15} />
