@@ -23,6 +23,7 @@ import {
 } from '@/lib/data/lms';
 import { activityNeedsVerification, liveStatus } from '@/lib/data/activities';
 import { staleLabel } from '@/lib/data/freshness';
+import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { useActivities, useNow, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
@@ -111,7 +112,7 @@ export function Home({
   const [slide, setSlide] = useState(0);
   const now = useNow(30000);
   const actsNeedVerification = acts ? activityNeedsVerification(acts.fetchedAt, now) : true;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = scheduleToday(now);
   const lmsSnap = data.lms;
   // 학기 경계 — 지난 학기 항목은 현재 할 일·건수에서 제외한다
   const before =
@@ -200,9 +201,9 @@ export function Home({
     .slice(0, 5);
   const idx = Math.min(slide, Math.max(slides.length - 1, 0));
   const cur = slides[idx];
-  const schoolNext = (sched?.items ?? [])
-    .filter((e) => (e.end ?? e.start) >= today)
-    .slice(0, 3);
+  const schoolNext = upcomingSchedule(sched?.items ?? [], today).slice(0, 3);
+  const personalNext = data.events.filter((e) => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
   const hasConflict = planned.some((s) => conflicts(s, planned).length);
   const tasks: [string, string, string, string][] = [];
   // 누락 필드를 실제로 비어 있는 것만 정확히 표기한다
@@ -576,14 +577,15 @@ export function Home({
           </div>
           {schoolNext.map((e) => (
             <div className="event-line" key={e.id}>
-              <span className="event-date">{e.start.slice(5)}</span>
+              <span className="event-date">{e.start <= today ? '진행 중' : '예정'}</span>
               <div>
                 <b>{e.title}</b>
+                <small>{scheduleDateLabel(e)}</small>
               </div>
             </div>
           ))}
-          {data.events.length ? (
-            data.events.slice(0, 3).map((e, i) => (
+          {personalNext.length ? (
+            personalNext.map((e, i) => (
               <div className="event-line" key={i}>
                 <span className="event-date">{e.date.slice(5)}</span>
                 <div>
@@ -597,8 +599,8 @@ export function Home({
               <CalendarDays />
               <p>
                 {schoolNext.length
-                  ? '개인 일정은 아직 없어요.'
-                  : '아직 등록한 일정이 없어요.'}
+                  ? '다가오는 개인 일정은 없어요.'
+                  : '다가오는 일정이 없어요.'}
               </p>
               <button className="link" onClick={() => go('calendar')}>
                 첫 일정 추가하기 +
