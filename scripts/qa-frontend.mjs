@@ -20,6 +20,11 @@ const course = catalog.sections.find((s) =>
   s.slots.every((slot) => slot.d < 6 && slot.s >= 540 && slot.e <= 1350),
 );
 assert.ok(course, 'catalog must contain a timed course');
+const profile = {
+  name: '프론트 검증', dept: course.dept, year: '2024', credits: '', points: '',
+  saved: [], planned: [], completed: [], prefs: [], readIds: [],
+  ruleOverrides: {}, events: [], consent: false,
+};
 const browser = await puppeteer.launch({
   headless: true,
   executablePath: process.env.CHROME_PATH || (process.platform === 'win32'
@@ -106,7 +111,14 @@ try {
   assert.equal(await page.$eval('.tt-block-remove', (el) => getComputedStyle(el).opacity), '1');
   await page.click('.tt-block-remove');
   await waitForCount('.tt-block', 0);
+  await page.waitForSelector('.tt-undo');
   results.push('호버 후 × 삭제·동일 과목의 모든 시간 제거');
+  await page.click('.tt-undo .link');
+  await waitForCount('.tt-block', course.slots.length);
+  await waitForCount('.tt-undo', 0);
+  await page.click(`${rowSelector} .cat-side button`);
+  await waitForCount('.tt-block', 0);
+  results.push('삭제 실행 취소로 같은 분반의 모든 시간 복구');
 
   await page.click(`${rowSelector} .cat-side button`);
   await waitForCount('.tt-block', course.slots.length);
@@ -164,6 +176,77 @@ try {
     await page.screenshot({ path: path.join(output, `timetable-${width}.png`), fullPage: true });
     results.push(`${width}px 화면 넘침 없음`);
   }
+  await page.click(`${rowSelector} .cat-side button`);
+  await page.waitForSelector('.tt-undo');
+  await page.select('select[aria-label="계획 학기"]', '2027-1');
+  await page.waitForFunction(() =>
+    document.querySelector('select[aria-label="계획 학기"]').value === '2027-1' && !document.querySelector('.tt-undo'),
+  );
+  results.push('다른 학기로 전환하면 이전 삭제 실행 취소 초기화');
+
+  const accountContext = await browser.createBrowserContext();
+  page = await accountContext.newPage();
+  page.setDefaultTimeout(10000);
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewport({ width: 1440, height: 1100 });
+  await page.setRequestInterception(true);
+  let saveRequests = 0;
+  page.on('request', (request) => {
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === '/api/account') {
+      void request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, data: {
+        profile: { ...profile, planned: [course.id] }, onboarded: true, studentMask: '테스트 계정',
+        snapshot: { portal: 'connected', lms: 'unavailable', courses: [], checkedAt: new Date().toISOString(), courseScope: 'test' },
+      } }) });
+    } else if (pathname === '/api/account/profile') {
+      saveRequests += 1;
+      setTimeout(() => {
+        void request.respond({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false, error: { code: 'TEST_SAVE_FAILED', message: '테스트 저장 실패' } }) });
+      }, 600);
+    } else void request.continue();
+  });
+  await page.goto(base + '/#timetable', { waitUntil: 'networkidle0', timeout: 30000 });
+  await waitForCount('.tt-block', course.slots.length);
+  await page.click('.tt-block-select');
+  await page.click('.tt-block-remove');
+  await page.waitForSelector('.builder-cols[aria-busy="true"]');
+  assert.ok(await page.$eval('.tt-block-remove', (el) => el.disabled));
+  await page.waitForSelector('.builder-cols[aria-busy="false"]');
+  await waitForCount('.tt-undo', 0);
+  await waitForCount('.tt-block', course.slots.length);
+  assert.equal(saveRequests, 1);
+  results.push('저장 중 중복 삭제 차단·저장 실패 시 성공 안내와 실행 취소를 표시하지 않음');
+  await accountContext.close();
+
+  const touchContext = await browser.createBrowserContext();
+  page = await touchContext.newPage();
+  page.setDefaultTimeout(10000);
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewport({ width: 375, height: 1000, isMobile: true, hasTouch: true });
+  await page.evaluateOnNewDocument((profile) => localStorage.setItem('hansung-demo-v1', JSON.stringify(profile)), { ...profile, planned: [course.id] });
+  await page.goto(base, { waitUntil: 'networkidle0', timeout: 30000 });
+  await page.waitForSelector('.auth-panel');
+  await clickText('연결 없이 둘러보기');
+  await page.evaluate(() => { location.hash = 'timetable'; });
+  await page.waitForSelector('.tt-day-nav');
+  await page.evaluate(() => document.querySelector('.cookie button')?.click());
+  await page.tap('button[aria-label="금요일 시간표로 이동"]');
+  await page.waitForFunction(() => document.querySelector('.builder-grid').scrollLeft > 0);
+  const dayNavVisible = await page.$eval('.tt-day-nav', (el) => {
+    const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth;
+  });
+  assert.ok(dayNavVisible, '요일 버튼은 가로 이동 후에도 화면 안에 남아야 함');
+  await page.tap('button[aria-label="화요일 시간표로 이동"]');
+  await page.tap('.tt-block-select');
+  await page.tap('.tt-block-remove');
+  await waitForCount('.tt-block', 0);
+  await page.waitForSelector('.tt-undo .link', { visible: true });
+  await page.tap('.tt-undo .link');
+  await waitForCount('.tt-block', course.slots.length);
+  results.push('375px 실제 터치: 요일 이동·수업 선택·삭제·실행 취소');
+  await page.screenshot({ path: path.join(output, 'timetable-touch.png'), fullPage: true });
+  await touchContext.close();
+  page = null;
   assert.deepEqual(errors, [], 'browser runtime errors');
   console.log(JSON.stringify({ passed: results, runtimeErrors: errors }, null, 2));
   await writeFile(path.join(output, 'result.json'), JSON.stringify({ passed: results, runtimeErrors: errors }, null, 2));

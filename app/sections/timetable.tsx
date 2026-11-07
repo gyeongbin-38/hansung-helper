@@ -102,16 +102,18 @@ function DropArea({ id, className, children, describedBy }: {
 function CatRow({
   s,
   added,
+  busy,
   onAdd,
 }: {
   s: CourseSection;
   added: boolean;
+  busy: boolean;
   onAdd: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: 'cat:' + s.id,
     data: { section: s },
-    disabled: added,
+    disabled: added || busy,
   });
   return (
     <div
@@ -122,13 +124,13 @@ function CatRow({
         (!added ? ' can-drag' : '') +
         (isDragging ? ' dragging' : '')
       }
-      {...(!added ? listeners : {})}
+      {...(!added && !busy ? listeners : {})}
     >
       <button
         type="button"
         className="cat-grip"
         aria-label={s.name + ' 끌어서 시간표에 추가'}
-        disabled={added}
+        disabled={added || busy}
         {...attributes}
       >
         <GripVertical size={15} />
@@ -148,6 +150,7 @@ function CatRow({
           className="icon"
           aria-label={s.name + (added ? ' 계획에서 제거' : ' 계획에 담기')}
           aria-pressed={added}
+          disabled={busy}
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -169,6 +172,7 @@ function EnrolledStrip({
   overrides,
   onFilter,
   onAdd,
+  busy,
 }: {
   lms: NonNullable<Data['lms']>;
   catalog: Catalog;
@@ -177,7 +181,8 @@ function EnrolledStrip({
   overrides?: Record<string, string>;
   onFilter: (title: string) => void;
   /** 분반을 계획에 담기 — 충돌·중복·이수 검사는 호출처가 처리, 성공 여부 반환 */
-  onAdd: (s: CourseSection) => boolean;
+  onAdd: (s: CourseSection) => Promise<boolean>;
+  busy: boolean;
 }) {
   const matches = useMemo(
     () => matchEnrollment(lms, catalog, overrides),
@@ -218,8 +223,9 @@ function EnrolledStrip({
                   <span className="enrolled-actions">
                     <button
                       className="secondary"
+                      disabled={busy}
                       onClick={() => {
-                        if (sections.length === 1) onAdd(sections[0]);
+                        if (sections.length === 1) void onAdd(sections[0]);
                         else
                           setPicking(
                             picking === course.id ? null : course.id,
@@ -245,8 +251,9 @@ function EnrolledStrip({
                     <button
                       key={s.id}
                       className="enrolled-pick-row"
-                      onClick={() => {
-                        if (onAdd(s)) setPicking(null);
+                      disabled={busy}
+                      onClick={async () => {
+                        if (await onAdd(s)) setPicking(null);
                       }}
                     >
                       <b>{s.section}분반</b>
@@ -301,7 +308,7 @@ export function Timetable({
   retry?: () => void;
   planned: CourseSection[];
   data: Data;
-  plan: (id: string) => void;
+  plan: (id: string) => Promise<boolean>;
   swap: (fromId: string, toId: string) => void;
   notify: (msg: string) => void;
   /** 시나리오 슬롯 저장·불러오기·삭제 — 키는 'A'|'B'|'C' */
@@ -323,6 +330,11 @@ export function Timetable({
   const [dragStatus, setDragStatus] = useState('');
   const [avoidedDays, setAvoidedDays] = useState<number[]>([]);
   const [maxCreditsInput, setMaxCreditsInput] = useState('');
+  const [lastRemoved, setLastRemoved] = useState<CourseSection | null>(null);
+  const [busy, setBusy] = useState(false);
+  const editing = useRef(false);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const dayColumns = useRef<(HTMLDivElement | null)[]>([]);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, {
@@ -403,7 +415,21 @@ export function Timetable({
   const preview = dragging && !dragPlan ? dragging : null;
   const previewBlocked = preview ? planBlockReason(preview, data, planned) : null;
 
-  function tryAdd(s: CourseSection): boolean {
+  async function changePlan(id: string): Promise<boolean> {
+    if (editing.current) return false;
+    editing.current = true;
+    setBusy(true);
+    try {
+      return await plan(id);
+    } catch {
+      notify('계획을 저장하지 못했습니다. 다시 시도해 주세요.');
+      return false;
+    } finally {
+      editing.current = false;
+      setBusy(false);
+    }
+  }
+  async function tryAdd(s: CourseSection): Promise<boolean> {
     if (planned.some((p) => p.id === s.id)) {
       setDragStatus(`${s.name}은 이미 시간표에 있습니다.`);
       return false;
@@ -414,10 +440,30 @@ export function Timetable({
       notify(blocked);
       return false;
     }
-    plan(s.id);
+    if (!await changePlan(s.id)) return false;
     setSelected(null);
     setDragStatus(`${s.name}을 공식 개설 요일과 시간에 추가했습니다.`);
     return true;
+  }
+  async function removeCourse(s: CourseSection) {
+    if (!planned.some((p) => p.id === s.id)) {
+      setSelected(null);
+      return;
+    }
+    if (!await changePlan(s.id)) return;
+    setLastRemoved(s);
+    setSelected((current) => current?.id === s.id ? null : current);
+    setDragStatus(`${s.name}을 시간표에서 제거했습니다. 실행 취소로 다시 담을 수 있습니다.`);
+  }
+  async function undoRemoval() {
+    if (lastRemoved && await tryAdd(lastRemoved)) setLastRemoved(null);
+  }
+  function scrollToDay(dayIndex: number) {
+    const grid = gridScrollRef.current;
+    const column = dayColumns.current[dayIndex];
+    if (!grid || !column) return;
+    const offset = column.getBoundingClientRect().left - grid.getBoundingClientRect().left;
+    grid.scrollTo({ left: grid.scrollLeft + offset - 52, behavior: 'instant' });
   }
   function onDragStart(e: DragStartEvent) {
     const payload = e.active.data.current as
@@ -445,13 +491,11 @@ export function Timetable({
     resetDrag();
     if (!payload) return;
     if (e.over?.id === 'tt-grid' && !payload.planned) {
-      tryAdd(payload.section);
+      void tryAdd(payload.section);
       return;
     }
     if (e.over?.id === 'tt-trash' && payload.planned) {
-      plan(payload.section.id);
-      setSelected(null);
-      setDragStatus(`${payload.section.name}을 시간표에서 제거했습니다.`);
+      void removeCourse(payload.section);
       return;
     }
     setDragStatus(
@@ -651,7 +695,14 @@ export function Timetable({
         {preview && <p className={'meta' + (previewBlocked ? ' form-error' : '')}>
           {previewBlocked ?? `${preview.name} · ${slotsLabel(preview)}${preview.untimed || !preview.slots.length ? ' · 계획에 추가되며 시간표 칸에는 표시되지 않습니다.' : ''}`}
         </p>}
-        <div className="builder-cols">
+        {lastRemoved && !planned.some((s) => s.id === lastRemoved.id) && (
+          <output className="tt-undo">
+            <span>{lastRemoved.name}을 계획에서 제거했습니다.</span>
+            <button type="button" className="link" disabled={busy} onClick={() => void undoRemoval()}>실행 취소</button>
+            <button type="button" className="icon" aria-label="삭제 안내 닫기" onClick={() => setLastRemoved(null)}><X size={14} /></button>
+          </output>
+        )}
+        <div className="builder-cols" aria-busy={busy}>
           <div className="builder-list card">
             <div className="builder-filters">
               <label className="cat-search">
@@ -738,10 +789,11 @@ export function Timetable({
                   <CatRow
                     key={s.id}
                     s={s}
+                    busy={busy}
                     added={planned.some((p) => p.id === s.id)}
                     onAdd={() =>
                       planned.some((p) => p.id === s.id)
-                        ? plan(s.id)
+                        ? removeCourse(s)
                         : tryAdd(s)
                     }
                   />
@@ -760,10 +812,15 @@ export function Timetable({
             </div>
           </div>
 
-          <div className="builder-grid card scrollable">
+          <div className="builder-grid card scrollable" ref={gridScrollRef}>
             <p className="meta timetable-scroll-hint">
               시간표를 좌우로 밀어 요일을 확인하세요.
             </p>
+            <nav className="tt-day-nav" aria-label="시간표 요일로 이동">
+              {DAY_SHORT.slice(0, 6).map((dayName, index) => (
+                <button type="button" key={dayName} onClick={() => scrollToDay(index)} aria-label={`${dayName}요일 시간표로 이동`}>{dayName}</button>
+              ))}
+            </nav>
             <div className="tt-head">
               <span>시간</span>
               {DAY_SHORT.slice(0, 6).map((d) => (
@@ -783,7 +840,7 @@ export function Timetable({
                 ))}
               </div>
               {DAY_SHORT.slice(0, 6).map((_, d) => (
-                <div className="tt-col" key={d}>
+                <div className="tt-col" key={d} ref={(node) => { dayColumns.current[d] = node; }}>
                   {planned
                     .filter((s) => !s.untimed && s.slots.some((x) => x.d === d))
                     .map((s) => {
@@ -796,11 +853,8 @@ export function Timetable({
                           color={planned.indexOf(s) % 5}
                           onSelect={setSelected}
                           selected={selected?.id === s.id}
-                          onRemove={() => {
-                            plan(s.id);
-                            setSelected(null);
-                            setDragStatus(`${s.name}을 시간표에서 제거했습니다.`);
-                          }}
+                          disabled={busy}
+                          onRemove={() => void removeCourse(s)}
                         />
                       ));
                     })}
@@ -899,7 +953,7 @@ export function Timetable({
                           <button
                             key={a.id}
                             className="secondary"
-                            disabled={!!hits.length}
+                            disabled={busy || !!hits.length}
                             title={
                               hits.length
                                 ? `겹침: ${hits[0].name}`
@@ -922,10 +976,8 @@ export function Timetable({
                 <div className="actions">
                   <button
                     className="secondary danger"
-                    onClick={() => {
-                      plan(selected.id);
-                      setSelected(null);
-                    }}
+                    disabled={busy}
+                    onClick={() => void removeCourse(selected)}
                   >
                     시간표에서 제거
                   </button>
@@ -1061,6 +1113,7 @@ export function Timetable({
                     <button
                       className="icon"
                       aria-label={r.section.name + ' 계획에 담기'}
+                      disabled={busy}
                       onClick={() => tryAdd(r.section)}
                     >
                       <Plus size={16} />
@@ -1091,7 +1144,8 @@ export function Timetable({
                     <button
                       className="icon"
                       aria-label={s.name + ' 계획에서 제거'}
-                      onClick={() => plan(s.id)}
+                      disabled={busy}
+                      onClick={() => void removeCourse(s)}
                     >
                       <X size={16} />
                     </button>
@@ -1121,6 +1175,7 @@ export function Timetable({
             searchRef.current?.focus({ preventScroll: true });
           }}
           onAdd={tryAdd}
+          busy={busy}
         />
       )}
       <details ref={comparisonRef} className="plan-comparison card">
@@ -1210,6 +1265,7 @@ function BlockCell({
   onSelect,
   selected,
   onRemove,
+  disabled,
 }: {
   s: CourseSection;
   sl: { d: number; s: number; e: number };
@@ -1217,10 +1273,12 @@ function BlockCell({
   onSelect: (s: CourseSection) => void;
   selected: boolean;
   onRemove: () => void;
+  disabled: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: 'plan:' + s.id + ':' + sl.d + ':' + sl.s,
     data: { planned: true, section: s },
+    disabled,
   });
   return (
     <div
@@ -1232,13 +1290,14 @@ function BlockCell({
       }}
     >
       <button className="tt-block-select" onClick={() => onSelect(s)}
+        disabled={disabled}
         aria-label={s.name + ' ' + slotLabel(sl) + ', 눌러서 상세 보기'}
         title={s.name + ' · ' + slotLabel(sl)}
         {...listeners} {...attributes}>
         <b>{s.name}</b>
         <small>{fmtMin(sl.s)}~{fmtMin(sl.e)}</small>
       </button>
-      <button className="tt-block-remove" onClick={onRemove} aria-label={s.name + ' 시간표에서 제거'}>
+      <button className="tt-block-remove" disabled={disabled} onClick={onRemove} aria-label={s.name + ' 시간표에서 제거'}>
         <X size={14} aria-hidden="true" />
       </button>
     </div>

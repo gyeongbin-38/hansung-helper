@@ -652,14 +652,14 @@ export default function App() {
     ...(selectedSemester === 'legacy' ? [] : [selectedSemester]),
   ])].sort();
   function updatePlan(ids: string[], scenarios = selectedScenarios) {
-    if (selectedSemester === 'legacy') return { ...data, planned: ids, plans: scenarios };
+    if (selectedSemester === 'legacy') return { ...data, planSemester: selectedSemester, planned: ids, plans: scenarios };
     if (!catalog || sourceMismatch) return null;
-    return { ...data, semesterPlans: { ...data.semesterPlans, [selectedSemester]: { sourceSemester: catalog.semester, planned: ids, plans: scenarios } } };
+    return { ...data, planSemester: selectedSemester, semesterPlans: { ...data.semesterPlans, [selectedSemester]: { sourceSemester: catalog.semester, planned: ids, plans: scenarios } } };
   }
-  function plan(id: string) {
+  async function plan(id: string): Promise<boolean> {
     const next = updatePlan(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
-    if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return; }
-    void persist(
+    if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return false; }
+    return persist(
       next,
       '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
     );
@@ -979,6 +979,7 @@ export default function App() {
             />
           ) : section === 'timetable' ? (
             <Timetable
+              key={`${selectedSemester}:${catalog?.semester ?? 'loading'}`}
               catalog={catalog}
               failed={catalogFailed}
               retry={retryCatalog}
