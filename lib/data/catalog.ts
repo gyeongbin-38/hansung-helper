@@ -65,13 +65,26 @@ export function slotLabel(s: CourseSlot) {
   return `${DAY_SHORT[s.d]} ${fmtMin(s.s)}~${fmtMin(s.e)}`;
 }
 export function slotsLabel(s: CourseSection) {
-  if (s.untimed || !s.slots.length) return '온라인 · 시간 미정';
+  if (s.untimed || !s.slots.length) return '시간 미정';
   return s.slots.map(slotLabel).join(' · ');
+}
+/** 숫자 학년만 접미사를 붙이고 원자료의 '전학년'은 그대로 쓴다. */
+export function yearLabel(year: string): string {
+  const value = (year ?? '').trim();
+  return /^\d+$/.test(value) ? `${value}학년` : value;
+}
+/** 원자료의 시간량 표기. 실제 수업 시간이나 온라인 분량으로 단정하지 않는다. */
+export function sourceDurationLabel(s: CourseSection): string {
+  return (s.room ?? '').match(/(?:^|\s)(\d+(?:\.\d+)?\s*시간)(?=\s|$)/)?.[1] ?? '';
 }
 /** 강의실 표시 — 원본 '온라인강좌 미래관B107'에서 방식 접두어를 벗겨
  *  실제 강의실만 돌려준다('미래관B107'). '온라인강좌' 단독이면 빈 문자열. */
 export function roomLabel(s: CourseSection): string {
-  return (s.room ?? '').replace(/^온라인강좌\s*/, '').trim();
+  return (s.room ?? '')
+    .replace(/^온라인강좌\s*/, '')
+    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*시간(?=\s|$)/g, ' ')
+    .replace(/^\s*\/\s*|\s*\/\s*$/g, '')
+    .trim();
 }
 /** 수업 방식 표시 — 온라인/대면을 강의실과 분리해 보여준다 */
 export function deliveryLabel(s: CourseSection): string {

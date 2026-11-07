@@ -220,6 +220,24 @@
   display: block;
   margin-top: auto;
 }
+.course-facts {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  font-size: 13px;
+}
+.course-facts div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 8px;
+}
+.course-facts dt {
+  color: var(--nt-slate);
+}
+.course-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .course .full {
   margin-top: 16px;
 }
