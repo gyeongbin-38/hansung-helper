@@ -50,6 +50,7 @@ import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
 import { useSlowLoading } from './use-slow-loading';
+import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
@@ -299,6 +300,21 @@ export default function App() {
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
   dataRef.current = data;
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== DEMO_STORAGE_KEY || event.newValue !== null || !demoRef.current || accountRef.current) return;
+      dataRef.current = empty;
+      setData(empty);
+      setDraft([]);
+      setActDraft([]);
+      setQuery('');
+      setFilter('전체');
+      setSurvey(false);
+      setToast('다른 탭에서 체험 데이터를 초기화했습니다.');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [setToast]);
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
   // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
@@ -552,7 +568,7 @@ export default function App() {
         if (msg) setToast(msg);
         return true;
       }
-      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
@@ -740,6 +756,25 @@ export default function App() {
     setDemo(false);
     setData(empty);
   }
+  function resetDemoData(): boolean {
+    try {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+      if (!accountRef.current && demoRef.current) {
+        dataRef.current = empty;
+        setData(empty);
+        setDraft([]);
+        setActDraft([]);
+        setQuery('');
+        setFilter('전체');
+        setSurvey(false);
+      }
+      setToast('이 브라우저의 체험 데이터를 초기화했습니다.');
+      return true;
+    } catch {
+      setToast('체험 데이터를 초기화하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.');
+      return false;
+    }
+  }
   const section = route.split('/')[0],
     detail = route.split('/')[1],
     planned = (catalog?.sections ?? []).filter((s) =>
@@ -803,7 +838,7 @@ export default function App() {
             allowExtensionImport.current = false;
             setDemo(true);
             try {
-              const raw = localStorage.getItem('hansung-demo-v1');
+              const raw = localStorage.getItem(DEMO_STORAGE_KEY);
               if (raw) {
                 const d = JSON.parse(raw);
                 if (
@@ -1049,6 +1084,9 @@ export default function App() {
               persist={persist}
               go={go}
               onDeleteAccount={() => void deleteAccount()}
+              onResetDemo={resetDemoData}
+              catalog={catalog}
+              activities={actsSnap}
             />
           ) : (
             <section className="card pad">
