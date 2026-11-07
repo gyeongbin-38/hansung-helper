@@ -236,6 +236,11 @@ try {
     const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth;
   });
   assert.ok(dayNavVisible, '요일 버튼은 가로 이동 후에도 화면 안에 남아야 함');
+  assert.ok(await page.$eval('.tt-hours', (el) => {
+    const grid = document.querySelector('.builder-grid').getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return r.left >= grid.left - 1 && r.right <= grid.right;
+  }), '가로 이동 후에도 시간 축이 보여야 함');
   await page.tap('button[aria-label="화요일 시간표로 이동"]');
   await page.tap('.tt-block-select');
   await page.tap('.tt-block-remove');
@@ -244,6 +249,7 @@ try {
   await page.tap('.tt-undo .link');
   await waitForCount('.tt-block', course.slots.length);
   results.push('375px 실제 터치: 요일 이동·수업 선택·삭제·실행 취소');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({ path: path.join(output, 'timetable-touch.png'), fullPage: true });
   await touchContext.close();
   page = null;

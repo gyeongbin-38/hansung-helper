@@ -855,6 +855,12 @@
   background: var(--nt-canvas);
   z-index: 2;
 }
+.tt-head > span {
+  position: sticky;
+  left: 0;
+  background: var(--nt-canvas);
+  z-index: 3;
+}
 .tt-body {
   position: relative;
   display: grid;
@@ -872,7 +878,10 @@
   box-shadow: inset 0 0 0 3px var(--nt-primary);
 }
 .tt-hours {
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--nt-canvas);
   height: 729px;
 }
 .tt-hours small {
@@ -1225,6 +1234,8 @@
   }
   .timetable-scroll-hint {
     display: block;
+    position: sticky;
+    left: 0;
     margin: 0;
     padding: 9px 12px;
     background: var(--nt-surface);
