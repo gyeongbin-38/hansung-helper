@@ -1,3 +1,7 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: project brand · redesign: full
+ * nav: existing sidebar · signature: deadline rail · states: loading, empty, error, full
+ * reworded "내 학사 위험 신호" to "확인할 항목" · avoid treating incomplete profile fields as risks
+ * Critique: Prior dashboard repeated boxed surfaces and hid collection dates below deadlines. */
 /* Home dashboard + account bar + notifications page.
    Owner: home agent. Use var(--nt-*) tokens only. */
 
@@ -5,45 +9,98 @@
 .hero-carousel {
   position: relative;
   margin-bottom: 26px;
-  padding: 22px 24px 16px;
+  padding: 24px;
   border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-lg);
   background: var(--nt-canvas);
 }
+.hc-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.hc-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.45;
+  letter-spacing: -0.02em;
+}
+.hc-heading .link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
 .hc-slide {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   align-items: stretch;
-  min-height: 128px;
+  min-height: 180px;
 }
 .hc-cover {
   flex-shrink: 0;
-  width: 150px;
+  width: 148px;
+  min-height: 180px;
   border-radius: var(--nt-r-md);
-  background-size: cover;
+  background-size: contain;
   background-position: center;
-  background-color: color-mix(in srgb, var(--nt-ink) 6%, transparent);
+  background-repeat: no-repeat;
+  background-color: var(--nt-surface);
 }
 .hc-body {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  padding: 4px 0 2px;
+}
+.hc-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--nt-slate);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.hc-meta > span:not(.badge) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hc-meta > span:not(.badge)::before {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--nt-hairline-strong);
+  content: '';
 }
 .hc-body h3 {
-  font-size: 19px;
-  line-height: 1.4;
+  max-width: 24ch;
+  font-size: 20px;
+  line-height: 1.42;
   letter-spacing: -0.01em;
-  margin: 12px 0 0;
+  margin: 16px 0 0;
 }
-.hc-body p {
+.hc-body .hc-dept {
   font-size: 14px;
-  margin: 7px 0 0;
+  line-height: 1.5;
+  margin: 8px 0 0;
   color: var(--nt-slate);
+}
+.hc-body .hc-deadline {
+  margin: 4px 0 0;
+  color: var(--nt-stone);
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 .hc-body .link {
   margin-top: auto;
-  padding-top: 10px;
+  padding-top: 14px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -94,12 +151,24 @@
   .hero-carousel {
     padding: 18px 16px 14px;
   }
+  .hc-heading {
+    margin-bottom: 16px;
+  }
   .hc-slide {
     flex-direction: column;
+    gap: 18px;
   }
   .hc-cover {
     width: 100%;
-    height: 120px;
+    height: 180px;
+    min-height: 0;
+  }
+  .hc-body {
+    padding: 0;
+  }
+  .hc-body h3 {
+    max-width: none;
+    font-size: 19px;
   }
   .hc-arrow {
     width: 44px;
@@ -493,11 +562,7 @@ button.event-line.as-link > svg {
   border-top: 1px solid var(--nt-hairline-soft);
 }
 .notif-item.unread {
-  background: color-mix(
-    in srgb,
-    var(--nt-tint-sky) 42%,
-    var(--nt-canvas)
-  );
+  background: color-mix(in srgb, var(--nt-tint-sky) 42%, var(--nt-canvas));
 }
 .notif-item.unread::after {
   content: '';
@@ -522,11 +587,7 @@ button.event-line.as-link > svg {
 }
 .notif-item.unread .notif-ico {
   background: var(--nt-tint-sky);
-  border-color: color-mix(
-    in srgb,
-    var(--nt-primary-deep) 14%,
-    transparent
-  );
+  border-color: color-mix(in srgb, var(--nt-primary-deep) 14%, transparent);
   color: var(--nt-primary-deep);
 }
 .notif-body {
@@ -612,5 +673,190 @@ button.event-line.as-link > svg {
   .notif-item {
     padding: 16px;
     gap: 12px;
+  }
+}
+
+/* The dashboard reads like a planner: priorities above, supporting context below. */
+.home-dashboard,
+.home-primary,
+.home-secondary {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 28px;
+}
+.home-dashboard {
+  gap: 32px;
+}
+.home-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+  align-items: start;
+  gap: 32px;
+}
+.home-dashboard .section-heading {
+  margin: 0 0 16px;
+}
+.home-primary .today-strip {
+  margin: 0;
+  padding: 20px 24px;
+  background: var(--nt-surface);
+  border-color: transparent;
+}
+.home-primary .today-strip .section-heading {
+  margin-bottom: 8px;
+}
+.home-primary .today-item {
+  min-height: 44px;
+}
+.home-primary .week-list {
+  padding: 20px 24px;
+}
+.home-primary .week-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.home-primary .week-list .event-date {
+  border-radius: 0;
+  border-right: 1px solid var(--nt-hairline);
+  background: transparent;
+  padding: 8px 12px 8px 0;
+}
+.home-tasks .tasks {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-canvas);
+}
+.home-tasks .task.card {
+  min-width: 0;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.home-tasks .task.card:first-child {
+  border-radius: var(--nt-r-lg) var(--nt-r-lg) 0 0;
+}
+.home-tasks .task.card:last-child {
+  border-radius: 0 0 var(--nt-r-lg) var(--nt-r-lg);
+}
+.home-tasks .task.card:only-child {
+  border-radius: var(--nt-r-lg);
+}
+.home-tasks .task.card + .task.card {
+  border-top: 1px solid var(--nt-hairline-soft);
+}
+.home-tasks .task.card:hover {
+  background: var(--nt-surface);
+}
+.home-tasks .task.card:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+.home-tasks .task-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--nt-primary);
+  box-shadow: 0 0 0 4px var(--nt-tint-sky);
+}
+.home-tasks .task > span:nth-child(2) {
+  min-width: 0;
+}
+.home-secondary > * {
+  margin: 0;
+}
+.home-secondary .hero-carousel,
+.home-secondary > .card.pad {
+  padding: 20px 24px;
+}
+.home-status .stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-canvas);
+}
+.home-status .stat.card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.home-status .stat.card + .stat.card {
+  border-left: 1px solid var(--nt-hairline-soft);
+}
+.home-status .stat-tag {
+  justify-self: start;
+  padding: 0;
+  background: transparent;
+  color: var(--nt-slate);
+}
+.home-status .stat strong {
+  margin: 3px 0 0;
+  font-size: 20px;
+}
+.home-dashboard > .bottom-grid {
+  margin: 0;
+}
+.home-dashboard > .bottom-grid .section-heading .link {
+  white-space: nowrap;
+}
+@media (max-width: 1359px) {
+  .home-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+@media (max-width: 899px) and (min-width: 768px) {
+  .home-status .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-status .stat.card:nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--nt-hairline-soft);
+    border-left: 0;
+  }
+}
+@media (max-width: 767px) {
+  .home-dashboard,
+  .home-top,
+  .home-primary,
+  .home-secondary {
+    gap: 24px;
+  }
+  .home-primary .today-strip,
+  .home-primary .week-list,
+  .home-secondary .hero-carousel,
+  .home-secondary > .card.pad {
+    padding: 16px 20px;
+  }
+  .home-tasks .tasks,
+  .home-status .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-tasks .task.card {
+    padding: 16px;
+  }
+  .home-status .stat.card + .stat.card {
+    border-top: 1px solid var(--nt-hairline-soft);
+  }
+  .home-status .stat.card + .stat.card {
+    border-left: 0;
+  }
+  .home-status .stat strong {
+    font-size: 16px;
   }
 }

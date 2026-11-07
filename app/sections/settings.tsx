@@ -25,6 +25,7 @@ export function SettingsSection({
         '코스모스 / e-Class',
       ].map((n) => {
         const isLms = n === '코스모스 / e-Class';
+        const isActivities = n === '스마트자기관리시스템';
         const verified =
           (account && n === '한성대학교 종합정보시스템') ||
           (account &&
@@ -38,13 +39,25 @@ export function SettingsSection({
             <div>
               <b>{n}</b>
               <small>
-                {account
-                  ? '로그인 시 확인한 상태입니다. 전체 이수 내역과 성적은 수집하지 않습니다.'
-                  : '학교 계정을 연결하면 조회 가능한 정보를 확인합니다.'}
+                {isActivities
+                  ? '비교과 공개 목록을 이용하고 있어요. 개인 참여 내역은 학교 시스템에서 확인해 주세요.'
+                  : isLms
+                    ? '학교 계정을 연결하면 수업과 과제 현황을 확인합니다.'
+                    : '학교 계정 확인과 학적·이수 정보 조회에 사용합니다.'}
+                {isActivities && (
+                  <>
+                    {' '}
+                    <a href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noopener noreferrer">
+                      학교 시스템 열기 ↗
+                    </a>
+                  </>
+                )}
               </small>
             </div>
             <span className={verified ? 'badge green' : 'badge'}>
-              {account && n === '한성대학교 종합정보시스템'
+              {isActivities
+                ? '공개 목록 이용'
+                : account && n === '한성대학교 종합정보시스템'
                 ? '인증 확인'
                 : account && isLms
                   ? account.snapshot.lmsPending

@@ -200,7 +200,7 @@ export function CalendarSection({
   return (
     <>
       <section className="card pad">
-        <div className="between">
+        <div className="between cal-heading">
           <h2>학사 캘린더</h2>
           <div className="cal-head-actions">
             <button
@@ -275,24 +275,31 @@ export function CalendarSection({
                 <span key={w}>{w}</span>
               ))}
             </div>
-            <div
+            <fieldset
               className="cal-grid"
-              role="grid"
               aria-label={`${Number(month.slice(5))}월 달력`}
             >
               {cells.map((cell) => {
                 const onDay = itemsOnDay(rangeItems, cell.iso);
                 const bands = onDay.filter((i) => i.kind === 'academic');
                 const chips = onDay.filter((i) => i.kind !== 'academic');
+                const kindCounts = {
+                  academic: bands.length,
+                  lms: chips.filter((i) => i.kind === 'lms').length,
+                  personal: chips.filter((i) => i.kind === 'personal').length,
+                };
                 const showChips = Math.max(0, 3 - Math.min(bands.length, 2));
                 const isSel = cell.iso === selected;
                 const isToday = cell.iso === todayIso;
+                const itemCountLabel = onDay.length
+                  ? `, 일정 ${onDay.length}개`
+                  : ', 일정 없음';
                 return (
                   <button
                     type="button"
                     key={cell.iso}
                     aria-pressed={isSel}
-                    aria-label={`${Number(cell.iso.slice(5, 7))}월 ${Number(cell.iso.slice(8))}일 ${WEEKDAYS[dowOf(cell.iso)]}요일${isToday ? ' 오늘' : ''}`}
+                    aria-label={`${Number(cell.iso.slice(5, 7))}월 ${Number(cell.iso.slice(8))}일 ${WEEKDAYS[dowOf(cell.iso)]}요일${isToday ? ' 오늘' : ''}${itemCountLabel}`}
                     className={[
                       'cal-cell',
                       cell.inMonth ? '' : 'outside',
@@ -344,10 +351,24 @@ export function CalendarSection({
                         </span>
                       )}
                     </div>
+                    {onDay.length > 0 && (
+                      <span className="cal-mobile-summary" aria-hidden="true">
+                        <span className="cal-mobile-dots">
+                          {kindCounts.academic > 0 && (
+                            <i className="academic" />
+                          )}
+                          {kindCounts.lms > 0 && <i className="lms" />}
+                          {kindCounts.personal > 0 && (
+                            <i className="personal" />
+                          )}
+                        </span>
+                        <b>{onDay.length}</b>
+                      </span>
+                    )}
                   </button>
                 );
               })}
-            </div>
+            </fieldset>
           </div>
           <aside className="cal-side" aria-label="선택한 날짜의 일정">
             <h3 className="cal-side-date">
@@ -413,7 +434,13 @@ export function CalendarSection({
                 maxLength={80}
                 aria-invalid={!!eventErr}
               />
-              <button className="primary" type="submit">
+              <button
+                className="primary"
+                type="submit"
+                aria-label={
+                  preview ? '개인 일정 추가 확정' : '개인 일정 미리보기'
+                }
+              >
                 {preview ? '추가' : <Plus size={16} />}
               </button>
             </form>

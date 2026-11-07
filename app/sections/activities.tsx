@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   Bookmark,
   ArrowUpRight,
+  CalendarDays,
   Search,
   Plus,
   Trash2,
@@ -575,6 +576,30 @@ export function Activities({
   );
 }
 
+function ActivityCover({ cover }: { cover: Activity['cover'] }) {
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const visibleCover = cover && cover !== failedCover ? cover : null;
+
+  return (
+    <div className="activity-cover">
+      {visibleCover ? (
+        // eslint-disable-next-line next/no-img-element -- 외부 학교 이미지, next/image 없음
+        <img
+          src={visibleCover}
+          alt=""
+          loading="lazy"
+          onError={() => setFailedCover(visibleCover)}
+        />
+      ) : (
+        <div className="activity-cover-empty" aria-hidden="true">
+          <CalendarDays size={28} strokeWidth={1.8} />
+          <span>비교과 활동</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActivityCards({
   items,
   data,
@@ -595,38 +620,24 @@ function ActivityCards({
 }) {
   return (
     <div className="cards">
-      {items.map((a, i) => {
+      {items.map((a) => {
         const live = liveStatus(a, now);
         const uncertain = !isExt(a) && needsVerification;
         const sc = scores?.get(a.id);
         const stage = data.actStatus?.[a.id];
+        const liveLabel =
+          live.dday && live.dday !== live.label
+            ? `${live.label} · ${live.dday}`
+            : live.label;
         return (
         <article className="card activity" key={a.id}>
-          <div
-            className={'mini-art art' + (i % 6)}
-            style={
-              a.cover
-                ? {
-                    backgroundImage: `url(${a.cover})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }
-                : undefined
-            }
-          >
-            <span>{isExt(a) ? '직접 등록' : uncertain ? '현재 접수 여부 확인 필요' : live.label}</span>
-            <strong>
-              {!uncertain && (live.dday ?? (i + 1).toString().padStart(2, '0'))}
-              <ArrowUpRight size={34} strokeWidth={1.2} />
-            </strong>
-            <small>
-              {isExt(a) ? a.dept.slice(0, 12) : `HANSUNG · ${a.dept.slice(0, 12)}`}
-            </small>
-          </div>
+          <ActivityCover cover={a.cover} />
           <div className="pad">
             <div className="between">
               <span className="badge">
-                {isExt(a) ? '직접 등록' : uncertain ? '현재 접수 여부 확인 필요' : live.label}
+                {isExt(a)
+                  ? '직접 등록'
+                  : uncertain ? '현재 접수 여부 확인 필요' : liveLabel}
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>

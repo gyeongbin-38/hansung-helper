@@ -51,6 +51,10 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 온보딩에서 저장한 학기 계획과 진행 상태 */
+  semester?: string;
+  graduationTarget?: string;
+  onboardingStep?: number;
   /** 활동 진행 단계(본인 확인용) — activity id → ACT_STAGES 단계 id */
   actStatus?: Record<string, string>;
   /** 직접 등록한 외부 활동 — hsportal 목록 외의 사용자 입력 데이터 */

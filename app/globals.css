@@ -1,5 +1,4 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 @import 'tailwindcss';
 @import './styles/shell.css';
 @import './styles/auth.css';
@@ -7,9 +6,9 @@
 @import './styles/learning.css';
 @import './styles/progress.css';
 /*
-  Notion design system token layer.
-  Single contract for every section stylesheet. Do not re-declare these
-  values locally; use the variables.
+  Toss-inspired product token layer.
+  This sans-first contract supplies every section stylesheet with accessible
+  action, text, surface, and semantic roles. Reuse these variables locally.
 */
 :root {
   font-family:
@@ -21,67 +20,71 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #37352f;
+  color: #191f28;
   background: #ffffff;
   font-synthesis: none;
-  /* brand + primary — 잉크 네이비: 행동 버튼은 차분한 굵은 잉크 톤 */
-  --nt-primary: #33415c;
-  --nt-primary-pressed: #27334a;
-  --nt-primary-deep: #1f2a3e;
+  /* brand + primary — Toss-inspired product blue with accessible action contrast */
+  /* Blue 700 keeps white action labels above WCAG AA contrast. */
+  --nt-primary: #1b64da;
+  --nt-primary-pressed: #1957c2;
+  --nt-primary-deep: #194aa6;
   --nt-on-primary: #ffffff;
-  --nt-navy: #0a1530;
-  --nt-navy-deep: #070f24;
-  --nt-navy-mid: #1a2a52;
-  --nt-link: #0068c4;
-  --nt-link-pressed: #005bab;
+  --nt-navy: #191f28;
+  --nt-navy-deep: #11161c;
+  --nt-navy-mid: #333d4b;
+  --nt-link: #1b64da;
+  --nt-link-pressed: #1957c2;
   /* brand spectrum */
-  --nt-orange: #dd5b00;
-  --nt-orange-deep: #793400;
-  --nt-pink: #ff64c8;
-  --nt-pink-deep: #a02e6d;
-  --nt-purple: #7b3ff2;
-  --nt-purple-300: #d6b6f6;
-  --nt-purple-800: #391c57;
-  --nt-teal: #2a9d99;
-  --nt-teal-deep: #1a6b68;
-  --nt-green: #1aae39;
-  --nt-green-deep: #127a2b;
-  --nt-yellow: #f5d75e;
-  --nt-brown: #523410;
-  /* pastel card tints — 종이색을 향해 한 단계 바랜 "잿빛 파스텔" */
-  --nt-tint-peach: #f7ebdf;
-  --nt-tint-rose: #f7e7ed;
-  --nt-tint-mint: #e2efe5;
-  --nt-tint-lavender: #eae8f1;
-  --nt-tint-sky: #e5eef4;
-  --nt-tint-yellow: #f7f1dc;
-  --nt-tint-yellow-bold: #f2e6ae;
-  --nt-tint-cream: #f6f3e9;
-  --nt-tint-gray: #f0eeec;
-  /* surface — 종이색 캔버스 + 노션 회색 패널 */
+  --nt-orange: #fb8800;
+  /* Text variant stays legible on orange50 and neutral surfaces. */
+  --nt-orange-deep: #b54700;
+  --nt-pink: #f04452;
+  --nt-pink-deep: #d22030;
+  --nt-purple: #9128b4;
+  --nt-purple-300: #da9bef;
+  --nt-purple-800: #65237b;
+  --nt-teal: #109595;
+  --nt-teal-deep: #076565;
+  --nt-green: #02a262;
+  --nt-green-deep: #027648;
+  --nt-yellow: #ffc342;
+  --nt-brown: #6b4f2a;
+  /* semantic weak backgrounds */
+  --nt-tint-peach: #fff3e0;
+  --nt-tint-rose: #ffeeee;
+  --nt-tint-mint: #f0faf6;
+  --nt-tint-lavender: #f9f0fc;
+  --nt-tint-sky: #e8f3ff;
+  --nt-tint-yellow: #fff9e7;
+  --nt-tint-yellow-bold: #ffefbf;
+  --nt-tint-cream: #f9fafb;
+  --nt-tint-gray: #f2f4f6;
+  /* surface — cool white and grey layers */
   --nt-canvas: #ffffff;
-  --nt-paper: #fbfaf7;
-  --nt-surface: #f7f6f3;
-  --nt-surface-soft: #fbfbfa;
-  /* display — 노션 세리프 모드: 제목·숫자·날짜만 한글 세리프로 인쇄물 계층 */
+  --nt-paper: #f9fafb;
+  --nt-surface: #f2f4f6;
+  --nt-surface-soft: #f9fafb;
+  /* display — the same product sans stack keeps headings direct and contemporary */
   --nt-font-display:
-    'Gowun Batang', 'Noto Serif KR', 'Source Serif 4', serif;
-  --nt-hairline: #e5e3df;
-  --nt-hairline-soft: #ede9e4;
-  --nt-hairline-strong: #c8c4be;
-  /* text — 순수 검정 대신 따뜻한 잉크 */
-  --nt-ink: #37352f;
-  --nt-charcoal: #37352f;
-  --nt-slate: #5d5b54;
-  --nt-steel: #6f6c66;
-  --nt-stone: #736f68;
-  --nt-muted: #8a867e;
+    'Pretendard Variable', Pretendard, Inter, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'Malgun Gothic', sans-serif;
+  --nt-hairline: #e5e8eb;
+  --nt-hairline-soft: #f2f4f6;
+  --nt-hairline-strong: #d1d6db;
+  /* text — Toss grey scale */
+  --nt-ink: #191f28;
+  --nt-charcoal: #333d4b;
+  --nt-slate: #4e5968;
+  /* Secondary text keeps at least 5.29:1 across the light surface set. */
+  --nt-steel: #596574;
+  --nt-stone: #596574;
+  --nt-muted: #8b95a1;
   --nt-on-dark: #ffffff;
-  --nt-on-dark-muted: #a4a097;
+  --nt-on-dark-muted: #b0b8c1;
   /* semantic */
-  --nt-success: #1aae39;
-  --nt-warning: #dd5b00;
-  --nt-error: #e03131;
+  --nt-success: #02a262;
+  --nt-warning: #b54700;
+  --nt-error: #d22030;
   /* radii: buttons/inputs 8px, cards 12px, badges pill or 6px */
   --nt-r-xs: 4px;
   --nt-r-sm: 6px;
@@ -100,6 +103,10 @@
 }
 * {
   box-sizing: border-box;
+}
+html,
+body {
+  overflow-x: clip;
 }
 body {
   margin: 0;
@@ -183,8 +190,8 @@ small {
   color: var(--nt-stone);
   line-height: 1.5;
 }
-/* ---- display serif: 페이지 제목·섹션 제목·큰 숫자·D-day에만 적용.
-   본문·라벨·버튼은 산스 유지 — 문서 계층과 UI 크롬을 서체로 분리한다 ---- */
+/* ---- display hierarchy: headings, key figures, and dates share the same
+   Pretendard product-sans family as the rest of the interface. ---- */
 .page-heading h1,
 .section-heading h2,
 .detail > h2,
@@ -327,7 +334,7 @@ small {
 }
 .field,
 input {
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-muted);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -346,7 +353,7 @@ select:focus,
   outline: none;
 }
 select {
-  border: 1px solid var(--nt-hairline-strong);
+  border: 1px solid var(--nt-muted);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -422,7 +429,7 @@ select {
 /* 출처·수집일·면책 같은 보조 문구 — 읽을 수는 있되 시선을 뺏지 않게 */
 .meta {
   font-size: 12px;
-  color: var(--nt-muted);
+  color: var(--nt-steel);
   line-height: 1.55;
   margin: 10px 0;
 }
@@ -555,7 +562,9 @@ select {
   font-size: 11px;
 }
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid var(--nt-primary);
 }
 /* 필드류 포커스는 소프트 링 하나로 — 이중 표시 방지 */
@@ -563,6 +572,11 @@ input:focus-visible,
 select:focus-visible,
 .field:focus-visible {
   outline: none;
+}
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 3px;
 }
 /* ---- skeleton loading: placeholder blocks keep layout + reading order ---- */
 .sk-status {
@@ -645,7 +659,10 @@ select:focus-visible,
 }
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  background: var(--nt-surface);
+  border-color: var(--nt-hairline-strong);
+  color: var(--nt-steel);
+  opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
   * {

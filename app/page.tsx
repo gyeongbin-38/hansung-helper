@@ -990,6 +990,7 @@ export default function App() {
               onSaveScenario={saveScenario}
               onLoadScenario={loadScenario}
               onDeleteScenario={deleteScenario}
+              onOpenSurvey={() => openSurvey('course')}
             />
           ) : section === 'calendar' ? (
             <CalendarSection
