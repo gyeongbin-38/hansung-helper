@@ -495,8 +495,9 @@
 .builder-actions {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 14px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 .builder-actions .secondary {
   display: inline-flex;
@@ -515,11 +516,27 @@
   margin: -8px 0 14px;
 }
 /* ---------- timetable scenario slots ---------- */
+.plan-comparison {
+  margin-top: 20px;
+  padding: 16px 18px;
+}
+.plan-comparison summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.plan-comparison summary .meta {
+  margin-left: 8px;
+  font-weight: 400;
+}
+.plan-comparison[open] summary {
+  margin-bottom: 18px;
+}
 .plan-slots {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin: -6px 0 14px;
+  margin: 0;
   padding: 0;
   border: none;
   min-width: 0;
@@ -553,10 +570,11 @@
 .plan-slot .meta {
   margin: 0;
   font-size: 12px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .plan-slot-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -586,7 +604,12 @@
 }
 @media (max-width: 900px) {
   .plan-slots {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .plan-slots {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 .enrolled {
@@ -967,7 +990,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .builder-list {
-    max-height: 420px;
+    max-height: 320px;
     min-width: 0;
   }
   .builder-grid {

@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -283,6 +283,8 @@ export function Timetable({
   onDeleteScenario: (key: string) => void;
 }) {
   const [q, setQ] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const comparisonRef = useRef<HTMLDetailsElement>(null);
   const [dept, setDept] = useState('');
   const [cat, setCat] = useState('전체');
   const [day, setDay] = useState('');
@@ -512,6 +514,12 @@ export function Timetable({
           · 개인 계획이며 공식 수강신청이 아닙니다.
         </p>
         <div className="builder-actions">
+          <button className="secondary" onClick={() => {
+            if (!comparisonRef.current) return;
+            comparisonRef.current.open = true;
+            comparisonRef.current.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            comparisonRef.current.querySelector('summary')?.focus({ preventScroll: true });
+          }}>A/B/C 비교</button>
           <button
             className="secondary"
             onClick={exportPng}
@@ -525,79 +533,6 @@ export function Timetable({
           </div>
         </div>
       </div>
-      <fieldset className="plan-slots" aria-label="시간표 시나리오 비교">
-        <div className="plan-slot current">
-          <div className="plan-slot-head">
-            <b>현재 작업 중</b>
-            <span className="meta">
-              {planned.length}과목 · {credits}학점
-              {curConflicts ? ` · 충돌 ${curConflicts}건` : ''}
-              {freeDays.length ? ` · 공강 ${freeDays.length}일` : ''}
-            </span>
-          </div>
-        </div>
-        {['A', 'B', 'C'].map((k) => {
-          const ids = data.plans?.[k];
-          const st = ids ? scenarioStats(ids, catalog) : null;
-          return (
-            <div className={'plan-slot' + (st ? '' : ' empty')} key={k}>
-              <div className="plan-slot-head">
-                <b>안 {k}</b>
-                {st ? (
-                  <button
-                    className="icon"
-                    aria-label={`안 ${k} 삭제`}
-                    onClick={() => onDeleteScenario(k)}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                ) : null}
-              </div>
-              {st ? (
-                <>
-                  <span className="meta">
-                    {st.secs.length}과목 · {st.credits}학점
-                    {st.conflicts ? ` · 충돌 ${st.conflicts}건` : ''}
-                    {st.freeDays ? ` · 공강 ${st.freeDays}일` : ''}
-                  </span>
-                  {st.missing > 0 && (
-                    <span className="meta">
-                      현재 카탈로그에 없는 과목 {st.missing}개 포함
-                    </span>
-                  )}
-                  <div className="plan-slot-actions">
-                    <button
-                      className="secondary"
-                      onClick={() => onLoadScenario(k)}
-                    >
-                      불러오기
-                    </button>
-                    <button
-                      className="link"
-                      onClick={() => onSaveScenario(k)}
-                    >
-                      현재 안으로 덮어쓰기
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="meta">비어 있음</span>
-                  <div className="plan-slot-actions">
-                    <button
-                      className="secondary"
-                      disabled={!planned.length}
-                      onClick={() => onSaveScenario(k)}
-                    >
-                      현재 안 저장
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </fieldset>
       {hasTimed && (
         <div className="gap-chips">
           {freeDays.length > 0 && (
@@ -619,22 +554,6 @@ export function Timetable({
           )}
         </div>
       )}
-      {data.lms && catalog && (
-        <EnrolledStrip
-          lms={data.lms}
-          catalog={catalog}
-          planned={planned}
-          overrides={data.lmsMatch}
-          onFilter={(name) => {
-            setQ(name);
-            setDept('전체');
-            setCat('전체');
-            setDay('');
-            setBand('전체');
-          }}
-          onAdd={tryAdd}
-        />
-      )}
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}
@@ -646,6 +565,7 @@ export function Timetable({
               <label className="cat-search">
                 <Search size={15} aria-hidden="true" />
                 <input
+                  ref={searchRef}
                   aria-label="과목 검색"
                   placeholder="과목명 · 교수 · 코드 검색"
                   value={q}
@@ -970,6 +890,100 @@ export function Timetable({
           {dragging ? <DragCard s={dragging} /> : null}
         </DragOverlay>
       </DndContext>
+      {data.lms && catalog && (
+        <EnrolledStrip
+          lms={data.lms}
+          catalog={catalog}
+          planned={planned}
+          overrides={data.lmsMatch}
+          onFilter={(name) => {
+            setQ(name);
+            setDept('전체');
+            setCat('전체');
+            setDay('');
+            setBand('전체');
+            searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            searchRef.current?.focus({ preventScroll: true });
+          }}
+          onAdd={tryAdd}
+        />
+      )}
+      <details ref={comparisonRef} className="plan-comparison card">
+        <summary>시간표 A/B/C 비교 <span className="meta">저장된 안 {['A', 'B', 'C'].filter((key) => data.plans?.[key]).length}개</span></summary>
+        <fieldset className="plan-slots" aria-label="시간표 시나리오 비교">
+          <div className="plan-slot current">
+            <div className="plan-slot-head">
+              <b>현재 작업 중</b>
+              <span className="meta">
+                {planned.length}과목 · {credits}학점
+                {curConflicts ? ` · 충돌 ${curConflicts}건` : ''}
+                {freeDays.length ? ` · 공강 ${freeDays.length}일` : ''}
+              </span>
+            </div>
+          </div>
+          {['A', 'B', 'C'].map((k) => {
+            const ids = data.plans?.[k];
+            const st = ids ? scenarioStats(ids, catalog) : null;
+            return (
+              <div className={'plan-slot' + (st ? '' : ' empty')} key={k}>
+                <div className="plan-slot-head">
+                  <b>안 {k}</b>
+                  {st ? (
+                    <button
+                      className="icon"
+                      aria-label={`안 ${k} 삭제`}
+                      onClick={() => onDeleteScenario(k)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  ) : null}
+                </div>
+                {st ? (
+                  <>
+                    <span className="meta">
+                      {st.secs.length}과목 · {st.credits}학점
+                      {st.conflicts ? ` · 충돌 ${st.conflicts}건` : ''}
+                      {st.freeDays ? ` · 공강 ${st.freeDays}일` : ''}
+                    </span>
+                    {st.missing > 0 && (
+                      <span className="meta">
+                        현재 카탈로그에 없는 과목 {st.missing}개 포함
+                      </span>
+                    )}
+                    <div className="plan-slot-actions">
+                      <button
+                        className="secondary"
+                        onClick={() => onLoadScenario(k)}
+                      >
+                        불러오기
+                      </button>
+                      <button
+                        className="link"
+                        onClick={() => onSaveScenario(k)}
+                      >
+                        현재 안으로 덮어쓰기
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="meta">비어 있음</span>
+                    <div className="plan-slot-actions">
+                      <button
+                        className="secondary"
+                        disabled={!planned.length}
+                        onClick={() => onSaveScenario(k)}
+                      >
+                        현재 안 저장
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </fieldset>
+      </details>
     </section>
   );
 }
