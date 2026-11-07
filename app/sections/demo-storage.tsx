@@ -4,6 +4,7 @@ import { DEMO_STORAGE_KEY, parseDemoStorage } from '@/lib/data/demo-storage';
 import type { Catalog } from '@/lib/data/catalog';
 import type { ActivitySnapshot } from '@/lib/data/activities';
 import { ACT_STAGES } from '@/lib/data/activities';
+import { DEFAULT_RULES } from '@/lib/data/graduation';
 
 type LoadState = ReturnType<typeof parseDemoStorage> | { status: 'loading' } | { status: 'unavailable' };
 const object = (v: unknown): Record<string, unknown> =>
@@ -40,7 +41,10 @@ export function StoredDataView({ data, catalog, activities }: {
   const oldScenarios = Object.entries(object(d.plans)).map(([key, ids]) => `학기 미지정 · ${key}안: ${values(ids).map(courseName).join(', ') || '비어 있음'}`);
   const lms = object(d.lms);
   const lmsCourses = list(lms.courses).map((c) => object(c)).map((c) => text(c.title)).filter(Boolean);
-  const ruleOverrides = Object.entries(object(d.ruleOverrides)).map(([name, value]) => `${name}: ${text(value)}`);
+  const ruleOverrides = Object.entries(object(d.ruleOverrides)).map(([name, value]) => {
+    const rule = DEFAULT_RULES.find((item) => item.id === name);
+    return `${rule?.label ?? name}: ${text(value)}${rule?.unit ?? (rule ? '학점' : '')}`;
+  });
   const profile = [['이름', d.name], ['학과', d.dept], ['입학연도', d.year], ['직접 입력한 이수학점', d.credits], ['직접 입력한 비교과 포인트', d.points]]
     .map(([label, value]) => `${text(label)}: ${text(value) || '미입력'}`);
   const info = object(d.info);

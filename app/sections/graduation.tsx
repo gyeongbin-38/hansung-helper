@@ -7,6 +7,7 @@ import {
   GLOBAL_RULE_SOURCE,
   TRANSFER_RULE_SOURCE,
   graduationOutlook,
+  requirementQuantityName,
   type AdmissionType,
   type RuleResult,
 } from '@/lib/data/graduation';
@@ -37,6 +38,7 @@ function RequirementTarget({ result, baseline, deptUrl, globalUrl, onSave, onRes
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const unit = result.rule.unit ?? '학점';
+  const quantity = requirementQuantityName(result.rule);
   const modified = result.requiredSource === 'override';
   const source = baseline.requiredSource === 'dept' ? '학과 규정표 기준' : baseline.requiredSource === 'global' ? '학교 공통 기준' : '공식 기준 확인 필요';
   const sourceUrl = baseline.requiredSource === 'dept' ? deptUrl : baseline.requiredSource === 'global' ? globalUrl : undefined;
@@ -61,7 +63,7 @@ function RequirementTarget({ result, baseline, deptUrl, globalUrl, onSave, onRes
         setBusy(false);
         setError(ok ? '' : '저장하지 못했습니다. 다시 시도해 주세요.');
       }}>
-        <label>개인 설정 ({unit}) <input type="number" min={1} max={2000} step={1} required value={value} onChange={(e) => { setValue(e.target.value); setError(''); }} aria-label={`${result.rule.label} 개인 설정`} /></label>
+        <label>필요 {quantity} (개인 설정) <input type="number" min={1} max={2000} step={1} required value={value} onChange={(e) => { setValue(e.target.value); setError(''); }} aria-label={`${result.rule.source === 'points' ? '비교과' : result.rule.label} 필요 ${quantity} 개인 설정`} /></label>
         <button className="secondary" disabled={busy} type="submit">수정값 저장</button>
         {modified && <button className="secondary" disabled={busy} type="button" onClick={async () => {
           setBusy(true);
@@ -363,7 +365,7 @@ export function Graduation({
           )}
           <p className="meta">
             {baseline.required === null ? (
-              '이 규정의 공식 필요 수량은 수집되지 않았습니다. 학과별 세부 요건을 학교에서 확인하세요.'
+              `이 규정의 공식 필요 ${r.rule.source === 'points' ? '포인트는' : '학점은'} 수집되지 않았습니다. 학과별 세부 요건을 학교에서 확인하세요.`
             ) : baseline.requiredSource === 'dept' && myRules && deptTargets ? (
               <>
                 내 학과 규정표 기준 ({deptTargets.columnLabel}) · 출처:{' '}
@@ -1007,7 +1009,7 @@ export function Graduation({
                   ? '미입력 · 공식 기준도 미확정'
                   : `미입력 / ${r.required}${r.rule.unit ?? '학점'} 필요`
                 : r.required === null
-                  ? `계산 대기 · ${shown(r)} ${r.rule.unit ?? '학점'} 이수함`
+                  ? `계산 대기 · ${shown(r)}${r.rule.unit ?? '학점'} ${r.rule.source === 'points' ? '적립함' : '이수함'}`
                   : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
