@@ -24,30 +24,25 @@ import {
 import { activityNeedsVerification, liveStatus } from '@/lib/data/activities';
 import { staleLabel } from '@/lib/data/freshness';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
+import { gettingStarted } from '@/lib/data/getting-started';
 import { useActivities, useNow, useSchedule } from './catalog';
 
 type Planned = CourseSection[];
 
 type Urgent = { label: string; desc: string; route: string };
 
-/** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동 + 필수 입력.
+/** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동.
  *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
 function TodayStrip({
   lmsDue,
   acts,
   saved,
-  missingProfile,
-  missingLabel,
-  profileRoute,
   now,
   go,
 }: {
   lmsDue: { dueTs: number; kind: string; title: string; course: string }[];
   acts: Parameters<typeof liveStatus>[0][];
   saved: string[];
-  missingProfile: string[];
-  missingLabel: string;
-  profileRoute: string;
   now: number;
   go: (route: string) => void;
 }) {
@@ -70,12 +65,6 @@ function TodayStrip({
         route: 'activities/' + a.id,
       });
   }
-  if (!items.length && missingProfile.length)
-    items.push({
-      label: '학적 정보 필요',
-      desc: `${missingLabel}를 입력하면 추천·졸업 계산이 정확해집니다`,
-      route: profileRoute,
-    });
   const top = items.slice(0, 3);
   if (!top.length) return null;
   return (
@@ -102,6 +91,7 @@ export function Home({
   catalog,
   planSemester,
   planSourceMismatch,
+  persist,
 }: {
   data: Data;
   account: Account | null;
@@ -110,6 +100,7 @@ export function Home({
   catalog: Catalog | null;
   planSemester: string;
   planSourceMismatch: boolean;
+  persist: (next: Data, msg?: string, complete?: boolean) => Promise<boolean>;
 }) {
   const { snap: sched } = useSchedule();
   const { snap: acts } = useActivities();
@@ -210,47 +201,14 @@ export function Home({
     .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
   const hasConflict = planned.some((s) => conflicts(s, planned).length);
   const tasks: [string, string, string, string][] = [];
-  // 누락 필드를 실제로 비어 있는 것만 정확히 표기한다
-  const missingProfile = [
-    !data.dept || data.dept === '소속 미입력' ? '학과' : '',
-    !data.year ? '입학연도' : '',
-  ].filter(Boolean);
-  const missingKeys = [
-    !data.dept || data.dept === '소속 미입력' ? 'dept' : '',
-    !data.year ? 'year' : '',
-  ].filter(Boolean);
-  // CTA는 항상 첫 누락 필드로 딥링크 — 내 정보에서 해당 칸에 포커스된다
-  const profileRoute = missingKeys.length
-    ? `profile/${missingKeys[0]}`
-    : 'profile';
-  const missingLabel = missingProfile.join('와 ');
-  if (missingProfile.length)
-    tasks.push([
-      '01',
-      '나의 학적 정보 채우기',
-      `${missingLabel}가 비어 있어요.`,
-      profileRoute,
-    ]);
+  const setup = gettingStarted(data);
+  const profileRoute = setup.missing.length ? `profile/${setup.missing[0]}` : 'profile';
   if (lmsUnmatched)
     tasks.push([
       '02',
       `수집된 수업 ${lmsUnmatched}과목 매칭 확인`,
       '개설강의와 연결하면 수강 추정과 시간표 표시가 정확해져요.',
       'lms',
-    ]);
-  if (!(data.completed ?? []).length && !data.info?.completed.length)
-    tasks.push([
-      '03',
-      '이수 내역 입력하기',
-      '이수한 과목이 없어 졸업 계산이 대기 중이에요.',
-      'graduation',
-    ]);
-  else if (!data.credits && data.info?.credits === undefined)
-    tasks.push([
-      '03',
-      '총 이수학점 입력하기',
-      '이수학점이 비어 있어 졸업 진행률이 미확정이에요.',
-      'graduation',
     ]);
   if (hasConflict)
     tasks.push([
@@ -259,20 +217,6 @@ export function Home({
       '계획한 과목의 시간이 겹쳐요.',
       'timetable',
     ]);
-  if (!data.prefs.length)
-    tasks.push([
-      '05',
-      '수업 성향 설문하기',
-      '맞춤 추천에 선호가 반영돼요.',
-      'profile',
-    ]);
-  if (!(data.actPrefs ?? []).some((p) => p))
-    tasks.push([
-      '06',
-      '비교과 취향 설문하기',
-      '활동 목록에서 맞춤 추천을 받아보세요.',
-      'activities',
-    ]);
   const shownTasks = tasks.slice(0, 4);
   const plannedCredits = planned.reduce((n, s) => n + s.credits, 0);
   const conflictCount = planned.filter(
@@ -280,13 +224,40 @@ export function Home({
   ).length;
   return (
     <>
+      {setup.current < 3 && (
+        <section className="card pad setup-guide" aria-label="시작하기">
+          <h2>시작하기</h2>
+          <p className="meta">한 단계씩 진행해 보세요. 설문은 나중에 선택할 수 있어요.</p>
+          <ol className="setup-steps">
+            {['학적 입력', '이수 내역', '추천 확인'].map((label, i) => (
+              <li key={label} aria-current={setup.current === i ? 'step' : undefined}>
+                <span>{i + 1}</span> {label} {i < setup.current && <small>{i === 1 && !setup.hasHistory ? (data.setupHistory === 'later' ? '나중에' : '이수 없음') : '완료'}</small>}
+              </li>
+            ))}
+          </ol>
+          {setup.current === 0 ? (
+            <><p>학과와 입학연도를 입력하면 개인 정보에 맞는 안내를 볼 수 있어요.</p><button className="primary" onClick={() => go(profileRoute)}>학적 입력하기 <ArrowRight size={16} /></button></>
+          ) : setup.current === 1 ? (
+            <>
+              <p>이수한 과목을 확인하거나 직접 입력해 주세요. 아직 모르더라도 추천을 둘러볼 수 있어요.</p>
+              <div className="actions">
+                <button className="primary" onClick={() => go('graduation/completed')}>이수 내역 확인하기 <ArrowRight size={16} /></button>
+                <button className="secondary" onClick={() => void persist({ ...data, setupHistory: 'none' }, '이수 내역 없음으로 선택했습니다.')}>이수 내역 없음</button>
+                <button className="link" onClick={() => void persist({ ...data, setupHistory: 'later' }, '이수 내역은 나중에 입력할 수 있습니다.')}>나중에 입력</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>{data.setupHistory === 'later' && !setup.hasHistory ? '이수 내역이 없어 추천이 제한될 수 있어요. ' : ''}과목 추천에서 근거를 확인하고 계획을 세워 보세요.</p>
+              <button className="primary" onClick={async () => { if (await persist({ ...data, recommendationsSeen: true }, '', true)) go('courses'); }}>추천 확인하기 <ArrowRight size={16} /></button>
+            </>
+          )}
+        </section>
+      )}
       <TodayStrip
         lmsDue={lmsDue}
         acts={actsNeedVerification ? [] : (acts?.items ?? [])}
         saved={data.saved}
-        missingProfile={missingProfile}
-        missingLabel={missingLabel}
-        profileRoute={profileRoute}
         now={now}
         go={go}
       />
@@ -371,10 +342,10 @@ export function Home({
           </div>
         </section>
       )}
-      <section>
+      {shownTasks.length > 0 && <section>
         <div className="section-heading">
           <h2>
-            내 학사 위험 신호 <span className="count">{shownTasks.length}</span>
+            확인할 항목 <span className="count">{shownTasks.length}</span>
           </h2>
         </div>
         {shownTasks.length ? (
@@ -395,7 +366,7 @@ export function Home({
             <p>입력하거나 확인할 항목이 없어요. 잘 준비되고 있습니다.</p>
           </div>
         )}
-      </section>
+      </section>}
       <section className="card pad">
         <div className="section-heading">
           <h2>{planSemester === 'legacy' ? '기존 계획 (학기 미지정)' : `${planSemester} 계획`}</h2>

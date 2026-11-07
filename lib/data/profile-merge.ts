@@ -64,6 +64,8 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     planned: setMerge(base.planned, local.planned, remote.planned, (x) => x),
     plans: recMerge(base.plans, local.plans, remote.plans),
     planSemester: scalar(base.planSemester, local.planSemester, remote.planSemester),
+    setupHistory: scalar(base.setupHistory, local.setupHistory, remote.setupHistory),
+    recommendationsSeen: scalar(base.recommendationsSeen, local.recommendationsSeen, remote.recommendationsSeen),
     semesterPlans,
     completed: setMerge(
       base.completed,

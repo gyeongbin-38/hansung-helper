@@ -248,6 +248,12 @@ export async function PUT(request: Request) {
       }
     }
     profile.plans = plans;
+    if (input.setupHistory !== undefined && input.setupHistory !== 'none' && input.setupHistory !== 'later')
+      return json({ error: '시작 설정을 확인해 주세요.' }, 400);
+    if (input.recommendationsSeen !== undefined && typeof input.recommendationsSeen !== 'boolean')
+      return json({ error: '시작 설정을 확인해 주세요.' }, 400);
+    if (input.setupHistory !== undefined) profile.setupHistory = input.setupHistory;
+    if (input.recommendationsSeen !== undefined) profile.recommendationsSeen = input.recommendationsSeen;
     if (input.planSemester !== undefined && (typeof input.planSemester !== 'string' || !/^(legacy|20\d{2}-[12])$/.test(input.planSemester)))
       return json({ error: '계획 학기를 확인해 주세요.' }, 400);
     if (input.planSemester !== undefined) profile.planSemester = input.planSemester;

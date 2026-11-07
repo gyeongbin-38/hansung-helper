@@ -17,6 +17,7 @@ export function ProfileSection({
   onOpenSurvey,
   onOpenActSurvey,
   focus,
+  go,
 }: {
   data: Data;
   account: Account | null;
@@ -26,6 +27,7 @@ export function ProfileSection({
   onOpenActSurvey?: () => void;
   /** 홈 CTA 등에서 넘긴 필드명 — 해당 입력으로 포커스+안내 표시 */
   focus?: string;
+  go: (route: string) => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const focusField =
@@ -119,6 +121,7 @@ export function ProfileSection({
         <button className="primary">
           프로필 저장 <Check size={17} />
         </button>
+        {focusField && <button type="button" className="secondary" onClick={() => go('home')}>홈에서 다음 단계 확인</button>}
       </form>
       <div className="divider" />
       <h3>나의 활동 기록</h3>

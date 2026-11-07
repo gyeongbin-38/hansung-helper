@@ -200,6 +200,46 @@
 }
 
 /* ---------- next actions ---------- */
+.setup-guide {
+  margin-bottom: 24px;
+}
+.setup-guide h2 {
+  margin: 0;
+}
+.setup-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 18px 0;
+}
+.setup-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nt-slate);
+  font-size: 14px;
+}
+.setup-steps li[aria-current='step'] {
+  color: var(--nt-primary-deep);
+  font-weight: 700;
+}
+.setup-steps li span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--nt-tint-sky);
+  flex-shrink: 0;
+}
+.setup-steps small {
+  color: var(--nt-slate);
+}
+.setup-guide .actions {
+  flex-wrap: wrap;
+}
 .tasks {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

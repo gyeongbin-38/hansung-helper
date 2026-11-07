@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import {
@@ -45,6 +45,10 @@ export function Graduation({
   infoFailed?: boolean;
 }) {
   const [q, setQ] = useState('');
+  const completedRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (detail === 'completed') completedRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [detail]);
   const [pace, setPace] = useState('');
   const [admissionType, setAdmissionType] = useState<AdmissionType>('unknown');
   const guide = verifiedDeptGuide(data.dept, Number(data.year));
@@ -226,7 +230,7 @@ export function Graduation({
     r.required ? Math.min(100, Math.round((shown(r) / r.required) * 100)) : 0;
 
   // /graduation/:id — 규정 상세: 어떤 과목이 이 규정에 잡혔는지 분해 표시
-  if (detail) {
+  if (detail && detail !== 'completed') {
     const r = results.find((x) => x.rule.id === detail);
     if (!r)
       return (
@@ -1015,7 +1019,7 @@ export function Graduation({
         ))}
       </div>
 
-      <section className="card pad">
+      <section className="card pad" ref={completedRef}>
         <div className="between">
           <h3>이수한 과목</h3>
           {info?.completed.length ? (
@@ -1024,6 +1028,7 @@ export function Graduation({
             <span className="badge">사용자 입력</span>
           )}
         </div>
+        {detail === 'completed' && <button className="secondary" onClick={() => go('home')}>홈에서 다음 단계 확인</button>}
         <p>
           {info?.completed.length
             ? '종합정보 수집 내역과 직접 입력분을 함께 계산합니다.'

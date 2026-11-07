@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { SignIn, Onboarding, type Account } from './account-flow';
+import { SignIn, type Account } from './account-flow';
 import { Logo } from './logo';
 import {
   menus,
@@ -847,14 +847,6 @@ export default function App() {
         />
       </>
     );
-  if (account && !account.onboarded)
-    return (
-      <Onboarding
-        profile={data}
-        catalog={catalog}
-        onSave={(next, complete) => persist(next, '', complete)}
-      />
-    );
   return (
     <div className={'shell' + (sideCollapsed ? ' side-collapsed' : '')}>
       <Sidebar
@@ -890,7 +882,7 @@ export default function App() {
             section={section}
             label={label}
             name={data.name}
-            onSurvey={() =>
+            onSurvey={section === 'home' ? undefined : () =>
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
           />
@@ -926,6 +918,7 @@ export default function App() {
               catalog={catalog}
               planSemester={selectedSemester}
               planSourceMismatch={sourceMismatch}
+              persist={persist}
             />
           ) : section === 'activities' ? (
             <Activities
@@ -950,6 +943,7 @@ export default function App() {
               onOpenSurvey={() => openSurvey('course')}
               onOpenActSurvey={() => openSurvey('act')}
               focus={detail}
+              go={go}
             />
           ) : section === 'graduation' ? (
             <Graduation

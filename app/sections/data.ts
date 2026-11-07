@@ -43,6 +43,8 @@ export type Data = {
   plans?: Record<string, string[]>;
   planSemester?: string;
   semesterPlans?: Record<string, { sourceSemester: string; planned: string[]; plans: Record<string, string[]> }>;
+  setupHistory?: 'none' | 'later';
+  recommendationsSeen?: boolean;
   completed: Completed[];
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
