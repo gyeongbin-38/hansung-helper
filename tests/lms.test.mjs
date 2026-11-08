@@ -20,6 +20,8 @@ import {
   courseIsPast,
   parseDue,
 } from '../lib/data/lms.ts';
+import { canImportExtensionLms } from '../lib/data/lms.ts';
+if (canImportExtensionLms(true) || !canImportExtensionLms(false)) throw new Error('unverified extension data must not enter authenticated accounts');
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
 let pass = 0;
@@ -298,6 +300,10 @@ t('uncertain: 출석 확인 실패 플래그 전달', pendingTasks(validateLms(u
 const oldLms = { source: 'cosmos-lms', fetchedAt: '2026-09-19T00:00:00Z', courses: [{ id: '301', title: '과목', vods: [{ title: '이전 강의', attended: true }], assigns: [{ title: '이전 과제', submitted: true }], quizzes: [{ title: '이전 퀴즈', submitted: true }] }] };
 const partialLms = { ...unSnap, fetchedAt: '2026-09-20T00:00:00Z', courses: [{ ...unSnap.courses[0], vods: [], assigns: [], errors: ['vod', 'assign'] }] };
 const mergedLms = mergeLmsSnapshot(oldLms, partialLms);
+const laterPartial = mergeLmsSnapshot(mergedLms, { ...partialLms, fetchedAt: '2026-09-21T00:00:00Z', courses: [{ ...partialLms.courses[0], errors: ['quiz'], vods: [{ title: '새 강의', attended: true }], assigns: [{ title: '새 과제', submitted: true }] }] });
+const alternating = mergeLmsSnapshot(laterPartial, { ...partialLms, fetchedAt: '2026-09-22T00:00:00Z', courses: [{ ...partialLms.courses[0], errors: ['assign'] }] });
+t('merge: 번갈아 실패한 목록은 각 목록 마지막 성공 시각 유지', alternating.courses[0].retainedAtByKind?.assign === '2026-09-21T00:00:00Z');
+t('validate: 목록별 보존 시각 유지', validateLms(alternating)?.courses[0].retainedAtByKind?.assign === '2026-09-21T00:00:00Z');
 t('merge: 실패한 출석·과제는 이전 값 유지', mergedLms.courses[0].vods[0]?.title === '이전 강의' && mergedLms.courses[0].assigns[0]?.title === '이전 과제');
 t('merge: 성공한 퀴즈는 새 값 사용하고 실패 표시 유지', mergedLms.courses[0].quizzes[0]?.title === '확인된미응시' && mergedLms.courses[0].errors.includes('vod'));
 t('merge: 이전 값의 수집 시각 보존', validateLms(mergedLms).courses[0].retainedAt === oldLms.fetchedAt);

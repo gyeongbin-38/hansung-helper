@@ -16,7 +16,7 @@ import {
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
-import { mergeLmsSnapshot } from '@/lib/data/lms';
+import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
@@ -139,19 +139,7 @@ export async function POST(request: Request) {
       waitUntil(
         (async () => {
           try {
-            const lmsData = mergeLmsSnapshot(oldLms, await deferredCollect());
-            await database()
-              .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
-              )
-              .bind(
-                JSON.stringify({ lmsData, lmsPending: null }),
-                id,
-                snapshot.checkedAt,
-                tokenHash,
-                Date.now(),
-              )
-              .run();
+            await writeCollectedLms(database(), id, snapshot.checkedAt, tokenHash, await deferredCollect());
           } catch {
             console.log('[lms] deferred collect failed');
             try {
