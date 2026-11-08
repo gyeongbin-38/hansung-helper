@@ -2,6 +2,9 @@
 import { Layers } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
+import type { Catalog } from '@/lib/data/catalog';
+import type { ActivitySnapshot } from '@/lib/data/activities';
+import { DemoStorage, StoredDataView } from './demo-storage';
 
 export function SettingsSection({
   account,
@@ -9,12 +12,18 @@ export function SettingsSection({
   persist,
   go,
   onDeleteAccount,
+  onResetDemo,
+  catalog,
+  activities,
 }: {
   account: Account | null;
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
   go: (route: string) => void;
   onDeleteAccount: () => void;
+  onResetDemo: () => boolean;
+  catalog: Catalog | null;
+  activities: ActivitySnapshot | null;
 }) {
   return (
     <section className="card detail settings">
@@ -41,9 +50,11 @@ export function SettingsSection({
               <small>
                 {isActivities
                   ? '비교과 공개 목록을 이용하고 있어요. 개인 참여 내역은 학교 시스템에서 확인해 주세요.'
-                  : isLms
-                    ? '학교 계정을 연결하면 수업과 과제 현황을 확인합니다.'
-                    : '학교 계정 확인과 학적·이수 정보 조회에 사용합니다.'}
+                  : account
+                    ? isLms
+                      ? '학교 계정으로 강의·과제·퀴즈·출석 현황을 확인합니다.'
+                      : '로그인 시 학적·이수 내역·성적·졸업 정보 등을 확인합니다.'
+                    : '학교 계정을 연결하면 조회 가능한 정보를 확인합니다.'}
                 {isActivities && (
                   <>
                     {' '}
@@ -77,7 +88,7 @@ export function SettingsSection({
         <p>
           학교 비밀번호는 로그인 확인에만 사용하며 저장하지 않습니다. 로그인한
           계정의 프로필과 계획은 기기 간 유지됩니다. 학교 정보는 로그인 시
-          조회하며 상시 자동 수집하지 않습니다.
+          조회하며, COSMOS 확장 프로그램을 연결한 경우 자동 갱신될 수 있습니다.
         </p>
         <button className="secondary" onClick={() => go('profile')}>
           {account ? '내 프로필 수정' : '체험 프로필 직접 입력'}
@@ -101,6 +112,12 @@ export function SettingsSection({
           </button>
         )}
       </div>
+      {account && <details className="stored-preview">
+        <summary>현재 계정 정보 확인</summary>
+        <p className="meta">계정 프로필과 학교에서 불러온 정보의 현재 표시 내용입니다.</p>
+        <StoredDataView data={data} catalog={catalog} activities={activities} />
+      </details>}
+      <DemoStorage catalog={catalog} activities={activities} onReset={onResetDemo} revision={data} />
       {account && (
         <div className="between">
           <p>

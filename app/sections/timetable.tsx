@@ -309,12 +309,12 @@ export function Timetable({
   planned: CourseSection[];
   data: Data;
   plan: (id: string) => Promise<boolean>;
-  swap: (fromId: string, toId: string) => void;
+  swap: (fromId: string, toId: string) => Promise<boolean>;
   notify: (msg: string) => void;
   /** 시나리오 슬롯 저장·불러오기·삭제 — 키는 'A'|'B'|'C' */
-  onSaveScenario: (key: string) => void;
-  onLoadScenario: (key: string) => void;
-  onDeleteScenario: (key: string) => void;
+  onSaveScenario: (key: string) => Promise<boolean>;
+  onLoadScenario: (key: string) => Promise<boolean>;
+  onDeleteScenario: (key: string) => Promise<boolean>;
   onOpenSurvey: () => void;
 }) {
   const [q, setQ] = useState('');
@@ -415,12 +415,12 @@ export function Timetable({
   const preview = dragging && !dragPlan ? dragging : null;
   const previewBlocked = preview ? planBlockReason(preview, data, planned) : null;
 
-  async function changePlan(id: string): Promise<boolean> {
+  async function runEdit(action: () => Promise<boolean>): Promise<boolean> {
     if (editing.current) return false;
     editing.current = true;
     setBusy(true);
     try {
-      return await plan(id);
+      return await action();
     } catch {
       notify('계획을 저장하지 못했습니다. 다시 시도해 주세요.');
       return false;
@@ -429,6 +429,7 @@ export function Timetable({
       setBusy(false);
     }
   }
+  const changePlan = (id: string) => runEdit(() => plan(id));
   async function tryAdd(s: CourseSection): Promise<boolean> {
     if (planned.some((p) => p.id === s.id)) {
       setDragStatus(`${s.name}은 이미 시간표에 있습니다.`);
@@ -959,11 +960,9 @@ export function Timetable({
                                 ? `겹침: ${hits[0].name}`
                                 : '이 분반으로 변경'
                             }
-                            onClick={() => {
-                              swap(selected.id, a.id);
-                              setSelected(a);
-                              notify('분반을 변경했습니다.');
-                            }}
+                            onClick={() => void runEdit(() => swap(selected.id, a.id)).then((saved) => {
+                              if (saved) { setSelected(a); notify('분반을 변경했습니다.'); }
+                            })}
                           >
                             {a.section}분반 · {slotsLabel(a)}
                             {hits.length ? ' · 겹침' : ''}
@@ -1180,7 +1179,7 @@ export function Timetable({
       )}
       <details ref={comparisonRef} className="plan-comparison card">
         <summary>시간표 A/B/C 비교 <span className="meta">저장된 안 {['A', 'B', 'C'].filter((key) => data.plans?.[key]).length}개</span></summary>
-        <fieldset className="plan-slots" aria-label="시간표 시나리오 비교">
+        <fieldset className="plan-slots" aria-label="시간표 시나리오 비교" disabled={busy}>
           <div className="plan-slot current">
             <div className="plan-slot-head">
               <b>현재 작업 중</b>
@@ -1202,7 +1201,7 @@ export function Timetable({
                     <button
                       className="icon"
                       aria-label={`안 ${k} 삭제`}
-                      onClick={() => onDeleteScenario(k)}
+                      onClick={() => void runEdit(() => onDeleteScenario(k))}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -1223,13 +1222,13 @@ export function Timetable({
                     <div className="plan-slot-actions">
                       <button
                         className="secondary"
-                        onClick={() => onLoadScenario(k)}
+                        onClick={() => void runEdit(() => onLoadScenario(k))}
                       >
                         불러오기
                       </button>
                       <button
                         className="link"
-                        onClick={() => onSaveScenario(k)}
+                        onClick={() => void runEdit(() => onSaveScenario(k))}
                       >
                         현재 안으로 덮어쓰기
                       </button>
@@ -1242,7 +1241,7 @@ export function Timetable({
                       <button
                         className="secondary"
                         disabled={!planned.length}
-                        onClick={() => onSaveScenario(k)}
+                        onClick={() => void runEdit(() => onSaveScenario(k))}
                       >
                         현재 안 저장
                       </button>

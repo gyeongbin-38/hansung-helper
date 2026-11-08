@@ -412,6 +412,31 @@
 }
 
 /* ---------- 설정 ---------- */
+.demo-storage {
+  border-top: 1px solid var(--nt-hairline-soft);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+.stored-preview,
+.stored-group {
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-sm);
+  padding: 10px 12px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.stored-preview summary,
+.stored-group summary {
+  cursor: pointer;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.stored-group ul {
+  padding-left: 20px;
+}
+.demo-storage > button {
+  margin-top: 8px;
+}
 .settings .event-line > svg {
   color: var(--nt-stone);
   flex-shrink: 0;

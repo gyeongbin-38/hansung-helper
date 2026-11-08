@@ -50,6 +50,7 @@ import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
 import { useSlowLoading } from './use-slow-loading';
+import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
@@ -299,10 +300,26 @@ export default function App() {
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
   dataRef.current = data;
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== DEMO_STORAGE_KEY || event.newValue !== null || !demoRef.current || accountRef.current) return;
+      dataRef.current = empty;
+      setData(empty);
+      setDraft([]);
+      setActDraft([]);
+      setQuery('');
+      setFilter('전체');
+      setSurvey(false);
+      setToast('다른 탭에서 체험 데이터를 초기화했습니다.');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [setToast]);
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
   // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
   // 일으키지 않게 순서대로 보낸다.
+  const planEditPending = useRef(false);
   const persistSeq = useRef(Promise.resolve());
   const enqueue = <T,>(job: () => Promise<T>): Promise<T> => {
     const run = persistSeq.current.then(job);
@@ -507,11 +524,10 @@ export default function App() {
         // 저장이 반영될 수 있으므로 전송 직전에 3-way 병합으로 내 변경분만
         // 얹는다(같은 탭 연속 쓰기가 서로를 덮어쓰지 않게).
         const baseAtCall = dataRef.current;
-        let send = next;
-        const response = await enqueue(() => {
+        return await enqueue(async () => {
           if (generation !== accountGeneration.current) throw new Error('session-changed');
-          send = mergeProfile(baseAtCall, next, dataRef.current);
-          return apiFetch('/api/account/profile', {
+          const send = mergeProfile(baseAtCall, next, dataRef.current);
+          const response = await apiFetch('/api/account/profile', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -522,37 +538,40 @@ export default function App() {
               onboarded: complete ?? account.onboarded,
             }),
           });
-        });
-        if (generation !== accountGeneration.current) return false;
-        if (!response.ok) {
-          let errorMessage = '저장하지 못했습니다.';
-          try {
-            await apiData(response);
-          } catch (error) {
-            if (error instanceof ApiRequestError) errorMessage = error.message;
-          }
-          // 충돌 시 자동 재시도는 같은 필드의 상대방 변경을 덮을 수 있다.
-          // 서버 저장값은 그대로 두고 현재 입력을 화면에 남긴다.
-          if (response.status === 409) {
-            setData(send);
-            setToast('다른 기기에서 먼저 저장했습니다. 입력 내용을 확인한 뒤 새로고침해 주세요.');
+          if (generation !== accountGeneration.current) return false;
+          if (!response.ok) {
+            let errorMessage = '저장하지 못했습니다.';
+            try {
+              await apiData(response);
+            } catch (error) {
+              if (error instanceof ApiRequestError) errorMessage = error.message;
+            }
+            if (generation !== accountGeneration.current) return false;
+            // 충돌 시 자동 재시도는 같은 필드의 상대방 변경을 덮을 수 있다.
+            // 서버 저장값은 그대로 두고 현재 입력을 화면에 남긴다.
+            if (response.status === 409) {
+              setData(send);
+              setToast('다른 기기에서 먼저 저장했습니다. 입력 내용을 확인한 뒤 새로고침해 주세요.');
+              return false;
+            }
+            setToast(errorMessage);
             return false;
           }
-          setToast(errorMessage);
-          return false;
-        }
-        const result = await apiData<{ saved: true; rev?: number }>(response);
-        const stored = { ...send, rev: result.rev ?? send.rev };
-        setAccount({
-          ...account,
-          profile: stored,
-          onboarded: complete ?? account.onboarded,
+          const result = await apiData<{ saved: true; rev?: number }>(response);
+          if (generation !== accountGeneration.current) return false;
+          const stored = { ...send, rev: result.rev ?? send.rev };
+          dataRef.current = stored;
+          setAccount((current) => current ? {
+            ...current,
+            profile: stored,
+            onboarded: complete ?? account.onboarded,
+          } : current);
+          setData(stored);
+          if (msg) setToast(msg);
+          return true;
         });
-        setData(stored);
-        if (msg) setToast(msg);
-        return true;
       }
-      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
@@ -656,47 +675,65 @@ export default function App() {
     if (!catalog || sourceMismatch) return null;
     return { ...data, planSemester: selectedSemester, semesterPlans: { ...data.semesterPlans, [selectedSemester]: { sourceSemester: catalog.semester, planned: ids, plans: scenarios } } };
   }
-  async function plan(id: string): Promise<boolean> {
-    const next = updatePlan(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
-    if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return false; }
-    return persist(
-      next,
-      '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
-    );
+  async function runPlanEdit(action: () => Promise<boolean>): Promise<boolean> {
+    if (planEditPending.current) {
+      setToast('계획을 저장하고 있습니다. 잠시 후 다시 시도해 주세요.');
+      return false;
+    }
+    planEditPending.current = true;
+    try { return await action(); } finally { planEditPending.current = false; }
   }
-  function swapPlan(fromId: string, toId: string) {
-    if (!selectedIds.includes(fromId)) return;
-    const next = updatePlan(selectedIds.filter((x) => x !== fromId && x !== toId).concat(toId));
-    if (!next) return;
-    void persist(
-      next,
-      '',
-    );
+  async function plan(id: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const next = updatePlan(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+      if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return false; }
+      return persist(
+        next,
+        '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
+      );
+    });
+  }
+  async function swapPlan(fromId: string, toId: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      if (!selectedIds.includes(fromId)) return false;
+      const next = updatePlan(selectedIds.filter((x) => x !== fromId && x !== toId).concat(toId));
+      if (!next) return false;
+      return persist(
+        next,
+        '',
+      );
+    });
   }
   // 시간표 시나리오 — 현재 planned를 슬롯에 저장/복원한다
-  function saveScenario(key: string) {
-    const next = updatePlan(selectedIds, { ...selectedScenarios, [key]: [...selectedIds] });
-    if (!next) return;
-    void persist(
-      next,
-      `안 ${key}에 현재 시간표를 저장했습니다.`,
-    );
+  async function saveScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const next = updatePlan(selectedIds, { ...selectedScenarios, [key]: [...selectedIds] });
+      if (!next) return false;
+      return persist(
+        next,
+        `안 ${key}에 현재 시간표를 저장했습니다.`,
+      );
+    });
   }
-  function loadScenario(key: string) {
-    const ids = selectedScenarios[key];
-    if (!ids) return;
-    const next = updatePlan(ids);
-    if (!next) return;
-    void persist(
-      next,
-      `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
-    );
+  async function loadScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const ids = selectedScenarios[key];
+      if (!ids) return false;
+      const next = updatePlan(ids);
+      if (!next) return false;
+      return persist(
+        next,
+        `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
+      );
+    });
   }
-  function deleteScenario(key: string) {
-    const plans = { ...selectedScenarios };
-    delete plans[key];
-    const next = updatePlan(selectedIds, plans);
-    if (next) void persist(next, `안 ${key}를 삭제했습니다.`);
+  async function deleteScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const plans = { ...selectedScenarios };
+      delete plans[key];
+      const next = updatePlan(selectedIds, plans);
+      return next ? persist(next, `안 ${key}를 삭제했습니다.`) : false;
+    });
   }
   // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
   function setActStage(id: string, stage: string | null) {
@@ -739,6 +776,25 @@ export default function App() {
   function exitDemo() {
     setDemo(false);
     setData(empty);
+  }
+  function resetDemoData(): boolean {
+    try {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+      if (!accountRef.current && demoRef.current) {
+        dataRef.current = empty;
+        setData(empty);
+        setDraft([]);
+        setActDraft([]);
+        setQuery('');
+        setFilter('전체');
+        setSurvey(false);
+      }
+      setToast('이 브라우저의 체험 데이터를 초기화했습니다.');
+      return true;
+    } catch {
+      setToast('체험 데이터를 초기화하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.');
+      return false;
+    }
   }
   const section = route.split('/')[0],
     detail = route.split('/')[1],
@@ -803,7 +859,7 @@ export default function App() {
             allowExtensionImport.current = false;
             setDemo(true);
             try {
-              const raw = localStorage.getItem('hansung-demo-v1');
+              const raw = localStorage.getItem(DEMO_STORAGE_KEY);
               if (raw) {
                 const d = JSON.parse(raw);
                 if (
@@ -891,7 +947,7 @@ export default function App() {
             <div className="card pad" style={{ marginBottom: 20 }}>
               <label>계획 학기{' '}
                 <select className="field" aria-label="계획 학기" value={selectedSemester}
-                  onChange={(e) => { void persist({ ...data, planSemester: e.target.value }, '계획 학기를 변경했습니다.'); }}>
+                  onChange={(e) => { const semester = e.target.value; void runPlanEdit(() => persist({ ...data, planSemester: semester }, '계획 학기를 변경했습니다.')); }}>
                   {(hasLegacyPlan || selectedSemester === 'legacy') && <option value="legacy">기존 계획 (학기 미지정)</option>}
                   {semesterOptions.map((semester) => <option key={semester} value={semester}>{semester}</option>)}
                 </select>
@@ -1051,6 +1107,9 @@ export default function App() {
               persist={persist}
               go={go}
               onDeleteAccount={() => void deleteAccount()}
+              onResetDemo={resetDemoData}
+              catalog={catalog}
+              activities={actsSnap}
             />
           ) : (
             <section className="card pad">

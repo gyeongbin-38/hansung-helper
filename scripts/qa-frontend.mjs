@@ -211,6 +211,8 @@ try {
   await page.click('.tt-block-remove');
   await page.waitForSelector('.builder-cols[aria-busy="true"]');
   assert.ok(await page.$eval('.tt-block-remove', (el) => el.disabled));
+  await page.select('select[aria-label="계획 학기"]', '2027-1');
+  assert.equal(saveRequests, 1);
   await page.waitForSelector('.builder-cols[aria-busy="false"]');
   await waitForCount('.tt-undo', 0);
   await waitForCount('.tt-block', course.slots.length);
