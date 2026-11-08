@@ -84,6 +84,7 @@ function TaskRow({
   url,
   due,
   uncertain,
+  statusRetainedAt,
   watched,
   required,
   past,
@@ -95,6 +96,7 @@ function TaskRow({
   due: string | null;
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
   uncertain?: boolean;
+  statusRetainedAt?: string;
   /** 시청시간/요구시간 — 강의 항목에서만 온다 */
   watched?: string;
   required?: string;
@@ -125,6 +127,7 @@ function TaskRow({
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
           {uncertain ? ' · 상태 확인 실패' : ''}
+          {uncertain && statusRetainedAt ? ` · 이전 상태 확인 ${formatLmsTime(statusRetainedAt)}` : ''}
           {watched
             ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
             : ''}
@@ -171,6 +174,7 @@ function CourseCard({
         url: a.url,
         due: a.due ?? null,
         uncertain: a.uncertain,
+        statusRetainedAt: a.statusRetainedAt,
         past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
@@ -181,6 +185,7 @@ function CourseCard({
         url: q.url,
         due: q.due ?? null,
         uncertain: q.uncertain,
+        statusRetainedAt: q.statusRetainedAt,
         past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];

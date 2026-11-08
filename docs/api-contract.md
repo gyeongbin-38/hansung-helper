@@ -26,3 +26,8 @@ LMS partial collection remains data inside a successful account response:
 course `errors[]`, task `uncertain`, `lmsPending`, and `lmsFailedAt` distinguish
 partial or unfinished collection from a confirmed empty list. A complete
 request failure uses the common HTTP error envelope.
+
+For a task with `uncertain: true`, optional `statusRetainedAt` records when
+its retained submission/attempt status was last confirmed. The course's
+`retainedAtByKind` describes a retained list; it may have a later timestamp
+than an individual uncertain status. Older snapshots may omit either field.
