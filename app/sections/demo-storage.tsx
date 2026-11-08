@@ -52,8 +52,8 @@ export function StoredDataView({ data, catalog, activities }: {
   const schoolSummary = [['수집일', info.fetchedAt], ['취득학점', info.credits], ['비교과 포인트', info.points], ['평점', info.gpa]].filter(([, value]) => value !== undefined && value !== null && value !== '').map(([label, value]) => `${text(label)}: ${text(value)}`);
   const stages = Object.entries(object(d.actStatus)).map(([id, status]) => `${activityName(id)} · ${ACT_STAGES.find(([key]) => key === status)?.[1] ?? text(status)}`);
   return <>
-        <SavedList title="프로필" items={profile} />
-        <SavedList title="이수 과목" items={completed} />
+        <SavedList title="프로필 · 수정 가능" items={profile} />
+        <SavedList title="직접 입력한 이수 과목" items={completed} />
         <SavedList title="학교에서 수집한 학사 정보" items={schoolSummary} />
         <SavedList title="학교에서 수집한 이수 과목" items={schoolCourses} />
         <SavedList title="학기별 계획 및 시간표 안" items={[...oldPlans, ...oldScenarios, ...plans]} />

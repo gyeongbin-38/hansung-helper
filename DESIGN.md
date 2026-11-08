@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-Status: Active. Updated: 2026-11-08. Surfaces: student planner and home action brief.
+Status: Active. Updated: 2026-11-09. Surfaces: student planner, home action brief and connection/storage settings.
 Evidence: `app/sections/home.tsx`, `app/sections/lms.tsx`, `app/globals.css`, `docs/frontend-backend-handoff.md` and the existing design notes below. This contract takes precedence over historical notes.
 
 ## Brand
@@ -21,6 +21,8 @@ Enrolled students checking between classes on a phone, or planning on a desktop.
 
 Preserve navigation. Home: setup if needed → one action brief → matching/conflict checks → planning and discovery. The brief shows deadlines first, then expandable unknown deadlines and source coverage. Course links open school pages or the matching course detail. Avoid duplicate urgent/week lists.
 
+Settings: school collection status → public data status → storage location and provenance → logout/deletion scope. Do not equate authenticated accounts with successfully collected school data. Keep editable profiles, directly entered records, collected school values and calculated guidance distinct. A profile can contain school-prefilled values; do not label every profile field as manually entered.
+
 ## Design principles
 
 Use existing snapshots; do not fetch school pages on the home request. Missing data never proves there is no work. Preserve user plans and activity progress. Previously recorded applications should not generate another application reminder. Current work uses the current semester, independently of the planning semester.
@@ -33,6 +35,8 @@ Reuse `--nt-*` tokens and existing cards, links and icons. White and light gray 
 
 `HomeBrief` owns the action list, unknown-deadline list and source coverage disclosure. `buildHomeBrief` derives display items without changing stored profiles. Rows contain separate links/buttons; never nest an anchor inside a button.
 
+Settings reuses `StoredDataView` and `DemoStorage`. `collectionStatus` distinguishes missing, collecting, delayed, failed, partial, stale and available snapshots. Account logout and deletion controls share a pending lock. Use only the existing account deletion and browser demo reset actions; do not imply that selective school-data deletion or connection revocation is implemented.
+
 ## Accessibility
 
 Use a labelled section, semantic lists, native disclosure controls, visible keyboard focus and meaningful action names. External course links announce the new tab. Target WCAG 2.2 AA; retain reduced-motion behavior.
@@ -44,6 +48,8 @@ Support 320–1440px. Long course titles wrap. At narrow widths the secondary ac
 ## Interaction states
 
 Loading: say information is loading. Failure: keep available information and offer API retry or course collection controls. Empty: say no nearby deadline was found in collected information; do not claim all work is complete. Stale/partial: identify uncertain data and retain source timestamps. Past deadlines say 기한 지남, never 오늘 마감. All day boundaries use KST.
+
+Settings explicitly distinguishes logging out of this browser, resetting local demo data and deleting the service account and its sessions. School originals remain unaffected. Account deletion preserves separate browser demo data; demo reset preserves the account and unrelated interface preferences. Require destructive-action confirmation and keep failed requests on the current screen with a retryable state. Personal school snapshots show their real collection time, never the account authentication time. Public-data retry reloads the published snapshot rather than recrawling the school website.
 
 ## Content voice
 
