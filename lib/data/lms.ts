@@ -179,27 +179,51 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     const assign = all || errors.has('assign');
     const quiz = all || errors.has('quiz');
     const retained: NonNullable<LmsCourse['retainedAtByKind']> = {};
-    const oldTime = (kind: 'vod' | 'assign' | 'quiz') => {
-      const oldErrors = new Set(old.errors ?? []);
-      const wasRetained = oldErrors.has(kind) || oldErrors.has('timeout') || oldErrors.has('budget');
-      return old.retainedAtByKind?.[kind] || (wasRetained ? old.retainedAt : undefined) || previous.fetchedAt;
+    for (const kind of ['assign', 'quiz'] as const) {
+      const tasks = kind === 'assign' ? course.assigns : course.quizzes;
+      const time = course.retainedAtByKind?.[kind];
+      if (tasks.some((task) => task.uncertain) && time && Number.isFinite(Date.parse(time)))
+        retained[kind] = time;
+    }
+    type Kind = 'vod' | 'assign' | 'quiz';
+    const listTime = (item: LmsCourse, snapshot: LmsSnapshot, kind: Kind): string | undefined => {
+      const failures = new Set(item.errors ?? []);
+      const failed = failures.has(kind) || failures.has('timeout') || failures.has('budget');
+      // Legacy snapshots have only a course-wide retainedAt. A failed list
+      // without any retained timestamp has no known successful check time.
+      const time = item.retainedAtByKind?.[kind] || (failed ? item.retainedAt : undefined) || (!failed ? snapshot.fetchedAt : undefined);
+      return time && Number.isFinite(Date.parse(time)) ? time : undefined;
     };
-    if (vod) retained.vod = oldTime('vod');
-    if (assign) retained.assign = oldTime('assign');
-    if (quiz) retained.quiz = oldTime('quiz');
+    const oldTime = (kind: Kind) => listTime(old, previous, kind);
+    const selectFailed = <T,>(kind: Kind, prior: T[], current: T[]): T[] => {
+      const priorTime = oldTime(kind);
+      const currentTime = listTime(course, next, kind);
+      const takeCurrent = !!currentTime && (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime));
+      const chosenTime = takeCurrent ? currentTime : priorTime;
+      if (chosenTime) retained[kind] = chosenTime;
+      return takeCurrent ? current : prior;
+    };
     const retainTaskStatus = (current: LmsTask[], prior: LmsTask[], kind: 'assign' | 'quiz') => current.map((task) => {
       if (!task.uncertain) return task;
       const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
       if (matches.length !== 1 || matches[0].uncertain) return task;
-      retained[kind] = oldTime(kind);
+      const priorTime = oldTime(kind);
+      const currentTime = course.retainedAtByKind?.[kind];
+      if (currentTime && Number.isFinite(Date.parse(currentTime)) &&
+          (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime))) {
+        retained[kind] = currentTime;
+        return task;
+      }
+      if (priorTime) retained[kind] = priorTime;
       return { ...task, submitted: matches[0].submitted };
     });
-    const assigns = assign ? old.assigns : retainTaskStatus(course.assigns, old.assigns, 'assign');
-    const quizzes = quiz ? old.quizzes : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
-    if (!Object.keys(retained).length) return course;
-    return { ...course, vods: vod ? old.vods : course.vods,
+    const assigns = assign ? selectFailed('assign', old.assigns, course.assigns) : retainTaskStatus(course.assigns, old.assigns, 'assign');
+    const quizzes = quiz ? selectFailed('quiz', old.quizzes, course.quizzes) : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
+    const vods = vod ? selectFailed('vod', old.vods, course.vods) : course.vods;
+    return { ...course, vods,
       assigns, quizzes,
-      retainedAt: Object.values(retained).sort()[0], retainedAtByKind: retained };
+      retainedAt: Object.values(retained).sort((a, b) => Date.parse(a) - Date.parse(b))[0],
+      retainedAtByKind: Object.keys(retained).length ? retained : undefined };
   }) };
 }
 
