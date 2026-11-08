@@ -1,3 +1,65 @@
+# Design
+
+## Source of truth
+
+Status: Active. Updated: 2026-11-08. Surfaces: student planner and home action brief.
+Evidence: `app/sections/home.tsx`, `app/sections/lms.tsx`, `app/globals.css`, `docs/frontend-backend-handoff.md` and the existing design notes below. This contract takes precedence over historical notes.
+
+## Brand
+
+Calm, readable, candid. Trust comes from source dates and clear uncertainty. Keep the existing light surfaces, blue actions and Pretendard typography.
+
+## Product goals
+
+Help students notice deadlines and reach the school action with minimal searching. The home brief combines existing course, saved activity, academic and personal schedule data. Success means users can tell what is due, what is uncertain and where to check it. New graduation criteria and new school crawlers are outside this change.
+
+## Personas and jobs
+
+Enrolled students checking between classes on a phone, or planning on a desktop. Primary job: find near deadlines and overlooked items without opening every school page.
+
+## Information architecture
+
+Preserve navigation. Home: setup if needed → one action brief → matching/conflict checks → planning and discovery. The brief shows deadlines first, then expandable unknown deadlines and source coverage. Course links open school pages or the matching course detail. Avoid duplicate urgent/week lists.
+
+## Design principles
+
+Use existing snapshots; do not fetch school pages on the home request. Missing data never proves there is no work. Preserve user plans and activity progress. Previously recorded applications should not generate another application reminder. Current work uses the current semester, independently of the planning semester.
+
+## Visual language
+
+Reuse `--nt-*` tokens and existing cards, links and icons. White and light gray surfaces, blue primary action, clear text hierarchy. No new font, imagery, motion or token system.
+
+## Components
+
+`HomeBrief` owns the action list, unknown-deadline list and source coverage disclosure. `buildHomeBrief` derives display items without changing stored profiles. Rows contain separate links/buttons; never nest an anchor inside a button.
+
+## Accessibility
+
+Use a labelled section, semantic lists, native disclosure controls, visible keyboard focus and meaningful action names. External course links announce the new tab. Target WCAG 2.2 AA; retain reduced-motion behavior.
+
+## Responsive behavior
+
+Support 320–1440px. Long course titles wrap. At narrow widths the secondary action wraps under the text. Preserve 44px action targets and prevent horizontal page overflow.
+
+## Interaction states
+
+Loading: say information is loading. Failure: keep available information and offer API retry or course collection controls. Empty: say no nearby deadline was found in collected information; do not claim all work is complete. Stale/partial: identify uncertain data and retain source timestamps. Past deadlines say 기한 지남, never 오늘 마감. All day boundaries use KST.
+
+## Content voice
+
+Short Korean action labels. Distinguish 수집본 기준, 확인 필요 and 직접 등록. Do not call uncertain submissions incomplete or academic events universally applicable. Show source coverage once per brief rather than repeating technical details in each row.
+
+## Implementation constraints
+
+React/vinext and existing CSS. No backend schema, storage or collector changes. Reuse current data contracts. Verify KST boundaries, partial results, activity progress, valid empty states, source failures, responsive browser flows, type checking, lint, tests and build.
+
+## Open questions
+
+- [ ] Backend owner: confirm per-list collection timestamps and account matching for extension results. Impact: finer provenance display; until then use conservative uncertainty labels.
+- [ ] Product owner: provide verified graduation criteria. Impact: future requirement-to-course recommendations; not required for the home brief.
+
+---
+
 # Active design direction (2026-11-03)
 
 The user requested a Toss-inspired student planner. This section supersedes conflicting visual choices in the historical notes below; the notes remain as project history.

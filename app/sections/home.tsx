@@ -11,77 +11,17 @@ import type { Data } from './data';
 import type { Account } from '../account-flow';
 import {
   conflicts,
-  semesterStartTs,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import {
-  currentSemesterStart,
-  dueSoon,
-  matchEnrollment,
-  pendingTasks,
-} from '@/lib/data/lms';
+import { matchEnrollment } from '@/lib/data/lms';
 import { activityNeedsVerification, liveStatus } from '@/lib/data/activities';
-import { staleLabel } from '@/lib/data/freshness';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { gettingStarted } from '@/lib/data/getting-started';
 import { useActivities, useNow, useSchedule } from './catalog';
+import { HomeBrief } from './home-brief';
 
 type Planned = CourseSection[];
-
-type Urgent = { label: string; desc: string; route: string };
-
-/** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동.
- *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
-function TodayStrip({
-  lmsDue,
-  acts,
-  saved,
-  now,
-  go,
-}: {
-  lmsDue: { dueTs: number; kind: string; title: string; course: string }[];
-  acts: Parameters<typeof liveStatus>[0][];
-  saved: string[];
-  now: number;
-  go: (route: string) => void;
-}) {
-  const items: Urgent[] = [];
-  for (const t of lmsDue) {
-    const dd = Math.ceil((t.dueTs - now) / 86400000);
-    if (dd <= 1)
-      items.push({
-        label: `${t.kind} ${dd <= 0 ? '오늘' : '내일'} 마감`,
-        desc: `${t.title} · ${t.course}`,
-        route: 'lms',
-      });
-  }
-  for (const a of acts) {
-    const live = liveStatus(a, now);
-    if (live.status === 'closing' && saved.includes(a.id))
-      items.push({
-        label: `저장한 활동 ${live.dday ?? '마감임박'}`,
-        desc: a.title,
-        route: 'activities/' + a.id,
-      });
-  }
-  const top = items.slice(0, 3);
-  if (!top.length) return null;
-  return (
-    <section className="today-strip card pad" aria-label="오늘 처리할 일">
-      <div className="section-heading">
-        <h2>오늘 처리할 일</h2>
-      </div>
-      {top.map((t, i) => (
-        <button className="today-item" key={i} onClick={() => go(t.route)}>
-          <span className="badge">{t.label}</span>
-          <b>{t.desc}</b>
-          <ArrowUpRight size={16} />
-        </button>
-      ))}
-    </section>
-  );
-}
 
 export function Home({
   data,
@@ -102,19 +42,13 @@ export function Home({
   planSourceMismatch: boolean;
   persist: (next: Data, msg?: string, complete?: boolean) => Promise<boolean>;
 }) {
-  const { snap: sched } = useSchedule();
-  const { snap: acts } = useActivities();
+  const { snap: sched, failed: scheduleFailed, retry: retrySchedule } = useSchedule();
+  const { snap: acts, failed: activitiesFailed, retry: retryActivities } = useActivities();
   const [slide, setSlide] = useState(0);
   const now = useNow(30000);
   const actsNeedVerification = acts ? activityNeedsVerification(acts.fetchedAt, now) : true;
   const today = scheduleToday(now);
   const lmsSnap = data.lms;
-  // 학기 경계 — 지난 학기 항목은 현재 할 일·건수에서 제외한다
-  const before =
-    (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
-    currentSemesterStart(now);
-  const lmsDue = lmsSnap ? dueSoon(lmsSnap, now, 7, 7, before) : [];
-  const lmsPending = lmsSnap ? pendingTasks(lmsSnap, before).length : 0;
   // 매칭 미확정 과목 수 — '해당 없음'으로 사용자가 제외한 과목은 위험 신호에서 뺀다
   const lmsUnmatched =
     lmsSnap && catalog
@@ -122,67 +56,6 @@ export function Home({
           (m) => !m.sections.length && !m.ignored,
         ).length
       : 0;
-  // 이번 주 마감 — 수업 과제·퀴즈 + 저장한 비교과 마감 + 학사일정을 D-day 하나로 통합
-  type WeekItem = {
-    dday: number;
-    kind: string;
-    title: string;
-    sub: string;
-    url?: string;
-    route: string;
-  };
-  const week: WeekItem[] = lmsDue.map((t) => ({
-    dday: Math.ceil((t.dueTs - now) / 86400000),
-    kind: t.kind,
-    title: t.title,
-    sub: t.course + (t.uncertain ? ' · 응시 여부 확인 실패' : ''),
-    url: t.url,
-    route: 'lms',
-  }));
-  for (const a of actsNeedVerification ? [] : (acts?.items ?? [])) {
-    if (!data.saved.includes(a.id) || !a.applyEnd) continue;
-    const dd = Math.ceil(
-      (Date.parse(a.applyEnd.slice(0, 10) + 'T23:59:59') - now) / 86400000,
-    );
-    if (dd >= 0 && dd <= 7)
-      week.push({
-        dday: dd,
-        kind: '비교과',
-        title: a.title,
-        sub: a.dept + (a.points != null ? ` · ${a.points}P` : ''),
-        route: 'activities/' + a.id,
-      });
-  }
-  // 직접 등록한 외부 활동도 신청 마감이 임박하면 함께 올린다
-  for (const e of data.extActivities ?? []) {
-    if (!e.applyEnd) continue;
-    const dd = Math.ceil(
-      (Date.parse(e.applyEnd + 'T23:59:59') - now) / 86400000,
-    );
-    if (dd >= 0 && dd <= 7)
-      week.push({
-        dday: dd,
-        kind: '비교과',
-        title: e.title,
-        sub: e.org + ' · 직접 등록',
-        route: 'activities/' + e.id,
-      });
-  }
-  for (const e of sched?.items ?? []) {
-    const dd = Math.ceil(
-      (Date.parse((e.end ?? e.start).slice(0, 10) + 'T23:59:59') - now) /
-        86400000,
-    );
-    if (dd >= 0 && dd <= 7)
-      week.push({
-        dday: dd,
-        kind: '학사일정',
-        title: e.title,
-        sub: '',
-        route: 'calendar',
-      });
-  }
-  week.sort((a, b) => a.dday - b.dday);
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
   // 상태는 수집 시점 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
   const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
@@ -254,94 +127,18 @@ export function Home({
           )}
         </section>
       )}
-      <TodayStrip
-        lmsDue={lmsDue}
-        acts={actsNeedVerification ? [] : (acts?.items ?? [])}
-        saved={data.saved}
+      <HomeBrief
+        data={data}
+        account={account}
+        activities={acts}
+        schedule={sched}
+        activitiesFailed={activitiesFailed}
+        scheduleFailed={scheduleFailed}
+        retryActivities={retryActivities}
+        retrySchedule={retrySchedule}
         now={now}
         go={go}
       />
-      {week.length > 0 && (
-        <section>
-          <div className="section-heading">
-            <h2>
-              이번 주 마감 <span className="count">{week.length}</span>
-            </h2>
-            <button className="link" onClick={() => go('lms')}>
-              수업 현황 <ArrowRight size={16} />
-            </button>
-          </div>
-          <div className="card pad week-list">
-            {week.slice(0, 5).map((t, i) => (
-              <button
-                className="event-line as-link"
-                key={i}
-                onClick={() => go(t.route)}
-              >
-                <span className="event-date">
-                  <b>{t.dday <= 0 ? '오늘' : `D-${t.dday}`}</b>
-                  <small>{t.kind}</small>
-                </span>
-                <div>
-                  <b>
-                    {t.url ? (
-                      <a
-                        className="link title-link"
-                        href={t.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {t.title}
-                      </a>
-                    ) : (
-                      t.title
-                    )}
-                  </b>
-                  {t.sub && <small>{t.sub}</small>}
-                </div>
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </button>
-            ))}
-            {week.length > 5 && (
-              <p className="meta">외 {week.length - 5}건</p>
-            )}
-            <p className="meta">
-              {lmsSnap
-                ? `COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`
-                : ''}
-              {lmsSnap && staleLabel(lmsSnap.fetchedAt, now, 7) && (
-                <>
-                  {' '}
-                  <span className="badge orange">
-                    {staleLabel(lmsSnap.fetchedAt, now, 7)}
-                  </span>
-                </>
-              )}
-              {lmsSnap && acts ? ' · ' : ''}
-              {acts ? `hsportal ${acts.fetchedAt.slice(0, 10)} 수집` : ''}
-              {acts && staleLabel(acts.fetchedAt, now) && (
-                <>
-                  {' '}
-                  <span className="badge orange">
-                    {staleLabel(acts.fetchedAt, now)}
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
-        </section>
-      )}
-      {!week.length && lmsSnap != null && lmsPending > 0 && (
-        <section>
-          <div className="card pad">
-            <p className="meta">
-              7일 이내 마감은 없어요. 미완료 수업 항목 {lmsPending}건이 남아
-              있어요.
-            </p>
-          </div>
-        </section>
-      )}
       {shownTasks.length > 0 && <section>
         <div className="section-heading">
           <h2>
