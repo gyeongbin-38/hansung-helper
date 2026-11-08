@@ -28,6 +28,15 @@ vm.runInNewContext(js, { exports, require: (name) => modules[name], JSON, Number
 const input = { saved: [], planned: [], prefs: [], events: [], completed: [], rev: 0, name: '처음' };
 assert.equal((await exports.PUT({ body: '{' })).status, 400);
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: undefined }) })).status, 400);
+for (const invalid of [
+  { readIds: 'invalid' }, { reqChecks: [null] }, { actPrefs: {} },
+  { ruleOverrides: [] }, { actStatus: null }, { lmsMatch: [] },
+  { plans: 'invalid' }, { extActivities: 'invalid' }, { onboardingStep: 9 },
+  { rev: Number.MAX_SAFE_INTEGER },
+]) {
+  assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, ...invalid }) })).status, 400);
+  assert.equal(Object.keys(profile).length, 0, 'invalid input must not save');
+}
 assert.equal((await exports.PUT({ body: JSON.stringify(input) })).status, 200);
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, name: '오래된 탭' }) })).status, 409);
 assert.equal(profile.name, '처음');

@@ -40,7 +40,12 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
     authenticated: async () => rows.get('legacy'), database: () => db,
     validOrigin: () => true, readTextLimited: async () => JSON.stringify({ studentId: '123456', password: 'password' }),
     studentAccountId: async () => 'hmac', hash: async () => 'legacy', limited: async () => false,
-    migrateLegacyStudentAccount: async () => { const row = rows.get('legacy'); rows.delete('legacy'); rows.set('hmac', { ...row, id: 'hmac' }); },
+    migrateLegacyStudentAccount: async (_id, _legacy, session) => {
+      assert.equal(session.hash, 'valid-token');
+      assert.equal(session.accountId, 'legacy');
+      if (!sessionActive) return;
+      const row = rows.get('legacy'); rows.delete('legacy'); rows.set('hmac', { ...row, id: 'hmac' });
+    },
     accountView: (row) => row, json: (body, status = 200) => ({ body, status }),
     PayloadTooLargeError: class extends Error {},
   };
@@ -57,7 +62,7 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
       return { checkedAt: 'current' };
     } },
     '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
-    '@/lib/data/lms': { mergeLmsSnapshot: (_old, current) => current },
+    '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
     '@/lib/data/notifs': { infoChanges: () => [] },
   };
   const exports = {};
@@ -65,7 +70,8 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
   const response = await exports.POST({});
   if (outcome === 'revoked-in-connect') {
     assert.equal(response.status, 401);
-    assert.equal(JSON.parse(rows.get('hmac').snapshot).infoData.value, 'old');
+    assert.equal(rows.has('hmac'), false);
+    assert.equal(JSON.parse(rows.get('legacy').snapshot).infoData.value, 'old');
     continue;
   }
   assert.equal(response.status, 200);

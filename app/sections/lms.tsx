@@ -85,6 +85,7 @@ function TaskRow({
   url,
   due,
   uncertain,
+  statusRetainedAt,
   watched,
   required,
   past,
@@ -96,6 +97,7 @@ function TaskRow({
   due: string | null;
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
   uncertain?: boolean;
+  statusRetainedAt?: string;
   /** 시청시간/요구시간 — 강의 항목에서만 온다 */
   watched?: string;
   required?: string;
@@ -126,6 +128,7 @@ function TaskRow({
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
           {uncertain ? ' · 상태 확인 실패' : ''}
+          {uncertain && statusRetainedAt ? ` · 이전 상태 확인 ${formatLmsTime(statusRetainedAt)}` : ''}
           {watched
             ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
             : ''}
@@ -172,6 +175,7 @@ function CourseCard({
         url: a.url,
         due: a.due ?? null,
         uncertain: a.uncertain,
+        statusRetainedAt: a.statusRetainedAt,
         past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
@@ -182,6 +186,7 @@ function CourseCard({
         url: q.url,
         due: q.due ?? null,
         uncertain: q.uncertain,
+        statusRetainedAt: q.statusRetainedAt,
         past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];
@@ -243,11 +248,11 @@ function CourseCard({
           일부 항목을 수집하지 못했습니다:{' '}
           {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')}. COSMOS에서
           직접 확인해 주세요.
-          {c.retainedAt ? ` 실패한 항목에는 이전 결과 (${formatLmsTime(c.retainedAt)})를 표시합니다.` : ''}
+          {c.retainedAtByKind ? ` 이전 결과: ${Object.entries(c.retainedAtByKind).map(([kind, at]) => `${({ vod: '출석', assign: '과제', quiz: '퀴즈' } as Record<string, string>)[kind]} ${formatLmsTime(at)}`).join(' · ')}` : c.retainedAt ? ` 실패한 항목에는 이전 결과 (${formatLmsTime(c.retainedAt)})를 표시합니다.` : ''}
         </p>
       ) : null}
       {c.retainedAt && !c.errors?.length ? (
-        <p className="meta">일부 상태를 확인하지 못해 이전 결과 ({formatLmsTime(c.retainedAt)})를 보존했습니다. COSMOS에서 확인해 주세요.</p>
+        <p className="meta">일부 상태를 확인하지 못해 이전 결과를 보존했습니다: {c.retainedAtByKind ? Object.entries(c.retainedAtByKind).map(([kind, at]) => `${({ vod: '출석', assign: '과제', quiz: '퀴즈' } as Record<string, string>)[kind]} ${formatLmsTime(at)}`).join(' · ') : formatLmsTime(c.retainedAt)}. COSMOS에서 확인해 주세요.</p>
       ) : null}
       {weeks.length > 0 && (
         <div className="lms-weeks" aria-label="주차별 강의 진도">

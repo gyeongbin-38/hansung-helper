@@ -130,17 +130,18 @@ export function hasQuizAttempt(html: string): boolean | null {
 
 /** 온라인 출석부 — thead 동적 컬럼 매칭 + rowspan/colspan 평탄화 */
 export function parseProgress(html: string): LmsVod[] {
-  const thead = html.match(
+  const table = html.match(
     new RegExp(
-      `${clsRe('user_progress_table')}[^>]*>[\\s\\S]*?<thead[^>]*>([\\s\\S]*?)</thead>`,
+      `<table[^>]*${clsRe('user_progress_table')}[^>]*>([\\s\\S]*?)</table>`,
       'i',
     ),
   );
-  if (!thead) return [];
+  const thead = table?.[1].match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
+  if (!thead) throw new Error('lms:progress-header-missing');
   const headers = [...thead[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(
     (m) => plainText(m[1]),
   );
-  if (headers.length < 5) return [];
+  if (headers.length < 5) throw new Error('lms:progress-columns-missing');
   let att = -1,
     weekAtt = -1;
   const matched = new Set<number>();
@@ -157,15 +158,10 @@ export function parseProgress(html: string): LmsVod[] {
     if (att === -1 && !matched.has(i) && COL_ATTENDANCE.some((k) => t.includes(k)))
       att = i;
   });
-  if (att === -1 || weekAtt === -1) return [];
+  if (att === -1 || weekAtt === -1) throw new Error('lms:progress-columns-missing');
 
-  const tbody = html.match(
-    new RegExp(
-      `${clsRe('user_progress_table')}[^>]*>[\\s\\S]*?<tbody[^>]*>([\\s\\S]*?)</tbody>`,
-      'i',
-    ),
-  );
-  if (!tbody) return [];
+  const tbody = table?.[1].match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+  if (!tbody) throw new Error('lms:progress-body-missing');
   const trs = [...tbody[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(
     (m) => m[1],
   );

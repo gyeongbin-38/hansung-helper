@@ -93,6 +93,26 @@ export async function PUT(request: Request) {
         credits: v.credits,
       }),
     );
+    // 잘못된 선택 필드를 기본값으로 바꾸면 기존 설정이 조용히 지워질 수 있다.
+    const validStringArray = (value: unknown, limit: number, maxLength: number) =>
+      Array.isArray(value) && value.length <= limit &&
+      value.every((item) => typeof item === 'string' && item.length <= maxLength);
+    for (const [key, limit, maxLength] of [
+      ['readIds', 500, 80], ['reqChecks', 200, 120], ['actPrefs', 20, 100],
+    ] as const) {
+      if (input[key] !== undefined && !validStringArray(input[key], limit, maxLength))
+        return json({ error: '저장 항목 형식을 확인해 주세요.' }, 400);
+    }
+    for (const key of ['ruleOverrides', 'actStatus', 'lmsMatch', 'plans'] as const) {
+      if (input[key] !== undefined &&
+          (!input[key] || typeof input[key] !== 'object' || Array.isArray(input[key])))
+        return json({ error: '저장 항목 형식을 확인해 주세요.' }, 400);
+    }
+    if (input.extActivities !== undefined && !Array.isArray(input.extActivities))
+      return json({ error: '직접 등록 활동 형식을 확인해 주세요.' }, 400);
+    if (input.onboardingStep !== undefined &&
+        (!Number.isInteger(input.onboardingStep) || input.onboardingStep < 0 || input.onboardingStep > 8))
+      return json({ error: '시작 설정을 확인해 주세요.' }, 400);
     const overrides: Record<string, number> = {};
     if (input.ruleOverrides && typeof input.ruleOverrides === 'object') {
       for (const [k, v] of Object.entries(
@@ -225,7 +245,7 @@ export async function PUT(request: Request) {
     // 낙관적 잠금 — 클라이언트가 보낸 rev와 저장된 rev가 다르면 다른
     // 기기/탭이 먼저 쓴 것이므로 덮어쓰지 않고 409로 알린다. rev를
     // 버전이 없는 요청은 오래된 탭의 덮어쓰기를 방지하기 위해 거절한다.
-    if (!Number.isSafeInteger(input.rev) || input.rev < 0)
+    if (!Number.isSafeInteger(input.rev) || input.rev < 0 || input.rev >= Number.MAX_SAFE_INTEGER)
       return json({ error: '저장 버전을 확인해 주세요. 페이지를 새로고침해 주세요.' }, 400);
     const expected = input.rev as number;
     profile.rev = expected + 1;

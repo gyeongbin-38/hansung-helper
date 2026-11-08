@@ -6,6 +6,8 @@
 import type { Catalog, CourseSection } from './catalog';
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** 확장 수집 계정 확인 수단이 마련되기 전에는 로그인 계정에 쓰지 않는다. */
+export const canImportExtensionLms = (authenticated: boolean) => !authenticated;
 export const kstDateNumber = (timestamp: number) =>
   Math.floor((timestamp + KST_OFFSET_MS) / 86400000);
 
@@ -17,6 +19,8 @@ export type LmsTask = {
   submitted: boolean;
   /** 제출/응시 여부 확인에 실패 — 미응시로 단정하지 않음 */
   uncertain?: boolean;
+  /** 확인 실패 시 보존한 제출·응시 상태의 확인 시각 */
+  statusRetainedAt?: string;
 };
 
 export type LmsVod = {
@@ -50,6 +54,8 @@ export type LmsCourse = {
   errors?: string[];
   /** 실패한 항목에 이전 수집 결과를 사용한 경우 그 수집 시각 */
   retainedAt?: string;
+  /** 목록별 이전 결과의 마지막 성공 확인 시각 */
+  retainedAtByKind?: { vod?: string; assign?: string; quiz?: string };
 };
 
 export type LmsSnapshot = {
@@ -100,6 +106,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
           uncertain: t.uncertain === true ? true : undefined,
+          statusRetainedAt: typeof t.statusRetainedAt === 'string' && Number.isFinite(Date.parse(t.statusRetainedAt)) ? t.statusRetainedAt : undefined,
         };
       });
     };
@@ -137,6 +144,10 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
         ? co.errors.filter((e): e is string => typeof e === 'string')
         : undefined,
       retainedAt: typeof co.retainedAt === 'string' ? co.retainedAt : undefined,
+      retainedAtByKind: co.retainedAtByKind && typeof co.retainedAtByKind === 'object'
+        ? Object.fromEntries(Object.entries(co.retainedAtByKind).filter(([key, value]) =>
+          ['vod', 'assign', 'quiz'].includes(key) && typeof value === 'string'))
+        : undefined,
     });
   }
   const d = s.diag as Record<string, unknown> | undefined;
@@ -170,21 +181,64 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     const vod = all || errors.has('vod');
     const assign = all || errors.has('assign');
     const quiz = all || errors.has('quiz');
-    let preserved = vod || assign || quiz;
-    const retainTaskStatus = (current: LmsTask[], prior: LmsTask[]) => current.map((task) => {
+    const retained: NonNullable<LmsCourse['retainedAtByKind']> = {};
+    for (const kind of ['assign', 'quiz'] as const) {
+      const tasks = kind === 'assign' ? course.assigns : course.quizzes;
+      const time = course.retainedAtByKind?.[kind];
+      if (tasks.some((task) => task.uncertain) && time && Number.isFinite(Date.parse(time)))
+        retained[kind] = time;
+    }
+    type Kind = 'vod' | 'assign' | 'quiz';
+    const listTime = (item: LmsCourse, snapshot: LmsSnapshot, kind: Kind): string | undefined => {
+      const failures = new Set(item.errors ?? []);
+      const failed = failures.has(kind) || failures.has('timeout') || failures.has('budget');
+      // Legacy snapshots have only a course-wide retainedAt. A failed list
+      // without any retained timestamp has no known successful check time.
+      const time = failed ? (item.retainedAtByKind?.[kind] || item.retainedAt) : snapshot.fetchedAt;
+      return time && Number.isFinite(Date.parse(time)) ? time : undefined;
+    };
+    const oldTime = (kind: Kind) => listTime(old, previous, kind);
+    const selectFailed = <T,>(kind: Kind, prior: T[], current: T[]): T[] => {
+      const priorTime = oldTime(kind);
+      const currentTime = listTime(course, next, kind);
+      const takeCurrent = !!currentTime && (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime));
+      const chosenTime = takeCurrent ? currentTime : priorTime;
+      if (chosenTime) retained[kind] = chosenTime;
+      return takeCurrent ? current : prior;
+    };
+    const retainTaskStatus = (current: LmsTask[], prior: LmsTask[], kind: 'assign' | 'quiz') => current.map((task) => {
       if (!task.uncertain) return task;
       const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
-      if (matches.length !== 1 || matches[0].uncertain) return task;
-      preserved = true;
-      return { ...task, submitted: matches[0].submitted };
+      if (matches.length !== 1) return task;
+      const priorTime = matches[0].uncertain ? matches[0].statusRetainedAt : oldTime(kind);
+      if (matches[0].uncertain && (!priorTime || !Number.isFinite(Date.parse(priorTime)))) return task;
+      // The legacy course-wide time is only unambiguous for one uncertain item.
+      const currentTime = task.statusRetainedAt ||
+        (current.filter((item) => item.uncertain).length === 1 ? course.retainedAtByKind?.[kind] : undefined);
+      if (currentTime && Number.isFinite(Date.parse(currentTime)) &&
+          (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime))) {
+        retained[kind] = currentTime;
+        return task;
+      }
+      if (priorTime) retained[kind] = priorTime;
+      return { ...task, submitted: matches[0].submitted, statusRetainedAt: priorTime };
     });
-    const assigns = assign ? old.assigns : retainTaskStatus(course.assigns, old.assigns);
-    const quizzes = quiz ? old.quizzes : retainTaskStatus(course.quizzes, old.quizzes);
-    if (!preserved) return course;
-    return { ...course, vods: vod ? old.vods : course.vods,
+    const assigns = assign ? selectFailed('assign', old.assigns, course.assigns) : retainTaskStatus(course.assigns, old.assigns, 'assign');
+    const quizzes = quiz ? selectFailed('quiz', old.quizzes, course.quizzes) : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
+    const vods = vod ? selectFailed('vod', old.vods, course.vods) : course.vods;
+    return { ...course, vods,
       assigns, quizzes,
-      retainedAt: old.retainedAt || previous.fetchedAt };
+      retainedAt: Object.values(retained).sort((a, b) => Date.parse(a) - Date.parse(b))[0],
+      retainedAtByKind: Object.keys(retained).length ? retained : undefined };
   }) };
+}
+
+/** 저장 경로별 스냅샷을 수집 시각 순서로 병합한다. */
+export function combineLmsSnapshots(...values: unknown[]): LmsSnapshot | undefined {
+  const snapshots = values.map(validateLms).filter((s): s is LmsSnapshot =>
+    !!s && Number.isFinite(Date.parse(s.fetchedAt)));
+  snapshots.sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
+  return snapshots.reduce<LmsSnapshot | undefined>((old, next) => mergeLmsSnapshot(old, next), undefined);
 }
 
 /** 수집 시각은 기기 시간대와 무관하게 한국 시간으로 표시한다. */

@@ -13,7 +13,7 @@ export async function fetchTextWithRetry(
     try {
       const response = await fetcher(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
       if (!response.ok) {
-        if (response.status !== 429 && response.status < 500)
+        if (response.status !== 408 && response.status !== 429 && response.status < 500)
           throw new PermanentHttpError(`HTTP ${response.status}`);
         throw new Error(`HTTP ${response.status}`);
       }
