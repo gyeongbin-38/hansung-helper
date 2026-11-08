@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeLmsSnapshot, combineLmsSnapshots } from '../lib/data/lms.ts';
+import { mergeLmsSnapshot, combineLmsSnapshots, validateLms } from '../lib/data/lms.ts';
 
 const snap = (day, submitted, errors = [], extra = {}) => ({
   source: 'cosmos-lms', fetchedAt: `2026-09-${day}T00:00:00Z`, courses: [{
@@ -62,4 +62,29 @@ test('re-merging uncertain item status keeps the newer retained value and time',
   assert.equal(result.courses[0].quizzes[0].submitted, true);
   assert.equal(result.courses[0].quizzes[0].uncertain, true);
   assert.equal(result.courses[0].retainedAtByKind.quiz, newer.fetchedAt);
+});
+
+test('fresh task list remains newer when only one submission status was retained', () => {
+  const old = snap('20', true);
+  const partial = snap('21', null, [], { assigns: [
+    { title: 'assignment', submitted: false, uncertain: true },
+    { title: 'new assignment', submitted: false },
+  ] });
+  const withRetainedStatus = mergeLmsSnapshot(old, partial);
+  assert.equal(withRetainedStatus.courses[0].retainedAtByKind.assign, old.fetchedAt);
+  assert.equal(withRetainedStatus.courses[0].assigns[0].statusRetainedAt, old.fetchedAt);
+  const nextFailure = mergeLmsSnapshot(withRetainedStatus, snap('22', null, ['assign']));
+  assert.equal(nextFailure.courses[0].retainedAtByKind.assign, partial.fetchedAt);
+  assert.equal(nextFailure.courses[0].assigns[0].statusRetainedAt, old.fetchedAt);
+  assert.equal(validateLms(nextFailure).courses[0].assigns[0].statusRetainedAt, old.fetchedAt);
+  const competing = { ...snap('20', false), fetchedAt: '2026-09-20T12:00:00Z' };
+  const result = mergeLmsSnapshot(competing, nextFailure);
+  assert.equal(result.courses[0].assigns.length, 2);
+  assert.equal(result.courses[0].assigns[1].title, 'new assignment');
+  const renewedPartial = mergeLmsSnapshot(nextFailure, snap('23', null, [], { assigns: [
+    { title: 'assignment', submitted: false, uncertain: true },
+    { title: 'new assignment', submitted: false },
+  ] }));
+  assert.equal(renewedPartial.courses[0].assigns[0].submitted, true);
+  assert.equal(renewedPartial.courses[0].assigns[0].statusRetainedAt, old.fetchedAt);
 });

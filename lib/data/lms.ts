@@ -19,6 +19,8 @@ export type LmsTask = {
   submitted: boolean;
   /** 제출/응시 여부 확인에 실패 — 미응시로 단정하지 않음 */
   uncertain?: boolean;
+  /** 확인 실패 시 보존한 제출·응시 상태의 확인 시각 */
+  statusRetainedAt?: string;
 };
 
 export type LmsVod = {
@@ -104,6 +106,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
           uncertain: t.uncertain === true ? true : undefined,
+          statusRetainedAt: typeof t.statusRetainedAt === 'string' && Number.isFinite(Date.parse(t.statusRetainedAt)) ? t.statusRetainedAt : undefined,
         };
       });
     };
@@ -191,7 +194,7 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
       const failed = failures.has(kind) || failures.has('timeout') || failures.has('budget');
       // Legacy snapshots have only a course-wide retainedAt. A failed list
       // without any retained timestamp has no known successful check time.
-      const time = item.retainedAtByKind?.[kind] || (failed ? item.retainedAt : undefined) || (!failed ? snapshot.fetchedAt : undefined);
+      const time = failed ? (item.retainedAtByKind?.[kind] || item.retainedAt) : snapshot.fetchedAt;
       return time && Number.isFinite(Date.parse(time)) ? time : undefined;
     };
     const oldTime = (kind: Kind) => listTime(old, previous, kind);
@@ -206,16 +209,19 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     const retainTaskStatus = (current: LmsTask[], prior: LmsTask[], kind: 'assign' | 'quiz') => current.map((task) => {
       if (!task.uncertain) return task;
       const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
-      if (matches.length !== 1 || matches[0].uncertain) return task;
-      const priorTime = oldTime(kind);
-      const currentTime = course.retainedAtByKind?.[kind];
+      if (matches.length !== 1) return task;
+      const priorTime = matches[0].uncertain ? matches[0].statusRetainedAt : oldTime(kind);
+      if (matches[0].uncertain && (!priorTime || !Number.isFinite(Date.parse(priorTime)))) return task;
+      // The legacy course-wide time is only unambiguous for one uncertain item.
+      const currentTime = task.statusRetainedAt ||
+        (current.filter((item) => item.uncertain).length === 1 ? course.retainedAtByKind?.[kind] : undefined);
       if (currentTime && Number.isFinite(Date.parse(currentTime)) &&
           (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime))) {
         retained[kind] = currentTime;
         return task;
       }
       if (priorTime) retained[kind] = priorTime;
-      return { ...task, submitted: matches[0].submitted };
+      return { ...task, submitted: matches[0].submitted, statusRetainedAt: priorTime };
     });
     const assigns = assign ? selectFailed('assign', old.assigns, course.assigns) : retainTaskStatus(course.assigns, old.assigns, 'assign');
     const quizzes = quiz ? selectFailed('quiz', old.quizzes, course.quizzes) : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
