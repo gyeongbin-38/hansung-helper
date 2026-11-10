@@ -1,0 +1,94 @@
+{
+  "ok": true,
+  "target": {
+    "worker": "hansung-helper-mvp",
+    "url": "https://hansung-helper-mvp.gyeongbin-38.workers.dev",
+    "database": "hansung-helper-release-check"
+  },
+  "limits": {
+    "phaseSeconds": 30,
+    "thinkTimeMs": 2000,
+    "maximumAllowedRps": 250,
+    "maximumAllowedRequests": 10000,
+    "publicP95Ms": 2000,
+    "authenticatedP95Ms": 3000
+  },
+  "phases": [
+    {
+      "name": "public-100-vus",
+      "configuredVus": 100,
+      "elapsedSeconds": 32.195,
+      "requests": 1771,
+      "throughputRps": 55.01,
+      "latencyMs": {
+        "p50": 150,
+        "p95": 1052,
+        "p99": 1124,
+        "max": 1397
+      },
+      "maxActiveVus": 100,
+      "maxInFlightRequests": 100,
+      "statusCounts": {
+        "200": 1771
+      },
+      "networkFailures": 0,
+      "serverFailures": 0,
+      "validationFailures": 0,
+      "cloudflare403": 0,
+      "rateLimited429": 0,
+      "failureDetails": []
+    },
+    {
+      "name": "public-150-vus",
+      "configuredVus": 150,
+      "elapsedSeconds": 32.167,
+      "requests": 2555,
+      "throughputRps": 79.43,
+      "latencyMs": {
+        "p50": 156,
+        "p95": 1492,
+        "p99": 1706,
+        "max": 2041
+      },
+      "maxActiveVus": 150,
+      "maxInFlightRequests": 150,
+      "statusCounts": {
+        "200": 2555
+      },
+      "networkFailures": 0,
+      "serverFailures": 0,
+      "validationFailures": 0,
+      "cloudflare403": 0,
+      "rateLimited429": 0,
+      "failureDetails": []
+    },
+    {
+      "name": "authenticated-sustained-150-vus",
+      "configuredVus": 150,
+      "elapsedSeconds": 32.178,
+      "requests": 2226,
+      "throughputRps": 69.18,
+      "latencyMs": {
+        "p50": 155,
+        "p95": 1168,
+        "p99": 1296,
+        "max": 1802
+      },
+      "maxActiveVus": 150,
+      "maxInFlightRequests": 150,
+      "statusCounts": {
+        "200": 2226
+      },
+      "networkFailures": 0,
+      "serverFailures": 0,
+      "validationFailures": 0,
+      "cloudflare403": 0,
+      "rateLimited429": 0,
+      "failureDetails": []
+    }
+  ],
+  "caveat": "Measurements include this single client machine, its network path, Cloudflare edge behavior, and Worker/D1 latency.",
+  "testedAt": "2026-11-10T15:37:30.600Z",
+  "totalRequests": 6552,
+  "cleanup": "verified"
+}
