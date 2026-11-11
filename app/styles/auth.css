@@ -488,3 +488,640 @@ dialog.survey-dialog > p {
     padding: 24px 20px;
   }
 }
+
+/* Page 3 visual layer */
+/* Sign-in + onboarding + survey entry.
+   Owner: auth agent. Use var(--nt-*) tokens only. */
+
+/* ---------- page frame ---------- */
+.auth-page {
+  min-height: 100dvh;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 64px 32px;
+  background:
+    radial-gradient(circle at 54% 48%, var(--nt-canvas) 0, transparent 38%),
+    color-mix(in srgb, var(--nt-primary) 5%, var(--nt-paper));
+  color: var(--nt-ink);
+  font-family: inherit;
+}
+.auth-page::before,
+.auth-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.auth-page::before {
+  width: min(42vw, 620px);
+  aspect-ratio: 1;
+  top: min(-24vw, -260px);
+  left: min(-17vw, -190px);
+  background: color-mix(in srgb, var(--nt-primary) 7%, transparent);
+}
+.auth-page::after {
+  width: min(38vw, 560px);
+  aspect-ratio: 1;
+  right: min(-18vw, -210px);
+  bottom: min(-25vw, -310px);
+  background: color-mix(in srgb, var(--nt-primary) 6%, transparent);
+}
+.auth-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.88fr) minmax(420px, 1.12fr);
+  align-items: center;
+  width: min(100%, 1080px);
+  margin: auto;
+}
+.auth-intro {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 72px 10px 0;
+  border-right: 1px solid color-mix(in srgb, var(--nt-navy) 11%, transparent);
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 76px;
+  color: var(--nt-navy);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+.auth-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--nt-navy);
+  color: var(--nt-on-dark);
+  flex-shrink: 0;
+}
+.auth-intro-copy h1 {
+  margin: 0;
+  color: var(--nt-navy);
+  font-size: clamp(34px, 3.1vw, 46px);
+  font-weight: 700;
+  line-height: 1.34;
+  letter-spacing: -0.055em;
+  word-break: keep-all;
+}
+.auth-intro-copy h1 strong {
+  color: var(--nt-primary);
+  font-weight: inherit;
+}
+.auth-intro-copy p {
+  margin: 28px 0 0;
+  color: var(--nt-slate);
+  font-size: 17px;
+  line-height: 1.75;
+  letter-spacing: -0.018em;
+  word-break: keep-all;
+}
+.auth-owl {
+  display: block;
+  width: min(100%, 280px);
+  height: auto;
+  max-height: 150px;
+  margin: auto auto 0;
+  object-fit: contain;
+  opacity: 0.94;
+}
+.auth-panel {
+  width: 100%;
+  max-width: 570px;
+  min-width: 0;
+  margin: 0;
+  padding-left: 72px;
+}
+.auth-panel h1 {
+  margin: 0;
+  color: var(--nt-navy);
+  font-size: 34px;
+  line-height: 1.28;
+  letter-spacing: -0.045em;
+  word-break: keep-all;
+}
+.auth-panel > p {
+  margin: 14px 0 0;
+  color: var(--nt-slate);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.auth-step-label {
+  display: block;
+  color: var(--nt-primary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.auth-signin-panel .auth-step-label {
+  margin-bottom: 24px;
+}
+/* onboarding progress track */
+.auth-progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  margin: 0 0 30px;
+  border: none;
+  border-radius: var(--nt-r-pill);
+  background: var(--nt-hairline);
+  overflow: hidden;
+}
+.auth-progress::-webkit-progress-bar {
+  background: var(--nt-hairline);
+  border-radius: var(--nt-r-pill);
+}
+.auth-progress::-webkit-progress-value {
+  background: var(--nt-primary);
+  border-radius: var(--nt-r-pill);
+  transition: width 0.3s var(--nt-ease);
+}
+.auth-progress::-moz-progress-bar {
+  background: var(--nt-primary);
+  border-radius: var(--nt-r-pill);
+}
+/* ---------- form ---------- */
+.auth-form {
+  display: grid;
+  gap: 20px;
+  margin-top: 30px;
+}
+.auth-signin-panel .auth-form {
+  margin-top: 0;
+}
+.auth-form label {
+  display: grid;
+  gap: 9px;
+  color: var(--nt-navy);
+  font-size: 14px;
+  font-weight: 700;
+}
+.auth-form input:not([type='checkbox']),
+.auth-form select {
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 17px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: 10px;
+  background: var(--nt-canvas);
+  color: var(--nt-ink);
+  font: inherit;
+  font-size: 15px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.auth-form input:not([type='checkbox']):hover,
+.auth-form select:hover {
+  border-color: var(--nt-hairline-strong);
+}
+.auth-form input::placeholder {
+  color: var(--nt-muted);
+}
+.auth-form input:not([type='checkbox']):focus,
+.auth-form select:focus {
+  border-color: var(--nt-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nt-primary) 14%, transparent);
+  outline: none;
+}
+.auth-form label:has(input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.55;
+  color: var(--nt-slate);
+  font-weight: 500;
+}
+.auth-form input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--nt-primary);
+  margin-top: 2px;
+}
+/* soft rose error surface */
+.auth-error {
+  margin: 0;
+  color: var(--nt-error);
+  background: var(--nt-tint-rose);
+  border-radius: var(--nt-r-md);
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+/* security note disclosure */
+.auth-note {
+  margin: 0;
+  color: var(--nt-slate);
+  background: color-mix(in srgb, var(--nt-navy) 3%, var(--nt-canvas));
+  border: 0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.auth-note summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  color: var(--nt-ink);
+}
+.auth-note summary::-webkit-details-marker {
+  display: none;
+}
+.auth-note summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--nt-stone);
+  border-bottom: 1.5px solid var(--nt-stone);
+  transform: rotate(-45deg);
+  margin: 0 2px 2px 1px;
+  transition: transform 0.2s var(--nt-ease);
+  flex-shrink: 0;
+}
+.auth-note[open] summary::before {
+  transform: rotate(45deg);
+}
+.auth-note summary:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 3px;
+  border-radius: var(--nt-r-xs);
+}
+.auth-note p {
+  margin: 10px 0 2px;
+}
+/* ---------- action rows ---------- */
+.auth-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+}
+.auth-actions > * {
+  flex: 1;
+}
+.auth-actions.auth-links {
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--nt-hairline-soft);
+}
+.auth-actions.auth-links > * {
+  flex: 0 0 auto;
+}
+/* centered "skip survey" link under the prev/next row */
+.auth-actions + .link {
+  display: flex;
+  width: fit-content;
+  margin: 14px auto 0;
+}
+.auth-panel .primary,
+.auth-panel .secondary {
+  min-height: 54px;
+  padding: 13px 20px;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.auth-form > .primary {
+  width: 100%;
+}
+.auth-panel .meta {
+  margin: 24px 0 0;
+  text-align: center;
+}
+/* ---------- onboarding option cards ---------- */
+.onboarding-options {
+  display: grid;
+  gap: 10px;
+  margin: 26px 0 4px;
+}
+.onboarding-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  text-align: left;
+  color: var(--nt-charcoal);
+  background: var(--nt-canvas);
+  min-height: 56px;
+  font-size: 15px;
+  font-weight: 500;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.onboarding-option:hover {
+  background: var(--nt-surface-soft);
+  border-color: var(--nt-hairline-strong);
+}
+.onboarding-option .option-label,
+.survey-dialog .survey-options .option-label {
+  flex: 1;
+  min-width: 0;
+}
+/* circular check affordance on the right of option rows */
+.onboarding-option .option-check,
+.survey-dialog .survey-options .option-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--nt-hairline-strong);
+  color: var(--nt-on-primary);
+  flex-shrink: 0;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.onboarding-option:hover .option-check,
+.survey-dialog .survey-options button:hover .option-check {
+  border-color: var(--nt-stone);
+}
+.onboarding-option.selected,
+.onboarding-option.chosen,
+.onboarding-option[aria-pressed='true'],
+.onboarding-option:has(input:checked) {
+  border-color: var(--nt-primary);
+  background: var(--nt-tint-sky);
+  color: var(--nt-ink);
+}
+.onboarding-option.selected .option-check,
+.onboarding-option.chosen .option-check,
+.onboarding-option[aria-pressed='true'] .option-check,
+.onboarding-option:has(input:checked) .option-check,
+.survey-dialog .survey-options .chosen .option-check,
+.survey-dialog .survey-options [aria-pressed='true'] .option-check {
+  background: var(--nt-primary);
+  border-color: var(--nt-primary);
+}
+.onboarding-option small {
+  display: block;
+  margin-top: 4px;
+}
+/* ---------- survey modal (scoped; wins over generic dialog rules) ---------- */
+dialog.survey-dialog {
+  width: min(540px, calc(100% - 32px));
+  margin: auto;
+  padding: 30px 32px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-xl);
+  background: var(--nt-canvas);
+  color: var(--nt-ink);
+  box-shadow: var(--nt-shadow-modal);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+dialog.survey-dialog h2 {
+  margin: 18px 0 8px;
+  font-size: 22px;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+dialog.survey-dialog > p {
+  margin: 0;
+  font-size: 14px;
+}
+.survey-dialog .survey-options {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 28px;
+}
+.survey-dialog .survey-options button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-canvas);
+  color: var(--nt-charcoal);
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 52px;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.survey-dialog .survey-options button:hover {
+  background: var(--nt-surface-soft);
+  border-color: var(--nt-hairline-strong);
+}
+.survey-dialog .survey-options button.chosen,
+.survey-dialog .survey-options button[aria-pressed='true'] {
+  border-color: var(--nt-primary);
+  background: var(--nt-tint-sky);
+  color: var(--nt-ink);
+}
+.survey-dialog .actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog.survey-dialog[open] {
+    animation: survey-dialog-in 0.24s var(--nt-ease);
+  }
+}
+@keyframes survey-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+/* ---------- onboarding 이수 현황 ---------- */
+.ob-courses {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-lg);
+  background: var(--nt-surface-soft);
+}
+.ob-courses-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nt-charcoal);
+}
+.ob-completed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ob-completed .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ob-completed .badge .icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ob-completed .badge .icon:hover {
+  background: var(--nt-hairline);
+}
+.ob-course-hits {
+  display: grid;
+  gap: 6px;
+}
+.ob-course-hit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-canvas);
+  color: var(--nt-charcoal);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.ob-course-hit:hover {
+  background: var(--nt-tint-sky);
+  border-color: var(--nt-hairline-strong);
+}
+.ob-course-hit b {
+  flex: 0 1 auto;
+  font-weight: 600;
+}
+.ob-course-hit small {
+  flex: 1;
+  min-width: 0;
+  color: var(--nt-stone);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ---------- compact layout ---------- */
+@media (max-width: 860px) {
+  .auth-page {
+    display: block;
+    padding: 32px 20px 56px;
+    overflow: hidden;
+  }
+  .auth-shell {
+    display: block;
+    width: min(100%, 560px);
+  }
+  .auth-intro {
+    display: block;
+    padding: 0;
+    border-right: 0;
+  }
+  .auth-brand {
+    margin: 0 0 34px;
+    font-size: 20px;
+  }
+  .auth-brand-mark {
+    width: 40px;
+    height: 40px;
+  }
+  .auth-intro-copy h1 {
+    font-size: 32px;
+    line-height: 1.32;
+  }
+  .auth-intro-copy p {
+    margin-top: 18px;
+    font-size: 15px;
+    line-height: 1.68;
+  }
+  .auth-intro-copy p br {
+    display: none;
+  }
+  .auth-owl {
+    width: 220px;
+    max-height: 100px;
+    margin: 24px auto 34px;
+  }
+  .auth-panel {
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+  }
+  .auth-signin-panel {
+    padding-top: 30px;
+    border-top: 1px solid color-mix(in srgb, var(--nt-navy) 10%, transparent);
+  }
+  .auth-intro--onboarding .auth-intro-copy,
+  .auth-intro--onboarding .auth-owl {
+    display: none;
+  }
+  .auth-intro--onboarding .auth-brand {
+    margin-bottom: 30px;
+  }
+  .auth-panel h1 {
+    font-size: 29px;
+    line-height: 1.3;
+  }
+  .auth-actions {
+    flex-direction: column;
+  }
+  .auth-actions.auth-links {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .auth-actions.auth-links > * {
+    width: auto;
+  }
+  dialog.survey-dialog {
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 430px) {
+  .auth-page {
+    padding-inline: 18px;
+  }
+  .auth-intro-copy h1 {
+    font-size: 29px;
+  }
+  .auth-form input:not([type='checkbox']),
+  .auth-form select {
+    min-height: 52px;
+  }
+  .auth-panel .primary,
+  .auth-panel .secondary {
+    min-height: 50px;
+    font-size: 15px;
+  }
+}

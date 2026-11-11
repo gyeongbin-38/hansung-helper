@@ -43,6 +43,44 @@ export type Account = {
   onboarded: boolean;
   studentMask: string;
 };
+function AuthIntro({ compactOnMobile = false }: { compactOnMobile?: boolean }) {
+  return (
+    <aside
+      className={`auth-intro${compactOnMobile ? ' auth-intro--onboarding' : ''}`}
+    >
+      <div className="auth-brand">
+        <span className="auth-brand-mark">
+          <Logo size={28} />
+        </span>
+        <span>학사부기</span>
+      </div>
+      <div className="auth-intro-copy">
+        <h1>
+          졸업까지,
+          <br />
+          <strong>한곳에서</strong> 확인하세요.
+        </h1>
+        <p>
+          졸업 요건, 수업 일정, 학사 정보를{' '}
+          <br />한 번에 관리할 수 있는{' '}
+          <br />
+          한성대학교 학생 지원 서비스입니다.
+        </p>
+      </div>
+      {/* eslint-disable-next-line next/no-img-element -- bundled decorative asset; next/image is unavailable */}
+      <img
+        className="auth-owl"
+        src="/illustrations/academic-owl.png"
+        alt=""
+        width="685"
+        height="237"
+      />
+    </aside>
+  );
+}
+
+
+
 export function SignIn({
   onAuthenticated,
   onDemo,
@@ -72,16 +110,18 @@ export function SignIn({
 
   return (
     <div className="auth-page">
+      <div className="auth-shell">
+        <AuthIntro />
+        <section className="auth-panel auth-signin-panel">
       <button
         type="button"
-        className="auth-brand"
+        className="link auth-reset"
         aria-label="처음 로그인 화면으로 돌아가기"
         onClick={returnToStart}
         disabled={busy}
       >
         <Logo /> 한성 학사 도우미
       </button>
-      <section className="auth-panel">
         {mode === 'login' && <span className="auth-step-label">다시 만나 반가워요</span>}
         <h1>
           학교 계정으로
@@ -220,7 +260,8 @@ export function SignIn({
         <p className="meta">
           한성대학교 공식 서비스가 아닌 개인 학사 도우미입니다.
         </p>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

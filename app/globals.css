@@ -20,71 +20,66 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #191f28;
-  background: #ffffff;
+  color: #17243a;
+  background: #f7f9fc;
   font-synthesis: none;
-  /* brand + primary — Toss-inspired product blue with accessible action contrast */
-  /* Blue 700 keeps white action labels above WCAG AA contrast. */
-  --nt-primary: #1b64da;
-  --nt-primary-pressed: #1957c2;
-  --nt-primary-deep: #194aa6;
+  /* brand + primary — 선명한 파랑 행동과 네이비 브랜드 */
+  --nt-primary: #1769ff;
+  --nt-primary-pressed: #0f56d9;
+  --nt-primary-deep: #0b4fc0;
   --nt-on-primary: #ffffff;
-  --nt-navy: #191f28;
-  --nt-navy-deep: #11161c;
-  --nt-navy-mid: #333d4b;
-  --nt-link: #1b64da;
-  --nt-link-pressed: #1957c2;
+  --nt-navy: #0d2f68;
+  --nt-navy-deep: #08234f;
+  --nt-navy-mid: #315a91;
+  --nt-link: #1769ff;
+  --nt-link-pressed: #0f56d9;
   /* brand spectrum */
-  --nt-orange: #fb8800;
-  /* Text variant stays legible on orange50 and neutral surfaces. */
-  --nt-orange-deep: #b54700;
-  --nt-pink: #f04452;
-  --nt-pink-deep: #d22030;
-  --nt-purple: #9128b4;
-  --nt-purple-300: #da9bef;
-  --nt-purple-800: #65237b;
-  --nt-teal: #109595;
-  --nt-teal-deep: #076565;
-  --nt-green: #02a262;
-  --nt-green-deep: #027648;
-  --nt-yellow: #ffc342;
-  --nt-brown: #6b4f2a;
-  /* semantic weak backgrounds */
-  --nt-tint-peach: #fff3e0;
-  --nt-tint-rose: #ffeeee;
-  --nt-tint-mint: #f0faf6;
-  --nt-tint-lavender: #f9f0fc;
-  --nt-tint-sky: #e8f3ff;
-  --nt-tint-yellow: #fff9e7;
-  --nt-tint-yellow-bold: #ffefbf;
-  --nt-tint-cream: #f9fafb;
-  --nt-tint-gray: #f2f4f6;
-  /* surface — cool white and grey layers */
+  --nt-orange: #dd5b00;
+  --nt-orange-deep: #793400;
+  --nt-pink: #ff64c8;
+  --nt-pink-deep: #a02e6d;
+  --nt-purple: #7b3ff2;
+  --nt-purple-300: #d6b6f6;
+  --nt-purple-800: #391c57;
+  --nt-teal: #2a9d99;
+  --nt-teal-deep: #1a6b68;
+  --nt-green: #1aae39;
+  --nt-green-deep: #127a2b;
+  --nt-yellow: #f5d75e;
+  --nt-brown: #523410;
+  /* semantic card tints */
+  --nt-tint-peach: #f7ebdf;
+  --nt-tint-rose: #f7e7ed;
+  --nt-tint-mint: #e2efe5;
+  --nt-tint-lavender: #eae8f1;
+  --nt-tint-sky: #eaf2ff;
+  --nt-tint-yellow: #f7f1dc;
+  --nt-tint-yellow-bold: #f2e6ae;
+  --nt-tint-cream: #f6f3e9;
+  --nt-tint-gray: #f2f5f9;
+  /* surface — 흰 카드와 청회색 작업 공간 */
   --nt-canvas: #ffffff;
-  --nt-paper: #f9fafb;
-  --nt-surface: #f2f4f6;
-  --nt-surface-soft: #f9fafb;
-  /* display — the same product sans stack keeps headings direct and contemporary */
-  --nt-font-display:
-    'Pretendard Variable', Pretendard, Inter, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', 'Malgun Gothic', sans-serif;
-  --nt-hairline: #e5e8eb;
-  --nt-hairline-soft: #f2f4f6;
-  --nt-hairline-strong: #d1d6db;
-  /* text — Toss grey scale */
-  --nt-ink: #191f28;
-  --nt-charcoal: #333d4b;
-  --nt-slate: #4e5968;
-  /* Secondary text keeps at least 5.29:1 across the light surface set. */
-  --nt-steel: #596574;
-  --nt-stone: #596574;
-  --nt-muted: #8b95a1;
+  --nt-paper: #f7f9fc;
+  --nt-surface: #f4f7fb;
+  --nt-surface-soft: #fafcff;
+  /* display — 화면 전체가 Pretendard 계층을 공유한다 */
+  --nt-font-display: 'Pretendard Variable', Pretendard, sans-serif;
+  --nt-hairline: #e2e9f3;
+  --nt-hairline-soft: #edf1f7;
+  --nt-hairline-strong: #cbd7e6;
+  /* text — 네이비 제목과 청회색 보조 정보 */
+  --nt-ink: #17243a;
+  --nt-charcoal: #22324a;
+  --nt-slate: #536984;
+  --nt-steel: #6f84a0;
+  --nt-stone: #8193aa;
+  --nt-muted: #9aaac0;
   --nt-on-dark: #ffffff;
-  --nt-on-dark-muted: #b0b8c1;
+  --nt-on-dark-muted: #a4a097;
   /* semantic */
-  --nt-success: #02a262;
-  --nt-warning: #b54700;
-  --nt-error: #d22030;
+  --nt-success: #1aae39;
+  --nt-warning: #dd5b00;
+  --nt-error: #e03131;
   /* radii: buttons/inputs 8px, cards 12px, badges pill or 6px */
   --nt-r-xs: 4px;
   --nt-r-sm: 6px;
@@ -94,10 +89,10 @@
   --nt-r-xxl: 20px;
   --nt-r-pill: 9999px;
   /* elevation */
-  --nt-shadow-1: rgba(15, 15, 15, 0.04) 0px 1px 2px 0px;
-  --nt-shadow-2: rgba(15, 15, 15, 0.08) 0px 4px 12px 0px;
-  --nt-shadow-3: rgba(15, 15, 15, 0.2) 0px 24px 48px -8px;
-  --nt-shadow-modal: rgba(15, 15, 15, 0.16) 0px 16px 48px -8px;
+  --nt-shadow-1: rgba(25, 50, 84, 0.035) 0 1px 2px;
+  --nt-shadow-2: rgba(25, 50, 84, 0.06) 0 4px 14px;
+  --nt-shadow-3: rgba(25, 50, 84, 0.16) 0 24px 48px -8px;
+  --nt-shadow-modal: rgba(25, 50, 84, 0.16) 0 16px 48px -8px;
   /* motion */
   --nt-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -207,13 +202,13 @@ small {
 .mini-art strong,
 .event-date b {
   font-family: var(--nt-font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
 }
 /* ---- shared primitives (card-base / buttons / badges / fields) ---- */
 .card {
   background: var(--nt-canvas);
   border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-lg);
+  border-radius: var(--nt-r-xl);
   overflow: hidden;
 }
 .pad {
@@ -334,7 +329,7 @@ small {
 }
 .field,
 input {
-  border: 1px solid var(--nt-muted);
+  border: 1px solid var(--nt-hairline-strong);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -353,7 +348,7 @@ select:focus,
   outline: none;
 }
 select {
-  border: 1px solid var(--nt-muted);
+  border: 1px solid var(--nt-hairline-strong);
   background: var(--nt-canvas);
   padding: 12px 14px;
   border-radius: var(--nt-r-md);
@@ -429,7 +424,7 @@ select {
 /* 출처·수집일·면책 같은 보조 문구 — 읽을 수는 있되 시선을 뺏지 않게 */
 .meta {
   font-size: 12px;
-  color: var(--nt-steel);
+  color: var(--nt-muted);
   line-height: 1.55;
   margin: 10px 0;
 }

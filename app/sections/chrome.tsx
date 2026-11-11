@@ -18,9 +18,9 @@ import { menus, type Data } from './data';
 
 /* menus 인덱스 → 그룹 캡션 시작점. 순서 바꾸면 경계도 함께 수정 */
 const NAV_GROUP_AT: Record<number, string> = {
-  1: '수업·계획',
-  5: '활동·일정',
-  7: '점검',
+  1: '학업 계획',
+  5: '학교생활',
+  7: '졸업 점검',
 };
 import { Logo } from '../logo';
 import type { Account } from '../account-flow';
@@ -64,7 +64,7 @@ export function Sidebar({
               <Logo size={20} />
             </span>
             <span className="nav-label">
-              한성 학사 도우미<small>나의 학사 나침반</small>
+              학사부기<small>나의 대학생활 한눈에</small>
             </span>
           </button>
           <button
@@ -105,11 +105,18 @@ export function Sidebar({
           <div className="profile-mini">
             <span className="avatar">{data.name.slice(0, 1)}</span>
             <div className="nav-label">
-              <b>{data.name}</b>
+              <b>{account ? 'COSMOS 계정 연결됨' : '체험 모드'}</b>
               <small>
                 {account
-                  ? '학교 계정 확인 · ' + account.studentMask
-                  : '체험 프로필'}
+                  ? `최종 동기화 · ${new Date(
+                      account.snapshot.checkedAt,
+                    ).toLocaleString('ko-KR', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}`
+                  : `${data.name} 프로필 · 브라우저 저장`}
               </small>
             </div>
           </div>
@@ -166,6 +173,13 @@ export function Topbar({
   /** 사이드바가 접혀 있을 때만 전달 — 데스크톱 전용 펼치기 버튼 */
   onExpandSide?: () => void;
 }) {
+  const today = new Date();
+  const topbarDate = today.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'long',
+  });
   return (
     <header className="topbar">
       <button
@@ -174,14 +188,6 @@ export function Topbar({
         onClick={onMenu}
       >
         <Menu />
-      </button>
-      <button
-        className="icon mobile mobile-home"
-        aria-label="한성 학사 도우미 홈으로"
-        title="홈으로"
-        onClick={() => go('home')}
-      >
-        <Logo size={21} />
       </button>
       {onExpandSide && (
         <button
@@ -202,13 +208,16 @@ export function Topbar({
       >
         <Search size={16} />
         <input
-          placeholder="과목·활동·학사일정 검색"
+          placeholder="과목, 과제, 일정 검색"
           aria-label="통합 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <kbd>↵</kbd>
       </form>
+      <time className="topbar-date" dateTime={today.toISOString()}>
+        {topbarDate}
+      </time>
       <button
         className="icon notification"
         aria-label={
@@ -255,24 +264,47 @@ export function PageHeading({
   /** 이 페이지 문맥에 맞는 설문을 연다 — 비교과면 비교과 설문, 그 외 수업 선호 */
   onSurvey?: () => void;
 }) {
-  const today = new Date().toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const academicYear = month < 3 ? now.getFullYear() - 1 : now.getFullYear();
+  const semester = month >= 3 && month < 9 ? 1 : 2;
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstWeekday = firstDayOfMonth.getDay();
+  const calculatedWeek = (((now.getDate() + firstWeekday - 1) / 7) | 0) + 1;
+  const week = calculatedWeek > 5 ? 5 : calculatedWeek;
+  const weekNames = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
+  const homeEyebrow = `${academicYear}학년도 ${semester}학기 · ${month}월 ${weekNames[week - 1]} 주`;
   return (
-    <div className="page-heading">
+    <div
+      className={'page-heading ' + (section === 'home' ? 'home-heading' : '')}
+    >
       <div className="page-heading-copy">
-        <h1>{section === 'home' ? `${name}님, 반가워요.` : label}</h1>
-        <div className="heading-context">
-          <span>
-            {section === 'home' ? today : (NAV_GROUP_OF[section] ?? '내 학사')}
-          </span>
-          <span>2026학년도 2학기</span>
+        <div className="eyebrow">
+          {section === 'home'
+            ? homeEyebrow
+            : (NAV_GROUP_OF[section] ?? '내 학사')}
         </div>
+        <h1>{section === 'home' ? `${name}님, 안녕하세요.` : label}</h1>
+        {section === 'home' && (
+          <p>졸업 준비부터 수업 일정까지, 필요한 것만 모아봤어요.</p>
+        )}
       </div>
       <div className="page-heading-side">
-        {onSurvey && (
+        {section === 'home' ? (
+          // eslint-disable-next-line next/no-img-element -- bundled decorative asset; next/image is unavailable
+          <img
+            className="heading-owl"
+            src="/illustrations/academic-owl.png"
+            alt=""
+            width="320"
+            height="111"
+          />
+        ) : (
+          <span className="date-label">
+            {academicYear}학년도 {semester}학기
+          </span>
+        )}
+        {onSurvey && section !== 'home' && (
           <button
             className="secondary survey-trigger"
             onClick={onSurvey}
@@ -331,7 +363,7 @@ export function AccountBar({
     );
   return (
     <div className="demo-note">
-      <span>체험 모드 · 저장 내용은 이 브라우저에만 남습니다.</span>
+      <span>체험용 예시 · 저장 내용은 이 브라우저에만 남습니다.</span>
       <button className="primary" onClick={onConnect}>
         학교 계정 연결 <ArrowRight size={16} />
       </button>

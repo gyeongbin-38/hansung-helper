@@ -948,7 +948,9 @@ export default function App() {
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
           />
-          <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {section !== 'home' && (
+            <AccountBar account={account} go={go} onConnect={exitDemo} />
+          )}
           {['courses', 'timetable', 'semester-plan'].includes(section) && (
             <div className="card pad" style={{ marginBottom: 20 }}>
               <label>계획 학기{' '}
@@ -980,6 +982,7 @@ export default function App() {
               catalog={catalog}
               planSemester={selectedSemester}
               planSourceMismatch={sourceMismatch}
+              planSourceSemester={storedPlan?.sourceSemester}
               persist={persist}
             />
           ) : section === 'activities' ? (
