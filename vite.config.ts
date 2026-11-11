@@ -15,6 +15,8 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
+  // Optional remote inference for local QA; ordinary builds need no AI access.
+  ...(process.env.HANSUNG_ENABLE_AI === '1' ? { ai: { binding: 'AI', remote: true } } : {}),
   compatibility_flags: ['nodejs_compat'],
   d1_databases: d1
     ? [

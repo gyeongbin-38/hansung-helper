@@ -36,6 +36,11 @@ def main():
         sys.exit('error: ACCOUNT_INDEX_HMAC_KEY must be a Worker secret, not a plaintext variable')
     cfg['name'] = WORKER_NAME
     cfg['topLevelName'] = WORKER_NAME
+    # Native Workers AI uses the existing Cloudflare account, no browser API key.
+    if os.environ.get('HANSUNG_ENABLE_AI', '1') == '1':
+        cfg['ai'] = {'binding': 'AI'}
+    else:
+        cfg.pop('ai', None)
     binding = next(
         (db for db in cfg.get('d1_databases', [])
          if db.get('binding') == 'DB' and db.get('database_name') == 'site-creator-d1'),

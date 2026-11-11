@@ -395,6 +395,25 @@
   gap: 26px;
   margin-top: 36px;
 }
+.advisor-mode { display: flex; justify-content: center; gap: 8px; margin: 24px 0 12px; padding: 0; border: 0; }
+.advisor-status { display: block; margin-top: 12px; }
+.advisor-mode [aria-pressed='true'] { color: var(--nt-primary); border-color: var(--nt-primary); }
+.advisor-consent { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; font-size: 14px; }
+.advisor .advisor-privacy { max-width: 660px; font-size: 12px; }
+.advisor-turn { margin-top: 26px; text-align: left; }
+.advisor-question { display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.advisor-turn .answer { margin: 12px 0 0; max-width: none; }
+.advisor-turn .advisor-answer-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 10px; }
+.advisor-sources { list-style: none; padding: 0; margin: 12px 0 0; }
+.advisor-sources li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; }
+.advisor-sources .link { text-align: left; }
+.advisor-sources span { font-size: 11px; color: var(--nt-steel); }
+.advisor-form { margin-top: 28px; text-align: left; }
+.advisor-form label { display: block; font-weight: 600; margin-bottom: 8px; }
+.advisor-form textarea { width: 100%; resize: vertical; min-height: 100px; }
+.advisor-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.advisor-form-actions > span { margin-right: auto; }
+.advisor-error { text-align: left; margin-top: 16px; padding: 16px; border: 1px solid var(--nt-hairline); border-radius: var(--nt-r-md); }
 
 /* ---------- 프로필 ---------- */
 .profile .profile-mini {
@@ -452,9 +471,75 @@
 }
 .settings .between > p {
   flex: 1;
-  min-width: 240px;
+  min-width: min(240px, 100%);
   margin: 0;
   font-size: 14px;
+}
+.settings > section {
+  margin-top: 28px;
+}
+.connection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.connection-card {
+  min-width: 0;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  padding: 18px;
+}
+.connection-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.connection-title h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin: 0;
+}
+.connection-card p {
+  font-size: 14px;
+}
+.connection-card p.meta {
+  font-size: 12px;
+}
+.connection-card .actions {
+  flex-wrap: wrap;
+}
+.connection-card .actions > * {
+  min-height: 44px;
+}
+.storage-locations {
+  margin: 16px 0;
+}
+.storage-locations > div {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--nt-hairline);
+}
+.storage-locations dt {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.storage-locations dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--nt-steel);
+}
+.settings-removal .demo-storage {
+  border-top: 1px solid var(--nt-hairline);
+}
+@media (max-width: 768px) {
+  .connection-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .settings .between > .secondary {
   flex-shrink: 0;

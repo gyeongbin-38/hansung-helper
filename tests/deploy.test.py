@@ -57,7 +57,15 @@ class DeploymentTests(unittest.TestCase):
         self.assertFalse(any('put' in call.args[0] for call in run.call_args_list))
         config = json.loads(self.config.read_text(encoding='utf-8'))
         self.assertEqual(config['name'], 'hansung-helper')
+        self.assertEqual(config['ai'], {'binding': 'AI'})
         self.assertEqual(config['d1_databases'][0]['database_id'], DEPLOY.DATABASE_ID)
+
+    def test_ai_can_be_disabled_without_removing_account_secret(self):
+        results = [subprocess.CompletedProcess([], 0, stdout='[{"name":"ACCOUNT_INDEX_HMAC_KEY"}]'),
+                   subprocess.CompletedProcess([], 0)]
+        with mock.patch.dict('os.environ', {'HANSUNG_ENABLE_AI': '0'}), mock.patch.object(subprocess, 'run', side_effect=results), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(DEPLOY.main(), 0)
+        self.assertNotIn('ai', json.loads(self.config.read_text(encoding='utf-8')))
 
     def test_placeholder_database_is_rejected(self):
         with mock.patch.object(DEPLOY, 'DATABASE_ID', '00000000-0000-4000-8000-000000000000'), mock.patch.object(subprocess, 'run') as run:

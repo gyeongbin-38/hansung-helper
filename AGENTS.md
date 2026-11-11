@@ -1,6 +1,7 @@
 # 한성 학사 도우미 — 운영 메모
 
 ## 로컬 실행
+- 팀 공통 `npm run dev:backend` → 빌드, 로컬 전용 키 준비, 두 D1 마이그레이션 후 8787 실행. 기존 `.dev.vars` 키는 교체하지 않는다.
 - `npm run dev` → vinext dev (보통 :3000/:3001). **D1 미바인딩 — 로그인·저장 불가, 체험 모드만 동작**
 - `npm run build && npm run start` → wrangler dev on **http://127.0.0.1:8787** (D1 바인딩, 전체 기능 동작)
 
@@ -30,6 +31,7 @@
 - 또는 Cloudflare 대시보드 → D1 → site-creator-d1 → SQL Editor
 
 ## 데이터
+- AI 상담·사용 안내: `#advisor`, `POST /api/advisor`. Workers AI 바인딩을 사용하며 개인 학사 요약은 선택 시에만 사용한다. 계정별·일별 호출 제한과 세션 재확인을 유지한다. `docs/ai-advisor.md` 참고.
 - COSMOS 수집 경로 3개: ① 로그인 시 서버 자동 수집(`lib/server/lms.ts`) ② **`extension/` 크롬 확장**(chrome://extensions → 개발자 모드 → 압축해제된 확장 로드 — **앱 열 때 자동 수집**(background 워커가 LMS 탭에서 `__hsCollect` 실행 → postMessage) + LMS 페이지 수집 버튼 + 4h 주기 수집, 가장 견고) ③ `public/lms-collect.js` 콘솔 붙여넣기(백업)
 - 확장은 LMS와 프로덕션 앱 도메인에만 접근한다. 학사 스냅샷은 브라우저 세션 메모리에만 저장되며 브라우저 종료 시 지워진다.
 - 강의 카탈로그: `scripts/import-courses.py --semester YYYY-S --source <xlsx>` → `lib/data/catalog-YYYY-S.json` → `GET /api/courses?semester=YYYY-S` (로컬 데이터만, 자료 없는 학기는 404)

@@ -15,7 +15,16 @@
     "d1:backup:remote": "node scripts/_d1_export.mjs --remote",
     "d1:restore:rehearsal": "node scripts/_d1_restore_rehearsal.mjs",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "dev:backend": "npm run build && node scripts/setup-local.mjs && npm run d1:migrate:local && npm run start",
+    "db:migrate:local": "npm run d1:migrate:local",
+    "db:local": "wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json",
+    "typecheck": "tsc --noEmit",
+    "lint:app": "oxlint app/ lib/",
+    "test": "node scripts/run-python.mjs scripts/_run_tests.py",
+    "test:db": "node scripts/run-python.mjs tests/account-db.py",
+    "test:http": "node scripts/run-python.mjs tests/http-check.py",
+    "verify": "npm run typecheck && npm run lint:app && npm test && npm run build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

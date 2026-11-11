@@ -22,7 +22,7 @@ export const menus = [
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
   ['graduation', '졸업요건', GraduationCap],
-  ['advisor', '학사 안내', Sparkles],
+  ['advisor', 'AI 학사 도우미', Sparkles],
 ] as const;
 export type Completed = {
   code: string;

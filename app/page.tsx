@@ -1087,8 +1087,9 @@ export default function App() {
             />
           ) : section === 'advisor' ? (
             <Advisor
+              key={renderedGeneration}
+              signedIn={!!account}
               data={data}
-              planned={planned}
               catalog={catalog}
               go={go}
             />
@@ -1115,7 +1116,8 @@ export default function App() {
               data={data}
               persist={persist}
               go={go}
-              onDeleteAccount={() => void deleteAccount()}
+              onDeleteAccount={deleteAccount}
+              onLogout={logout}
               onResetDemo={resetDemoData}
               catalog={catalog}
               activities={actsSnap}
