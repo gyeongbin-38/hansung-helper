@@ -41,3 +41,12 @@ The server-side LMS merge ignores snapshot timestamps more than five minutes
 ahead of the server clock. A retained list or status timestamp later than its
 own snapshot is untrusted and omitted rather than treated as a confirmed time.
 Client-device clock and legacy-data migration behavior remain separate concerns.
+
+## 종합정보 수집 진단
+
+종합정보 스냅샷의 `diag.pages`에는 기존 `slot`, `path`, `ok` 외에 실패한
+페이지의 선택 필드 `reason`이 추가될 수 있다. 값은 `session-expired` (로그인
+화면 감지), `upstream` (요청·응답 오류), `structure` (성적표 필수 구조 미인식),
+`missing` (메뉴 경로 미발견) 중 하나다. `upstream`은 네트워크 문제와 서버 오류를
+구별하지 않는다. 기존 스냅샷에서는 이 필드가 없을 수 있으며, 실패 시 기존
+정보 보존 규칙은 그대로다. 학교 응답 본문과 예외 메시지는 사유에 담지 않는다.
