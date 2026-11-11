@@ -50,3 +50,11 @@ Client-device clock and legacy-data migration behavior remain separate concerns.
 `missing` (메뉴 경로 미발견) 중 하나다. `upstream`은 네트워크 문제와 서버 오류를
 구별하지 않는다. 기존 스냅샷에서는 이 필드가 없을 수 있으며, 실패 시 기존
 정보 보존 규칙은 그대로다. 학교 응답 본문과 예외 메시지는 사유에 담지 않는다.
+
+## 재수집 저장 충돌
+
+현재 형식의 계정에서 `/api/account/lms-refresh`가 학교 응답을 기다리는 동안
+다른 요청이 계정 snapshot을 변경했다면 해당 요청은 이전 상태를 덮지 않고
+`409` (기존 오류 코드 `REQUEST_FAILED`)를 반환한다. 클라이언트는 최신 정보를 다시 불러온 뒤
+재시도할 수 있다. 세션이 종료된 경우에는 `401`이다. 레거시 계정 이전 중의
+경합 및 학교 요청 자체의 중복 방지는 이 보호에 포함되지 않는다.
