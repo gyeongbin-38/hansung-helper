@@ -12,6 +12,7 @@ const payload = {
 
 async function backgroundHarness(scriptResult) {
   const storage = {};
+  const warnings = [];
   let messageListener;
   let markScriptStarted;
   const scriptStarted = new Promise((resolve) => (markScriptStarted = resolve));
@@ -47,13 +48,13 @@ async function backgroundHarness(scriptResult) {
     URL,
     Date,
     Promise,
-    console: { warn() {} },
+    console: { warn(...args) { warnings.push(args); } },
     setTimeout: (fn) => globalThis.setTimeout(fn, 0),
     clearTimeout,
   });
   const send = (message) =>
     new Promise((resolve) => messageListener(message, {}, resolve));
-  return { send, storage, scriptStarted };
+  return { send, storage, warnings, scriptStarted };
 }
 
 const successWorker = await backgroundHarness({ payload });
@@ -68,6 +69,17 @@ assert.deepEqual(JSON.parse(JSON.stringify(failure)), {
   ok: false,
   error: 'cosmos-login-required',
 });
+
+const privateErrorWorker = await backgroundHarness({ error: 'student=private&cookie=secret' });
+const privateError = await privateErrorWorker.send({ type: 'hsu-refresh', force: true });
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(privateError.error, 'collect-failed');
+assert.equal(privateErrorWorker.storage.hsuLmsErr?.error, 'collect-failed');
+assert.ok(!JSON.stringify(privateErrorWorker.storage).includes('secret'));
+assert.ok(!JSON.stringify(privateErrorWorker.warnings).includes('secret'));
+
+const thrownErrorWorker = await backgroundHarness(() => { throw new Error('student=private&cookie=secret'); });
+assert.equal((await thrownErrorWorker.send({ type: 'hsu-refresh', force: true })).error, 'collect-failed');
 
 const cleared = await successWorker.send({ type: 'hsu-clear-cache' });
 assert.equal(cleared.ok, true);
