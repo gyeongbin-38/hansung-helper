@@ -25,6 +25,10 @@ class Handler(BaseHTTPRequestHandler):
             content_type, body = "text/html; charset=utf-8", b"<html>ok</html>"
         elif self.path == "/lms-collect.js":
             content_type, body = "text/javascript", b"// dotbugi"
+        elif self.path == "/api/health":
+            content_type, body = "application/json", json.dumps(
+                {"ok": True, "checks": {"accountAuth": True, "accountDatabase": True}}
+            ).encode()
         elif self.path == "/api/courses":
             content_type, body = "application/json", json.dumps(
                 {"ok": True, "data": {"sections": [{"id": "s1"}]}}
@@ -73,6 +77,14 @@ class VerifyProdTests(unittest.TestCase):
         Handler.failing = True
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(VERIFY.verify(), 1)
+
+    def test_missing_login_readiness_rejected(self):
+        for checks in ({}, {"accountAuth": False, "accountDatabase": True},
+                       {"accountAuth": True, "accountDatabase": False}):
+            with self.assertRaises(ValueError):
+                VERIFY.validate_payload('/api/health', 'json', 'health',
+                                        json.dumps({"ok": True, "checks": checks}).encode(),
+                                        'application/json')
 
 
 if __name__ == "__main__":

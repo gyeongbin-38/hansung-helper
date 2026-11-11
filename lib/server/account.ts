@@ -47,10 +47,18 @@ export async function readTextLimited(request: Request, maxBytes: number) {
   return new TextDecoder().decode(bytes);
 }
 
-async function keyedDigest(scope: string, value: string) {
+function accountIndexKeyBytes() {
   const secret = (env as unknown as { ACCOUNT_INDEX_HMAC_KEY?: string })
     .ACCOUNT_INDEX_HMAC_KEY;
-  const keyBytes = secret ? new TextEncoder().encode(secret) : null;
+  return typeof secret === 'string' ? new TextEncoder().encode(secret) : null;
+}
+
+export function accountAuthConfigured() {
+  return (accountIndexKeyBytes()?.byteLength ?? 0) >= 32;
+}
+
+async function keyedDigest(scope: string, value: string) {
+  const keyBytes = accountIndexKeyBytes();
   if (!keyBytes || keyBytes.byteLength < 32)
     throw new Error('ACCOUNT_INDEX_HMAC_KEY must contain at least 32 bytes');
 

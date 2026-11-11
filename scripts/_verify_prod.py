@@ -11,6 +11,7 @@ BASE = os.environ.get(
 ).rstrip("/")
 CHECKS = [
     ("/", "text/html", None),
+    ("/api/health", "json", "health"),
     ("/lms-collect.js", "javascript", None),
     ("/api/courses", "json", "courses"),
     ("/api/schedule", "json", "schedule"),
@@ -37,6 +38,13 @@ def validate_payload(
             raise ValueError("response is not valid JSON") from error
         if not isinstance(payload, dict):
             raise ValueError("JSON envelope must be an object")
+        if payload_kind == "health":
+            checks = payload.get("checks", {})
+            if payload.get("ok") is not True or not isinstance(checks, dict) or not (
+                checks.get("accountAuth") is True and checks.get("accountDatabase") is True
+            ):
+                raise ValueError("account authentication and database must be ready")
+            return "account authentication and database ready"
         if payload.get("ok") is not True or not isinstance(payload.get("data"), dict):
             raise ValueError("successful API envelope with object data is required")
         payload = payload["data"]

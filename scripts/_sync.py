@@ -87,11 +87,35 @@ def sync_file(f):
     return False
 
 
+def sync_tracked_helpers():
+    # Private one-off helpers can contain credentials. Keep the broad _* filter
+    # for directory mirroring, but explicitly copy versioned operational tools.
+    tracked = subprocess.run(
+        ['git', 'ls-files', '-z', '--', 'scripts'], cwd=SRC,
+        capture_output=True, text=True, encoding='utf-8', check=True,
+    )
+    drifted = False
+    for name in tracked.stdout.split('\0'):
+        if name and os.path.basename(name).startswith('_'):
+            parent, filename = os.path.split(name)
+            args = ['robocopy', os.path.join(SRC, parent),
+                    os.path.join(DST, parent), filename]
+            args += ['/L'] if CHECK else QUIET
+            result = subprocess.run(args, capture_output=True, text=True, errors='replace')
+            if result.returncode > 7:
+                sys.exit(f'robocopy FAIL {name}: {result.returncode}')
+            if CHECK and result.returncode:
+                print('DRIFT', name)
+                drifted = True
+    return drifted
+
+
 drifted = False
 for d in DIRS:
     drifted |= sync_dir(d)
 for f in FILES:
     drifted |= sync_file(f)
+drifted |= sync_tracked_helpers()
 
 if CHECK:
     if drifted:
