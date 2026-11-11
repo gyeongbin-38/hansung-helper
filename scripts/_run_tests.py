@@ -4,6 +4,7 @@ flags = {
     'school.test.mjs': '--experimental-transform-types',
     'lms-server.test.mjs': '--experimental-transform-types',
     'school-fixtures.test.mjs': '--experimental-transform-types',
+    'lms-budget.test.mjs': '--experimental-transform-types',
     'info.test.mjs': '--experimental-transform-types',
 }
 ok = True

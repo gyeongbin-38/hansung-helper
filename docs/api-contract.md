@@ -27,6 +27,12 @@ course `errors[]`, task `uncertain`, `lmsPending`, and `lmsFailedAt` distinguish
 partial or unfinished collection from a confirmed empty list. A complete
 request failure uses the common HTTP error envelope.
 
+For COSMOS, `timeout` means a course was not started before the collection
+deadline; `timeout-partial` marks a deadline reached during a course. In the
+latter case the individual `vod`, `assign` and `quiz` errors identify failed
+lists, allowing successful lists to remain current. This does not claim a
+deadline over school login or the separate academic-information collector.
+
 For a task with `uncertain: true`, optional `statusRetainedAt` records when
 its retained submission/attempt status was last confirmed. The course's
 `retainedAtByKind` describes a retained list; it may have a later timestamp

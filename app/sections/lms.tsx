@@ -52,6 +52,7 @@ const ERROR_LABELS: Record<string, string> = {
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
   timeout: '수집 시간 초과',
+  'timeout-partial': '일부 수집 시간 초과',
   budget: '수집량 한도 도달',
 };
 
