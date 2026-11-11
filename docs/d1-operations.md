@@ -1,5 +1,20 @@
 # D1 environments, migrations, and backups
 
+## Isolated local rehearsal evidence (BE-43/46)
+
+On 2026-11-11, on Windows using source `124c339`, an isolated local Wrangler
+D1 was migrated twice. A synthetic account, linked session, login limit and
+public snapshot were inserted, exported, and restored into a separate local D1
+store. All four records and selected profile/snapshot fields were checked after
+restore. No production data was copied. The restore helper checks required
+tables and foreign keys, but does not compare every restored value to the
+source or prove that an operational backup is complete. Wrangler local D1
+rejected a fixture whose session referred to a missing account during import;
+this did not exercise the post-import foreign-key failure branch. Wrangler also
+rejected `PRAGMA integrity_check` with `SQLITE_AUTH`; it was not reported as
+passed. Remote environment separation, access rights and recovery remain to be
+verified by the owner.
+
 ## Environment boundary
 
 - The app binds D1 as `DB`. `wrangler dev` uses the project-local database in
