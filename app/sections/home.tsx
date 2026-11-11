@@ -334,6 +334,8 @@ export function Home({
     deptTargets: deptTargets ?? undefined,
   });
   const total = graduation[0];
+  const gradePages = data.info?.diag?.pages.filter((p) => p.slot === 'grades') ?? [];
+  const gradesUnverified = gradePages.length > 0 && !gradePages.some((p) => p.ok);
   const credits =
     data.info?.credits ??
     (data.credits.trim()
@@ -459,6 +461,11 @@ export function Home({
               ? '이번 학기 수강 중인 과목의 학점은 포함되지 않습니다.'
               : '이수 내역을 연결하면 나의 졸업 현황을 볼 수 있어요.'}
           </p>
+          {gradesUnverified && (
+            <p className="home-card-description">
+              최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 학교 종합정보에서 확인해 주세요.
+            </p>
+          )}
           <div className="home-progress-caption">
             <span>
               이수 학점 <b>{hasCredits ? credits : '미입력'}</b>

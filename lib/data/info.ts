@@ -53,8 +53,8 @@ export type InfoSnapshot = {
   };
 };
 
-export type InfoPageFailure = 'session-expired' | 'upstream' | 'structure' | 'missing';
-const infoPageFailures: readonly string[] = ['session-expired', 'upstream', 'structure', 'missing'];
+export type InfoPageFailure = 'session-expired' | 'upstream' | 'structure' | 'missing' | 'unconfirmed';
+const infoPageFailures: readonly string[] = ['session-expired', 'upstream', 'structure', 'missing', 'unconfirmed'];
 
 /** 학교 이수구분 원문 → 앱 카테고리 어휘 (gradGroup 입력으로 바로 쓰인다) */
 export function infoCategory(raw: string): string {

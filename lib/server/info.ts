@@ -188,12 +188,14 @@ export function parseGrades(html: string): {
   credits?: number;
   gpa?: number;
   recognized: boolean;
+  hasUnconfirmed: boolean;
 } {
   const completed: InfoCourse[] = [];
   const seen = new Set<string>();
   let credits: number | undefined;
   let gpa: number | undefined;
   let recognized = false;
+  let hasUnconfirmed = false;
   // 테이블 앞 텍스트에서 학기 헤더를 찾는다 — 실제로는 카드 헤더
   // ("2026 학년도 1 학기")가 테이블 바로 앞에 온다
   const chunks = html.split(/<table\b/i);
@@ -245,11 +247,6 @@ export function parseGrades(html: string): {
     const iSem = col(head, [/학기|년도/]);
     if (iName === -1 || iCredits === -1) continue;
     recognized = true;
-    // 성적 열이 비어 있는 행(미확정)은 이수로 세지 않는다 — 단, 표 전체가
-    // 빈 성적 열이면 구형 포맷으로 간주해 행을 버리지 않는다.
-    const anyGrade =
-      iGrade !== -1 &&
-      rows.slice(headerIdx + 1).some((c) => (c[iGrade] ?? '').trim());
     let curSem = semester;
     for (const cells of rows.slice(headerIdx + 1)) {
       // 학기 중간 헤더 행 (colspan 하나만 있는 행)
@@ -271,10 +268,14 @@ export function parseGrades(html: string): {
       )
         continue;
       const gradeCell = iGrade !== -1 ? (cells[iGrade] ?? '').trim() : '';
+      // 전체 행이 빈 경우에도 과목별 확정 여부를 추측하지 않는다.
+      if (!gradeCell) {
+        hasUnconfirmed = true;
+        continue;
+      }
       // 미이수 등급(F·NP·U·낙제 등)은 이수 목록에서 제외 — D학점까지는 이수.
       if (/^(F|FA|NP|N|U|I|낙제|불합격|미이수|포기)/i.test(gradeCell))
         continue;
-      if (anyGrade && !gradeCell) continue;
       const code = iCode !== -1 ? cells[iCode] || '미확인' : '미확인';
       const sem =
         (iSem !== -1 &&
@@ -308,7 +309,7 @@ export function parseGrades(html: string): {
       text.match(/평점\s*평균[^0-9]{0,8}(\d(?:\.\d{1,2})?)/);
     if (gm) gpa = parseFloat(gm[1]);
   }
-  return { completed: completed.slice(0, 300), credits, gpa, recognized };
+  return { completed: completed.slice(0, 300), credits, gpa, recognized, hasUnconfirmed };
 }
 
 const normKey = (s: string) => s.replace(/\s+/g, '');
@@ -524,15 +525,15 @@ export async function collectInfo(
   if (!identity.admitYear && ctx.studentId)
     identity.admitYear = admitYearOf(ctx.studentId);
 
-  const grades = fetched.grades
+  const grades = fetched.grades !== undefined
     ? parseGrades(fetched.grades)
-    : { completed: [], recognized: false };
+    : { completed: [], recognized: false, hasUnconfirmed: false };
   // 정상 HTTP 응답이라도 성적표의 필수 열이 사라지면 빈 이수 목록으로
   // 기존 결과를 교체하지 않는다. 헤더가 있는 빈 표는 정상 빈 목록이다.
-  if (fetched.grades && !grades.recognized) {
+  if (fetched.grades !== undefined && (!grades.recognized || grades.hasUnconfirmed)) {
     for (const page of pages) if (page.slot === 'grades' && page.ok) {
       page.ok = false;
-      page.reason = 'structure';
+      page.reason = grades.recognized ? 'unconfirmed' : 'structure';
     }
   }
   const menu = menuItems();

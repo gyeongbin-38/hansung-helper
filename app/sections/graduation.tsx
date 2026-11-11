@@ -122,6 +122,8 @@ export function Graduation({
     ? staleLabel(data.lms.fetchedAt, now, 7)
     : null;
   const info = data.info;
+  const gradePages = info?.diag?.pages.filter((p) => p.slot === 'grades') ?? [];
+  const gradesUnverified = gradePages.length > 0 && !gradePages.some((p) => p.ok);
   // 종합정보 수집본 + 사용자 수동 입력 병합 — 같은 과목은 수집본 우선,
   // 수동 목록(data.completed) 자체는 변경하지 않는다.
   const merged = useMemo(
@@ -515,14 +517,19 @@ export function Graduation({
           <span className="badge">내 학과 규정표 참고</span>
         )}
         {info ? (
-          <span className="badge green">
-            종합정보 {info.fetchedAt.slice(0, 10)} 수집
+          <span className={gradesUnverified ? 'badge orange' : 'badge green'}>
+            종합정보 {info.fetchedAt.slice(0, 10)} 조회
             {infoStale ? ` · ${infoStale}` : ''}
           </span>
         ) : infoPending ? (
           <span className="badge">학교에서 불러오는 중…</span>
         ) : (
           <span className="badge">사용자 입력 기반</span>
+        )}
+        {gradesUnverified && (
+          <p className="meta conn-warn">
+            최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 마지막 성적 확인 시각은 알 수 없으니 학교 종합정보에서 확인해 주세요.
+          </p>
         )}
         <h2>졸업 준비는 정확한 기준부터.</h2>
           <ol className="grad-steps">
@@ -1213,7 +1220,7 @@ export function Graduation({
             {info.credits !== undefined &&
               ` · 취득 ${info.credits}학점`}
             {info.gpa !== undefined && ` · 평점 ${info.gpa}`} ·{' '}
-            {info.fetchedAt.slice(0, 10)} 수집
+            {info.fetchedAt.slice(0, 10)} 조회
             {infoStale ? ` · ${infoStale}` : ''}. 수집 항목은 수동 삭제되지
             않습니다 — 잘못 보인 항목은 학교 시스템에서 확인하세요.
           </p>

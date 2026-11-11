@@ -87,6 +87,19 @@ const GRADES_INLINE = `<table>
 </table>`;
 const gi = parseGrades(GRADES_INLINE);
 t('grades: 인라인 학기행 인식', gi.completed[0]?.semester === '2023-1');
+const UNCONFIRMED_GRADES = `<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr>
+<tr><td>현재 수강 과목</td><td>3</td><td></td></tr></table>`;
+const unconfirmedParsed = parseGrades(UNCONFIRMED_GRADES);
+t('grades: 전체 성적이 비어 있어도 미확정 과목을 이수로 계산하지 않음',
+  unconfirmedParsed.hasUnconfirmed && unconfirmedParsed.completed.length === 0);
+const mixedGrades = parseGrades(`<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr>
+<tr><td>확정 과목</td><td>3</td><td>A+</td></tr>
+<tr><td>미확정 과목</td><td>3</td><td></td></tr></table>`);
+t('grades: 확정 과목과 빈 성적이 섞여 있어도 빈 성적은 제외',
+  mixedGrades.hasUnconfirmed && mixedGrades.completed.length === 1 && mixedGrades.completed[0].name === '확정 과목');
+const failedOnly = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>미이수 과목</td><td>3</td><td>F</td></tr></table>');
+t('grades: 확정 F만 있는 표는 미확정이 아닌 정상 빈 이수 목록',
+  !failedOnly.hasUnconfirmed && failedOnly.recognized && failedOnly.completed.length === 0);
 
 // ── 실계정 마크업 (덤프 구조 재현, 익명화) ─────────────────
 const REAL_MAIN = `<html><frameset>
@@ -237,11 +250,28 @@ const malformedGrade = await collectInfo(fakeSession({
 t('collect: 필수 성적 열 누락은 수집 실패', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
 t('collect: 성적 구조 변경 분류', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'structure');
 t('collect: 구조 변경은 이전 이수 내역을 보존', mergeInfoSnapshot(snap, malformedGrade).completed.length === snap.completed.length);
+const emptyBody = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '', 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: HTTP 200 빈 본문은 구조 오류로 분류',
+  emptyBody.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'structure');
+t('collect: 빈 본문은 기존 이수 내역을 보존',
+  mergeInfoSnapshot(snap, emptyBody).completed.length === snap.completed.length);
 const emptyGrade = await collectInfo(fakeSession({
   's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>',
   's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
 }), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
 t('collect: 정상 빈 성적표는 성공', emptyGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === true && emptyGrade.completed.length === 0);
+const unconfirmedSnap = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': UNCONFIRMED_GRADES,
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 빈 성적 행이 있으면 확인 실패로 분류',
+  unconfirmedSnap.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'unconfirmed');
+t('collect: 성적 미확정 시 기존 이수 내역 보존',
+  mergeInfoSnapshot(snap, unconfirmedSnap).completed.length === snap.completed.length);
+t('collect: 확인 실패 분류는 유효성 검사 후에도 유지',
+  validateInfo(unconfirmedSnap)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'unconfirmed');
 const nonOkSession = fakeSession({ 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML });
 const previousRequest = nonOkSession.request;
 nonOkSession.request = async (url) => url.includes('s_sung.s_sung_grade')
