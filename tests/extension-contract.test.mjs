@@ -4,6 +4,7 @@ import vm from 'node:vm';
 
 const backgroundSource = await readFile('extension/background.js', 'utf8');
 const bridgeSource = await readFile('extension/app-bridge.js', 'utf8');
+const contentSource = await readFile('extension/content.js', 'utf8');
 const payload = {
   source: 'cosmos-lms',
   fetchedAt: '2026-10-26T00:00:00.000Z',
@@ -80,6 +81,26 @@ assert.ok(!JSON.stringify(privateErrorWorker.warnings).includes('secret'));
 
 const thrownErrorWorker = await backgroundHarness(() => { throw new Error('student=private&cookie=secret'); });
 assert.equal((await thrownErrorWorker.send({ type: 'hsu-refresh', force: true })).error, 'collect-failed');
+
+// The manual collection button also runs on school pages. Its diagnostic error
+// includes the page path; it must not print that path or other exception data.
+let manualButton;
+const manualErrors = [];
+const manualDocument = {
+  readyState: 'complete',
+  body: { appendChild: (button) => { manualButton = button; } },
+  getElementById: () => null,
+  createElement: () => ({ style: {} }),
+  querySelectorAll: () => [],
+};
+vm.runInNewContext(contentSource, {
+  window: {}, document: manualDocument, location: { pathname: '/private-student' },
+  DOMParser: class {}, console: { error: (...args) => manualErrors.push(args) },
+  setTimeout: () => 1,
+});
+await manualButton.onclick();
+assert.ok(!JSON.stringify(manualErrors).includes('private-student'));
+assert.match(manualButton.textContent, /과목 인식 실패/);
 
 const cleared = await successWorker.send({ type: 'hsu-clear-cache' });
 assert.equal(cleared.ok, true);

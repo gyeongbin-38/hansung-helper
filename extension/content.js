@@ -401,10 +401,10 @@
         if (confirm('다운로드 완료. 학사 도우미 수업 현황 페이지를 열까요?'))
           window.open(APP_URL, '_blank');
       } catch (e) {
-        console.error('[학사도우미]', e);
+        console.error('[학사도우미] 수집 실패');
         btn.textContent = String(e?.message ?? e).includes('수강 과목')
-          ? '과목 인식 실패 — 콘솔 확인'
-          : '수집 실패 — 콘솔 확인';
+          ? '과목 인식 실패 — 학교 화면을 확인해 주세요'
+          : '수집 실패 — 다시 시도해 주세요';
       }
       btn.disabled = false;
       setTimeout(() => (btn.textContent = '학사도우미 수집'), 10000);
