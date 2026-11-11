@@ -37,3 +37,7 @@ For a task with `uncertain: true`, optional `statusRetainedAt` records when
 its retained submission/attempt status was last confirmed. The course's
 `retainedAtByKind` describes a retained list; it may have a later timestamp
 than an individual uncertain status. Older snapshots may omit either field.
+The server-side LMS merge ignores snapshot timestamps more than five minutes
+ahead of the server clock. A retained list or status timestamp later than its
+own snapshot is untrusted and omitted rather than treated as a confirmed time.
+Client-device clock and legacy-data migration behavior remain separate concerns.
