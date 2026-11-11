@@ -4,6 +4,7 @@ import vm from 'node:vm';
 
 const backgroundSource = await readFile('extension/background.js', 'utf8');
 const bridgeSource = await readFile('extension/app-bridge.js', 'utf8');
+const contentSource = await readFile('extension/content.js', 'utf8');
 const payload = {
   source: 'cosmos-lms',
   fetchedAt: '2026-10-26T00:00:00.000Z',
@@ -12,6 +13,7 @@ const payload = {
 
 async function backgroundHarness(scriptResult) {
   const storage = {};
+  const warnings = [];
   let messageListener;
   let markScriptStarted;
   const scriptStarted = new Promise((resolve) => (markScriptStarted = resolve));
@@ -47,13 +49,13 @@ async function backgroundHarness(scriptResult) {
     URL,
     Date,
     Promise,
-    console: { warn() {} },
+    console: { warn(...args) { warnings.push(args); } },
     setTimeout: (fn) => globalThis.setTimeout(fn, 0),
     clearTimeout,
   });
   const send = (message) =>
     new Promise((resolve) => messageListener(message, {}, resolve));
-  return { send, storage, scriptStarted };
+  return { send, storage, warnings, scriptStarted };
 }
 
 const successWorker = await backgroundHarness({ payload });
@@ -68,6 +70,37 @@ assert.deepEqual(JSON.parse(JSON.stringify(failure)), {
   ok: false,
   error: 'cosmos-login-required',
 });
+
+const privateErrorWorker = await backgroundHarness({ error: 'student=private&cookie=secret' });
+const privateError = await privateErrorWorker.send({ type: 'hsu-refresh', force: true });
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(privateError.error, 'collect-failed');
+assert.equal(privateErrorWorker.storage.hsuLmsErr?.error, 'collect-failed');
+assert.ok(!JSON.stringify(privateErrorWorker.storage).includes('secret'));
+assert.ok(!JSON.stringify(privateErrorWorker.warnings).includes('secret'));
+
+const thrownErrorWorker = await backgroundHarness(() => { throw new Error('student=private&cookie=secret'); });
+assert.equal((await thrownErrorWorker.send({ type: 'hsu-refresh', force: true })).error, 'collect-failed');
+
+// The manual collection button also runs on school pages. Its diagnostic error
+// includes the page path; it must not print that path or other exception data.
+let manualButton;
+const manualErrors = [];
+const manualDocument = {
+  readyState: 'complete',
+  body: { appendChild: (button) => { manualButton = button; } },
+  getElementById: () => null,
+  createElement: () => ({ style: {} }),
+  querySelectorAll: () => [],
+};
+vm.runInNewContext(contentSource, {
+  window: {}, document: manualDocument, location: { pathname: '/private-student' },
+  DOMParser: class {}, console: { error: (...args) => manualErrors.push(args) },
+  setTimeout: () => 1,
+});
+await manualButton.onclick();
+assert.ok(!JSON.stringify(manualErrors).includes('private-student'));
+assert.match(manualButton.textContent, /과목 인식 실패/);
 
 const cleared = await successWorker.send({ type: 'hsu-clear-cache' });
 assert.equal(cleared.ok, true);

@@ -40,7 +40,7 @@ export class SchoolError extends Error {
 }
 
 // Each login gets its own cookie jar. Neither credentials nor school cookies persist.
-class SchoolSession {
+export class SchoolSession {
   private cookies = new Map<string, Map<string, string>>();
   async request(url: string, init: RequestInit = {}) {
     const target = new URL(url);
@@ -61,7 +61,9 @@ class SchoolSession {
     const response = await fetch(target, {
       ...init,
       redirect: 'manual',
-      signal: AbortSignal.timeout(15000),
+      signal: init.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)])
+        : AbortSignal.timeout(15000),
       headers,
     });
     for (const cookie of response.headers.getSetCookie()) {
@@ -73,7 +75,7 @@ class SchoolSession {
     if (response.status >= 400) throw new SchoolError('upstream');
     return response;
   }
-  async follow(response: Response, base: string) {
+  async follow(response: Response, base: string, signal?: AbortSignal) {
     for (
       let n = 0;
       n < 6 && response.status >= 300 && response.status < 400;
@@ -84,7 +86,7 @@ class SchoolSession {
       if (!location) throw new SchoolError('upstream');
       const target = new URL(location, base);
       base = target.href;
-      response = await this.request(base);
+      response = await this.request(base, { signal });
     }
     if (response.status !== 200) throw new SchoolError('upstream');
     return response;

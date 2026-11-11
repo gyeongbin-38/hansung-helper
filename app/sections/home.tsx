@@ -45,6 +45,7 @@ import { gettingStarted } from '@/lib/data/getting-started';
 import { evaluate } from '@/lib/data/graduation';
 import { mergeCompleted } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
+import { dateDeadlineDays, deadlineDays, isUpcomingUrgent } from '@/lib/data/home-deadlines';
 
 type Planned = CourseSection[];
 
@@ -59,7 +60,7 @@ function TodayStrip({
   now,
   go,
 }: {
-  lmsDue: { dueTs: number; kind: string; title: string; course: string }[];
+  lmsDue: { dueTs: number; kind: string; title: string; course: string; uncertain?: boolean }[];
   acts: Parameters<typeof liveStatus>[0][];
   saved: string[];
   now: number;
@@ -67,10 +68,10 @@ function TodayStrip({
 }) {
   const items: Urgent[] = [];
   for (const t of lmsDue) {
-    const dd = Math.ceil((t.dueTs - now) / 86400000);
-    if (dd <= 1)
+    const dd = deadlineDays(t.dueTs, now);
+    if (isUpcomingUrgent(t, now))
       items.push({
-        label: `${t.kind} ${dd <= 0 ? '오늘' : '내일'} 마감`,
+        label: `${t.kind} ${dd === 0 ? '오늘' : '내일'} 마감`,
         desc: `${t.title} · ${t.course}`,
         route: 'lms',
       });
@@ -161,6 +162,7 @@ export function Home({
   // 이번 주 마감 — 수업 과제·퀴즈 + 저장한 비교과 마감 + 학사일정을 D-day 하나로 통합
   type WeekItem = {
     dday: number;
+    overdue?: boolean;
     kind: string;
     title: string;
     sub: string;
@@ -168,19 +170,18 @@ export function Home({
     route: string;
   };
   const week: WeekItem[] = lmsDue.map((t) => ({
-    dday: Math.ceil((t.dueTs - now) / 86400000),
+    dday: deadlineDays(t.dueTs, now),
+    overdue: t.dueTs < now,
     kind: t.kind,
     title: t.title,
-    sub: t.course + (t.uncertain ? ' · 응시 여부 확인 실패' : ''),
+    sub: t.course + (t.uncertain ? ` · ${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 필요` : ''),
     url: t.url,
     route: 'lms',
   }));
   for (const a of actsNeedVerification ? [] : (acts?.items ?? [])) {
     if (!data.saved.includes(a.id) || !a.applyEnd) continue;
-    const dd = Math.ceil(
-      (Date.parse(a.applyEnd.slice(0, 10) + 'T23:59:59') - now) / 86400000,
-    );
-    if (dd >= 0 && dd <= 7)
+    const dd = dateDeadlineDays(a.applyEnd, now);
+    if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
         dday: dd,
         kind: '비교과',
@@ -192,10 +193,8 @@ export function Home({
   // 직접 등록한 외부 활동도 신청 마감이 임박하면 함께 올린다
   for (const e of data.extActivities ?? []) {
     if (!e.applyEnd) continue;
-    const dd = Math.ceil(
-      (Date.parse(e.applyEnd + 'T23:59:59') - now) / 86400000,
-    );
-    if (dd >= 0 && dd <= 7)
+    const dd = dateDeadlineDays(e.applyEnd, now);
+    if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
         dday: dd,
         kind: '비교과',
@@ -205,11 +204,8 @@ export function Home({
       });
   }
   for (const e of sched?.items ?? []) {
-    const dd = Math.ceil(
-      (Date.parse((e.end ?? e.start).slice(0, 10) + 'T23:59:59') - now) /
-        86400000,
-    );
-    if (dd >= 0 && dd <= 7)
+    const dd = dateDeadlineDays(e.end ?? e.start, now);
+    if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
         dday: dd,
         kind: '학사일정',
@@ -219,8 +215,8 @@ export function Home({
       });
   }
   for (const e of data.events) {
-    const dd = Math.ceil((Date.parse(e.date + 'T23:59:59') - now) / 86400000);
-    if (dd >= 0 && dd <= 7)
+    const dd = dateDeadlineDays(e.date, now);
+    if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
         dday: dd,
         kind: '개인 일정',
@@ -356,7 +352,7 @@ export function Home({
       : null;
   const major = graduation.find((r) => r.rule.id === 'major')!;
   const general = graduation.find((r) => r.rule.id === 'gen')!;
-  const weekday = (new Date(now).getDay() + 6) % 7;
+  const weekday = (new Date(now + 9 * 3600_000).getUTCDay() + 6) % 7;
   const monday = addDays(today, -weekday);
   const day = selectedDay ?? weekday;
   const meetings = planned
@@ -385,8 +381,8 @@ export function Home({
     (taskFilter === '전체' ? tasks.length + agenda.length : 0);
   const taskLimit = showAllTasks ? taskCount : 4;
   const shortDate = (iso: string) => iso.slice(5).replace('-', '.');
-  const deadlineLabel = (dd: number) =>
-    dd < 0 ? `${Math.abs(dd)}일 지남` : dd === 0 ? '오늘' : `D-${dd}`;
+  const deadlineLabel = (dd: number, overdue = false) =>
+    dd < 0 ? `${Math.abs(dd)}일 지남` : overdue ? '마감 지남' : dd === 0 ? '오늘' : `D-${dd}`;
   return (
     <div className="home-dashboard">
       {setup.current < 3 && (
@@ -460,7 +456,7 @@ export function Home({
           </h3>
           <p className="home-card-description">
             {hasCredits
-              ? '이수 학점과 함께 남은 요건도 확인해 보세요.'
+              ? '이번 학기 수강 중인 과목의 학점은 포함되지 않습니다.'
               : '이수 내역을 연결하면 나의 졸업 현황을 볼 수 있어요.'}
           </p>
           <div className="home-progress-caption">
@@ -538,7 +534,7 @@ export function Home({
                   <span
                     className={'home-dday' + (t.dday <= 1 ? ' urgent' : '')}
                   >
-                    {deadlineLabel(t.dday)}
+                    {deadlineLabel(t.dday, t.overdue)}
                   </span>
                   <span>
                     <b>{t.title}</b>
@@ -646,7 +642,7 @@ export function Home({
                     <span
                       className={'home-dday' + (t.dday <= 1 ? ' urgent' : '')}
                     >
-                      {deadlineLabel(t.dday)}
+                      {deadlineLabel(t.dday, t.overdue)}
                     </span>
                   </button>
                 ))}

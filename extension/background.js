@@ -18,9 +18,18 @@ const success = (payload, cached = false) => ({
   payload,
   ...(cached ? { cached: true } : {}),
 });
+// Collector/page exceptions can contain URLs, account identifiers or page content.
+// Only these stable codes may cross the extension boundary or reach diagnostics.
+const allowedErrors = new Set([
+  'cosmos-login-required', 'collector-missing', 'no-result', 'no-lms-tab',
+  'tab-load-timeout', 'collector-timeout', 'cache-cleared', 'cache-clear-failed',
+  'empty-payload', 'collect-failed',
+]);
+const safeError = (error) => typeof error === 'string' && allowedErrors.has(error)
+  ? error : 'collect-failed';
 const failure = (error) => ({
   ok: false,
-  error: String(error || 'collect-failed'),
+  error: safeError(error),
 });
 
 const isDashboard = (u) => {
@@ -157,11 +166,12 @@ async function requestCollect(opts) {
   const res = await inflight;
   if (generation !== cacheGeneration) return failure('cache-cleared');
   if (res.error) {
-    console.warn('[학사도우미] 수집 실패:', res.error);
+    const error = safeError(res.error);
+    console.warn('[학사도우미] 수집 실패:', error);
     void queueStorageWrite(() => generation === cacheGeneration
-      ? chrome.storage.session.set({ hsuLmsErr: { error: res.error, at: Date.now() } })
+      ? chrome.storage.session.set({ hsuLmsErr: { error, at: Date.now() } })
       : undefined);
-    return failure(res.error);
+    return failure(error);
   }
   if (!res.payload) return failure('empty-payload');
   return success(res.payload);

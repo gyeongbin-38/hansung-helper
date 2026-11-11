@@ -49,9 +49,12 @@ export type InfoSnapshot = {
    *  실계정 첫 수집 때 실제 메뉴 구조를 알려주는 계측이다. */
   diag?: {
     menu: { label: string; path: string }[];
-    pages: { slot: string; path: string; ok: boolean }[];
+    pages: { slot: string; path: string; ok: boolean; reason?: InfoPageFailure }[];
   };
 };
+
+export type InfoPageFailure = 'session-expired' | 'upstream' | 'structure' | 'missing';
+const infoPageFailures: readonly string[] = ['session-expired', 'upstream', 'structure', 'missing'];
 
 /** 학교 이수구분 원문 → 앱 카테고리 어휘 (gradGroup 입력으로 바로 쓰인다) */
 export function infoCategory(raw: string): string {
@@ -156,6 +159,12 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
                       typeof p.ok === 'boolean',
                   )
                   .slice(0, 20)
+                  .map((p) => ({
+                    slot: p.slot, path: p.path, ok: p.ok,
+                    ...(!p.ok && infoPageFailures.includes((p as { reason?: string }).reason ?? '')
+                      ? { reason: (p as { reason?: InfoPageFailure }).reason }
+                      : {}),
+                  }))
               : [],
           }
         : undefined,

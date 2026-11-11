@@ -269,9 +269,13 @@ export function parseVodRanges(
 export async function collectLms(
   session: LmsSession,
   courses: { id: string; name: string; community?: boolean }[],
+  options: { budgetMs?: number } = {},
 ): Promise<LmsSnapshot> {
   if (!courses.length) throw new Error('lms:no-courses-collected');
-  const deadline = Date.now() + COLLECT_BUDGET_MS;
+  const budgetMs = options.budgetMs ?? COLLECT_BUDGET_MS;
+  if (!Number.isInteger(budgetMs) || budgetMs <= 0 || budgetMs > COLLECT_BUDGET_MS)
+    throw new Error('lms:invalid-budget');
+  const deadline = Date.now() + budgetMs;
   // 지연 수집은 로그인 invocation의 서브리퀘스트 예산을 공유한다 —
   // 학교 서버 부담과 플랜 한도(무료 50)를 위해 수집 요청에 상한을 둔다.
   // 초과 시 나머지 과목은 'budget' 오류로 표시하고 결과는 부분 보존.
@@ -280,8 +284,10 @@ export async function collectLms(
   // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
   // 이를 빈 결과로 삼키지 않고 throw해 errors[]에 남긴다.
   const html = async (url: string) => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error('lms:timeout');
     if (++used > REQ_BUDGET) throw new Error('lms:budget');
-    const r = await session.request(url);
+    const r = await session.request(url, { signal: AbortSignal.timeout(Math.max(1, remaining)) });
     const h = await r.text();
     if (r.status !== 200 || !/\/login\/logout\.php/.test(h)) {
       console.log(
@@ -364,7 +370,7 @@ export async function collectLms(
 
   const out: LmsCourse[] = [];
   for (const c of courses) {
-    if (Date.now() > deadline) {
+    if (Date.now() >= deadline) {
       out.push({
         id: c.id,
         title: c.name,
@@ -418,6 +424,7 @@ export async function collectLms(
         assigns.status === 'rejected' && 'assign',
         quizzes.status === 'rejected' && 'quiz',
         quizOut.unchecked > 0 && 'quiz-check',
+        Date.now() >= deadline && 'timeout-partial',
       ].filter((e): e is string => !!e),
     });
   }

@@ -607,7 +607,7 @@ export default function App() {
       go('home');
     } catch {
       allowExtensionImport.current = true;
-      setToast('로그아웃하지 못했습니다. 다시 시도해 주세요.');
+      setToast('로그아웃 결과를 확인하지 못했습니다. 다시 확인해 주세요.');
     }
   }
   async function deleteAccount() {
@@ -635,7 +635,7 @@ export default function App() {
       go('home');
     } catch {
       allowExtensionImport.current = true;
-      setToast('삭제하지 못했습니다. 다시 시도해 주세요.');
+      setToast('계정 삭제 결과를 확인하지 못했습니다. 로그인 상태를 확인해 주세요.');
     }
   }
   function go(r: string) {

@@ -225,8 +225,37 @@ const snap2 = await collectInfo(fakeSession({
 }), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
 t('collect: 로그인벽 → 과목 없음', snap2.completed.length === 0);
 t('collect: diag 실패 표면화', snap2.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
+t('collect: 로그인 화면은 재인증 필요로 분류', snap2.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'session-expired');
 t('collect: 포인트는 성공', snap2.points === 780);
 t('collect: 학적은 메인에서 보존', snap2.dept === '컴퓨터공학과');
+
+// HTTP 200 with a changed grade table must not erase the last known results.
+const malformedGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>기타</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 필수 성적 열 누락은 수집 실패', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
+t('collect: 성적 구조 변경 분류', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'structure');
+t('collect: 구조 변경은 이전 이수 내역을 보존', mergeInfoSnapshot(snap, malformedGrade).completed.length === snap.completed.length);
+const emptyGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 정상 빈 성적표는 성공', emptyGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === true && emptyGrade.completed.length === 0);
+const nonOkSession = fakeSession({ 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML });
+const previousRequest = nonOkSession.request;
+nonOkSession.request = async (url) => url.includes('s_sung.s_sung_grade')
+  ? new Response('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>', { status: 500 })
+  : previousRequest(url);
+const serverError = await collectInfo(nonOkSession, { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: HTTP 500 성적표는 실패로 표시하고 이전 결과 보존',
+  serverError.diag?.pages.find((p) => p.slot === 'grades')?.ok === false && mergeInfoSnapshot(snap, serverError).completed.length === snap.completed.length);
+t('collect: HTTP 오류 분류', serverError.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'upstream');
+const networkSession = fakeSession({});
+networkSession.request = async () => { throw new Error('private upstream detail'); };
+const networkError = await collectInfo(networkSession, { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 요청 실패는 원문 없이 상위 오류로 분류', networkError.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'upstream' && !JSON.stringify(networkError.diag).includes('private upstream detail'));
+t('collect: 요청 실패 시 기존 성적 유지', mergeInfoSnapshot(snap, networkError).completed.length === snap.completed.length);
 
 // 실계정 마크업 e2e — 프레임 메뉴 발견 → 누적성적 수집 → 학적 병합
 const snap3 = await collectInfo(
@@ -279,6 +308,10 @@ t('merge: info 없으면 수동만', mergeCompleted(manual, undefined).every((c)
 // ── validateInfo ──────────────────────────────────────────
 const valid = validateInfo(snap);
 t('validate: 정상 통과', valid !== null && valid.completed.length === 4);
+t('validate: 알려진 실패 사유 유지', validateInfo(snap2)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'session-expired');
+const unsafeDiag = structuredClone(snap2);
+unsafeDiag.diag.pages.find((p) => p.slot === 'grades').reason = 'private upstream detail';
+t('validate: 허용되지 않은 실패 사유 제거', validateInfo(unsafeDiag)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === undefined);
 t('validate: 잘못된 source 거부', validateInfo({ source: 'x', fetchedAt: 'now' }) === null);
 t('validate: 비객체 거부', validateInfo('nope') === null && validateInfo(null) === null);
 t('validate: 범위 초과 클램프', validateInfo({ source: 'info-hansung', fetchedAt: 't', points: 999999, completed: [] })?.points === undefined);

@@ -99,10 +99,20 @@ export async function PUT(request: Request) {
       value.every((item) => typeof item === 'string' && item.length <= maxLength);
     for (const [key, limit, maxLength] of [
       ['readIds', 500, 80], ['reqChecks', 200, 120], ['actPrefs', 20, 100],
+      ['notifiedIds', 200, 200],
     ] as const) {
       if (input[key] !== undefined && !validStringArray(input[key], limit, maxLength))
         return json({ error: '저장 항목 형식을 확인해 주세요.' }, 400);
     }
+    if (input.notifEnabled !== undefined && typeof input.notifEnabled !== 'boolean')
+      return json({ error: '알림 설정 형식을 확인해 주세요.' }, 400);
+    // 구버전 클라이언트가 새 필드를 보내지 않아도 저장된 설정을 지우지 않는다.
+    let storedProfile: Record<string, unknown> = {};
+    try { storedProfile = JSON.parse(row.profile); } catch { /* 기존 손상 값 무시 */ }
+    const notifiedIds = input.notifiedIds ?? storedProfile?.notifiedIds;
+    if (validStringArray(notifiedIds, 200, 200)) profile.notifiedIds = notifiedIds;
+    const notifEnabled = input.notifEnabled ?? storedProfile?.notifEnabled;
+    if (typeof notifEnabled === 'boolean') profile.notifEnabled = notifEnabled;
     for (const key of ['ruleOverrides', 'actStatus', 'lmsMatch', 'plans'] as const) {
       if (input[key] !== undefined &&
           (!input[key] || typeof input[key] !== 'object' || Array.isArray(input[key])))

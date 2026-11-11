@@ -93,6 +93,7 @@ export function SignIn({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<'signup' | 'login'>('signup');
+  const [showPassword, setShowPassword] = useState(false);
   const slowLogin = useSlowLoading(busy);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -100,11 +101,13 @@ export function SignIn({
     if (busy) return;
     formRef.current?.reset();
     setError('');
+    setShowPassword(false);
     setMode('signup');
   }
 
   function toggleMode() {
     setError('');
+    setShowPassword(false);
     setMode((current) => (current === 'signup' ? 'login' : 'signup'));
   }
 
@@ -179,6 +182,7 @@ export function SignIn({
               ) as HTMLInputElement | null;
               if (passwordField) passwordField.value = '';
               fields.delete('password');
+              setShowPassword(false);
               setBusy(false);
             }
           }}
@@ -196,18 +200,32 @@ export function SignIn({
               disabled={busy}
             />
           </label>
-          <label>
-            학교 계정 비밀번호
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              maxLength={128}
-              required
-              placeholder="종합정보시스템 비밀번호"
-              disabled={busy}
-            />
-          </label>
+          <div className="auth-password-field">
+            <label htmlFor="school-password">학교 계정 비밀번호</label>
+            <div className="auth-password-input">
+              <input
+                id="school-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                maxLength={128}
+                required
+                placeholder="종합정보시스템 비밀번호"
+                disabled={busy}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                aria-pressed={showPassword}
+                aria-controls="school-password"
+                onClick={() => setShowPassword((visible) => !visible)}
+                disabled={busy}
+              >
+                {showPassword ? '숨기기' : '보기'}
+              </button>
+            </div>
+          </div>
           <details className="auth-note">
             <summary>어떤 정보를 연결하나요?</summary>
             <p>

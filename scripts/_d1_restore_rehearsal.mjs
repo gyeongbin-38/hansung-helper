@@ -47,4 +47,12 @@ const row = JSON.parse(check)?.[0]?.results?.[0];
 if (!row || !['accounts', 'sessions', 'limits', 'snapshots'].every(
   (key) => Number.isInteger(row[key]) && row[key] >= 0,
 )) throw new Error('restore imported, but required tables could not be verified');
+const foreignKeys = JSON.parse(run([
+  'd1', 'execute', 'site-creator-d1', '--local', '--persist-to', persistTo,
+  '--config', configPath, '--command', 'PRAGMA foreign_key_check;', '--json',
+]));
+if (!Array.isArray(foreignKeys) || foreignKeys.length !== 1 ||
+    foreignKeys[0].success !== true || !Array.isArray(foreignKeys[0].results) ||
+    foreignKeys[0].results.length !== 0)
+  throw new Error('restore imported, but foreign-key integrity could not be verified');
 console.log(`Restore rehearsal passed in isolated local D1 store: ${persistTo}`);

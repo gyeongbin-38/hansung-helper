@@ -125,6 +125,32 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--nt-primary) 25%, transparent);
   outline: none;
 }
+.auth-password-field {
+  display: grid;
+  gap: 8px;
+}
+.auth-password-input {
+  position: relative;
+}
+.auth-form .auth-password-input input {
+  padding-right: 82px;
+}
+.auth-password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 64px;
+  min-height: 40px;
+  color: var(--nt-primary);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--nt-r-md);
+}
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: -3px;
+}
 .auth-form label:has(input[type='checkbox']) {
   display: flex;
   align-items: flex-start;

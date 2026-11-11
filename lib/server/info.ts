@@ -12,6 +12,7 @@ import { infoCategory } from '../data/info.ts';
 import type {
   InfoAuditRow,
   InfoCourse,
+  InfoPageFailure,
   InfoSnapshot,
 } from '../data/info.ts';
 
@@ -186,11 +187,13 @@ export function parseGrades(html: string): {
   completed: InfoCourse[];
   credits?: number;
   gpa?: number;
+  recognized: boolean;
 } {
   const completed: InfoCourse[] = [];
   const seen = new Set<string>();
   let credits: number | undefined;
   let gpa: number | undefined;
+  let recognized = false;
   // 테이블 앞 텍스트에서 학기 헤더를 찾는다 — 실제로는 카드 헤더
   // ("2026 학년도 1 학기")가 테이블 바로 앞에 온다
   const chunks = html.split(/<table\b/i);
@@ -241,6 +244,7 @@ export function parseGrades(html: string): {
     const iGrade = col(head, [/등급|성적/]);
     const iSem = col(head, [/학기|년도/]);
     if (iName === -1 || iCredits === -1) continue;
+    recognized = true;
     // 성적 열이 비어 있는 행(미확정)은 이수로 세지 않는다 — 단, 표 전체가
     // 빈 성적 열이면 구형 포맷으로 간주해 행을 버리지 않는다.
     const anyGrade =
@@ -304,7 +308,7 @@ export function parseGrades(html: string): {
       text.match(/평점\s*평균[^0-9]{0,8}(\d(?:\.\d{1,2})?)/);
     if (gm) gpa = parseFloat(gm[1]);
   }
-  return { completed: completed.slice(0, 300), credits, gpa };
+  return { completed: completed.slice(0, 300), credits, gpa, recognized };
 }
 
 const normKey = (s: string) => s.replace(/\s+/g, '');
@@ -436,18 +440,19 @@ export async function collectInfo(
   session: InfoSession,
   ctx: { menuHtml: string; mainHtml: string; studentId?: string },
 ): Promise<InfoSnapshot> {
-  const pages: { slot: string; path: string; ok: boolean }[] = [];
+  const pages: NonNullable<InfoSnapshot['diag']>['pages'] = [];
   const fetched: Record<string, string> = {};
   const menuHtmls: string[] = [ctx.menuHtml, ctx.mainHtml];
 
-  const get = async (path: string): Promise<string | null> => {
+  const get = async (path: string): Promise<{ html: string | null; reason?: InfoPageFailure }> => {
     const url = toUrl(path);
     try {
       const res = await session.follow(await session.request(url), url);
+      if (!res.ok) return { html: null, reason: 'upstream' };
       const html = await decode(res);
-      return isLoginWall(html) ? null : html;
+      return isLoginWall(html) ? { html: null, reason: 'session-expired' } : { html };
     } catch {
-      return null;
+      return { html: null, reason: 'upstream' };
     }
   };
 
@@ -459,8 +464,8 @@ export async function collectInfo(
     : ['s_gong.gong_dae_left_menu'];
   await Promise.all(
     menuSources.map(async (src) => {
-      const html = await get(src);
-      pages.push({ slot: 'menu', path: src, ok: html !== null });
+      const { html, reason } = await get(src);
+      pages.push({ slot: 'menu', path: src, ok: html !== null, ...(reason ? { reason } : {}) });
       if (html) menuHtmls.push(html);
     }),
   );
@@ -480,8 +485,8 @@ export async function collectInfo(
   };
 
   const fetchSlot = async (slot: string, path: string) => {
-    const html = await get(path);
-    pages.push({ slot, path, ok: html !== null });
+    const { html, reason } = await get(path);
+    pages.push({ slot, path, ok: html !== null, ...(reason ? { reason } : {}) });
     if (html !== null) fetched[slot] = html;
   };
 
@@ -506,7 +511,7 @@ export async function collectInfo(
   // 못 찾은 슬롯도 diag에 남긴다 — '찾지 못함'과 '가져오기 실패'를 구분
   for (const { slot } of SLOTS)
     if (!fetched[slot] && !pages.some((p) => p.slot === slot))
-      pages.push({ slot, path: '-', ok: false });
+      pages.push({ slot, path: '-', ok: false, reason: 'missing' });
 
   const identity: { name?: string; dept?: string; admitYear?: number } = {};
   for (const h of [ctx.mainHtml, ctx.menuHtml, ...Object.values(fetched)]) {
@@ -521,7 +526,15 @@ export async function collectInfo(
 
   const grades = fetched.grades
     ? parseGrades(fetched.grades)
-    : { completed: [] };
+    : { completed: [], recognized: false };
+  // 정상 HTTP 응답이라도 성적표의 필수 열이 사라지면 빈 이수 목록으로
+  // 기존 결과를 교체하지 않는다. 헤더가 있는 빈 표는 정상 빈 목록이다.
+  if (fetched.grades && !grades.recognized) {
+    for (const page of pages) if (page.slot === 'grades' && page.ok) {
+      page.ok = false;
+      page.reason = 'structure';
+    }
+  }
   const menu = menuItems();
   const snap: InfoSnapshot = {
     source: 'info-hansung',
@@ -538,7 +551,7 @@ export async function collectInfo(
     '[info] collect:',
     JSON.stringify({
       menu: menu.length,
-      pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : 'fail'}`),
+      pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : p.reason ?? 'fail'}`),
       courses: snap.completed.length,
       name: snap.name ? 'yes' : 'no',
       dept: snap.dept ? 'yes' : 'no',

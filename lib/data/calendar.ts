@@ -143,7 +143,7 @@ export const itemsInRange = (items: CalItem[], fromIso: string, toIso: string) =
    지원 표현만 파싱하고, 날짜를 찾지 못하면 선택된 날짜에 두되
    미리보기에서 어떻게 해석됐는지 반드시 보여준다. */
 
-export type QuickAddParse = { title: string; date: string; dateFound: boolean };
+export type QuickAddParse = { title: string; date: string; dateFound: boolean; invalidDate?: boolean };
 
 const KOR_DOW: Record<string, number> = {
   일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6,
@@ -153,6 +153,21 @@ export function parseQuickAdd(raw: string, refIso: string): QuickAddParse | null
   let text = raw.trim().replace(/\s+/g, ' ');
   if (!text) return null;
   let date: string | undefined;
+  let invalidDate = false;
+  const validDate = (year: number, month: number, day: number) => {
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return year >= 1000 && year <= 9999 && month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1];
+  };
+  const nextDate = (month: number, day: number): string | undefined => {
+    if (!validDate(2000, month, day)) return undefined;
+    const start = +refIso.slice(0, 4);
+    for (let year = start; year <= Math.min(start + 8, 9999); year++) {
+      const candidate = `${year}-${pad(month)}-${pad(day)}`;
+      if (validDate(year, month, day) && candidate >= refIso) return candidate;
+    }
+    return undefined;
+  };
 
   const take = (re: RegExp, fn: (m: RegExpMatchArray) => string | undefined) => {
     const m = text.match(re);
@@ -166,21 +181,23 @@ export function parseQuickAdd(raw: string, refIso: string): QuickAddParse | null
 
   // 절대 연도 표기
   take(/(\d{4})\s*[년./-]\s*(\d{1,2})\s*[월./-]\s*(\d{1,2})\s*일?/, (m) => {
+    if (!validDate(+m[1], +m[2], +m[3])) { invalidDate = true; return undefined; }
     return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
   });
   // M월 D일 — 연도 추론: 이미 지난 날짜면 다음 해로
-  if (!date)
+  if (!date && !invalidDate)
     take(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/, (m) => {
-      const y = +refIso.slice(0, 4);
-      const cand = `${y}-${pad(+m[1])}-${pad(+m[2])}`;
-      return cand >= refIso ? cand : `${y + 1}-${pad(+m[1])}-${pad(+m[2])}`;
+      const candidate = nextDate(+m[1], +m[2]);
+      if (!candidate) invalidDate = true;
+      return candidate;
     });
-  if (!date)
+  if (!date && !invalidDate)
     take(/(\d{1,2})\s*[./]\s*(\d{1,2})(?!\d)/, (m) => {
-      const y = +refIso.slice(0, 4);
-      const cand = `${y}-${pad(+m[1])}-${pad(+m[2])}`;
-      return cand >= refIso ? cand : `${y + 1}-${pad(+m[1])}-${pad(+m[2])}`;
+      const candidate = nextDate(+m[1], +m[2]);
+      if (!candidate) invalidDate = true;
+      return candidate;
     });
+  if (invalidDate) return { title: text, date: refIso, dateFound: false, invalidDate: true };
   // 상대일
   if (!date) {
     const rel: [RegExp, (m: RegExpMatchArray) => string][] = [
