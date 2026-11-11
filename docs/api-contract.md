@@ -22,6 +22,11 @@ The client helper unwraps only successful envelopes and surfaces the same
 `message` for account and public-data requests. Account APIs remain
 `Cache-Control: no-store, private` and vary by cookie.
 
+Profile saves accept optional `notifEnabled` (boolean) and `notifiedIds`
+(up to 200 strings of at most 200 characters). When an older client omits
+either field, the previously stored value is preserved. An explicit `false`
+or empty array is saved; invalid values are rejected with 400.
+
 LMS partial collection remains data inside a successful account response:
 course `errors[]`, task `uncertain`, `lmsPending`, and `lmsFailedAt` distinguish
 partial or unfinished collection from a confirmed empty list. A complete
