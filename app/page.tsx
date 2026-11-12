@@ -912,7 +912,7 @@ export default function App() {
   return (
     <div className={'shell' + (sideCollapsed ? ' side-collapsed' : '')}>
       <Sidebar
-        section={section}
+        section={surveyOpen ? 'survey' : section}
         drawer={drawer}
         go={go}
         account={account}

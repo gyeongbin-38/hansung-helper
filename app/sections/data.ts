@@ -8,6 +8,7 @@ import {
   Layers,
   BookOpen,
   MonitorPlay,
+  ClipboardList,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -23,6 +24,7 @@ export const menus = [
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
   ['advisor', 'AI 학사 도우미', Sparkles],
+  ['survey', '설문조사', ClipboardList],
 ] as const;
 export type Completed = {
   code: string;
