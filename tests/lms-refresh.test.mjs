@@ -57,7 +57,7 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
       return { checkedAt: 'current' };
     } },
     '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
-    '@/lib/data/lms': { mergeLmsSnapshot: (_old, current) => current },
+    '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
     '@/lib/data/notifs': { infoChanges: () => [] },
   };
   const exports = {};

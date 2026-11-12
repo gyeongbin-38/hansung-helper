@@ -75,7 +75,7 @@ export function reminderTargets(
       id: `lms-${t.course}-${t.kind}-${t.title}-${t.dueTs}`.slice(0, 120),
       fireAt: Math.max(now, t.dueTs - leadMs),
       title: `${when}: ${t.title}`,
-      body: `${t.course} · ${t.kind}${t.uncertain ? ' (상태 확인 실패)' : ''}`,
+      body: `${t.course} · ${t.kind}${t.uncertain ? ` (${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 실패)` : ''}`,
     });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
@@ -301,7 +301,7 @@ export function deriveNotifs({
         cat: '수업',
         label:
           dd < 0 ? `${t.kind} 마감 지남` : dd === 0 ? `${t.kind} 오늘 마감` : `${t.kind} D-${dd}`,
-        title: t.uncertain ? `${t.title} (응시 여부 확인 실패)` : t.title,
+        title: t.uncertain ? `${t.title} (${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 실패)` : t.title,
         desc: t.course,
         route: 'lms',
       });

@@ -42,7 +42,7 @@ import {
   reminderTargets,
   stageReminderTargets,
 } from '@/lib/data/notifs';
-import { validateLms, currentSemesterStart, mergeLmsSnapshot } from '@/lib/data/lms';
+import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
@@ -74,7 +74,7 @@ function accountData(result: Account): Data {
     serverLms &&
     (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
   )
-    merged.lms = serverLms;
+    merged.lms = mergeLmsSnapshot(merged.lms, serverLms);
   const info = validateInfo(result.snapshot?.infoData);
   return info ? applyInfo(merged, info) : merged;
 }
@@ -200,7 +200,7 @@ export default function App() {
     if (!serverLms) return;
     setData((prev) =>
       !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
-        ? { ...prev, lms: serverLms }
+        ? { ...prev, lms: mergeLmsSnapshot(prev.lms, serverLms) }
         : prev,
     );
   }, [account?.snapshot.lmsData]);
@@ -233,7 +233,7 @@ export default function App() {
           if (serverLms)
             setData((prev) =>
               !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
-                ? { ...prev, lms: serverLms }
+                ? { ...prev, lms: mergeLmsSnapshot(prev.lms, serverLms) }
                 : prev,
             );
           const info = validateInfo(result.snapshot?.infoData);
@@ -395,6 +395,12 @@ export default function App() {
         (!accountRef.current && !demoRef.current)
       )
         return;
+      // 확장 데이터에는 검증 가능한 LMS 계정 식별자가 없다. 다른 학생의
+      // 세션에서 가져온 자료가 로그인 계정에 저장되지 않도록 차단한다.
+      if (!canImportExtensionLms(!!accountRef.current)) {
+        endSync({ status: 'failed', error: '확장 프로그램의 학교 계정을 확인할 수 없어 가져오기를 중단했습니다. 학교 계정으로 다시 수집해 주세요.' });
+        return;
+      }
       const valid = validateLms(d.payload);
       if (!valid) {
         endSync({ status: 'failed', error: '수집 데이터 형식이 올바르지 않습니다.' });

@@ -1,5 +1,6 @@
 // 서버 측 LMS 수집 파서 테스트 — node --experimental-transform-types tests/lms-server.test.mjs
 import assert from 'node:assert/strict';
+import { mergeLmsSnapshot } from '../lib/data/lms.ts';
 import {
   parseAssigns,
   parseQuizList,
@@ -71,7 +72,9 @@ t('vod: rowspan 주차 유지', vods[1].week === 1);
 t('vod: 주차 전이', vods[2].week === 2);
 t('vod: 일괄출석인정→O', vods[2].weeklyStatus === 'O');
 t('vod: 빈 주차출석은 직전값', vods[1].weeklyStatus === 'O');
-t('vod: 없는 표 → 빈 배열', parseProgress('<div>nothing</div>').length === 0);
+assert.throws(() => parseProgress('<div>nothing</div>'), /progress-header-missing/);
+assert.throws(() => parseProgress(PROGRESS_HTML.replace('<th>주차 출석</th>', '<th>기타</th>')), /progress-columns-missing/);
+assert.deepEqual(parseProgress(PROGRESS_HTML.replace(/<tbody>[\s\S]*?<\/tbody>/, '<tbody></tbody>')), []);
 // 5열 (요구시간 없음) — '출석' 컬럼이 요구시간으로 오인되지 않아야 함
 const PROGRESS5 = `<table class="user_progress_table">
 <thead><tr><th>주차</th><th>콘텐츠</th><th>시청시간</th><th>출석</th><th>주차 출석</th></tr></thead>
@@ -164,6 +167,11 @@ t(
   'snap4: 표 없음은 vod 수집 오류',
   snap4.courses[0].errors?.includes('vod') && snap4.courses[0].vods.length === 0,
 );
+const malformed = await collectLms({ request: async (url) => url.includes('user_progress')
+  ? ok(PROGRESS_HTML.replace('<th>주차 출석</th>', '<th>기타</th>')) : byUrl(url) },
+  [{ id: '999', name: '테스트과목' }]);
+t('필수 출석 열 누락은 vod 오류', malformed.courses[0].errors?.includes('vod'));
+t('필수 열 누락 시 기존 출석을 보존', mergeLmsSnapshot(snap, malformed).courses[0].vods.length === snap.courses[0].vods.length);
 
 // 퀴즈 상세 조회 실패 → 미응시 단정 금지: uncertain 표시 + quiz-check 오류
 const snap5 = await collectLms(
