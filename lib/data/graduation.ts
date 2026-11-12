@@ -76,6 +76,21 @@ export const DEFAULT_RULES: GradRequirement[] = [
 
 export type RuleStatus = 'met' | 'progress' | 'unknown';
 export type AdmissionType = 'unknown' | 'freshman' | 'general-transfer' | 'bachelor-transfer';
+
+/** 학교 공식 안내에서 확인한 학번별 교양 기준. 세부 충족은 별도 사정이 필요하다. */
+export function generalEducationReference(year: number | undefined, admission: AdmissionType) {
+  if (admission !== 'freshman') return null;
+  if (year === 2023) return { total: 28, note: '교양필수 8~10학점, 선택필수교양 7~9학점, 일반교양·일반선택 9~13학점 및 3개 영역 이상 확인 필요', url: 'https://www.hansung.ac.kr/hansung/6219/subview.do' };
+  if (year === 2024) return { total: 31, note: '교양필수 13학점, 선택필수교양 15학점, 자율선택 3학점 및 4개 영역 이상 확인 필요', url: 'https://www.hansung.ac.kr/hansung/6219/subview.do' };
+  return null;
+}
+
+/** 평점이 누락되거나 최근 확인에 실패한 경우 충족으로 추정하지 않는다. */
+export function evaluateGpa(gpa: number | undefined, verified: boolean): { required: number; earned?: number; status: RuleStatus } {
+  const valid = typeof gpa === 'number' && Number.isFinite(gpa) && gpa >= 0 && gpa <= 4.5;
+  return { required: 2, earned: valid ? gpa : undefined,
+    status: !verified || !valid ? 'unknown' : gpa >= 2 ? 'met' : 'progress' };
+}
 /** required 값의 출처 — 사용자 입력 > 학과 규정표 > 전역 공식 순으로 적용 */
 export type RequiredSource = 'override' | 'dept' | 'global';
 export type RuleResult = {
@@ -90,6 +105,8 @@ export type RuleResult = {
   status: RuleStatus;
   /** 재수강·중복 여부를 판정할 수 없는 동일 과목이 있는 경우 */
   uncertainCredits?: boolean;
+  uncertainTrack?: boolean;
+  uncertainAllocation?: boolean;
 };
 
 function sumByGroups(
@@ -115,6 +132,7 @@ export function evaluate(
   opts: {
     admitYear?: number;
     admissionType?: AdmissionType;
+    programMode?: string;
     points?: number;
     /**
      * 학과 규정표(dept-rules yearTable)에서 해석된 학번별 기준.
@@ -172,6 +190,16 @@ export function evaluate(
     } else if (rule.id === 'points' && year >= 2016) {
       required = admission === 'freshman' ? 800 : 400;
       requiredSource = 'global';
+    } else if (rule.id === 'major' && (year === 2023 || year === 2024) && admission === 'freshman' && opts.programMode === 'fusion1') {
+      // 39학점씩 두 전공의 충족 여부는 과목별 소속이 확인돼야 한다.
+      required = 78;
+      requiredSource = 'global';
+    } else if (rule.id === 'gen' && (year === 2023 || year === 2024) && admission === 'freshman') {
+      required = year === 2024 ? 31 : 28;
+      requiredSource = 'global';
+    } else if (rule.id === 'free' && year === 2024 && admission === 'freshman' && opts.programMode === 'fusion1') {
+      required = 21;
+      requiredSource = 'global';
     } else {
       required = null;
     }
@@ -180,13 +208,17 @@ export function evaluate(
     const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
     const missingInput = isPoints && opts.points === undefined;
     const uncertainCredits = !isPoints && ambiguous.some((c) => rule.groups.includes(gradGroup(c.category)));
+    const uncertainTrack = rule.id === 'major' && requiredSource === 'global' && required === 78;
+    // 19~23학번 기준에는 일반선택이 일부 포함될 수 있어 분류만으로 배분할 수 없다.
+    const uncertainAllocation = requiredSource === 'global' &&
+      ((rule.id === 'gen' && (year === 2023 || year === 2024)) || (rule.id === 'free' && year === 2024));
     const status: RuleStatus =
-      required === null || missingInput || uncertainCredits
+      required === null || missingInput || uncertainCredits || uncertainTrack || uncertainAllocation
         ? 'unknown'
         : earned >= required
           ? 'met'
           : 'progress';
-    return { rule, earned, planned: plan, required, requiredSource, status, uncertainCredits: uncertainCredits || undefined };
+    return { rule, earned, planned: plan, required, requiredSource, status, uncertainCredits: uncertainCredits || undefined, uncertainTrack: uncertainTrack || undefined, uncertainAllocation: uncertainAllocation || undefined };
   });
 }
 

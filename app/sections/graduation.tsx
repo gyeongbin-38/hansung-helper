@@ -363,7 +363,7 @@ export function Graduation({
                 }`}
           </strong>
           {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
-          <progress
+          {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역 및 전공별 인정 학점은 학교에서 확인해 주세요.</p> : <progress
             className="progress-track"
             aria-label={r.rule.label + ' 충족률'}
             aria-valuetext={
@@ -371,7 +371,7 @@ export function Graduation({
             }
             max={100}
             value={pct(r)}
-          />
+          />}
           {baseline.requiredSource === 'dept' ? (
             <p className="meta">
               내 학과 졸업 규정표에서 해석된 학번별 기준입니다.
@@ -400,7 +400,7 @@ export function Graduation({
               `입학유형·학번별 기준은 공식 이수체계와 편입생 안내를 확인하세요. 확인일 ${GLOBAL_RULE_SOURCE.asOf}`
             )}
           </p>
-          <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baseline} deptUrl={myRules?.url} globalUrl={admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
+          <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baseline} deptUrl={myRules?.url} globalUrl={r.rule.id === 'gen' ? 'https://www.hansung.ac.kr/hansung/6219/subview.do' : admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
         </section>
         <section className="card pad">
           {isPoints ? (
@@ -436,10 +436,11 @@ export function Graduation({
               <div className="rule-actions">
                 <button
                   className="secondary"
-                  onClick={() => go('profile')}
+                  onClick={() => go('profile/points')}
                 >
                   내 정보에서 포인트 입력
                 </button>
+                <a className="link" href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noreferrer">학교 비교과 포털에서 확인 <ArrowUpRight size={16} /></a>
                 <button
                   className="secondary"
                   onClick={() => go('activities')}
@@ -1034,7 +1035,7 @@ export function Graduation({
                   : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
-            <progress
+            {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역 및 전공별 인정 학점은 학교에서 확인해 주세요.</p> : <progress
               className="progress-track"
               aria-label={r.rule.label + ' 충족률'}
               aria-valuetext={
@@ -1046,7 +1047,7 @@ export function Graduation({
               }
               max={100}
               value={pct(r)}
-            />
+            />}
             {r.planned > 0 && (
               <p className="meta">+{r.planned}학점 계획 중</p>
             )}
@@ -1062,7 +1063,7 @@ export function Graduation({
                 <>
                   <button
                     className="secondary"
-                    onClick={() => go('profile')}
+                    onClick={() => go('profile/points')}
                   >
                     포인트 입력
                   </button>
@@ -1086,7 +1087,7 @@ export function Graduation({
                   </button>
                 )}
             </div>
-            <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baselineResults.find((item) => item.rule.id === r.rule.id)!} deptUrl={myRules?.url} globalUrl={admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
+            <RequirementTarget key={`${r.rule.id}:${r.required}:${r.requiredSource}`} result={r} baseline={baselineResults.find((item) => item.rule.id === r.rule.id)!} deptUrl={myRules?.url} globalUrl={r.rule.id === 'gen' ? 'https://www.hansung.ac.kr/hansung/6219/subview.do' : admissionType === 'freshman' ? GLOBAL_RULE_SOURCE.url : TRANSFER_RULE_SOURCE.url} onSave={setRequired} onReset={resetRequired} />
             {r.requiredSource === 'dept' && deptTargets ? (
               <p className="meta">
                 내 학과 규정표 기준 ({deptTargets.columnLabel})

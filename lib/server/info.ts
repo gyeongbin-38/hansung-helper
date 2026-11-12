@@ -13,6 +13,7 @@ import type {
   InfoAuditRow,
   InfoCourse,
   InfoPageFailure,
+  InfoRequirementTable,
   InfoSnapshot,
 } from '../data/info.ts';
 
@@ -93,8 +94,9 @@ const SLOTS: { slot: string; res: RegExp[] }[] = [
   { slot: 'points', res: [/비교과.*포인트/, /포인트.*(조회|내역|현황)/] },
   {
     slot: 'audit',
-    res: [/졸업.*(가?사정|심사)|사정표/, /졸업요건|졸업\s*기준/],
+    res: [/졸업.*(가?사정|심사)|사정표/],
   },
+  { slot: 'requirements', res: [/졸업\s*(요건|기준|이수요건)/] },
 ];
 
 export function pickTargets(menu: InfoMenuItem[]) {
@@ -185,12 +187,14 @@ const num = (s: string) => {
  *  세 헤더가 모두 있어야 성적표로 인정한다(요약 테이블 제외). */
 export function parseGrades(html: string): {
   completed: InfoCourse[];
+  failedCourses: InfoCourse[];
   credits?: number;
   gpa?: number;
   recognized: boolean;
   hasUnconfirmed: boolean;
 } {
   const completed: InfoCourse[] = [];
+  const failedCourses: InfoCourse[] = [];
   const seen = new Set<string>();
   let credits: number | undefined;
   let gpa: number | undefined;
@@ -245,6 +249,13 @@ export function parseGrades(html: string): {
     const iCredits = col(head, [/취득\s*학점|학점수|학점/]);
     const iGrade = col(head, [/등급|성적/]);
     const iSem = col(head, [/학기|년도/]);
+    const iArea = col(head, [/교양\s*영역|배분\s*영역|이수\s*영역|^영역$/]);
+    const iNote = col(head, [/비고|현재트랙/]);
+    const courseArea = (cells: string[]) => {
+      if (iArea !== -1) return cells[iArea]?.slice(0, 80) || undefined;
+      const note = iNote !== -1 ? cells[iNote] ?? '' : '';
+      return note.match(/(?:선필교|선택필수교양)\s*\(([^)]{1,80})\)/)?.[1]?.trim() || undefined;
+    };
     if (iName === -1 || iCredits === -1) continue;
     recognized = true;
     let curSem = semester;
@@ -273,9 +284,6 @@ export function parseGrades(html: string): {
         hasUnconfirmed = true;
         continue;
       }
-      // 미이수 등급(F·NP·U·낙제 등)은 이수 목록에서 제외 — D학점까지는 이수.
-      if (/^(F|FA|NP|N|U|I|낙제|불합격|미이수|포기)/i.test(gradeCell))
-        continue;
       const code = iCode !== -1 ? cells[iCode] || '미확인' : '미확인';
       const sem =
         (iSem !== -1 &&
@@ -283,6 +291,15 @@ export function parseGrades(html: string): {
             ?.slice(1)
             .join('-')) ||
         curSem;
+      if (/^F/i.test(gradeCell)) {
+        failedCourses.push({ code: code.slice(0, 30), name: name.slice(0, 100),
+          category: infoCategory(iCat !== -1 ? cells[iCat] || '' : ''), credits: cr <= 20 ? cr : 0,
+          semester: sem?.slice(0, 10), grade: gradeCell.slice(0, 10),
+          area: courseArea(cells) });
+        continue;
+      }
+      // 확정되지 않은 성적은 이수 완료로 취급하지 않는다.
+      if (/^(NP|N|U|I|낙제|불합격|미이수|포기)/i.test(gradeCell)) continue;
       const key = normKey(name) + '|' + (sem ?? '');
       if (seen.has(key)) continue;
       seen.add(key);
@@ -293,6 +310,7 @@ export function parseGrades(html: string): {
         credits: cr <= 20 ? cr : 0,
         semester: sem?.slice(0, 10),
         grade: gradeCell ? gradeCell.slice(0, 10) : undefined,
+        area: courseArea(cells),
       });
     }
   }
@@ -309,7 +327,28 @@ export function parseGrades(html: string): {
       text.match(/평점\s*평균[^0-9]{0,8}(\d(?:\.\d{1,2})?)/);
     if (gm) gpa = parseFloat(gm[1]);
   }
-  return { completed: completed.slice(0, 300), credits, gpa, recognized, hasUnconfirmed };
+  return { completed: completed.slice(0, 300), failedCourses: failedCourses.slice(0, 300), credits, gpa, recognized, hasUnconfirmed };
+}
+
+/** 졸업요건은 수치 추정 없이 각 표의 열과 행을 원문 순서대로 보관한다. */
+export function parseRequirementTables(html: string): InfoRequirementTable[] {
+  const out: InfoRequirementTable[] = [];
+  for (const match of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
+    const rows = [...match[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((row) =>
+      [...row[1].matchAll(/<t([dh])\b([^>]*)>([\s\S]*?)<\/t[dh]>/gi)].map((cell) => {
+        const span = (key: string) => Math.min(20, Math.max(1, Number(cell[2].match(new RegExp(`\\b${key}\\s*=\\s*["']?(\\d+)`, 'i'))?.[1] ?? 1)));
+        return { text: plainText(cell[3]).slice(0, 200), colspan: span('colspan'), rowspan: span('rowspan'), header: cell[1].toLowerCase() === 'h' };
+      }).slice(0, 20),
+    ).filter((row) => row.some((cell) => cell.text));
+    if (rows.length < 2 || !/졸업|트랙|전공|이수|학점|요건/.test(rows.flat().map((cell) => cell.text).join(' '))) continue;
+    const before = html.slice(Math.max(0, (match.index ?? 0) - 1200), match.index);
+    const titles = [...before.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>|<caption\b[^>]*>([\s\S]*?)<\/caption>/gi)];
+    const title = titles.at(-1);
+    const caption = match[1].match(/<caption\b[^>]*>([\s\S]*?)<\/caption>/i);
+    out.push({ heading: plainText(caption?.[1] ?? title?.[1] ?? title?.[2] ?? '').slice(0, 120), rows: rows.slice(0, 80) });
+    if (out.length === 12) break;
+  }
+  return out;
 }
 
 const normKey = (s: string) => s.replace(/\s+/g, '');
@@ -378,9 +417,11 @@ const admitYearOf = (id: string): number | undefined => {
 export function parseIdentity(html: string): {
   name?: string;
   dept?: string;
+  track?: string;
+  tracks?: string[];
   admitYear?: number;
 } {
-  const out: { name?: string; dept?: string; admitYear?: number } = {};
+  const out: { name?: string; dept?: string; track?: string; tracks?: string[]; admitYear?: number } = {};
   let sid = '';
   // <th>라벨</th><td>값</td> 패턴
   const pair = (labelRe: RegExp) => {
@@ -392,8 +433,14 @@ export function parseIdentity(html: string): {
     );
     return m?.[1] ? plainText(m[1]) : '';
   };
-  const dept = pair(/소속|학과|학부|전공|학부\(과\)/);
+  const dept = pair(/소속|학과|학부|학부\(과\)/);
   if (dept && /[가-힣]/.test(dept) && dept.length <= 40) out.dept = dept;
+  const track1 = pair(/제\s*1\s*트랙|1\s*트랙/);
+  const track2 = pair(/제\s*2\s*트랙|2\s*트랙/);
+  const tracks = [track1, track2].filter((v) => !!v && /[가-힣]/.test(v) && v.length <= 40);
+  if (tracks.length) out.tracks = tracks;
+  const track = track2 || track1 || pair(/트랙|전공/);
+  if (track && /[가-힣]/.test(track) && track.length <= 40) out.track = track;
   const name = pair(/성명|이름/);
   if (/^[가-힣]{2,5}$/.test(name)) out.name = name;
   const idText = pair(/학번|학번\(사번\)|등록번호/) ||
@@ -401,6 +448,10 @@ export function parseIdentity(html: string): {
   const idm = idText.match(/\d{6,10}/);
   if (idm) sid = idm[0];
   const text = plainText(html);
+  if (!out.track) {
+    const m = text.match(/(?:제\s*1\s*트랙|1\s*트랙|트랙|전공)\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:이름|학부|학번|소속|$))/);
+    if (m) out.track = m[1];
+  }
   // '이름 : 홍길동' — 다음 라벨이나 끝에서 끊는다 (붙어 있을 수 있음)
   if (!out.name) {
     const m = text.match(
@@ -410,13 +461,9 @@ export function parseIdentity(html: string): {
   }
   // '학부(과) : AI응용학과' — '전공 :' 라벨 앞에서 끊는다
   if (!out.dept) {
-    const m =
-      text.match(
-        /학부\s*\(과\)\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:전공|이름|학번|$))/,
-      ) ??
-      text.match(
-        /전공\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:이름|학부|학번|$))/,
-      );
+    const m = text.match(
+      /학부\s*\(과\)\s*[:：]\s*([가-힣A-Za-z·()]{2,30}?)(?=\s*(?:전공|이름|학번|$))/,
+    );
     if (m) out.dept = m[1];
   }
   // '홍길동 (2591037) AI응용학과 2 학년' 신원 라인
@@ -514,20 +561,22 @@ export async function collectInfo(
     if (!fetched[slot] && !pages.some((p) => p.slot === slot))
       pages.push({ slot, path: '-', ok: false, reason: 'missing' });
 
-  const identity: { name?: string; dept?: string; admitYear?: number } = {};
+  const identity: { name?: string; dept?: string; track?: string; tracks?: string[]; admitYear?: number } = {};
   for (const h of [ctx.mainHtml, ctx.menuHtml, ...Object.values(fetched)]) {
     const id = parseIdentity(h);
     identity.name ??= id.name;
     identity.dept ??= id.dept;
+    identity.track ??= id.track;
+    identity.tracks ??= id.tracks;
     identity.admitYear ??= id.admitYear;
   }
   // 페이지에서 학번을 못 찾으면 로그인 학번으로 입학연도를 채운다
   if (!identity.admitYear && ctx.studentId)
     identity.admitYear = admitYearOf(ctx.studentId);
 
-  const grades = fetched.grades !== undefined
+  const grades: ReturnType<typeof parseGrades> = fetched.grades !== undefined
     ? parseGrades(fetched.grades)
-    : { completed: [], recognized: false, hasUnconfirmed: false };
+    : { completed: [], failedCourses: [], recognized: false, hasUnconfirmed: false };
   // 정상 HTTP 응답이라도 성적표의 필수 열이 사라지면 빈 이수 목록으로
   // 기존 결과를 교체하지 않는다. 헤더가 있는 빈 표는 정상 빈 목록이다.
   if (fetched.grades !== undefined && (!grades.recognized || grades.hasUnconfirmed)) {
@@ -537,14 +586,21 @@ export async function collectInfo(
     }
   }
   const menu = menuItems();
+  const requirements = fetched.requirements ? parseRequirementTables(fetched.requirements) : undefined;
+  if (fetched.requirements !== undefined && !requirements?.length)
+    for (const page of pages) if (page.slot === 'requirements' && page.ok) { page.ok = false; page.reason = 'structure'; }
+  const fetchedAt = new Date().toISOString();
   const snap: InfoSnapshot = {
     source: 'info-hansung',
-    fetchedAt: new Date().toISOString(),
+    fetchedAt,
     ...identity,
     credits: grades.credits,
     gpa: grades.gpa,
+    gpaVerifiedAt: grades.recognized && !grades.hasUnconfirmed && grades.gpa !== undefined ? fetchedAt : undefined,
     points: fetched.points ? parsePoints(fetched.points) : undefined,
     completed: grades.completed,
+    failedCourses: grades.failedCourses,
+    requirements,
     audit: fetched.audit ? parseAudit(fetched.audit) : undefined,
     diag: { menu, pages },
   };
