@@ -41,8 +41,8 @@ import {
   deptMatches,
   deptPoolOf,
   planBlockReason,
-  recommend,
 } from './catalog';
+import { recommend } from '@/lib/data/timetable-recommendations';
 import { matchEnrollment } from '@/lib/data/lms';
 import { RetryButton, SkeletonRows } from './skeleton';
 import type { Data } from './data';
@@ -332,8 +332,8 @@ export function Timetable({
     });
   }, [catalog, dept, cat, q, day, band, myDept, deptPool]);
   const recs = useMemo(
-    () => (catalog ? recommend(catalog.sections, data, planned) : []),
-    [catalog, data, planned],
+    () => (catalog ? recommend(catalog.sections, data, planned, 6, { selectedDay: day, sourceSemester: catalog.semester }) : []),
+    [catalog, data, planned, day],
   );
   const untimedPlanned = planned.filter((s) => s.untimed);
   const credits = planned.reduce((n, s) => n + s.credits, 0);
@@ -824,7 +824,7 @@ export function Timetable({
                   <Sparkles size={17} aria-hidden="true" /> 맞춤 추천
                 </h3>
                 <p className="meta">
-                  학과·학년·설문 선호·시간 충돌을 반영한 규칙 기반 추천입니다.
+                  입력한 이수 내역·학과·선택한 요일·설문 선호와 확인된 시간의 충돌을 반영합니다. 전필의 개인 적용 여부와 미확인 시간은 학교에서 확인해 주세요.
                   {data.prefs.some((p) =>
                     ['이론', '실습', '프로젝트', '시험', '개인 과제', '팀 프로젝트'].includes(p),
                   ) &&

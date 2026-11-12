@@ -99,8 +99,10 @@ export function Courses({
   const suggestions = useMemo(() => {
     const input = {
       matchedDept: myDeptRes.dept,
-      completedCodes: [...data.completed.map((c) => c.code), ...(data.info?.completed ?? []).map((c) => c.code)].filter((code) => code.trim().length > 0),
+      completedCodes: [...data.completed.map((c) => c.code), ...(data.info?.completed ?? []).map((c) => c.code)].filter((code) => code.trim().length > 0 && code !== '미확인'),
+      completedNames: [...data.completed.map((c) => c.name), ...(data.info?.completed ?? []).map((c) => c.name)],
       plannedCodes: plannedSecs.map((s) => s.code),
+      plannedSections: plannedSecs,
       prefs: data.prefs,
       selectedDay: day,
     };
@@ -367,6 +369,7 @@ export function Courses({
       <div className="cards">
         {suggestions.slice(0, LIMIT).map(({ section: s, reasons }, i) => {
           const added = data.planned.includes(s.id);
+          const overlaps = conflicts(s, plannedSecs);
           return (
             <article className="card pad course" key={s.id}>
               <div className="between course-head">
@@ -410,6 +413,7 @@ export function Courses({
                 {sourceDurationLabel(s) && <div><dt>원자료 시간 표기</dt><dd>{sourceDurationLabel(s)}</dd></div>}
               </dl>
               {s.online && roomLabel(s) && <p className="meta">온라인·강의실 병기: 실제 운영 방식 확인 필요</p>}
+              {overlaps.length > 0 && !added && <p className="meta">시간 충돌: {overlaps.map((item) => item.name).join(', ')}</p>}
               <p className="meta">{reasons.length ? `추천 근거 · ${reasons.join(' · ')}` : '과목 탐색 결과 · 추천 근거 없음'}</p>
               <button className="secondary full" onClick={() => toggle(s)}>
                 {added ? <Check size={17} /> : <Plus size={17} />}{' '}
