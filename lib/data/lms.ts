@@ -70,6 +70,13 @@ export type LmsSnapshot = {
   };
 };
 
+/** 이전 결과의 확인 시각은 그것을 포함한 수집 시각보다 늦을 수 없다. */
+function retainedTime(value: unknown, collectedAt: unknown): string | undefined {
+  if (typeof value !== 'string' || typeof collectedAt !== 'string') return undefined;
+  const time = Date.parse(value), upperBound = Date.parse(collectedAt);
+  return Number.isFinite(time) && Number.isFinite(upperBound) && time <= upperBound ? value : undefined;
+}
+
 /** 수집 파일의 링크는 인증된 학교 LMS 주소만 허용한다. */
 function safeLmsUrl(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > 2048) return undefined;
@@ -106,7 +113,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
           uncertain: t.uncertain === true ? true : undefined,
-          statusRetainedAt: typeof t.statusRetainedAt === 'string' && Number.isFinite(Date.parse(t.statusRetainedAt)) ? t.statusRetainedAt : undefined,
+          statusRetainedAt: retainedTime(t.statusRetainedAt, s.fetchedAt),
         };
       });
     };
@@ -143,10 +150,10 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
       errors: Array.isArray(co.errors)
         ? co.errors.filter((e): e is string => typeof e === 'string')
         : undefined,
-      retainedAt: typeof co.retainedAt === 'string' ? co.retainedAt : undefined,
+      retainedAt: retainedTime(co.retainedAt, s.fetchedAt),
       retainedAtByKind: co.retainedAtByKind && typeof co.retainedAtByKind === 'object'
         ? Object.fromEntries(Object.entries(co.retainedAtByKind).filter(([key, value]) =>
-          ['vod', 'assign', 'quiz'].includes(key) && typeof value === 'string'))
+          ['vod', 'assign', 'quiz'].includes(key) && !!retainedTime(value, s.fetchedAt)))
         : undefined,
     });
   }
@@ -184,8 +191,8 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     const retained: NonNullable<LmsCourse['retainedAtByKind']> = {};
     for (const kind of ['assign', 'quiz'] as const) {
       const tasks = kind === 'assign' ? course.assigns : course.quizzes;
-      const time = course.retainedAtByKind?.[kind];
-      if (tasks.some((task) => task.uncertain) && time && Number.isFinite(Date.parse(time)))
+      const time = retainedTime(course.retainedAtByKind?.[kind], next.fetchedAt);
+      if (tasks.some((task) => task.uncertain) && time)
         retained[kind] = time;
     }
     type Kind = 'vod' | 'assign' | 'quiz';
@@ -194,7 +201,11 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
       const failed = failures.has(kind) || failures.has('timeout') || failures.has('budget');
       // Legacy snapshots have only a course-wide retainedAt. A failed list
       // without any retained timestamp has no known successful check time.
-      const time = failed ? (item.retainedAtByKind?.[kind] || item.retainedAt) : snapshot.fetchedAt;
+      const time = failed
+        ? item.retainedAtByKind !== undefined
+          ? retainedTime(item.retainedAtByKind[kind], snapshot.fetchedAt)
+          : retainedTime(item.retainedAt, snapshot.fetchedAt)
+        : snapshot.fetchedAt;
       return time && Number.isFinite(Date.parse(time)) ? time : undefined;
     };
     const oldTime = (kind: Kind) => listTime(old, previous, kind);
@@ -210,11 +221,11 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
       if (!task.uncertain) return task;
       const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
       if (matches.length !== 1) return task;
-      const priorTime = matches[0].uncertain ? matches[0].statusRetainedAt : oldTime(kind);
+      const priorTime = matches[0].uncertain ? retainedTime(matches[0].statusRetainedAt, previous.fetchedAt) : oldTime(kind);
       if (matches[0].uncertain && (!priorTime || !Number.isFinite(Date.parse(priorTime)))) return task;
       // The legacy course-wide time is only unambiguous for one uncertain item.
-      const currentTime = task.statusRetainedAt ||
-        (current.filter((item) => item.uncertain).length === 1 ? course.retainedAtByKind?.[kind] : undefined);
+      const currentTime = retainedTime(task.statusRetainedAt, next.fetchedAt) ||
+        (current.filter((item) => item.uncertain).length === 1 ? retainedTime(course.retainedAtByKind?.[kind], next.fetchedAt) : undefined);
       if (currentTime && Number.isFinite(Date.parse(currentTime)) &&
           (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime))) {
         retained[kind] = currentTime;
@@ -235,8 +246,9 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
 
 /** 저장 경로별 스냅샷을 수집 시각 순서로 병합한다. */
 export function combineLmsSnapshots(...values: unknown[]): LmsSnapshot | undefined {
+  const latestPlausible = Date.now() + 5 * 60_000;
   const snapshots = values.map(validateLms).filter((s): s is LmsSnapshot =>
-    !!s && Number.isFinite(Date.parse(s.fetchedAt)));
+    !!s && Number.isFinite(Date.parse(s.fetchedAt)) && Date.parse(s.fetchedAt) <= latestPlausible);
   snapshots.sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
   return snapshots.reduce<LmsSnapshot | undefined>((old, next) => mergeLmsSnapshot(old, next), undefined);
 }
