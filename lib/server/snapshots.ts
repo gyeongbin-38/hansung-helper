@@ -16,7 +16,7 @@ const cache = new Map<
   { payload: string; fetchedAt: string; at: number }
 >();
 
-type SnapRow = { payload: string; fetched_at: string };
+type SnapRow = { part: number; payload: string; fetched_at: string; updated_at: number };
 
 function db(): D1Database {
   return (env as unknown as { DB: D1Database }).DB;
@@ -26,30 +26,50 @@ function db(): D1Database {
 async function d1Snapshot(
   kind: string,
 ): Promise<{ payload: string; fetched_at: string } | null> {
+  const hit = cache.get(kind);
   try {
-    const hit = cache.get(kind);
     if (hit && Date.now() - hit.at < TTL_MS)
       return { payload: hit.payload, fetched_at: hit.fetchedAt };
+    const pointerResult = await db().prepare(
+      'SELECT part, payload, fetched_at, updated_at FROM public_snapshots WHERE kind = ? ORDER BY part',
+    ).bind(`${kind}@active`).all<SnapRow>();
+    const pointer = (pointerResult.results ?? []).find((row) => row.part === -1);
     const res = await db()
       .prepare(
-        'SELECT payload, fetched_at FROM public_snapshots WHERE kind = ? ORDER BY part',
+        'SELECT part, payload, fetched_at, updated_at FROM public_snapshots WHERE kind = ? ORDER BY part',
       )
       .bind(kind)
       .all<SnapRow>();
-    const rows = res.results ?? [];
-    if (!rows.length) return null;
+    let rows = res.results ?? [];
+    if (pointer) {
+      const manifest = JSON.parse(pointer.payload) as { kind?: unknown; parts?: unknown };
+      if (typeof manifest.kind !== 'string' || !manifest.kind.startsWith(`${kind}@`) ||
+          !Number.isSafeInteger(manifest.parts) || (manifest.parts as number) < 1 || (manifest.parts as number) > 10000)
+        return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
+      const staged = await db().prepare(
+        'SELECT part, payload, fetched_at, updated_at FROM public_snapshots WHERE kind = ? ORDER BY part',
+      ).bind(manifest.kind).all<SnapRow>();
+      rows = staged.results ?? [];
+      if (rows.length !== manifest.parts || rows.some((row) => row.updated_at !== pointer.updated_at || row.fetched_at !== pointer.fetched_at))
+        return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
+    }
+    if (!rows.length) return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
+    if (rows.some((row, index) => row.part !== index ||
+      row.updated_at !== rows[0].updated_at || row.fetched_at !== rows[0].fetched_at))
+      return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
     const payload = rows.map((r) => r.payload).join('');
     JSON.parse(payload); // 깨진 페이로드는 서빙하지 않음
     const fetchedAt = rows[0].fetched_at ?? '';
     cache.set(kind, { payload, fetchedAt, at: Date.now() });
     return { payload, fetched_at: fetchedAt };
   } catch {
-    return null;
+    return hit ? { payload: hit.payload, fetched_at: hit.fetchedAt } : null;
   }
 }
 
 function snapshotResponse(body: string): Response {
-  return new Response(body, {
+  const parsed: unknown = JSON.parse(body);
+  return new Response(JSON.stringify({ ok: true, data: parsed }), {
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'Cache-Control': 'public, max-age=300',
@@ -67,8 +87,9 @@ export async function snapshotGet(
   kind: string,
   bundled: unknown,
   bundledAt = '',
+  accepts?: (payload: unknown) => boolean,
 ): Promise<Response> {
   const row = await d1Snapshot(kind);
-  if (row && row.fetched_at >= bundledAt) return snapshotResponse(row.payload);
+  if (row && row.fetched_at >= bundledAt && (!accepts || accepts(JSON.parse(row.payload)))) return snapshotResponse(row.payload);
   return snapshotResponse(JSON.stringify(bundled));
 }

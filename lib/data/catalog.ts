@@ -31,14 +31,14 @@ export type Catalog = {
   sections: CourseSection[];
 };
 export const DAY_SHORT = ['월', '화', '수', '목', '금', '토', '일'];
-/** '2026-2' 같은 학기 문자열 → 학기 시작 로컬 시각 (1학기 3/1, 2학기 9/1).
+/** '2026-2' 같은 학기 문자열 → 한국 시간 기준 학기 시작 시각 (1학기 3/1, 2학기 9/1).
  *  해석 불가하면 null — 학기를 지어내지 않는다. */
 export function semesterStartTs(semester: string): number | null {
   const m = semester.match(/(\d{4})\s*[-./]?\s*(\d)/);
   if (!m) return null;
   const y = +m[1];
-  if (m[2] === '1') return new Date(y, 2, 1).getTime();
-  if (m[2] === '2') return new Date(y, 8, 1).getTime();
+  if (m[2] === '1') return Date.UTC(y, 2, 1) - 9 * 3600_000;
+  if (m[2] === '2') return Date.UTC(y, 8, 1) - 9 * 3600_000;
   return null;
 }
 /** 원본 이수구분 → 졸업요건 계산용 그룹. 카탈로그의 표시용 catGroup과는 별도 축. */
@@ -65,13 +65,26 @@ export function slotLabel(s: CourseSlot) {
   return `${DAY_SHORT[s.d]} ${fmtMin(s.s)}~${fmtMin(s.e)}`;
 }
 export function slotsLabel(s: CourseSection) {
-  if (s.untimed || !s.slots.length) return '온라인 · 시간 미정';
+  if (s.untimed || !s.slots.length) return '시간 미정';
   return s.slots.map(slotLabel).join(' · ');
+}
+/** 숫자 학년만 접미사를 붙이고 원자료의 '전학년'은 그대로 쓴다. */
+export function yearLabel(year: string): string {
+  const value = (year ?? '').trim();
+  return /^\d+$/.test(value) ? `${value}학년` : value;
+}
+/** 원자료의 시간량 표기. 실제 수업 시간이나 온라인 분량으로 단정하지 않는다. */
+export function sourceDurationLabel(s: CourseSection): string {
+  return (s.room ?? '').match(/(?:^|\s)(\d+(?:\.\d+)?\s*시간)(?=\s|$)/)?.[1] ?? '';
 }
 /** 강의실 표시 — 원본 '온라인강좌 미래관B107'에서 방식 접두어를 벗겨
  *  실제 강의실만 돌려준다('미래관B107'). '온라인강좌' 단독이면 빈 문자열. */
 export function roomLabel(s: CourseSection): string {
-  return (s.room ?? '').replace(/^온라인강좌\s*/, '').trim();
+  return (s.room ?? '')
+    .replace(/^온라인강좌\s*/, '')
+    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*시간(?=\s|$)/g, ' ')
+    .replace(/^\s*\/\s*|\s*\/\s*$/g, '')
+    .trim();
 }
 /** 수업 방식 표시 — 온라인/대면을 강의실과 분리해 보여준다 */
 export function deliveryLabel(s: CourseSection): string {

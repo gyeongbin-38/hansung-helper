@@ -1,5 +1,7 @@
 import {
   validateLms,
+  mergeLmsSnapshot,
+  formatLmsTime,
   courseProgress,
   pendingTasks,
   dueSoon,
@@ -8,14 +10,18 @@ import {
   matchEnrollment,
   enrolledSectionIds,
   suggestMatchCandidates,
+  searchMatchCandidates,
   submissionItems,
   bingeQueue,
   relTime,
   currentSemesterStart,
+  kstDateNumber,
   isPast,
   courseIsPast,
   parseDue,
 } from '../lib/data/lms.ts';
+import { canImportExtensionLms } from '../lib/data/lms.ts';
+if (canImportExtensionLms(true) || !canImportExtensionLms(false)) throw new Error('unverified extension data must not enter authenticated accounts');
 import { deriveNotifs } from '../lib/data/notifs.ts';
 
 let pass = 0;
@@ -82,6 +88,9 @@ const snap = {
 
 // ── validateLms ─────────────────────────────────────────────
 t('validate: 정상 스냅샷 통과', validateLms(snap) !== null);
+const maliciousLinks = { ...snap, courses: [{ ...snap.courses[0], vods: [{ title: 'script', attended: false, url: 'javascript:alert(1)' }], assigns: [{ title: '외부 링크', submitted: false, url: 'https://learn.hansung.ac.kr.evil.example/test' }], quizzes: [{ title: '인증정보', submitted: false, url: 'https://name:secret@learn.hansung.ac.kr/test' }] }] };
+const safeLinks = validateLms(maliciousLinks).courses[0];
+t('validate: 스크립트·다른 도메인·인증정보 포함 링크는 제거', !safeLinks.vods[0].url && !safeLinks.assigns[0].url && !safeLinks.quizzes[0].url);
 t('validate: source 불일치 거부', validateLms({ ...snap, source: 'x' }) === null);
 t('validate: courses 비배열 거부', validateLms({ source: 'cosmos-lms', courses: 'x' }) === null);
 t('validate: course 필수필드 누락 거부', validateLms({
@@ -166,6 +175,8 @@ t('match: 모든 과목 반환', em.length === 8);
 t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
 t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
 t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
+const oldSemesterCourse = { ...lmsMatch, courses: [{ ...lmsMatch.courses[0], title: '[2025-1학기] 운영체제' }] };
+t('match: 과목 학기가 다르면 같은 이름이나 수동 보정도 연결하지 않음', matchEnrollment(oldSemesterCourse, catalog2, { '1': 'a1' })[0].sections.length === 0);
 
 // ── matchEnrollment overrides (수동 보정) ──────────────────
 const emOv = matchEnrollment(lmsMatch, catalog2, {
@@ -219,6 +230,10 @@ const sgSect = suggestMatchCandidates(
 );
 t('suggest: 분반 일치 근거', sgSect.find((c) => c.name === '알고리즘')?.why.includes('분반 일치'));
 t('suggest: 분반 일치 시 대표 분반도 그 분반', sgSect.find((c) => c.name === '알고리즘')?.sectionId === 'p2');
+t('search: 공백을 무시하고 과목명 검색', searchMatchCandidates(catalog2, '자료 구조')[0]?.name === '자료구조및실습');
+t('search: 과목 코드로 검색', searchMatchCandidates(catalog2, 'd1')[0]?.code === 'd1');
+t('search: 검색어가 없으면 전체 목록을 노출하지 않음', searchMatchCandidates(catalog2, '  ').length === 0);
+t('search: 같은 코드의 분반을 묶음', searchMatchCandidates(catalogShared, '알고리즘')[0]?.sectionCount === 2);
 
 // ── enrolledSectionIds ──────────────────────────────────────
 const eids = enrolledSectionIds(lmsMatch, catalog2);
@@ -236,7 +251,7 @@ const soon = dueSoon(snap, NOW, 7);
 t('dueSoon: 7일 내 항목 수', soon.length === 2); // 강의(9/20), 퀴즈(9/19) — 과제(9/25)는 7일 초과
 t('dueSoon: 마감 빠른 순 정렬', soon[0].title === '퀴즈1' && soon[1].title === '2주차 강의');
 t('dueSoon: 마감 미기재 제외', !pendingTasks(snap).some((p) => p.title === '과제0' ));
-t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59')));
+t('dueSoon: range 끝날짜 사용', soon.some((p) => p.title === '2주차 강의' && p.dueTs === Date.parse('2026-09-20T23:59:00+09:00')));
 const far = dueSoon(snap, NOW, 2);
 t('dueSoon: 2일 창', far.length === 1 && far[0].title === '퀴즈1');
 // 과거 하한 — 오래 지난 미완료가 다가오는 마감을 밀어내지 않아야 한다
@@ -280,6 +295,28 @@ const unSnap = {
   }],
 };
 const unPend = pendingTasks(unSnap);
+const uncertainVodSnap = { ...unSnap, courses: [{ ...unSnap.courses[0], vods: [{ title: '출석 확인 실패', attended: false, uncertain: true }] }] };
+t('uncertain: 이전 출석 결과가 있어도 확인 필요 항목에 포함', pendingTasks({ ...uncertainVodSnap, courses: [{ ...uncertainVodSnap.courses[0], vods: [{ title: '이전 출석', attended: true, uncertain: true }] }] }).some((p) => p.title === '이전 출석' && p.uncertain));
+t('uncertain: 출석 확인 실패 플래그 전달', pendingTasks(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true && bingeQueue(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true);
+const oldLms = { source: 'cosmos-lms', fetchedAt: '2026-09-19T00:00:00Z', courses: [{ id: '301', title: '과목', vods: [{ title: '이전 강의', attended: true }], assigns: [{ title: '이전 과제', submitted: true }], quizzes: [{ title: '이전 퀴즈', submitted: true }] }] };
+const partialLms = { ...unSnap, fetchedAt: '2026-09-20T00:00:00Z', courses: [{ ...unSnap.courses[0], vods: [], assigns: [], errors: ['vod', 'assign'] }] };
+const mergedLms = mergeLmsSnapshot(oldLms, partialLms);
+const laterPartial = mergeLmsSnapshot(mergedLms, { ...partialLms, fetchedAt: '2026-09-21T00:00:00Z', courses: [{ ...partialLms.courses[0], errors: ['quiz'], vods: [{ title: '새 강의', attended: true }], assigns: [{ title: '새 과제', submitted: true }] }] });
+const alternating = mergeLmsSnapshot(laterPartial, { ...partialLms, fetchedAt: '2026-09-22T00:00:00Z', courses: [{ ...partialLms.courses[0], errors: ['assign'] }] });
+t('merge: 번갈아 실패한 목록은 각 목록 마지막 성공 시각 유지', alternating.courses[0].retainedAtByKind?.assign === '2026-09-21T00:00:00Z');
+t('validate: 목록별 보존 시각 유지', validateLms(alternating)?.courses[0].retainedAtByKind?.assign === '2026-09-21T00:00:00Z');
+t('merge: 실패한 출석·과제는 이전 값 유지', mergedLms.courses[0].vods[0]?.title === '이전 강의' && mergedLms.courses[0].assigns[0]?.title === '이전 과제');
+t('merge: 성공한 퀴즈는 새 값 사용하고 실패 표시 유지', mergedLms.courses[0].quizzes[0]?.title === '확인된미응시' && mergedLms.courses[0].errors.includes('vod'));
+t('merge: 이전 값의 수집 시각 보존', validateLms(mergedLms).courses[0].retainedAt === oldLms.fetchedAt);
+const individualFailure = { ...partialLms, courses: [{ ...partialLms.courses[0], errors: ['quiz-check'], quizzes: [{ title: '이전 퀴즈', submitted: false, uncertain: true }] }] };
+const preservedQuiz = mergeLmsSnapshot(oldLms, individualFailure);
+t('merge: 퀴즈 개별 확인 실패 시 이전 응시 상태를 보존하고 확인 실패 표시', preservedQuiz.courses[0].quizzes[0].submitted && preservedQuiz.courses[0].quizzes[0].uncertain && pendingTasks(preservedQuiz).some((task) => task.title === '이전 퀴즈' && task.uncertain));
+t('merge: 성공한 빈 목록은 이전 값을 되살리지 않음', mergeLmsSnapshot(oldLms, { ...partialLms, courses: [{ ...partialLms.courses[0], errors: [] }] }).courses[0].assigns.length === 0);
+t('merge: 다른 과목 결과를 혼합하지 않음', mergeLmsSnapshot(oldLms, { ...partialLms, courses: [{ ...partialLms.courses[0], id: 'other' }] }).courses[0].vods.length === 0);
+t('time: 수집 시각은 한국 시간', formatLmsTime('2026-09-19T00:00:00Z').includes('09:00'));
+const uncertainAssignment = { ...unSnap, courses: [{ ...unSnap.courses[0], assigns: [{ title: '과제 확인 실패', submitted: false, uncertain: true }] }] };
+t('uncertain: 과제 확인 실패 유지', pendingTasks(uncertainAssignment).find((p) => p.title === '과제 확인 실패')?.uncertain === true && submissionItems(uncertainAssignment).find((p) => p.title === '과제 확인 실패')?.uncertain === true);
+t('semester: 기한 미상의 항목이 있으면 과목을 지난 학기로 단정하지 않음', !courseIsPast({ id: 'x', title: 'x', vods: [], assigns: [{ title: 'old', submitted: false, due: '2025-11-01' }, { title: 'unknown', submitted: false }], quizzes: [] }, Date.parse('2026-03-01T00:00:00+09:00')));
 t('uncertain: 미응시·확인실패 모두 pending 포함', unPend.length === 2);
 t('uncertain: 플래그 전달', unPend.find((p) => p.title === '확인실패퀴즈')?.uncertain === true);
 t('uncertain: 확인된 항목은 플래그 없음', !unPend.find((p) => p.title === '확인된미응시')?.uncertain);
@@ -304,7 +341,7 @@ t('submissions: 응시완료 포함', unSubs.some((s) => s.title === '응시완�
 // ── bingeQueue (강의 몰아듣기) ───────────────────────────────
 const bq = bingeQueue(snap);
 t('binge: 안 들은 강의만', bq.length === 1 && bq[0].title === '2주차 강의');
-t('binge: range 끝날짜→dueTs', bq[0].dueTs === Date.parse('2026-09-20T23:59'));
+t('binge: range 끝날짜→KST dueTs', bq[0].dueTs === Date.parse('2026-09-20T23:59:00+09:00'));
 t('binge: 주차·출석 원문 전달', bq[0].week === 2 && bq[0].status === 'X');
 const bqSnap = {
   ...snap,
@@ -466,9 +503,13 @@ t('live: 주차 진행', lwp.length === 2 && lwp[0].done === 1 && lwp[1].done ==
 
 // ── 학기 경계 (지난 학기 분리) ──────────────────────────────
 const SEM = currentSemesterStart(NOW); // 2026-09-18 → 2026-09-01
-t('semester: 9월은 9/1 시작', SEM === new Date(2026, 8, 1).getTime());
-t('semester: 3월은 3/1 시작', currentSemesterStart(Date.parse('2026-03-15')) === new Date(2026, 2, 1).getTime());
-t('semester: 1~2월은 전년 9/1', currentSemesterStart(Date.parse('2026-02-15')) === new Date(2025, 8, 1).getTime());
+t('parseDue: LMS 마감은 KST로 파싱', parseDue('2026-09-20 23:59') === Date.parse('2026-09-20T23:59:00+09:00'));
+t('parseDue: 명시된 시간대 유지', parseDue('2026-09-20T23:59:00Z') === Date.parse('2026-09-20T23:59:00Z'));
+t('parseDue: 잘못된 날짜 거부', parseDue('2026-02-31 23:59') === null);
+t('parseDue: KST 자정 기준 일수', kstDateNumber(Date.parse('2026-09-20T00:30:00+09:00')) - kstDateNumber(Date.parse('2026-09-19T23:30:00+09:00')) === 1);
+t('semester: 9월은 9/1 KST 시작', SEM === Date.UTC(2026, 8, 1) - 9 * 60 * 60 * 1000);
+t('semester: 3월은 3/1 KST 시작', currentSemesterStart(Date.parse('2026-03-15')) === Date.UTC(2026, 2, 1) - 9 * 60 * 60 * 1000);
+t('semester: 1~2월은 전년 9/1 KST', currentSemesterStart(Date.parse('2026-02-15')) === Date.UTC(2025, 8, 1) - 9 * 60 * 60 * 1000);
 t('isPast: 경계 이전 마감', isPast(parseDue('2025-11-23 23:59'), SEM) === true);
 t('isPast: 경계 이후 마감', isPast(parseDue('2026-09-20 23:59'), SEM) === false);
 t('isPast: 마감 미기재는 현재 간주(추측 금지)', isPast(null, SEM) === false);

@@ -1,11 +1,12 @@
 import { conflicts, type CourseSection } from './catalog.ts';
 import {
   liveStatus,
+  activityNeedsVerification,
   type ActivitySnapshot,
   type ExtActivity,
 } from './activities.ts';
 import type { ScheduleSnapshot } from './schedule.ts';
-import { dueSoon, type LmsSnapshot } from './lms.ts';
+import { dueSoon, kstDateNumber, type LmsSnapshot } from './lms.ts';
 import type { InfoSnapshot } from './info.ts';
 
 export type NotifItem = {
@@ -44,6 +45,21 @@ export type NotifInputs = {
 
 const DAY = 86400000;
 
+/** Saved programs only; a stale feed cannot assert that applications remain open. */
+export function activityReminderTargets(snapshot: ActivitySnapshot | null, saved: string[], now: number, stages: Record<string, string> = {}): Reminder[] {
+  if (!snapshot || activityNeedsVerification(snapshot.fetchedAt, now)) return [];
+  const ids = new Set(saved);
+  return snapshot.items.filter(a => ids.has(a.id) && !stages[a.id] && a.applyEnd &&
+    ['open', 'closing'].includes(liveStatus(a, now).status) &&
+    Date.parse(a.applyEnd) > now && Date.parse(a.applyEnd) <= now + 7 * DAY)
+    .map(a => ({
+      id: `activity-deadline-${a.id}-${a.applyEnd}`,
+      fireAt: Math.max(now, Date.parse(a.applyEnd!) - DAY),
+      title: `관심 비교과 신청 마감: ${a.title}`,
+      body: `${a.applyEnd!.slice(0, 10)} 마감 · 신청 여부는 학교에서 확인하세요.`,
+    })).sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
+}
+
 export type Reminder = {
   /** 알림함 항목과 같은 id 형식 — notifiedIds로 중복 발송 방지 */
   id: string;
@@ -66,20 +82,16 @@ export function reminderTargets(
   before?: number | null,
 ): Reminder[] {
   const out: Reminder[] = [];
-  const dayStart = (ts: number) => {
-    const d = new Date(ts);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  };
   for (const t of dueSoon(lms, now, horizonDays, horizonDays, before)) {
     if (t.dueTs <= now) continue; // 마감이 지난 항목은 울리지 않는다
     // 캘린더 날짜 차이 — 24시간 블록이 아니라 오늘/내일의 일반적 의미
-    const dd = Math.round((dayStart(t.dueTs) - dayStart(now)) / DAY);
+    const dd = kstDateNumber(t.dueTs) - kstDateNumber(now);
     const when = dd <= 0 ? '오늘 마감' : dd === 1 ? '내일 마감' : `D-${dd} 마감`;
     out.push({
       id: `lms-${t.course}-${t.kind}-${t.title}-${t.dueTs}`.slice(0, 120),
       fireAt: Math.max(now, t.dueTs - leadMs),
       title: `${when}: ${t.title}`,
-      body: `${t.course} · ${t.kind}${t.uncertain ? ' (응시 여부 확인 실패)' : ''}`,
+      body: `${t.course} · ${t.kind}${t.uncertain ? ` (${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 실패)` : ''}${t.rangeUncertain ? ' · 기간 재확인 필요' : ''}`,
     });
   }
   return out.sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
@@ -211,7 +223,8 @@ export function deriveNotifs({
 
   // 활동 신청 마감 임박 (7일 이내) — 저장한 활동을 먼저 강조.
   // 상태는 스냅샷 문자열이 아니라 신청 기간+현재 시각으로 재계산한다.
-  const deadlines = (acts?.items ?? []).filter((a) => {
+  const deadlines = (acts && !activityNeedsVerification(acts.fetchedAt, now) ? acts.items : []).filter((a) => {
+    if (data.actStatus?.[a.id]) return false;
     if (!a.applyEnd) return false;
     const t = Date.parse(a.applyEnd);
     const st = liveStatus(a, now).status;
@@ -305,8 +318,8 @@ export function deriveNotifs({
         cat: '수업',
         label:
           dd < 0 ? `${t.kind} 마감 지남` : dd === 0 ? `${t.kind} 오늘 마감` : `${t.kind} D-${dd}`,
-        title: t.uncertain ? `${t.title} (응시 여부 확인 실패)` : t.title,
-        desc: t.course,
+        title: t.uncertain ? `${t.title} (${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 실패)` : t.title,
+        desc: t.course + (t.rangeUncertain ? ' · 기간 재확인 필요' : ''),
         route: 'lms',
       });
     }

@@ -1,1 +1,1 @@
-{"version":"7","dialect":"sqlite","entries":[{"idx":0,"version":"6","when":1789372800000,"tag":"0000_academic_accounts","breakpoints":true}]}
+{"version":"7","dialect":"sqlite","entries":[{"idx":0,"version":"6","when":1789372800000,"tag":"0000_academic_accounts","breakpoints":true},{"idx":1,"version":"6","when":1792972800000,"tag":"0001_public_snapshots","breakpoints":true}]}

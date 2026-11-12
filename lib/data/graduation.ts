@@ -22,17 +22,24 @@ export type GradRequirement = {
   note?: string;
 };
 
+/** 사용자에게 보여주는 필요 수량 이름 — 비교과는 포인트, 교과는 학점. */
+export function requirementQuantityName(rule: Pick<GradRequirement, 'source'>): '포인트' | '학점' {
+  return rule.source === 'points' ? '포인트' : '학점';
+}
+
 /** 전역 졸업 기준의 공식 출처 — hansung.ac.kr 비교과 포인트 안내 */
 export const GLOBAL_RULE_SOURCE = {
-  url: 'https://www.hansung.ac.kr/hansung/6220/subview.do',
-  label: '한성대학교 비교과 포인트 안내 (공식 페이지)',
-  asOf: '2026-09-17',
+  url: 'https://www.hansung.ac.kr/hansung/6217/subview.do',
+  label: '한성대학교 교육과정 이수체계 (공식 페이지)',
+  asOf: '2026-11-06',
+};
+export const TRANSFER_RULE_SOURCE = {
+  url: 'https://www.hansung.ac.kr/hansung/6221/subview.do',
+  label: '한성대학교 3학년 편입생 이수체계 (공식 페이지)',
 };
 
 /**
- * 2016학년도 이후 입학자 공식 전역 기준 — hansung.ac.kr/hansung/6220:
- * 교과 130학점 + 비교과(High-Success Point) 800P.
- * 학과별 세부 기준·2015학번 이전 기준은 미수집 → required:null(UNKNOWN).
+ * 표시용 기본 항목. 실제 기준은 입학유형과 입학연도를 확인해 적용한다.
  */
 export const DEFAULT_RULES: GradRequirement[] = [
   {
@@ -40,7 +47,7 @@ export const DEFAULT_RULES: GradRequirement[] = [
     label: '총 이수학점 (교과)',
     groups: ['전공필수', '전공선택', '교양', '일반선택', '기타'],
     required: 130,
-    note: '공식 기준(2016학번 이후) — 학과별 세부 요건은 별도 확인 필요',
+    note: '공식 기준은 학번·입학유형별로 적용 — 학과별 세부 요건 별도 확인',
   },
   {
     id: 'points',
@@ -49,7 +56,7 @@ export const DEFAULT_RULES: GradRequirement[] = [
     required: 800,
     unit: 'P',
     source: 'points',
-    note: '공식 기준(2016학번 이후) — 실제 누적 포인트는 hsportal 마이페이지에서 확인',
+    note: '실제 졸업 인정 포인트는 hsportal 마이페이지에서 확인',
   },
   { id: 'majorReq', label: '전공필수', groups: ['전공필수'], required: null },
   {
@@ -68,6 +75,7 @@ export const DEFAULT_RULES: GradRequirement[] = [
 ];
 
 export type RuleStatus = 'met' | 'progress' | 'unknown';
+export type AdmissionType = 'unknown' | 'freshman' | 'general-transfer' | 'bachelor-transfer';
 /** required 값의 출처 — 사용자 입력 > 학과 규정표 > 전역 공식 순으로 적용 */
 export type RequiredSource = 'override' | 'dept' | 'global';
 export type RuleResult = {
@@ -80,6 +88,8 @@ export type RuleResult = {
   /** required가 확정된 경우의 출처 (null이면 미설정) */
   requiredSource?: RequiredSource;
   status: RuleStatus;
+  /** 재수강·중복 여부를 판정할 수 없는 동일 과목이 있는 경우 */
+  uncertainCredits?: boolean;
 };
 
 function sumByGroups(
@@ -104,6 +114,7 @@ export function evaluate(
   overrides: Record<string, number> = {},
   opts: {
     admitYear?: number;
+    admissionType?: AdmissionType;
     points?: number;
     /**
      * 학과 규정표(dept-rules yearTable)에서 해석된 학번별 기준.
@@ -112,14 +123,28 @@ export function evaluate(
     deptTargets?: { total?: number; points?: number };
   } = {},
 ): RuleResult[] {
-  // 입학연도 미입력 → null(참고 기본값 적용), 2016+ → true, 이전 → false(미수집)
-  const post16 =
-    opts.admitYear === undefined ? null : opts.admitYear >= 2016;
+  const year = opts.admitYear;
+  const currentYear = new Date(Date.now() + 9 * 3600_000).getUTCFullYear();
+  const validYear = typeof year === 'number' && Number.isInteger(year) && year >= 1900 && year <= currentYear;
+  const admission = ['freshman', 'general-transfer', 'bachelor-transfer'].includes(opts.admissionType ?? '')
+    ? opts.admissionType : 'unknown';
   // 이수 완료로 등록된 과목이 계획에도 남아 있으면 이중 집계된다 —
   // earned가 확정분이므로 계획 측에서는 빼고 '남은 이수 예정'만 센다.
   const doneCodes = new Set(completed.map((c) => c.code));
+  const counts = new Map<string, number>();
+  for (const c of completed) {
+    const key = c.code?.trim();
+    if (key && key !== '미확인') counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const ambiguous = completed.filter((c) => (counts.get(c.code?.trim()) ?? 0) > 1);
+  const verifiedCompleted = completed.filter((c) => (counts.get(c.code?.trim()) ?? 0) <= 1);
+  const plannedCodes = new Set<string>();
   const plannedItems = planned
-    .filter((s) => !doneCodes.has(s.code))
+    .filter((s) => {
+      if (doneCodes.has(s.code) || plannedCodes.has(s.code)) return false;
+      plannedCodes.add(s.code);
+      return true;
+    })
     .map((s) => ({
       category: s.category,
       credits: s.credits,
@@ -136,27 +161,32 @@ export function evaluate(
     if (overrides[rule.id] !== undefined) {
       required = overrides[rule.id];
       requiredSource = 'override';
-    } else if (deptVal !== undefined) {
+    } else if (deptVal !== undefined && validYear && admission === 'freshman') {
       required = deptVal;
       requiredSource = 'dept';
-    } else if (post16 === false) {
-      // 2015학번 이전의 전역 기준은 수집하지 않았다 — 추측하지 않는다.
+    } else if (!validYear || admission === 'unknown') {
       required = null;
+    } else if (rule.id === 'total') {
+      required = admission === 'bachelor-transfer' ? (year >= 2016 ? 65 : 70) : (year >= 2016 ? 130 : 140);
+      requiredSource = 'global';
+    } else if (rule.id === 'points' && year >= 2016) {
+      required = admission === 'freshman' ? 800 : 400;
+      requiredSource = 'global';
     } else {
-      required = rule.required;
-      requiredSource = required === null ? undefined : 'global';
+      required = null;
     }
     const isPoints = rule.source === 'points';
-    const earned = isPoints ? (opts.points ?? 0) : sumByGroups(completed, rule.groups);
+    const earned = isPoints ? (opts.points ?? 0) : sumByGroups(verifiedCompleted, rule.groups);
     const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
     const missingInput = isPoints && opts.points === undefined;
+    const uncertainCredits = !isPoints && ambiguous.some((c) => rule.groups.includes(gradGroup(c.category)));
     const status: RuleStatus =
-      required === null || missingInput
+      required === null || missingInput || uncertainCredits
         ? 'unknown'
         : earned >= required
           ? 'met'
           : 'progress';
-    return { rule, earned, planned: plan, required, requiredSource, status };
+    return { rule, earned, planned: plan, required, requiredSource, status, uncertainCredits: uncertainCredits || undefined };
   });
 }
 

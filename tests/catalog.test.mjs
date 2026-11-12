@@ -6,6 +6,9 @@ import {
   roomLabel,
   deliveryLabel,
   placeLabel,
+  yearLabel,
+  slotsLabel,
+  sourceDurationLabel,
 } from '../lib/data/catalog.ts';
 
 const catalog = JSON.parse(
@@ -53,9 +56,9 @@ test('no personal/student data leaked into the public catalog', () => {
 });
 
 test('semesterStartTs maps YYYY-1→3/1, YYYY-2→9/1, unknown→null', () => {
-  assert.equal(semesterStartTs('2026-1'), new Date(2026, 2, 1).getTime());
-  assert.equal(semesterStartTs('2026-2'), new Date(2026, 8, 1).getTime());
-  assert.equal(semesterStartTs('2025-2'), new Date(2025, 8, 1).getTime());
+  assert.equal(semesterStartTs('2026-1'), Date.parse('2026-03-01T00:00:00+09:00'));
+  assert.equal(semesterStartTs('2026-2'), Date.parse('2026-09-01T00:00:00+09:00'));
+  assert.equal(semesterStartTs('2025-2'), Date.parse('2025-09-01T00:00:00+09:00'));
   assert.equal(semesterStartTs('garbage'), null);
   assert.equal(semesterStartTs('2026-3'), null);
 });
@@ -71,4 +74,19 @@ test('room/delivery/place labels separate online from room text', () => {
   assert.equal(placeLabel(noRoom), '온라인');
   assert.equal(placeLabel(offline), '미래관B107');
   assert.equal(placeLabel({ room: '', online: false }), '강의실 미정');
+});
+
+test('학년, 원자료 시간 표기, 강의실을 구분한다', () => {
+  const s = { room: '온라인강좌 1.5시간 공학관407', online: true, slots: [{ d: 2, s: 810, e: 885 }] };
+  assert.equal(yearLabel('전학년'), '전학년');
+  assert.equal(yearLabel('2'), '2학년');
+  assert.equal(yearLabel('3학년'), '3학년');
+  assert.equal(yearLabel(''), '');
+  assert.equal(roomLabel(s), '공학관407');
+  assert.equal(sourceDurationLabel(s), '1.5시간');
+  assert.equal(slotsLabel(s), '수 13:30~14:45');
+  assert.equal(roomLabel({ room: '온라인강좌 1.5시간', online: true }), '');
+  assert.equal(sourceDurationLabel({ room: '온라인강좌', online: true }), '');
+  assert.equal(slotsLabel({ online: false, slots: [] }), '시간 미정');
+  assert.equal(roomLabel({ room: '온라인강좌 / 상상파크 AI실습실', online: true }), '상상파크 AI실습실');
 });

@@ -1,0 +1,1835 @@
+{
+  "asOf": "2026-11-08",
+  "programCatalogYear": 2026,
+  "sections": {
+    "common": [
+      {
+        "area": "교과 총학점",
+        "scope": "2016학번 이후",
+        "requirement": "130학점 이상",
+        "notes": "전공·교양 최소 이수학점도 각각 충족.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6217/subview.do"
+      },
+      {
+        "area": "HS-Point",
+        "scope": "2016학번 이후",
+        "requirement": "800pt 이상",
+        "notes": "교과학점과 별도 요건. 미충족 시 수료 처리 가능.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6220/subview.do"
+      },
+      {
+        "area": "교과 총학점",
+        "scope": "2015학번 이전",
+        "requirement": "140학점 이상",
+        "notes": "당시 전공·교양 체계 적용.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6217/subview.do"
+      },
+      {
+        "area": "평점",
+        "scope": "공통",
+        "requirement": "전체 평균평점 2.0 이상",
+        "notes": "학과·전공별 추가 요건과 함께 심사.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6235/subview.do"
+      },
+      {
+        "area": "전공융합 I",
+        "scope": "일반 트랙제",
+        "requirement": "두 전공과정 각각 39학점, 총 전공 78 + 자유선택21",
+        "notes": "전공기초·필수·선택 이수구분별 기준 적용.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "area": "전공융합 II",
+        "scope": "신청자",
+        "requirement": "주전공57 + 부전공21",
+        "notes": "다전공 신청기간에 부전공 신청.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "area": "심화전공",
+        "scope": "단일전공 허용 모집단위",
+        "requirement": "한 전공 78학점",
+        "notes": "허용 모집단위인지 확인.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "area": "트랙 선택",
+        "scope": "2017학번 이후",
+        "requirement": "2학년 진입 때 2개 트랙 선택 원칙",
+        "notes": "학사편입·유학생은 1개 가능; 예술·학과제는 동일전공 2트랙 등 예외.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "area": "외국인 TOPIK",
+        "scope": "2012학년도 이후 순수외국인 신·편입",
+        "requirement": "TOPIK 4급 이상",
+        "notes": "글로벌인재/외국인 편입은 별도 체계도 대조.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6217/subview.do"
+      },
+      {
+        "area": "일반편입",
+        "scope": "2016학번 이후 안내",
+        "requirement": "130학점+400pt, 전적대 인정 통상65학점",
+        "notes": "입학연도별 전공 기준 적용. 2015 이전은 140/70학점 체계.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      },
+      {
+        "area": "학사편입",
+        "scope": "2016학번 이후 안내",
+        "requirement": "65학점+400pt",
+        "notes": "전공 최소 39학점, 자유선택26학점 안내.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      },
+      {
+        "area": "외국인 편입",
+        "scope": "2019학년도 이후 별도체계",
+        "requirement": "편입학년별 97/78/65/33학점, 600/400/200pt 표기",
+        "notes": "학년·편입 유형에 따라 원문표 확인.",
+        "status": "일부 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      },
+      {
+        "area": "글로벌인재대학",
+        "scope": "학과 공통 교양",
+        "requirement": "교양필수13+선택필수15+자율선택3=31학점",
+        "notes": "한국어 교양 자체 과목 적용.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      }
+    ],
+    "generalEducation": [
+      {
+        "scope": "2024학번 이후",
+        "minimum": "31학점 이상",
+        "requirements": "필수13: 사고와 표현3, 영어커뮤니케이션 독해·작문2/청취·회화2, AI와 SW 기초3, 한성 이마기난스3; 선택필수15(5영역 중 4개 이상); 자율선택3 이상.",
+        "notes": "영어 우수자 과목 면제 가능하나 31학점 유지. 상상력인재학부는 AI+X 전공탐색 대체.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2019~2023학번",
+        "minimum": "28학점 이상",
+        "requirements": "필수8~10: 사고와 표현(학번별 1~2과목), 영어커뮤니케이션4, AI와 SW3 또는 코딩 첫걸음2; 선택필수7~9(3영역 이상); 일반교양·선택9~13.",
+        "notes": "과목명/대체과목은 입학연도 대조.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2017~2018학번",
+        "minimum": "22학점 이상",
+        "requirements": "교양필수16(상상력 이노베이터2, 사고와 표현1·2 각2, 영어 각2, 코딩2, 디자인 Thinking2, 삶과 꿈2) + 자율교양.",
+        "notes": "과목별 면제·대체 확인.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2016학번",
+        "minimum": "24학점 이상",
+        "requirements": "구 교양교육과정 필수·선택.",
+        "notes": "과목별 인정·면제는 해당 학번 표 확인.",
+        "status": "요약 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2010~2015학번",
+        "minimum": "22학점 이상",
+        "requirements": "구 교양교육과정 기준.",
+        "notes": "개별 과목표 확인.",
+        "status": "요약 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2006~2009학번",
+        "minimum": "24학점 이상",
+        "requirements": "구 교양교육과정 기준.",
+        "notes": "개별 과목표 확인.",
+        "status": "요약 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "2005학번 이전",
+        "minimum": "19학점 이상",
+        "requirements": "구 교양교육과정 기준.",
+        "notes": "개별 과목표 확인.",
+        "status": "요약 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "미래플러스 2024+",
+        "minimum": "31학점 이상",
+        "requirements": "미래플러스 자체 교양/학과 체계.",
+        "notes": "계약학과는 별도 확인.",
+        "status": "확인됨",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "scope": "미래플러스 2023 이전",
+        "minimum": "28학점 이상",
+        "requirements": "기존 미래플러스 교양교육과정.",
+        "notes": "개별 과목표 확인.",
+        "status": "요약 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "scope": "글로벌인재대학",
+        "minimum": "31학점 이상",
+        "requirements": "필수13(한국어 작문·청취·독해·발표 각3, 유학생 길라잡이1)+선택필수15(3영역 이상)+자율3.",
+        "notes": "일반대학 교양표와 구분.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      },
+      {
+        "scope": "영어커뮤니케이션 면제",
+        "minimum": "2024학번 이후 안내",
+        "requirements": "영어권 국적/3년 교육/배치고사 만점 또는 TOEIC850, TEPS700, TOEFL99, NewTEPS338, IELTS6.5.",
+        "notes": "면제는 영어과목 한정, 교양총학점 유지.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6219/subview.do"
+      }
+    ],
+    "programs2026": [
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "영미문화콘텐츠",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "영미언어정보",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "역사문화큐레이션",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "역사콘텐츠",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "한국어교육",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "지식정보문화",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/학번대조 필요",
+        "summary": "졸업시험 및 자격/공인점수 대체 규정.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/HmnArt/5618/subview.do"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "크리에이티브인문학부",
+        "track": "디지털인문정보학",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/학번대조 필요",
+        "summary": "졸업시험 및 자격·웹콘텐츠·전공비교과 대체 규정.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/HmnArt/5625/subview.do"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "예술학부",
+        "track": "동양화전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "예술학부",
+        "track": "서양화전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "예술학부",
+        "track": "한국무용전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "예술학부",
+        "track": "현대무용전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "크리에이티브인문예술대학",
+        "department": "예술학부",
+        "track": "발레전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "국제무역",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/학기공지",
+        "summary": "2026-2 졸업시험 및 2027-2 대체자격 공지 확인.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/bbs/SclScn/1765/225707/artclView.do"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "글로벌비즈니스",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "기업·경제분석",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "경제금융투자",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "공공행정",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "법&정책",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "부동산",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/최신판 필요",
+        "summary": "상세 기준은 2025-2 공지. 2026-2판 재확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/bbs/SclScn/1763/12168/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "스마트도시·교통계획",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "2026-2 기준 캡스톤 + 외국어 또는 지정 자격증.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/SclScn/5327/subview.do"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "기업경영",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "비즈니스애널리틱스",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래융합사회과학대학",
+        "department": "사회과학부",
+        "track": "회계·재무경영",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "글로벌패션산업학부",
+        "track": "패션마케팅",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "이미지형 인증표: 외국어 또는 지정 자격증 + 포트폴리오.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/Design/5115/subview.do"
+      },
+      {
+        "college": "디자인대학",
+        "department": "글로벌패션산업학부",
+        "track": "패션디자인",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "이미지형 인증표: 외국어 또는 지정 자격증 + 포트폴리오.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/Design/5115/subview.do"
+      },
+      {
+        "college": "디자인대학",
+        "department": "글로벌패션산업학부",
+        "track": "패션크리에이티브디렉션",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "이미지형 인증표: 외국어 또는 지정 자격증 + 포트폴리오.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/Design/5115/subview.do"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "미디어디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "영상·애니메이션디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "UX/UI디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "시각디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "인테리어디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "VMD·전시디자인",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증 이미지/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "ICT디자인학부",
+        "track": "게임그래픽디자인",
+        "division": "야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "개별 졸업인증/학기 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "디자인대학",
+        "department": "뷰티디자인매니지먼트학과",
+        "track": "학과제(동일전공)",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "컴퓨터공학부",
+        "track": "모바일소프트웨어",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "컴퓨터공학부 공통 졸업요건표 및 트랙기초 B0 조건.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/CSE/1564/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "컴퓨터공학부",
+        "track": "빅데이터",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "컴퓨터공학부 공통 졸업요건표 및 트랙기초 B0 조건.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/CSE/1564/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "컴퓨터공학부",
+        "track": "디지털콘텐츠·가상현실",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "컴퓨터공학부 공통 졸업요건표 및 트랙기초 B0 조건.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/CSE/1564/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "컴퓨터공학부",
+        "track": "웹공학",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "컴퓨터공학부 공통 졸업요건표 및 트랙기초 B0 조건.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/CSE/1564/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "기계전자공학부",
+        "track": "전자",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/학부 공지",
+        "summary": "전공과목 기준 외 별도 학기별 졸업 공지 확인 필요.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/bbs/Engineering/1557/222699/artclView.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "기계전자공학부",
+        "track": "시스템반도체",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "39전공학점 + 2026년 이후 캡스톤 또는 인정 경진대회.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/bbs/Engineering/1557/222699/artclView.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "기계전자공학부",
+        "track": "기계시스템디자인",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "39학점/13과목, 기초·필수과목 및 캡스톤 졸업논문.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/Engineering/4934/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "기계전자공학부",
+        "track": "AI로봇융합",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "39학점/13과목, 기초·필수과목 및 캡스톤 졸업논문.",
+        "notes": "",
+        "sourceUrl": "https://hansung.ac.kr/Engineering/4941/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "산업시스템공학부",
+        "track": "산업공학",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "자격·전국 공모전·논문/발표·승인 졸업프로젝트 중 1개 이상.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/Engineering/4997/subview.do"
+      },
+      {
+        "college": "IT공과대학",
+        "department": "산업시스템공학부",
+        "track": "응용산업데이터공학",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "트랙별 지정 자격·공모전·논문/발표·승인 프로젝트 중 1개 이상.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/Engineering/5025/subview.do"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "문학문화콘텐츠학과",
+        "track": "학과제",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "4년 누적 25점, 필수 7점 포함.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2772/subview.do"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "AI응용학과",
+        "track": "학과제",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "영어/논문/공모전 + 학번별 캡스톤·기업연계 프로젝트.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2781/subview.do"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "융합보안학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "보안·암호 인증 각 1개; 2025학번부터 산학 프로젝트.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2791/subview.do"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "미래모빌리티학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "상상력인재학부",
+        "track": "자기설계전공",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "2026 시범운영 및 신청자격·승인 기준 확인.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      },
+      {
+        "college": "창의융합대학",
+        "department": "창업트랙",
+        "track": "2트랙 선택용",
+        "division": "주간·야간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "2트랙으로만 선택 가능; 세부 기준 별도 확인.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "한국언어문화교육학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "일부 확인/점수표 필요",
+        "summary": "졸업역량 마일리지 10점 기준.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7582/subview.do"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "글로벌K비즈니스학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "6개 역량인증 중 4개 이상.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7580/subview.do"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "영상엔터테인먼트학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "패션뷰티크리에이션학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "5개 인증항목 중 2개 이상.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7583/subview.do"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "SW융합학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "글로벌인재대학",
+        "department": "글로벌벤처창업학과",
+        "track": "학과제",
+        "division": "주간",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "융합행정학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "논문·공무원 합격·지정 자격·공인영어 중 1개; 법학사는 논문 필수.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "호텔외식경영학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "작품 80/100 이상; 2024학번 이후 캡스톤 2과목 및 프로젝트.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "뷰티디자인학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "작품 50점 + 포트폴리오 50점, 합계 80점 이상.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "비즈니스컨설팅학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "논문·프로젝트·지정자격·공모전·학술발표 중 1개.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "ICT융합디자인학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "졸업작품 80/100 이상.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "AI·소프트웨어학과",
+        "track": "정규 학과",
+        "division": "성인학습자 과정",
+        "listingStatus": "2026 구성 확인",
+        "status": "상세 확인",
+        "summary": "교수평가 작품·공모전 수상·학술발표/논문 중 1개.",
+        "notes": "계약학과와 구분",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "뷰티매니지먼트학과",
+        "track": "계약학과",
+        "division": "계약학과",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "계약학과 목록은 확인. 졸업요건은 해당 학과 별도 안내.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6088/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "디지털콘텐츠디자인학과",
+        "track": "계약학과",
+        "division": "계약학과",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "계약학과 목록은 확인. 졸업요건은 해당 학과 별도 안내.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6088/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "인테리어디자인학과",
+        "track": "계약학과",
+        "division": "계약학과",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "계약학과 목록은 확인. 졸업요건은 해당 학과 별도 안내.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6088/subview.do"
+      },
+      {
+        "college": "미래플러스대학",
+        "department": "스마트제조혁신컨설팅학과",
+        "track": "계약학과",
+        "division": "계약학과",
+        "listingStatus": "2026 구성 확인",
+        "status": "추가 확인 필요",
+        "summary": "계약학과 목록은 확인. 졸업요건은 해당 학과 별도 안내.",
+        "notes": "",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6088/subview.do"
+      }
+    ],
+    "departmentRequirements": [
+      {
+        "area": "인문예술",
+        "departmentOrTrack": "지식정보문화·디지털인문정보학",
+        "scope": "2022.8 졸업생 안내; 학번·조합 대조",
+        "requirements": "졸업시험 대상 과목 보통 3과목, 각 70점 이상. 두 트랙 병행 시 총4과목. 자격·공인점수로 일부 대체, 디지털인문정보는 승인 웹콘텐츠 대체 가능; HS-P 800초과 전공비교과 150pt로 1과목 대체 규정.",
+        "notes": "상세 학번 표 확인.",
+        "status": "일부 확인/학번대조 필요",
+        "sourceUrl": "https://www.hansung.ac.kr/HmnArt/5618/subview.do"
+      },
+      {
+        "area": "창의융합",
+        "departmentOrTrack": "문학문화콘텐츠학과",
+        "scope": "학과 공지; 적용 학번 대조",
+        "requirements": "4년 누적 25점 이상, 필수 포트폴리오/역량 7점 포함. 상담·문화자원 콘텐츠 프로젝트·봉사·교내외활동·자격·공모전·직무 포트폴리오 등.",
+        "notes": "첨부 HWP 원문 요건 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2772/subview.do"
+      },
+      {
+        "area": "창의융합",
+        "departmentOrTrack": "AI응용학과",
+        "scope": "캡스톤 2027.2 졸업예정부터; 2025-1 종료 시 6학기 이수자는 면제. 산학프로젝트 2025학번부터",
+        "requirements": "필수 인증 1개: TOEIC700 또는 승인 공인영어, 단독 제1저자 논문, 승인 공모전(교내 캡스톤 전시 불인정). AI캡스톤 및 2025학번부터 기업연계형 교과/프로젝트 1개 이상. 인정신청서 제출.",
+        "notes": "요건 충족 후 학과 제출기간 공지 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2781/subview.do"
+      },
+      {
+        "area": "창의융합",
+        "departmentOrTrack": "융합보안학과",
+        "scope": "2025학번 이후 산학프로젝트 추가",
+        "requirements": "보안엔지니어링 5개 중1 + 암호·인증 4개 중1. 2025학번 이후 산학협력 프로젝트 교과 1개 이상.",
+        "notes": "학술·논문은 1저자 등 조건.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/CreCon/2791/subview.do"
+      },
+      {
+        "area": "사회과학",
+        "departmentOrTrack": "스마트도시·교통계획",
+        "scope": "2026-2 공지",
+        "requirements": "스마트도시 캡스톤디자인 + 공인외국어 또는 지정자격. 예: TOEIC600, TOEFL iBT79, TEPS298, OPIc IM2, HSK5, JPT650, JLPT4. 불가 사유는 교수회 승인 후 논문 대체 가능.",
+        "notes": "제출기간 2026.12.1~12.18; 다음 학기 공지 우선.",
+        "status": "상세 확인/학기공지",
+        "sourceUrl": "https://www.hansung.ac.kr/SclScn/5327/subview.do"
+      },
+      {
+        "area": "사회과학",
+        "departmentOrTrack": "국제무역",
+        "scope": "2026-2 졸업예정자 공지",
+        "requirements": "2026-2 졸업시험 안내와 2027.2 졸업생 대체자격 공지는 확인. 세부 시험범위/대체 자격 본문·첨부를 추가 대조해야 함.",
+        "notes": "게시판 공지 2026.10.28, 대체자격 2026.10.12.",
+        "status": "일부 확인/첨부 확인",
+        "sourceUrl": "https://hansung.ac.kr/bbs/SclScn/1765/225707/artclView.do"
+      },
+      {
+        "area": "사회과학",
+        "departmentOrTrack": "부동산",
+        "scope": "마지막 상세 확인 2025-2",
+        "requirements": "시험 폐지; 공인외국어 또는 지정자격 1개. 예: TOEIC700, TOEFL iBT74, TEPS527, HSK5, JPT650, JLPT4, OPIc IM2, 공인중개사·감정평가사 등. 영어 유효기간 미적용 안내.",
+        "notes": "2026-2 적용 공지 재확인 필요.",
+        "status": "최신 공지 필요",
+        "sourceUrl": "https://hansung.ac.kr/bbs/SclScn/1763/12168/artclView.do?layout=unknown"
+      },
+      {
+        "area": "디자인",
+        "departmentOrTrack": "글로벌패션산업 3트랙",
+        "scope": "이미지표: 2017학번 또는 2021년 졸업예정 표기",
+        "requirements": "패션마케팅·패션디자인·패션크리에이티브디렉션: 외국어성적 또는 지정자격 + 개인포트폴리오. TOEIC600 또는 표의 동등 점수, MOS/VMD/샵마스터/GTQ/ACA 등.",
+        "notes": "적용 학번 문구와 후속 공지 확인.",
+        "status": "상세 확인/학번주의",
+        "sourceUrl": "https://www.hansung.ac.kr/Design/5115/subview.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "컴퓨터공학부",
+        "scope": "~15,16,17~23,24+ 학번 표; 산학요건 2028.2 졸업부터",
+        "requirements": "학번별 트랙 수/전공필수/캡스톤. 2017+ 캡스톤디자인, 2026.8 졸업예정자부터 각 트랙 전공필수15학점 이상. 2028.2 졸업부터 산학 교과·프로젝트·인정현장실습·재직증빙 중1.",
+        "notes": "최신 학부 Q&A와 학번별 표를 대조.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/CSE/1564/subview.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "컴퓨터공학부 트랙선택",
+        "scope": "2023학번부터",
+        "requirements": "모바일SW/빅데이터: CTE0001 컴퓨터프로그래밍 B0 이상. 디지털콘텐츠·VR/웹공학: CTE0002 웹프로그래밍기초 B0 이상. 두 트랙 선택 시 해당 과목 각각 필요.",
+        "notes": "트랙 선택 자격과 졸업요건을 구분.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "시스템반도체",
+        "scope": "2026년 이후 규정; 구 요건 이미 충족한 경우 소급 안 함",
+        "requirements": "39전공학점(기초3/필수15/선택21). 2026년 이후 시스템반도체캡스톤; 미이수 시 SoC캡스톤. 교수회 인정 전국 경진대회 수상으로 대체 가능.",
+        "notes": "2026.6.4 공지.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/bbs/Engineering/1557/222699/artclView.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "기계시스템디자인",
+        "scope": "기존 트랙 기준",
+        "requirements": "15과목(45학점) 개설 중 13과목(39학점) 이상. 창의적기계설계, 2~3학년 필수5 중4, 4학년 기계시스템디자인캡스톤 졸업논문 필수.",
+        "notes": "2027 AI기계로봇공학과와 구분.",
+        "status": "상세 확인/개편주의",
+        "sourceUrl": "https://hansung.ac.kr/Engineering/4934/subview.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "AI로봇융합",
+        "scope": "기존 트랙 기준",
+        "requirements": "15과목(45학점) 개설 중13과목(39학점) 이상. 로봇공학기초, 2~3학년 필수5 중4, 4학년 AI로봇융합캡스톤 졸업논문 필수.",
+        "notes": "2027 AI기계로봇공학과와 구분.",
+        "status": "상세 확인/개편주의",
+        "sourceUrl": "https://hansung.ac.kr/Engineering/4941/subview.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "산업공학",
+        "scope": "트랙 졸업 직전학기 증빙 제출",
+        "requirements": "인정 자격1, 전국 공모전 입상, 전국 학회 구두발표/논문, 인정 졸업논문·작품·프로젝트 중1 이상.",
+        "notes": "공모전·자격은 규정에 열거된 목록/심의.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/Engineering/4997/subview.do"
+      },
+      {
+        "area": "IT공과",
+        "departmentOrTrack": "응용산업데이터공학",
+        "scope": "트랙 졸업 직전학기 증빙 제출",
+        "requirements": "인정 자격1, 전국 공모전 입상, 전국 학회 구두발표/논문, 인정 졸업논문·작품·프로젝트 중1 이상.",
+        "notes": "인정 자격목록은 산업공학과 다름.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/Engineering/5025/subview.do"
+      },
+      {
+        "area": "글로벌인재",
+        "departmentOrTrack": "한국언어문화교육",
+        "scope": "학과별 인증 기준",
+        "requirements": "졸업역량 마일리지 10점 기준. 교육봉사·전공역량 강화·TOPIK·영어·제2외국어 등.",
+        "notes": "세부 점수표 확인 필요.",
+        "status": "일부 확인/점수표 필요",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7582/subview.do"
+      },
+      {
+        "area": "글로벌인재",
+        "departmentOrTrack": "글로벌K비즈니스",
+        "scope": "학과 졸업요건 페이지",
+        "requirements": "6개 역량인증 항목 중4개 이상. 항목별 증빙·중복 제한 적용.",
+        "notes": "공식 졸업요건 페이지.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7580/subview.do"
+      },
+      {
+        "area": "글로벌인재",
+        "departmentOrTrack": "패션뷰티크리에이션",
+        "scope": "학과 졸업요건 페이지",
+        "requirements": "패션뷰티컬렉션·산학협력·기술자격·공모전·TOPIK4급 이상 중2개 이상.",
+        "notes": "공식 졸업요건 페이지.",
+        "status": "상세 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/global/7583/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "융합행정",
+        "scope": "학위 선택·현행 안내",
+        "requirements": "논문·공무원 합격·지정자격·공인영어 중1. 법학사 과정은 논문 필수.",
+        "notes": "세부 점수/취득시기 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "호텔외식경영",
+        "scope": "2024학번 이후 프로젝트 절차 추가",
+        "requirements": "졸업작품 평가80/100 이상. 2024학번 이후 캡스톤 2과목 후 프로젝트 결과물.",
+        "notes": "학과 공지 대조.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "뷰티디자인",
+        "scope": "현행 안내",
+        "requirements": "작품50 + 포트폴리오50, 합계80점 이상.",
+        "notes": "작품 평가 지침 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "비즈니스컨설팅",
+        "scope": "현행 안내",
+        "requirements": "논문·프로젝트, 지정자격, 교외 공모전, 학회 논문/발표 중1.",
+        "notes": "캡스톤 등 프로젝트 절차 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "ICT융합디자인",
+        "scope": "현행 안내",
+        "requirements": "졸업작품 평가80/100 이상.",
+        "notes": "학과 공지 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      },
+      {
+        "area": "미래플러스",
+        "departmentOrTrack": "AI·소프트웨어",
+        "scope": "현행 안내",
+        "requirements": "교수평가 작품, 공모전 수상, 학술대회 발표/학술지 게재 중1.",
+        "notes": "학과 공지 확인.",
+        "status": "상세 확인",
+        "sourceUrl": "https://hansung.ac.kr/futureplus/721/subview.do"
+      }
+    ],
+    "activityPoints": [
+      {
+        "area": "공통 운영",
+        "activity": "학기 최대",
+        "points": "200pt/학기",
+        "conditions": "당학기 이월 한도 200pt.",
+        "notes": "일부 학부 안내는 졸업학기 8학기차 400pt 가능을 언급; 중앙 기본규정과 함께 확인.",
+        "status": "확인됨/예외 확인",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6220/subview.do"
+      },
+      {
+        "area": "봉사",
+        "activity": "1365·VMS",
+        "points": "5pt/시간; 학기 최대50",
+        "conditions": "교내 봉사·사회봉사 교과목 동일활동과 중복 불가.",
+        "notes": "활동종료 학기에 신청.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "봉사",
+        "activity": "헌혈",
+        "points": "10pt/회",
+        "conditions": "2024-2 활동부터.",
+        "notes": "증빙 필요.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "국가기술자격",
+        "activity": "기술·기능",
+        "points": "기술사100/기능장80/기사50/산업기사40/기능사30",
+        "conditions": "국가자격 종목별 상세정보 기준.",
+        "notes": "미분류·교육목적 불명확한 자격 제외.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "국가기술자격",
+        "activity": "서비스 분야",
+        "points": "1급50/2급40/3급30/단일50",
+        "conditions": "등급별 배점.",
+        "notes": "공식 자격증 증빙.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "국가전문자격",
+        "activity": "등급별",
+        "points": "1급·단일100/2급80/3급50",
+        "conditions": "인정 종목 여부 확인.",
+        "notes": "공식 증빙.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "민간자격",
+        "activity": "국가공인",
+        "points": "1급·단일50/2급30/3급15",
+        "conditions": "민간자격 정보서비스 등록 기준.",
+        "notes": "목록에 없는 자격 불인정 가능.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "민간자격",
+        "activity": "등록민간",
+        "points": "1급·단일30/2급20/3급10",
+        "conditions": "등록 자격만 인정.",
+        "notes": "자동차 운전면허 예시 불인정.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "공공기관 공통가점",
+        "activity": "국제자격(외국어 제외)",
+        "points": "1급·단일50/2급30/3급15",
+        "conditions": "배점표 분류 적용.",
+        "notes": "공식 증빙.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "공무원",
+        "activity": "7급·9급·소방·경찰",
+        "points": "100pt",
+        "conditions": "합격 증빙.",
+        "notes": "동일학기 재직자포인트 중복 불가.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "어학",
+        "activity": "TOEIC",
+        "points": "850+=50 / 750+=30 / 650+=10",
+        "conditions": "재학 중 1회; 성적 향상 시 1회 추가 가능.",
+        "notes": "성적표/취득일.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "어학",
+        "activity": "TOEFL·OPIc·TOEIC Speaking",
+        "points": "TOEFL98/85/74=50/30/10; OPIc AL/IH·IM3/IM2·IM1=50/30/10",
+        "conditions": "공식 표의 세 구간 적용.",
+        "notes": "별도 졸업요건 기준과 포인트는 구분.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "어학",
+        "activity": "TEPS",
+        "points": "386/324/281 (구 TEPS700/600/521)=50/30/10",
+        "conditions": "표 기준.",
+        "notes": "성적향상 추가 기준 확인.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "어학",
+        "activity": "TOPIK",
+        "points": "6급20 / 5급10 / 4급5",
+        "conditions": "재학 중 1회 및 향상 시 추가 가능.",
+        "notes": "졸업요건 TOPIK과 별개.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "어학·SW",
+        "activity": "HSK·JLPT·JPT·TOPCIT·한국사",
+        "points": "HSK6/5/4=50/30/10; JLPT N1/2/3=50/30/10; JPT660/525/430=50/30/10; TOPCIT5/4/3=50/30/10; 한국사1/2/3=50/40/30",
+        "conditions": "배점표의 급수별 기준.",
+        "notes": "자격/성적 증빙 필요.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "연구",
+        "activity": "학술논문",
+        "points": "1저자70/2저자50/3저자 이상30",
+        "conditions": "동일 논문의 구술·포스터는 학기당 1회 중복 인정 가능.",
+        "notes": "학술대회 안내·논문·발표자료·사진.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "연구",
+        "activity": "구술발표",
+        "points": "1저자50/2저자30/3저자 이상20",
+        "conditions": "저자 순위별.",
+        "notes": "학회 확인·발표자료.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "연구",
+        "activity": "포스터",
+        "points": "1저자30/2저자20/3저자 이상15",
+        "conditions": "저자 순위별.",
+        "notes": "학회 확인·포스터.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "공모전",
+        "activity": "국제·전국",
+        "points": "대상100/입상50/입선30/참가10",
+        "conditions": "전국·국제 단위.",
+        "notes": "수상/참가 증빙.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "공모전",
+        "activity": "지역·시도·단체",
+        "points": "대상50/입상30/입선20/참가10",
+        "conditions": "지역 단위.",
+        "notes": "수상/참가 증빙.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "전시·공연",
+        "activity": "전시·박람회 참여/관람",
+        "points": "10pt/건, 학기 최대50",
+        "conditions": "동일 전시장 하루 최대2개 인정 안내.",
+        "notes": "소감문, 입장권에 성명/학번, 지도교수 등 확인 서명; 엔터테인먼트성 관람 제외.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "기타활동",
+        "activity": "서포터즈·홍보단·기자단·해외탐방·교육수료",
+        "points": "10pt",
+        "conditions": "수료증·이수증 증빙, 종료일 기준 일괄.",
+        "notes": "학기내 신청·전공 연계 확인.",
+        "status": "확인됨",
+        "sourceUrl": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1"
+      },
+      {
+        "area": "졸업기한",
+        "activity": "2027년 2월 졸업예정자",
+        "points": "2027.1.10까지",
+        "conditions": "필요 포인트·활동을 모두 취득.",
+        "notes": "포인트 지급 기준일이 유형마다 다름.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/224305/artclView.do?layout=unknown"
+      },
+      {
+        "area": "교외활동 신청",
+        "activity": "활동별",
+        "points": "활동/취득/승인 완료일 기준",
+        "conditions": "교외비교과 시스템에 본인이 신청, 증빙 제출.",
+        "notes": "반려 사유 확인 및 기한 엄수.",
+        "status": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/224305/artclView.do?layout=unknown"
+      }
+    ],
+    "procedures": [
+      {
+        "procedure": "졸업사정 사전점검",
+        "period": "매학기",
+        "actions": "종합정보시스템 졸업>요건/가사정에서 학점·교양·전공·HS-P·학과별 불가사유 확인.",
+        "notes": "개인 성적/가사정은 학생 본인이 직접 확인.",
+        "scope": "공통",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6235/subview.do"
+      },
+      {
+        "procedure": "학과별 증빙 제출",
+        "period": "학과 공지별",
+        "actions": "시험·논문·작품·캡스톤·자격증은 지정서식·기한·증빙을 별도 제출.",
+        "notes": "인정신청서 필수 학과 있음.",
+        "scope": "공통/학과별",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6235/subview.do"
+      },
+      {
+        "procedure": "교외 비교과 신청",
+        "period": "활동 종료 직후",
+        "actions": "포털 교외비교과활동에 증빙과 함께 신청.",
+        "notes": "승인 상태·반려사유 확인.",
+        "scope": "공통",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/224305/artclView.do?layout=unknown"
+      },
+      {
+        "procedure": "2027-1 트랙 선택",
+        "period": "2026.11.2 10:00~11.20 17:00",
+        "actions": "2학년 진입 대상 중심; 통상 2개 트랙. 컴퓨터공학부는 기초과목 B0 요건 등.",
+        "notes": "기한 후 변경 불가; 2027 구조개편 예정.",
+        "scope": "진행 중",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown"
+      },
+      {
+        "procedure": "겨울 계절학기",
+        "period": "수강신청 2026.11.9 10:00~11.11 17:00",
+        "actions": "수업·과목 정보는 공식 겨울계절학기 공지에서 재확인.",
+        "notes": "기준일 다음 날 신청 시작.",
+        "scope": "예정",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      },
+      {
+        "procedure": "2027-2 졸업예정자 HS-P",
+        "period": "2027.1.10까지",
+        "actions": "필요한 비교과포인트를 이때까지 취득.",
+        "notes": "일반 재학생 2학기 활동기간과 다른 졸업자 마감.",
+        "scope": "확인됨",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/hansung/2127/224305/artclView.do?layout=unknown"
+      },
+      {
+        "procedure": "스마트도시 졸업인증",
+        "period": "2026.12.1~12.18",
+        "actions": "2026-2 졸업요건 제출기간.",
+        "notes": "해당 트랙·학기 공지 기준.",
+        "scope": "특정 트랙",
+        "sourceUrl": "https://www.hansung.ac.kr/SclScn/5327/subview.do"
+      },
+      {
+        "procedure": "국제무역 졸업시험",
+        "period": "2026.10.28 공지",
+        "actions": "2026-2 시험 및 2027.2 졸업생 대체자격 공지 확인.",
+        "notes": "시험범위·기한은 공지 본문 확인.",
+        "scope": "특정 트랙",
+        "sourceUrl": "https://hansung.ac.kr/bbs/SclScn/1765/225707/artclView.do"
+      },
+      {
+        "procedure": "학사학위취득 유예",
+        "period": "2026.11.30~12.9",
+        "actions": "모든 요건 충족 학생이 신청; 최대 2개 학기 안내.",
+        "notes": "유예 중 수강·전공변경 제한, 대상 제한 확인.",
+        "scope": "예정",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6237/subview.do"
+      },
+      {
+        "procedure": "조기졸업",
+        "period": "일반 7학기, 미래플러스 일부 6학기",
+        "actions": "평균평점 4.0 이상 등 요건을 모두 충족해야 함.",
+        "notes": "2026-2 신청기한은 2026.10.5 종료.",
+        "scope": "기준 설명",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6235/subview.do"
+      },
+      {
+        "procedure": "편입생 졸업기준",
+        "period": "입학연도·편입 유형별",
+        "actions": "일반·학사·외국인 편입으로 구분; 학점/HS-P와 전공기준 원문표 대조.",
+        "notes": "개인 입학유형별 적용 확인.",
+        "scope": "편입생",
+        "sourceUrl": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do"
+      }
+    ],
+    "reorganization2027": [
+      {
+        "category": "단과대학",
+        "before": "창의융합대학",
+        "after": "AI융합대학",
+        "change": "개편",
+        "notes": "2027 기준; 기존 학번에 자동 소급 적용 아님."
+      },
+      {
+        "category": "단과대학",
+        "before": "디자인대학",
+        "after": "AI디자인대학",
+        "change": "개편",
+        "notes": "2027학년도 적용."
+      },
+      {
+        "category": "학부",
+        "before": "글로벌패션산업학부",
+        "after": "AI패션학부/AI패션산업학부 표기 혼재",
+        "change": "개편",
+        "notes": "공식 안내 간 명칭 차이, 최종 편람 확인."
+      },
+      {
+        "category": "학부",
+        "before": "ICT디자인학부",
+        "after": "AI융합디자인학부",
+        "change": "개편",
+        "notes": "2027학년도 적용."
+      },
+      {
+        "category": "학과",
+        "before": "뷰티디자인매니지먼트학과",
+        "after": "AI뷰티디자인학과",
+        "change": "개편",
+        "notes": "2027학년도 적용."
+      },
+      {
+        "category": "학부",
+        "before": "기계전자공학부",
+        "after": "전기전자공학부",
+        "change": "명칭 변경",
+        "notes": "2027학년도 적용."
+      },
+      {
+        "category": "신설 학과",
+        "before": "없음",
+        "after": "AI기계로봇공학과",
+        "change": "신설",
+        "notes": "기계시스템디자인·AI로봇융합을 통합·계승. 새 학번 요건 확인."
+      },
+      {
+        "category": "학과",
+        "before": "영상엔터테인먼트학과",
+        "after": "K-영상콘텐츠학과",
+        "change": "명칭 변경",
+        "notes": "2027학년도 적용."
+      },
+      {
+        "category": "미래플러스",
+        "before": "학과제, 6개 정규학과",
+        "after": "AI디지털융합인재학부 4전공트랙",
+        "change": "체제 개편",
+        "notes": "계약학과 4개와 구분."
+      },
+      {
+        "category": "트랙",
+        "before": "디지털콘텐츠·가상현실",
+        "after": "지능형실감미디어공학",
+        "change": "명칭 변경",
+        "notes": "2027학년도 11월 트랙선택부터 적용 안내."
+      },
+      {
+        "category": "신설 학과",
+        "before": "없음",
+        "after": "글로벌정책학과",
+        "change": "신설",
+        "notes": "2027학년도 구조개편."
+      }
+    ],
+    "legacyPrograms": [
+      {
+        "program": "국제경제학과 졸업지침",
+        "scope": "2026.5.12 개정; 현행 2026 모집단위와 매핑 미확인",
+        "requirements": "5개 전형 중 하나 이상: 학점우수자, 취업·자격, 졸업시험, 경제·금융, 무역·경제. 응시자격 8학기(조기 7), 2021학번부터 회계원리 준하는 과목 필수. 2025-1부터 24학번 이전 졸업시험 트랙은 TOEIC+시험 결합을 시험 단일로 변경; 2026-1 외국인 TOPIK4 추가.",
+        "notes": "현재 학과/트랙에 임의 적용 금지; 원문과 학번 확인.",
+        "sourceUrl": "http://hs.ac.kr/bbs/kor/867/67868/download.do",
+        "status": "일부 확인/현행 매핑 필요"
+      },
+      {
+        "program": "구 IT융합공학부",
+        "scope": "2026.8 졸업예정자 대상 공지",
+        "requirements": "정보시스템공학·IT응용시스템공학·사이버보안·사물인터넷·지능시스템·ICT융합엔터테인먼트 등 구 모집단위는 학부 졸업인증자료 제출. 일부 트랙은 캡스톤 수강 외 결과보고서 제출 필요.",
+        "notes": "2026 현행 트랙목록과 혼동 금지; 공지의 접수일·서식 적용.",
+        "sourceUrl": "https://www.hansung.ac.kr/bbs/Engineering/1544/2419/artclView.do?layout=unknown",
+        "status": "전환/구학부 한정"
+      },
+      {
+        "program": "미래플러스 계약학과 4개",
+        "scope": "2026 안내서",
+        "requirements": "뷰티매니지먼트·디지털콘텐츠디자인·인테리어디자인·스마트제조혁신컨설팅은 정규 6개 학과와 별도 계약학과.",
+        "notes": "각 계약학과별 졸업 기준 상세 확인 필요.",
+        "sourceUrl": "https://www.hansung.ac.kr/hansung/6088/subview.do",
+        "status": "목록 확인/요건 별도 확인"
+      }
+    ],
+    "sources": [
+      {
+        "id": "S01",
+        "title": "교과·비교과 교육과정 이수체계",
+        "use": "공통 130/800, 15학번 이전 140",
+        "date": "2026 현재",
+        "url": "https://www.hansung.ac.kr/hansung/6217/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S02",
+        "title": "교양교육과정 이수학점",
+        "use": "학번별 교양학점·과목·영어면제",
+        "date": "2026 현재",
+        "url": "https://www.hansung.ac.kr/hansung/6219/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S03",
+        "title": "비교과 포인트 제도",
+        "use": "HS-P 800, 학기 한도·이월",
+        "date": "2026 수정",
+        "url": "https://www.hansung.ac.kr/hansung/6220/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S04",
+        "title": "교외 비교과 활동 배점표 안내",
+        "use": "2025.12.2판 PDF",
+        "date": "2025.12.2",
+        "url": "https://hsportal.hansung.ac.kr/ko/board/notice/view/12313?p=1",
+        "scope": "한성대 포털"
+      },
+      {
+        "id": "S05",
+        "title": "2026-2 비교과 포인트 신청 안내",
+        "use": "2027.2 졸업생 1.10 마감",
+        "date": "2026.8.28",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/224305/artclView.do?layout=unknown",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S06",
+        "title": "2027-1 트랙선택 안내",
+        "use": "현행 모집단위·선택요건·전공학점",
+        "date": "2026.10.27",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/225681/artclView.do?layout=unknown",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S07",
+        "title": "2026 트랙가이드북/학사 안내 PDF",
+        "use": "교양·편입·학사체계",
+        "date": "2026.5.27",
+        "url": "https://www.hansung.ac.kr/viewer/hansung/188/376/fileDown.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S08",
+        "title": "2027 학사구조 개편",
+        "use": "2026→2027 개편표",
+        "date": "2026",
+        "url": "https://www.hansung.ac.kr/hansung/7573/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S09",
+        "title": "2027 신설 대학·트랙",
+        "use": "AI융합·신설학과",
+        "date": "2026",
+        "url": "https://www.hansung.ac.kr/hansung/7567/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S10",
+        "title": "졸업사정절차",
+        "use": "졸업사정 안내",
+        "date": "현행",
+        "url": "https://www.hansung.ac.kr/hansung/6235/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S11",
+        "title": "학사학위취득 유예",
+        "use": "유예 신청 조건",
+        "date": "현행",
+        "url": "https://www.hansung.ac.kr/hansung/6237/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S12",
+        "title": "지식정보문화 졸업요건",
+        "use": "시험·대체 규정",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/HmnArt/5618/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S13",
+        "title": "디지털인문정보학 졸업요건",
+        "use": "시험·웹콘텐츠 대체",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/HmnArt/5625/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S14",
+        "title": "문학문화콘텐츠 졸업요건",
+        "use": "첨부 HWP",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/CreCon/2772/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S15",
+        "title": "AI응용 졸업요건",
+        "use": "영어·논문·공모·캡스톤·산학",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/CreCon/2781/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S16",
+        "title": "융합보안 졸업요건",
+        "use": "보안·암호·산학",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/CreCon/2791/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S17",
+        "title": "사회과학부 트랙 공지",
+        "use": "스마트도시/사회과학 공지",
+        "date": "학기별",
+        "url": "https://www.hansung.ac.kr/SclScn/5327/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S18",
+        "title": "국제무역 졸업 공지",
+        "use": "2026-2 시험 및 대체자격",
+        "date": "2026.10",
+        "url": "https://hansung.ac.kr/bbs/SclScn/1765/225707/artclView.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S19",
+        "title": "부동산 졸업 공지",
+        "use": "25-2 외국어/자격 대체",
+        "date": "2025.10.16",
+        "url": "https://hansung.ac.kr/bbs/SclScn/1763/12168/artclView.do?layout=unknown",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S20",
+        "title": "패션트랙 인증 안내",
+        "use": "이미지형 3트랙 요건",
+        "date": "현행 공개",
+        "url": "https://www.hansung.ac.kr/Design/5115/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S21",
+        "title": "컴퓨터공학부 졸업 요건",
+        "use": "학번별 기준표",
+        "date": "2026 현재",
+        "url": "https://hansung.ac.kr/CSE/1564/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S22",
+        "title": "시스템반도체 졸업요건",
+        "use": "39학점·2026 캡스톤",
+        "date": "2026.6.4",
+        "url": "https://hansung.ac.kr/bbs/Engineering/1557/222699/artclView.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S23",
+        "title": "기계시스템디자인 졸업요건",
+        "use": "13과목·39학점·캡스톤",
+        "date": "현행 트랙",
+        "url": "https://hansung.ac.kr/Engineering/4934/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S24",
+        "title": "AI로봇융합 졸업요건",
+        "use": "13과목·39학점·캡스톤",
+        "date": "현행 트랙",
+        "url": "https://hansung.ac.kr/Engineering/4941/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S25",
+        "title": "산업공학 졸업 자격",
+        "use": "자격·공모·논문·프로젝트",
+        "date": "현행 규정",
+        "url": "https://www.hansung.ac.kr/Engineering/4997/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S26",
+        "title": "응용산업데이터공학 졸업 자격",
+        "use": "자격·공모·논문·프로젝트",
+        "date": "현행 규정",
+        "url": "https://www.hansung.ac.kr/Engineering/5025/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S27",
+        "title": "미래플러스 졸업안내",
+        "use": "6개 정규학과 고유 요건",
+        "date": "현행",
+        "url": "https://hansung.ac.kr/futureplus/721/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S28",
+        "title": "미래플러스 2026 학과안내서",
+        "use": "정규·계약학과 명단",
+        "date": "2026.8",
+        "url": "https://www.hansung.ac.kr/pdfView/futureplus/2/2/fileDownload.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S29",
+        "title": "글로벌인재 한국어문화 교육 요건",
+        "use": "마일리지",
+        "date": "현행",
+        "url": "https://www.hansung.ac.kr/global/7582/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S30",
+        "title": "글로벌K비즈니스 졸업요건",
+        "use": "6개 중 4개 인증",
+        "date": "현행",
+        "url": "https://www.hansung.ac.kr/global/7580/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S31",
+        "title": "글로벌 패션뷰티 졸업요건",
+        "use": "5개 중 2개 인증",
+        "date": "현행",
+        "url": "https://www.hansung.ac.kr/global/7583/subview.do",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S32",
+        "title": "국제경제학과 졸업지침",
+        "use": "5개 전형, 2026.5.12 개정",
+        "date": "2026.5.12",
+        "url": "http://hs.ac.kr/bbs/kor/867/67868/download.do",
+        "scope": "공식 한성대 파일"
+      },
+      {
+        "id": "S33",
+        "title": "구 IT융합공학부 졸업공지",
+        "use": "구 모집단위 전환 공지",
+        "date": "2026.6",
+        "url": "https://www.hansung.ac.kr/bbs/Engineering/1544/2419/artclView.do?layout=unknown",
+        "scope": "공식 한성대"
+      },
+      {
+        "id": "S34",
+        "title": "미래플러스대학 구성/계약학과",
+        "use": "정규·계약 구분",
+        "date": "2026 현재",
+        "url": "https://www.hansung.ac.kr/hansung/6088/subview.do",
+        "scope": "공식 한성대"
+      }
+    ]
+  }
+}

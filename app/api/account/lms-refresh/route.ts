@@ -6,11 +6,16 @@ import {
   hash,
   json,
   limited,
+  migrateLegacyStudentAccount,
+  PayloadTooLargeError,
+  readTextLimited,
   validOrigin,
+  studentAccountId,
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
@@ -19,14 +24,10 @@ import { infoChanges } from '@/lib/data/notifs';
 // 즉시 버리며 저장하지 않는다. 세션과 계정 데이터는 유지된다.
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
-  if (Number(request.headers.get('content-length') || 0) > 4096)
-    return json({ error: '입력 크기를 초과했습니다.' }, 413);
   try {
     const account = await authenticated(request);
-    if (!account) return json({ error: '로그인이 필요합니다.' }, 401);
-    const raw = await request.text();
-    if (raw.length > 4096)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+    if (!account) return json({ error: '로그인이 필요합니다.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
+    const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
     if (!input || typeof input !== 'object')
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
@@ -39,8 +40,9 @@ export async function POST(request: Request) {
     )
       return json({ error: '학번과 비밀번호를 확인해 주세요.' }, 400);
     // 본인 계정만 재수집 가능 — 입력 학번 해시가 세션 계정과 같아야 한다
-    const id = await hash('hansung:' + input.studentId);
-    if (id !== account.id)
+    const id = await studentAccountId(input.studentId);
+    const legacyId = await hash('hansung:' + input.studentId);
+    if (id !== account.id && legacyId !== account.id)
       return json({ error: '연결된 계정의 학번을 입력해 주세요.' }, 403);
     if (await limited('refresh:' + account.id, 3))
       return json(
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
       },
     });
     input.password = '';
+    await migrateLegacyStudentAccount(id, legacyId, { hash: account.session_hash, accountId: account.id });
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다.
@@ -76,42 +79,41 @@ export async function POST(request: Request) {
         /* 이전 스냅샷 손상은 무시 */
       }
     }
-    await database()
-      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ?')
-      .bind(JSON.stringify(snapshot), account.id)
+    // The source snapshot is the baseline even if the account was migrated
+    // while school authentication was pending. A merged or newer destination
+    // must be refreshed again instead of overwritten by this older request.
+    const updated = await database()
+      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ? AND snapshot = ?' +
+        ' AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
+      .bind(JSON.stringify(snapshot), id, account.snapshot, account.session_hash, Date.now())
       .run();
+    if (!updated.meta.changes) {
+      const stillActive = await authenticated(request);
+      if (stillActive?.id === id)
+        return json({ error: '다른 수집이 먼저 저장되었습니다. 새로고침 후 다시 시도해 주세요.' }, 409);
+      return json({ error: '다시 로그인해 주세요.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
+    }
     if (deferredCollect)
       waitUntil(
         (async () => {
           try {
-            const lmsData = await deferredCollect();
-            await database()
-              .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
-              )
-              .bind(
-                JSON.stringify({ lmsData, lmsPending: null }),
-                account.id,
-                snapshot.checkedAt,
-              )
-              .run();
-          } catch (e) {
-            console.log(
-              '[lms] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+            await writeCollectedLms(database(), id, snapshot.checkedAt, account.session_hash, await deferredCollect());
+          } catch {
+            console.log('[lms] deferred collect failed');
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
                     lmsPending: null,
                     lmsFailedAt: new Date().toISOString(),
                   }),
-                  account.id,
+                  id,
                   snapshot.checkedAt,
+                  account.session_hash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -136,7 +138,7 @@ export async function POST(request: Request) {
               : null;
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify(
@@ -147,27 +149,28 @@ export async function POST(request: Request) {
                         infoFailedAt: new Date().toISOString(),
                       },
                 ),
-                account.id,
+                id,
                 snapshot.checkedAt,
+                account.session_hash,
+                Date.now(),
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[info] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[info] deferred collect failed');
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
                     infoPending: null,
                     infoFailedAt: new Date().toISOString(),
                   }),
-                  account.id,
+                  id,
                   snapshot.checkedAt,
+                  account.session_hash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -178,10 +181,12 @@ export async function POST(request: Request) {
       );
     const row = await database()
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
-      .bind(account.id)
+      .bind(id)
       .first<AccountRow>();
-    return json(accountView(row!));
+    return json(accountView(row!, account.session_hash));
   } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: '입력 크기를 초과했습니다.' }, 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')

@@ -3,25 +3,28 @@ import {
   accountView,
   database,
   hash,
+  ipRateLimitKey,
   json,
   limited,
+  migrateLegacyStudentAccount,
+  PayloadTooLargeError,
+  readTextLimited,
   sessionCookie,
+  studentAccountId,
   validOrigin,
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError } from '@/lib/server/school';
 import type { LmsSnapshot } from '@/lib/data/lms';
+import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
-  if (Number(request.headers.get('content-length') || 0) > 4096)
-    return json({ error: '입력 크기를 초과했습니다.' }, 413);
+  let stage: 'input' | 'account-setup' | 'school' | 'account-storage' = 'input';
   try {
-    const raw = await request.text();
-    if (raw.length > 4096)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+    const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
     if (!input || typeof input !== 'object')
       return json(
@@ -40,9 +43,11 @@ export async function POST(request: Request) {
         { error: '학번, 비밀번호와 정보 조회·보관 동의를 확인해 주세요.' },
         400,
       );
-    const id = await hash('hansung:' + input.studentId);
-    const ip = await hash(
-      'ip:' + (request.headers.get('cf-connecting-ip') || 'unknown'),
+    stage = 'account-setup';
+    const id = await studentAccountId(input.studentId);
+    const legacyId = await hash('hansung:' + input.studentId);
+    const ip = await ipRateLimitKey(
+      request.headers.get('cf-connecting-ip') || 'unknown',
     );
     // 만료 행 정리는 핫패스에서 매번 돌리지 않는다 — 로그인의 ~5%만
     // 담당해 쓰기 부담을 줄이고, 인덱스가 있어 오래된 행 조회 비용도 작다.
@@ -64,6 +69,7 @@ export async function POST(request: Request) {
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
+    stage = 'school';
     const snapshot = await connectSchool(input.studentId, input.password, {
       deferLms: (collect) => {
         deferredCollect = collect;
@@ -72,13 +78,16 @@ export async function POST(request: Request) {
         deferredInfo = collect;
       },
     });
+    stage = 'account-storage';
     input.password = '';
+    await migrateLegacyStudentAccount(id, legacyId);
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
     // 수집본을 보존한다 — fetchedAt이 기준 시각을 그대로 보여주므로 신선도 유지.
     // oldInfo는 아래 지연 수집 완료 시 '무엇이 바뀌었나' 비교 기준으로도 쓴다.
     let oldInfo: InfoSnapshot | undefined;
+    let oldLms: LmsSnapshot | undefined;
     if (!snapshot.lmsData || !snapshot.infoData) {
       const prior = await database()
         .prepare('SELECT snapshot FROM academic_accounts WHERE id = ?')
@@ -91,7 +100,8 @@ export async function POST(request: Request) {
               infoData?: InfoSnapshot;
             })
           : null;
-        if (old?.lmsData) snapshot.lmsData = old.lmsData;
+        oldLms = old?.lmsData;
+        if (!snapshot.lmsData && oldLms) snapshot.lmsData = oldLms;
         oldInfo = old?.infoData;
         if (oldInfo) snapshot.infoData = oldInfo;
       } catch {
@@ -115,11 +125,12 @@ export async function POST(request: Request) {
     const token = [...crypto.getRandomValues(new Uint8Array(32))]
       .map((x) => x.toString(16).padStart(2, '0'))
       .join('');
+    const tokenHash = await hash(token);
     await database()
       .prepare(
         'INSERT INTO academic_sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)',
       )
-      .bind(await hash(token), id, Date.now() + 86400000)
+      .bind(tokenHash, id, Date.now() + 86400000)
       .run();
     const row = await database()
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
@@ -132,26 +143,13 @@ export async function POST(request: Request) {
       waitUntil(
         (async () => {
           try {
-            const lmsData = await deferredCollect();
-            await database()
-              .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
-              )
-              .bind(
-                JSON.stringify({ lmsData, lmsPending: null }),
-                id,
-                snapshot.checkedAt,
-              )
-              .run();
-          } catch (e) {
-            console.log(
-              '[lms] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+            await writeCollectedLms(database(), id, snapshot.checkedAt, tokenHash, await deferredCollect());
+          } catch {
+            console.log('[lms] deferred collect failed');
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -160,6 +158,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  tokenHash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
               : null;
             await database()
               .prepare(
-                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
               )
               .bind(
                 JSON.stringify(
@@ -200,17 +200,16 @@ export async function POST(request: Request) {
                 ),
                 id,
                 snapshot.checkedAt,
+                tokenHash,
+                Date.now(),
               )
               .run();
-          } catch (e) {
-            console.log(
-              '[info] deferred collect failed:',
-              e instanceof Error ? e.message : String(e),
-            );
+          } catch {
+            console.log('[info] deferred collect failed');
             try {
               await database()
                 .prepare(
-                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ?",
+                  "UPDATE academic_accounts SET snapshot = json_patch(snapshot, ?) WHERE id = ? AND json_extract(snapshot, '$.checkedAt') = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)",
                 )
                 .bind(
                   JSON.stringify({
@@ -219,6 +218,8 @@ export async function POST(request: Request) {
                   }),
                   id,
                   snapshot.checkedAt,
+                  tokenHash,
+                  Date.now(),
                 )
                 .run();
             } catch {
@@ -227,8 +228,10 @@ export async function POST(request: Request) {
           }
         })(),
       );
-    return json(accountView(row!), 200, { 'Set-Cookie': sessionCookie(token) });
+    return json(accountView(row!, tokenHash), 200, { 'Set-Cookie': sessionCookie(token) });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: '입력 크기를 초과했습니다.' }, 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')
@@ -239,6 +242,8 @@ export async function POST(request: Request) {
         },
         401,
       );
+    // Fixed labels only: never record credentials, identifiers, response bodies or errors.
+    console.error('[login] failed', stage, error instanceof SchoolError ? 'school-upstream' : 'internal');
     return json(
       {
         error:

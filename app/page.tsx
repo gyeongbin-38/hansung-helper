@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { SignIn, Onboarding, type Account } from './account-flow';
+import { SignIn, type Account } from './account-flow';
 import { Logo } from './logo';
 import {
   menus,
@@ -29,7 +29,7 @@ import {
 import { Home } from './sections/home';
 import { Activities } from './sections/activities';
 import { ProfileSection } from './sections/profile';
-import { Graduation } from './sections/graduation';
+import { GraduationWorkspace } from './sections/graduation-workspace';
 import { Courses } from './sections/courses';
 import { SemesterPlan } from './sections/semester-plan';
 import { Timetable } from './sections/timetable';
@@ -41,13 +41,18 @@ import {
   deriveNotifs,
   reminderTargets,
   stageReminderTargets,
+  activityReminderTargets,
 } from '@/lib/data/notifs';
-import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
+import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
+import { Mascot } from './mascot';
+import { useSlowLoading } from './use-slow-loading';
+import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
@@ -66,12 +71,13 @@ function applyInfo(prev: Data, info: InfoSnapshot): Data {
  *  info는 서버 작성 전용이라 snapshot 값이 유일한 출처다. */
 function accountData(result: Account): Data {
   const merged = { ...empty, ...result.profile };
-  const serverLms = result.snapshot?.lmsData;
+  merged.lms = validateLms(merged.lms) ?? undefined;
+  const serverLms = validateLms(result.snapshot?.lmsData);
   if (
     serverLms &&
     (!merged.lms?.fetchedAt || serverLms.fetchedAt > merged.lms.fetchedAt)
   )
-    merged.lms = serverLms;
+    merged.lms = mergeLmsSnapshot(merged.lms, serverLms);
   const info = validateInfo(result.snapshot?.infoData);
   return info ? applyInfo(merged, info) : merged;
 }
@@ -89,10 +95,21 @@ export default function App() {
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]),
     [actDraft, setActDraft] = useState<string[]>([]);
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
     useToasts();
   const [account, setAccount] = useState<Account | null>(null);
+  // 비동기 요청이 로그아웃·계정 전환 뒤 새 세션에 반영되지 않도록 한다.
+  const accountGeneration = useRef(0);
+  const renderedGeneration = accountGeneration.current;
   const [demo, setDemo] = useState(false);
+  const accountRef = useRef(account);
+  accountRef.current = account;
+  const demoRef = useRef(demo);
+  demoRef.current = demo;
+  const allowExtensionImport = useRef(false);
+  const sessionChannel = useRef<BroadcastChannel | null>(null);
   const [accountError, setAccountError] = useState('');
   // 데스크톱 사이드바 아이콘 레일 — 로컬 기기 설정으로 영속화
   const [sideCollapsed, setSideCollapsed] = useState(false);
@@ -102,15 +119,50 @@ export default function App() {
   const { snap: schedSnap } = useSchedule();
   // 벨 배지·패널의 마감 계산도 실제 시각을 따라가도록 주기 갱신
   const notifNow = useNow(30000);
+  useEffect(() => {
+    const resetSession = () => {
+      if (demoRef.current) return;
+      accountGeneration.current += 1;
+      setAccountContext(null);
+      allowExtensionImport.current = false;
+      setAccount(null);
+      setData(empty);
+      setDraft([]);
+      setActDraft([]);
+      setRoute('home');
+      location.hash = 'home';
+      setAccountError('계정이 변경되었거나 로그인이 만료되었습니다. 새로고침해 현재 계정을 확인해 주세요.');
+    };
+    window.addEventListener('hansung-session-invalid', resetSession);
+    let channel: BroadcastChannel | undefined;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('hansung-session-v1');
+        sessionChannel.current = channel;
+        channel.onmessage = (event) => {
+          const { type, context } = event.data ?? {};
+          if (shouldResetSession(type, context, getAccountContext())) resetSession();
+        };
+      }
+    } catch { /* 서버의 세션 검사가 탭 간 알림 실패를 보완한다 */ }
+    return () => {
+      window.removeEventListener('hansung-session-invalid', resetSession);
+      sessionChannel.current = null;
+      channel?.close();
+    };
+  }, []);
   // Browser storage is read after hydration to keep the initial server render stable.
   /* oxlint-disable react/react-compiler -- Hydrate device-local browser state after server render. */
   useEffect(() => {
     let active = true;
-    fetch('/api/account', { cache: 'no-store' })
+    const generation = accountGeneration.current;
+    apiFetch('/api/account', { cache: 'no-store' })
       .then(async (response) => {
         if (response.ok) {
-          const result: Account = await response.json();
-          if (active) {
+          const result = await apiData<Account>(response);
+          if (active && generation === accountGeneration.current) {
+            setAccountContext(result.sessionContext);
+            allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
@@ -154,11 +206,11 @@ export default function App() {
   // 서버 스냅샷의 lmsData가 로컬보다 새로우면 흡수한다 — 로그인 응답에
   // 실린 데이터, 지연 수집 완료, 재수집 결과 모두 이 경로로 반영된다.
   useEffect(() => {
-    const serverLms = account?.snapshot.lmsData;
+    const serverLms = validateLms(account?.snapshot.lmsData);
     if (!serverLms) return;
     setData((prev) =>
       !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
-        ? { ...prev, lms: serverLms }
+        ? { ...prev, lms: mergeLmsSnapshot(prev.lms, serverLms) }
         : prev,
     );
   }, [account?.snapshot.lmsData]);
@@ -168,23 +220,30 @@ export default function App() {
   // 갱신을 놓치지 않는다.
   const lmsPending = account?.snapshot.lmsPending === true;
   const infoPending = account?.snapshot.infoPending === true;
+  const [pollRetry, setPollRetry] = useState(0);
+  const [pollDelayed, setPollDelayed] = useState(false);
+  const slowAccount = useSlowLoading(!ready);
+  const slowCollect = useSlowLoading(lmsPending || infoPending, 20000);
   useEffect(() => {
+    setPollDelayed(false);
     if (!lmsPending && !infoPending) return;
+    const generation = accountGeneration.current;
     let cancelled = false,
       tries = 0,
       timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       tries += 1;
       try {
-        const res = await fetch('/api/account', { cache: 'no-store' });
+        const res = await apiFetch('/api/account', { cache: 'no-store' });
         if (res.ok) {
-          const result: Account = await res.json();
+          const result = await apiData<Account>(res);
+          if (cancelled || generation !== accountGeneration.current) return;
           setAccount(result);
-          const serverLms = result.snapshot?.lmsData;
+          const serverLms = validateLms(result.snapshot?.lmsData);
           if (serverLms)
             setData((prev) =>
               !prev.lms?.fetchedAt || serverLms.fetchedAt > prev.lms.fetchedAt
-                ? { ...prev, lms: serverLms }
+                ? { ...prev, lms: mergeLmsSnapshot(prev.lms, serverLms) }
                 : prev,
             );
           const info = validateInfo(result.snapshot?.infoData);
@@ -200,14 +259,17 @@ export default function App() {
       } catch {
         /* 다음 주기에 재시도 */
       }
-      if (!cancelled && tries < 8) timer = setTimeout(poll, 8000);
+      if (!cancelled && generation === accountGeneration.current) {
+        if (tries < 8) timer = setTimeout(poll, 8000);
+        else setPollDelayed(true);
+      }
     };
     timer = setTimeout(poll, 6000);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lmsPending, infoPending]);
+  }, [lmsPending, infoPending, pollRetry]);
   // 수집 예산(60s)+여유를 넘긴 pending은 워커 중도 종료로 간주 — 무한
   // "수집 중" 대신 지연 안내로 전환한다. 마커 도입 전의 스냅샷은
   // connected인데 lmsData·pending이 없는 상태로 남을 수 있어 그것도
@@ -230,14 +292,12 @@ export default function App() {
     Date.parse(account.snapshot.checkedAt) + 5 * 60e3 <= nowTick;
   const lmsFailed =
     !!account?.snapshot.lmsFailedAt ||
-    collectStale(lmsPending) ||
     (account?.snapshot.lms === 'connected' &&
       !account.snapshot.lmsData &&
       !account.snapshot.lmsPending);
   // 종합정보 수집 실패 — 포털은 연결됐는데 infoData가 없는 상태 포함
   const infoFailed =
     !!account?.snapshot.infoFailedAt ||
-    collectStale(infoPending) ||
     (account?.snapshot.portal === 'connected' &&
       !account.snapshot.infoData &&
       !account.snapshot.infoPending);
@@ -249,10 +309,26 @@ export default function App() {
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
   dataRef.current = data;
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== DEMO_STORAGE_KEY || event.newValue !== null || !demoRef.current || accountRef.current) return;
+      dataRef.current = empty;
+      setData(empty);
+      setDraft([]);
+      setActDraft([]);
+      setQuery('');
+      setFilter('전체');
+      setSurvey(false);
+      setToast('다른 탭에서 체험 데이터를 초기화했습니다.');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [setToast]);
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
   // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
   // 일으키지 않게 순서대로 보낸다.
+  const planEditPending = useRef(false);
   const persistSeq = useRef(Promise.resolve());
   const enqueue = <T,>(job: () => Promise<T>): Promise<T> => {
     const run = persistSeq.current.then(job);
@@ -294,6 +370,11 @@ export default function App() {
       location.origin,
     );
   };
+  const clearExtensionCache = () =>
+    window.postMessage(
+      { type: 'hsu-lms-clear-cache-request' },
+      location.origin,
+    );
   useEffect(() => {
     const endSync = (patch: Partial<typeof ext>) => {
       if (syncTimeout.current) clearTimeout(syncTimeout.current);
@@ -334,15 +415,38 @@ export default function App() {
         return;
       }
       if (d?.type !== 'hsu-lms-import' || !d.payload) return;
+      if (
+        !readyRef.current ||
+        !allowExtensionImport.current ||
+        (!accountRef.current && !demoRef.current)
+      )
+        return;
+      // 확장 데이터에는 검증 가능한 LMS 계정 식별자가 없다. 다른 학생의
+      // 세션에서 가져온 자료가 로그인 계정에 저장되지 않도록 차단한다.
+      if (!canImportExtensionLms(!!accountRef.current)) {
+        endSync({ status: 'failed', error: '확장 프로그램의 학교 계정을 확인할 수 없어 가져오기를 중단했습니다. 학교 계정으로 다시 수집해 주세요.' });
+        return;
+      }
       const valid = validateLms(d.payload);
-      if (!valid) return;
-      endSync({ status: 'success' });
+      if (!valid) {
+        endSync({ status: 'failed', error: '수집 데이터 형식이 올바르지 않습니다.' });
+        return;
+      }
       const cur = dataRef.current;
-      if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) return;
+      if (cur.lms?.fetchedAt && valid.fetchedAt <= cur.lms.fetchedAt) {
+        endSync({ status: 'success' });
+        return;
+      }
       void persistRef.current?.(
-        { ...cur, lms: valid },
+        { ...cur, lms: mergeLmsSnapshot(cur.lms, valid) },
         '확장 프로그램이 최신 수업 현황을 가져왔습니다.',
-      );
+      ).then((saved) => {
+        endSync(
+          saved
+            ? { status: 'success', error: undefined }
+            : { status: 'failed', error: '수집 데이터 저장에 실패했습니다.' },
+        );
+      });
     };
     addEventListener('message', onMsg);
     // content script가 리스너보다 먼저 ready를 보냈을 수 있으므로 능동 확인
@@ -394,6 +498,7 @@ export default function App() {
       (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
       currentSemesterStart(Date.now());
     const targets = [
+      ...activityReminderTargets(actsSnap, d.saved, Date.now(), d.actStatus),
       // 활동 라이프사이클(수료·포인트 확인) + LMS 마감 — 같은 예약 큐
       ...stageReminderTargets({
         actStatus: d.actStatus,
@@ -422,110 +527,93 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, catalog, actsSnap]);
+  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, data.saved, catalog, actsSnap]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
     complete?: boolean,
   ) {
+    const generation = accountGeneration.current;
     try {
       if (account) {
         // 호출 시점의 화면 상태를 base로 둔다 — 큐에서 기다리는 동안 앞선
         // 저장이 반영될 수 있으므로 전송 직전에 3-way 병합으로 내 변경분만
         // 얹는다(같은 탭 연속 쓰기가 서로를 덮어쓰지 않게).
         const baseAtCall = dataRef.current;
-        let send = next;
-        const response = await enqueue(() => {
-          send = mergeProfile(baseAtCall, next, dataRef.current);
-          return fetch('/api/account/profile', {
+        return await enqueue(async () => {
+          if (generation !== accountGeneration.current) throw new Error('session-changed');
+          const send = mergeProfile(baseAtCall, next, dataRef.current);
+          const response = await apiFetch('/api/account/profile', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...send,
               // 전송 시점의 최신 rev — 큐에서 기다리는 동안 이전 저장이
               // rev를 올렸을 수 있으므로 next가 아닌 dataRef를 본다.
-              rev: dataRef.current.rev ?? send.rev,
+              rev: dataRef.current.rev ?? send.rev ?? 0,
               onboarded: complete ?? account.onboarded,
             }),
           });
-        });
-        if (!response.ok) {
-          const result = (await response.json()) as {
-            error?: string;
-            conflict?: boolean;
-          };
-          // 다른 기기/탭이 먼저 씀 — 필드 단위 3-way 병합으로 양쪽 변경을
-          // 살려 한 번만 재시도하고, 또 충돌하면 서버 상태로 수렴한다.
-          if (result.conflict) {
+          if (generation !== accountGeneration.current) return false;
+          if (!response.ok) {
+            let errorMessage = '저장하지 못했습니다.';
             try {
-              const res = await fetch('/api/account', { cache: 'no-store' });
-              if (res.ok) {
-                const fresh: Account = await res.json();
-                const remote = accountData(fresh);
-                const merged = mergeProfile(dataRef.current, send, remote);
-                const retry = await fetch('/api/account/profile', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    ...merged,
-                    rev: remote.rev,
-                    onboarded: complete ?? fresh.onboarded,
-                  }),
-                });
-                if (retry.ok) {
-                  const r2 = (await retry.json()) as { rev?: number };
-                  const stored = { ...merged, rev: r2.rev ?? remote.rev };
-                  setAccount({
-                    ...fresh,
-                    profile: stored,
-                    onboarded: complete ?? fresh.onboarded,
-                  });
-                  setData(stored);
-                  setToast('다른 기기의 변경과 병합해 저장했습니다.');
-                  return true;
-                }
-                setAccount(fresh);
-                setData(remote);
-                setToast(
-                  '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
-                );
-                return false;
-              }
-            } catch {
-              /* 재수화 실패 시 안내 문구만 표시 */
+              await apiData(response);
+            } catch (error) {
+              if (error instanceof ApiRequestError) errorMessage = error.message;
             }
+            if (generation !== accountGeneration.current) return false;
+            // 충돌 시 자동 재시도는 같은 필드의 상대방 변경을 덮을 수 있다.
+            // 서버 저장값은 그대로 두고 현재 입력을 화면에 남긴다.
+            if (response.status === 409) {
+              setData(send);
+              setToast('다른 기기에서 먼저 저장했습니다. 입력 내용을 확인한 뒤 새로고침해 주세요.');
+              return false;
+            }
+            setToast(errorMessage);
+            return false;
           }
-          setToast(result.error || '저장하지 못했습니다.');
-          return false;
-        }
-        const result = (await response.json()) as { rev?: number };
-        const stored = { ...send, rev: result.rev ?? send.rev };
-        setAccount({
-          ...account,
-          profile: stored,
-          onboarded: complete ?? account.onboarded,
+          const result = await apiData<{ saved: true; rev?: number }>(response);
+          if (generation !== accountGeneration.current) return false;
+          const stored = { ...send, rev: result.rev ?? send.rev };
+          dataRef.current = stored;
+          setAccount((current) => current ? {
+            ...current,
+            profile: stored,
+            onboarded: complete ?? account.onboarded,
+          } : current);
+          setData(stored);
+          if (msg) setToast(msg);
+          return true;
         });
-        setData(stored);
-        if (msg) setToast(msg);
-        return true;
       }
-      localStorage.setItem('hansung-demo-v1', JSON.stringify(next));
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
       setData(next);
       if (msg) setToast(msg);
       return true;
     } catch {
+      if (generation !== accountGeneration.current) return false;
       setToast('저장하지 못했습니다. 입력 내용은 유지됩니다.');
       return false;
     }
   }
   async function logout() {
+    if (!window.confirm('정말 로그아웃하시겠습니까?')) return;
+    accountGeneration.current += 1;
+    const generation = accountGeneration.current;
+    const context = getAccountContext();
+    allowExtensionImport.current = false;
     try {
-      const response = await fetch('/api/account/logout', {
+      const response = await apiFetch('/api/account/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
+      if (generation !== accountGeneration.current) return;
       if (!response.ok) throw new Error();
+      try { sessionChannel.current?.postMessage({ type: 'session-ended', context }); } catch { /* 알림 실패는 로그아웃을 방해하지 않는다 */ }
+      clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setDemo(false);
       setData(empty);
@@ -533,7 +621,9 @@ export default function App() {
       setActDraft([]);
       go('home');
     } catch {
-      setToast('로그아웃하지 못했습니다. 다시 시도해 주세요.');
+      if (generation !== accountGeneration.current) return;
+      allowExtensionImport.current = true;
+      setToast('로그아웃 결과를 확인하지 못했습니다. 다시 확인해 주세요.');
     }
   }
   async function deleteAccount() {
@@ -543,20 +633,30 @@ export default function App() {
       )
     )
       return;
+    accountGeneration.current += 1;
+    const generation = accountGeneration.current;
+    const context = getAccountContext();
+    allowExtensionImport.current = false;
     try {
-      const response = await fetch('/api/account', {
+      const response = await apiFetch('/api/account', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
+      if (generation !== accountGeneration.current) return;
       if (!response.ok) throw new Error();
+      try { sessionChannel.current?.postMessage({ type: 'session-ended', context }); } catch { /* 알림 실패는 탈퇴를 방해하지 않는다 */ }
+      clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setData(empty);
       setDraft([]);
       setActDraft([]);
       go('home');
     } catch {
-      setToast('삭제하지 못했습니다. 다시 시도해 주세요.');
+      if (generation !== accountGeneration.current) return;
+      allowExtensionImport.current = true;
+      setToast('계정 삭제 결과를 확인하지 못했습니다. 로그인 상태를 확인해 주세요.');
     }
   }
   function go(r: string) {
@@ -583,48 +683,84 @@ export default function App() {
         : '활동을 저장했습니다.',
     );
   }
-  function plan(id: string) {
-    void persist(
-      {
-        ...data,
-        planned: data.planned.includes(id)
-          ? data.planned.filter((x) => x !== id)
-          : [...data.planned, id],
-      },
-      '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
-    );
+  const hasLegacyPlan = data.planned.length > 0 || Object.keys(data.plans ?? {}).length > 0;
+  const selectedSemester = data.planSemester ?? (hasLegacyPlan ? 'legacy' : (catalog?.semester ?? 'legacy'));
+  const storedPlan = data.semesterPlans?.[selectedSemester];
+  const sourceMismatch = !!storedPlan && !!catalog && storedPlan.sourceSemester !== catalog.semester;
+  const selectedIds = selectedSemester === 'legacy' ? data.planned : (storedPlan?.planned ?? []);
+  const selectedScenarios = selectedSemester === 'legacy' ? (data.plans ?? {}) : (storedPlan?.plans ?? {});
+  const visibleIds = sourceMismatch ? [] : selectedIds;
+  const planData = { ...data, planned: visibleIds, plans: sourceMismatch ? {} : selectedScenarios };
+  const planYears = Number(catalog?.semester.slice(0, 4)) || new Date().getFullYear();
+  const semesterOptions = [...new Set([
+    ...Array.from({ length: 7 }, (_, i) => [1, 2].map((half) => `${planYears - 2 + i}-${half}`)).flat(),
+    ...Object.keys(data.semesterPlans ?? {}),
+    ...(selectedSemester === 'legacy' ? [] : [selectedSemester]),
+  ])].sort();
+  function updatePlan(ids: string[], scenarios = selectedScenarios) {
+    if (selectedSemester === 'legacy') return { ...data, planSemester: selectedSemester, planned: ids, plans: scenarios };
+    if (!catalog || sourceMismatch) return null;
+    return { ...data, planSemester: selectedSemester, semesterPlans: { ...data.semesterPlans, [selectedSemester]: { sourceSemester: catalog.semester, planned: ids, plans: scenarios } } };
   }
-  function swapPlan(fromId: string, toId: string) {
-    if (!data.planned.includes(fromId)) return;
-    void persist(
-      {
-        ...data,
-        planned: data.planned
-          .filter((x) => x !== fromId && x !== toId)
-          .concat(toId),
-      },
-      '',
-    );
+  async function runPlanEdit(action: () => Promise<boolean>): Promise<boolean> {
+    if (planEditPending.current) {
+      setToast('계획을 저장하고 있습니다. 잠시 후 다시 시도해 주세요.');
+      return false;
+    }
+    planEditPending.current = true;
+    try { return await action(); } finally { planEditPending.current = false; }
+  }
+  async function plan(id: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const next = updatePlan(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+      if (!next) { setToast('이 계획의 기준 자료를 불러온 뒤 수정할 수 있습니다.'); return false; }
+      return persist(
+        next,
+        '개인 학기 계획을 변경했습니다. 공식 수강신청과는 별개입니다.',
+      );
+    });
+  }
+  async function swapPlan(fromId: string, toId: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      if (!selectedIds.includes(fromId)) return false;
+      const next = updatePlan(selectedIds.filter((x) => x !== fromId && x !== toId).concat(toId));
+      if (!next) return false;
+      return persist(
+        next,
+        '',
+      );
+    });
   }
   // 시간표 시나리오 — 현재 planned를 슬롯에 저장/복원한다
-  function saveScenario(key: string) {
-    void persist(
-      { ...data, plans: { ...data.plans, [key]: [...data.planned] } },
-      `안 ${key}에 현재 시간표를 저장했습니다.`,
-    );
+  async function saveScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const next = updatePlan(selectedIds, { ...selectedScenarios, [key]: [...selectedIds] });
+      if (!next) return false;
+      return persist(
+        next,
+        `안 ${key}에 현재 시간표를 저장했습니다.`,
+      );
+    });
   }
-  function loadScenario(key: string) {
-    const ids = data.plans?.[key];
-    if (!ids) return;
-    void persist(
-      { ...data, planned: ids },
-      `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
-    );
+  async function loadScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const ids = selectedScenarios[key];
+      if (!ids) return false;
+      const next = updatePlan(ids);
+      if (!next) return false;
+      return persist(
+        next,
+        `안 ${key}를 불러왔습니다. 공식 수강신청과는 별개입니다.`,
+      );
+    });
   }
-  function deleteScenario(key: string) {
-    const plans = { ...data.plans };
-    delete plans[key];
-    void persist({ ...data, plans }, `안 ${key}를 삭제했습니다.`);
+  async function deleteScenario(key: string): Promise<boolean> {
+    return runPlanEdit(async () => {
+      const plans = { ...selectedScenarios };
+      delete plans[key];
+      const next = updatePlan(selectedIds, plans);
+      return next ? persist(next, `안 ${key}를 삭제했습니다.`) : false;
+    });
   }
   // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
   function setActStage(id: string, stage: string | null) {
@@ -668,10 +804,29 @@ export default function App() {
     setDemo(false);
     setData(empty);
   }
+  function resetDemoData(): boolean {
+    try {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+      if (!accountRef.current && demoRef.current) {
+        dataRef.current = empty;
+        setData(empty);
+        setDraft([]);
+        setActDraft([]);
+        setQuery('');
+        setFilter('전체');
+        setSurvey(false);
+      }
+      setToast('이 브라우저의 체험 데이터를 초기화했습니다.');
+      return true;
+    } catch {
+      setToast('체험 데이터를 초기화하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.');
+      return false;
+    }
+  }
   const section = route.split('/')[0],
     detail = route.split('/')[1],
     planned = (catalog?.sections ?? []).filter((s) =>
-      data.planned.includes(s.id),
+      visibleIds.includes(s.id),
     );
   const notifBefore =
     (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
@@ -707,6 +862,7 @@ export default function App() {
           한성 학사 도우미
         </div>
         <p>내 정보를 확인하고 있어요…</p>
+        {slowAccount && <p aria-live="polite">서버 응답이 늦어지고 있어요. 잠시만 기다려 주세요.</p>}
       </div>
     );
   if (!account && !demo)
@@ -715,6 +871,11 @@ export default function App() {
         <SignIn
           notice={accountError || undefined}
           onAuthenticated={(result) => {
+            accountGeneration.current += 1;
+            setAccountContext(result.sessionContext);
+            try { sessionChannel.current?.postMessage({ type: 'session-changed', context: result.sessionContext }); } catch { /* ignore */ }
+            clearExtensionCache();
+            allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
@@ -722,9 +883,12 @@ export default function App() {
             go('home');
           }}
           onDemo={() => {
+            accountGeneration.current += 1;
+            clearExtensionCache();
+            allowExtensionImport.current = false;
             setDemo(true);
             try {
-              const raw = localStorage.getItem('hansung-demo-v1');
+              const raw = localStorage.getItem(DEMO_STORAGE_KEY);
               if (raw) {
                 const d = JSON.parse(raw);
                 if (
@@ -755,6 +919,7 @@ export default function App() {
                   (d.lms === undefined || typeof d.lms === 'object')
                 ) {
                   const next = { ...empty, ...d };
+                  next.lms = validateLms(d.lms) ?? undefined;
                   const info = validateInfo(d.info);
                   setData(info ? applyInfo(next, info) : next);
                 }
@@ -766,14 +931,6 @@ export default function App() {
           }}
         />
       </>
-    );
-  if (account && !account.onboarded)
-    return (
-      <Onboarding
-        profile={data}
-        catalog={catalog}
-        onSave={(next, complete) => persist(next, '', complete)}
-      />
     );
   return (
     <div className={'shell' + (sideCollapsed ? ' side-collapsed' : '')}>
@@ -808,13 +965,37 @@ export default function App() {
         <main>
           <PageHeading
             section={section}
-            label={label}
+            label={section === 'graduation' ? ({ outlook: '졸업 전망', requirements: '요건별 충족 현황', completed: '이수한 과목', department: '학과·트랙별 요건' } as Record<string, string>)[detail ?? ''] ?? label : label}
             name={data.name}
-            onSurvey={() =>
+            onSurvey={section === 'home' ? undefined : () =>
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
           />
-          <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {section !== 'home' && (
+            <AccountBar account={account} go={go} onConnect={exitDemo} />
+          )}
+          {['courses', 'timetable', 'semester-plan'].includes(section) && (
+            <div className="card pad" style={{ marginBottom: 20 }}>
+              <label>계획 학기{' '}
+                <select className="field" aria-label="계획 학기" value={selectedSemester}
+                  onChange={(e) => { const semester = e.target.value; void runPlanEdit(() => persist({ ...data, planSemester: semester }, '계획 학기를 변경했습니다.')); }}>
+                  {(hasLegacyPlan || selectedSemester === 'legacy') && <option value="legacy">기존 계획 (학기 미지정)</option>}
+                  {semesterOptions.map((semester) => <option key={semester} value={semester}>{semester}</option>)}
+                </select>
+              </label>
+              <p className="meta">
+                {catalog ? `${catalog.semester} 자료로 계획 연습 중 · 선택한 학기의 실제 개설 여부와 시간표는 학교 공지에서 확인하세요.` : '강의 자료를 불러오는 중입니다.'}
+              </p>
+              {sourceMismatch && <p className="form-error">이 계획은 {storedPlan?.sourceSemester} 자료로 저장되어 현재 자료로는 표시하거나 수정할 수 없습니다. 저장된 계획은 보존됩니다.</p>}
+              {selectedSemester === 'legacy' && hasLegacyPlan && <p className="meta">기존 계획의 학기와 기준 자료는 확인할 수 없어 미지정으로 보존했습니다.</p>}
+            </div>
+          )}
+          {(slowCollect || pollDelayed) && (
+            <div className="card pad" aria-live="polite">
+              <p>{pollDelayed ? '학교 정보 수집 결과를 아직 확인하지 못했어요. 서버에서 처리가 계속되고 있을 수 있습니다.' : '학교 정보 수집이 평소보다 오래 걸리고 있어요. 기존 자료가 있다면 계속 볼 수 있습니다.'}</p>
+              {pollDelayed && <button className="secondary" onClick={() => setPollRetry((n) => n + 1)}>수집 상태 다시 확인</button>}
+            </div>
+          )}
           {section === 'home' ? (
             <Home
               data={data}
@@ -822,6 +1003,10 @@ export default function App() {
               go={go}
               planned={planned}
               catalog={catalog}
+              planSemester={selectedSemester}
+              planSourceMismatch={sourceMismatch}
+              planSourceSemester={storedPlan?.sourceSemester}
+              persist={persist}
             />
           ) : section === 'activities' ? (
             <Activities
@@ -846,9 +1031,10 @@ export default function App() {
               onOpenSurvey={() => openSurvey('course')}
               onOpenActSurvey={() => openSurvey('act')}
               focus={detail}
+              go={go}
             />
           ) : section === 'graduation' ? (
-            <Graduation
+            <GraduationWorkspace
               data={data}
               go={go}
               catalog={catalog}
@@ -856,13 +1042,13 @@ export default function App() {
               persist={persist}
               detail={detail}
               infoPending={
-                infoPending && !collectStale(infoPending)
+                infoPending && !collectStale(infoPending) && !pollDelayed
               }
               infoFailed={infoFailed}
             />
           ) : section === 'courses' ? (
             <Courses
-              data={data}
+              data={planData}
               plan={plan}
               swap={swapPlan}
               detail={detail}
@@ -877,21 +1063,23 @@ export default function App() {
               planned={planned}
               plan={plan}
               go={go}
-              semester={catalog?.semester}
+              semester={selectedSemester === 'legacy' ? undefined : selectedSemester}
             />
           ) : section === 'timetable' ? (
             <Timetable
+              key={`${selectedSemester}:${catalog?.semester ?? 'loading'}`}
               catalog={catalog}
               failed={catalogFailed}
               retry={retryCatalog}
               planned={planned}
-              data={data}
+              data={planData}
               plan={plan}
               swap={swapPlan}
               notify={setToast}
               onSaveScenario={saveScenario}
               onLoadScenario={loadScenario}
               onDeleteScenario={deleteScenario}
+              onOpenSurvey={() => openSurvey('course')}
             />
           ) : section === 'calendar' ? (
             <CalendarSection
@@ -906,20 +1094,26 @@ export default function App() {
               persist={persist}
               notify={setToast}
               detail={detail}
-              serverCollecting={lmsPending && !collectStale(lmsPending)}
+              serverCollecting={lmsPending && !collectStale(lmsPending) && !pollDelayed}
               collectFailed={lmsFailed}
+              collectDelayed={collectStale(lmsPending) || (lmsPending && pollDelayed)}
               lmsUnavailable={account?.snapshot.lms === 'unavailable'}
               lmsError={account?.snapshot.lmsError}
               studentMask={account?.studentMask}
-              onAccount={setAccount}
+              onAccount={(result) => {
+                if (renderedGeneration === accountGeneration.current && accountRef.current)
+                  setAccount(result);
+              }}
               ext={ext}
               onExtRefresh={() => requestLmsRefresh(true)}
               catalog={catalog}
             />
           ) : section === 'advisor' ? (
             <Advisor
+              key={`${renderedGeneration}:${detail ?? ''}`}
+              activityId={detail}
+              signedIn={!!account}
               data={data}
-              planned={planned}
               catalog={catalog}
               go={go}
             />
@@ -946,7 +1140,11 @@ export default function App() {
               data={data}
               persist={persist}
               go={go}
-              onDeleteAccount={() => void deleteAccount()}
+              onDeleteAccount={deleteAccount}
+              onLogout={logout}
+              onResetDemo={resetDemoData}
+              catalog={catalog}
+              activities={actsSnap}
             />
           ) : (
             <section className="card pad">
@@ -977,6 +1175,18 @@ export default function App() {
         go={go}
       />
       <ToastStack toasts={toasts} onClose={dismissToast} />
+      <Mascot
+        enabled={data.mascotEnabled !== false}
+        guideSeen={!!data.mascotGuideSeen}
+        isNewUser={!account || !account.onboarded}
+        survey={survey}
+        route={section}
+        hidden={drawer || notifOpen || (!account && !data.consent)}
+        data={data}
+        persist={persist}
+        go={go}
+        onOpenSurvey={openSurvey}
+      />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}
@@ -990,6 +1200,7 @@ export default function App() {
         draft={survey === 'act' ? actDraft : draft}
         setDraft={survey === 'act' ? setActDraft : setDraft}
         setStep={setStep}
+        mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(

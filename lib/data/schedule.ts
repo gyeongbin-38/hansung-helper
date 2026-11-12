@@ -23,6 +23,23 @@ export type ScheduleSnapshot = {
   items: ScheduleEvent[];
 };
 
+/** 학사일정은 날짜 단위이므로 한국의 오늘 날짜를 사용한다. */
+export function scheduleToday(now: number): string {
+  return new Date(now + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+export function upcomingSchedule(items: ScheduleEvent[], today: string): ScheduleEvent[] {
+  return items
+    .filter((event) => (event.end ?? event.start) >= today)
+    .sort((a, b) => a.start.localeCompare(b.start) || (a.end ?? a.start).localeCompare(b.end ?? b.start));
+}
+
+export function scheduleDateLabel(event: ScheduleEvent): string {
+  return event.end && event.end !== event.start
+    ? `${event.start} ~ ${event.end}`
+    : event.start;
+}
+
 const text = (s: string) =>
   s
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')

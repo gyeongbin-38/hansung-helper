@@ -9,21 +9,28 @@ import {
   Upload,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useSlowLoading } from '../use-slow-loading';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
+import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { useNow } from './catalog';
 import {
   bingeQueue,
   courseIsPast,
   courseProgress,
+  formatLmsTime,
   currentSemesterStart,
   dueSoon,
   isPast,
+  kstDateNumber,
+  lectureRangeStatus,
   matchEnrollment,
+  mergeLmsSnapshot,
   parseDue,
   pendingTasks,
   relTime,
+  searchMatchCandidates,
   staleDays,
   submissionItems,
   suggestMatchCandidates,
@@ -42,10 +49,12 @@ const DAY = 86400000;
 /** 수집 오류 코드 → 화면 표시명 */
 const ERROR_LABELS: Record<string, string> = {
   vod: '강의',
+  'vod-range': '강의 수강 기간',
   assign: '과제',
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
   timeout: '수집 시간 초과',
+  'timeout-partial': '일부 수집 시간 초과',
   budget: '수집량 한도 도달',
 };
 
@@ -79,6 +88,9 @@ function TaskRow({
   url,
   due,
   uncertain,
+  statusRetainedAt,
+  rangeUncertain,
+  rangeRetainedAt,
   watched,
   required,
   past,
@@ -90,6 +102,9 @@ function TaskRow({
   due: string | null;
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
   uncertain?: boolean;
+  statusRetainedAt?: string;
+  rangeUncertain?: boolean;
+  rangeRetainedAt?: string;
   /** 시청시간/요구시간 — 강의 항목에서만 온다 */
   watched?: string;
   required?: string;
@@ -97,8 +112,8 @@ function TaskRow({
   past?: boolean;
   now: number;
 }) {
-  const ts = due ? Date.parse(due.replace(' ', 'T')) : null;
-  const dd = ts !== null && !Number.isNaN(ts) ? Math.ceil((ts - now) / DAY) : null;
+  const ts = parseDue(due);
+  const dd = ts !== null ? kstDateNumber(ts) - kstDateNumber(now) : null;
   const tint =
     kind === '과제' ? 't-assign' : kind === '퀴즈' ? 't-quiz' : 't-vod';
   return (
@@ -119,7 +134,9 @@ function TaskRow({
           {due
             ? `마감·기간 ${due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
             : '마감 미기재'}
-          {uncertain ? ' · 응시 여부 확인 실패' : ''}
+          {uncertain ? ' · 상태 확인 실패' : ''}
+          {uncertain && statusRetainedAt ? ` · 이전 상태 확인 ${formatLmsTime(statusRetainedAt)}` : ''}
+          {rangeUncertain ? ` · 기간 재확인 필요${rangeRetainedAt ? ` (이전 확인 ${formatLmsTime(rangeRetainedAt)})` : ''}` : ''}
           {watched
             ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
             : ''}
@@ -153,27 +170,32 @@ function CourseCard({
         title: v.title,
         url: v.url,
         due: v.range ?? null,
+        uncertain: v.uncertain,
+        ...lectureRangeStatus(c, v),
         watched: v.watched,
         required: v.required,
         past: pastCourse || isPast(parseDue(v.range ?? null), before),
       })),
     ...c.assigns
-      .filter((a) => !a.submitted)
+      .filter((a) => !a.submitted || a.uncertain)
       .map((a) => ({
         kind: '과제',
         title: a.title,
         url: a.url,
         due: a.due ?? null,
+        uncertain: a.uncertain,
+        statusRetainedAt: a.statusRetainedAt,
         past: pastCourse || isPast(parseDue(a.due ?? null), before),
       })),
     ...c.quizzes
-      .filter((q) => !q.submitted)
+      .filter((q) => !q.submitted || q.uncertain)
       .map((q) => ({
         kind: '퀴즈',
         title: q.title,
         url: q.url,
         due: q.due ?? null,
         uncertain: q.uncertain,
+        statusRetainedAt: q.statusRetainedAt,
         past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];
@@ -214,6 +236,7 @@ function CourseCard({
               </small>
             </>
           )}
+          {c.vods.some((v) => v.uncertain) && <small>출석 확인 필요 {c.vods.filter((v) => v.uncertain).length}건</small>}
           <small>
             {pastCourse ? (
               <span className="badge">지난 학기</span>
@@ -224,7 +247,7 @@ function CourseCard({
                 ? `남은 ${cur}건`
                 : pastCourse
                   ? '지난 학기 과목'
-                  : '모두 완료';
+                  : c.errors?.length ? '상태 확인 필요' : '모두 완료';
             })()}
           </small>
         </div>
@@ -234,7 +257,11 @@ function CourseCard({
           일부 항목을 수집하지 못했습니다:{' '}
           {c.errors.map((e) => ERROR_LABELS[e] ?? e).join(', ')}. COSMOS에서
           직접 확인해 주세요.
+          {c.retainedAtByKind ? ` 이전 결과: ${Object.entries(c.retainedAtByKind).map(([kind, at]) => `${({ vod: '출석', assign: '과제', quiz: '퀴즈' } as Record<string, string>)[kind]} ${formatLmsTime(at)}`).join(' · ')}` : c.retainedAt ? ` 실패한 항목에는 이전 결과 (${formatLmsTime(c.retainedAt)})를 표시합니다.` : ''}
         </p>
+      ) : null}
+      {c.retainedAt && !c.errors?.length ? (
+        <p className="meta">일부 상태를 확인하지 못해 이전 결과를 보존했습니다: {c.retainedAtByKind ? Object.entries(c.retainedAtByKind).map(([kind, at]) => `${({ vod: '출석', assign: '과제', quiz: '퀴즈' } as Record<string, string>)[kind]} ${formatLmsTime(at)}`).join(' · ') : formatLmsTime(c.retainedAt)}. COSMOS에서 확인해 주세요.</p>
       ) : null}
       {weeks.length > 0 && (
         <div className="lms-weeks" aria-label="주차별 강의 진도">
@@ -282,7 +309,7 @@ function CourseCard({
 /** 안 들은 강의 한 줄 — 몰아듣기 큐용 */
 function BingeRow({ b, now }: { b: BingeItem; now: number }) {
   const overdue = b.dueTs !== null && b.dueTs <= now;
-  const dd = b.dueTs !== null ? Math.ceil((b.dueTs - now) / DAY) : null;
+  const dd = b.dueTs !== null ? kstDateNumber(b.dueTs) - kstDateNumber(now) : null;
   return (
     <div className="lms-task t-vod">
       <span className={'badge ' + (overdue ? 'orange' : 'blue')}>
@@ -298,6 +325,8 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
         )}
         <small>
           {b.course}
+          {b.uncertain ? ' · 출석 상태 확인 실패' : ''}
+          {b.rangeUncertain ? ' · 기간 재확인 필요' : ''}
           {b.range ? ` · ${shortRange(b.range)}` : ''}
           {dd !== null
             ? dd < 0
@@ -347,7 +376,7 @@ function BingeView({
   return (
     <>
       <p className="meta">
-        안 들은 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
+        미수강 또는 확인 필요 강의 {cur.length}개{urgent ? ` · 3일 내 기한 ${urgent}개` : ''}
         · 수강 기간 마감이 빠른 순입니다. 링크는 COSMOS 강의로 연결되고,
         수강 반영은 재수집 후 확인됩니다.
       </p>
@@ -372,7 +401,7 @@ function BingeView({
 
 /** 과제·퀴즈 한 줄 — 제출·응시 상태 배지 포함 */
 function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
-  const dd = s.dueTs !== null ? Math.ceil((s.dueTs - now) / DAY) : null;
+  const dd = s.dueTs !== null ? kstDateNumber(s.dueTs) - kstDateNumber(now) : null;
   return (
     <div className={`lms-task ${s.kind === '과제' ? 't-assign' : 't-quiz'}`}>
       <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
@@ -396,16 +425,16 @@ function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
       <span
         className={
           'badge ' +
-          (s.submitted ? 'green' : s.uncertain ? 'purple' : 'orange')
+          (s.uncertain ? 'purple' : s.submitted ? 'green' : 'orange')
         }
       >
-        {s.submitted
+        {s.uncertain
+          ? `${s.kind} 상태 확인 실패`
+          : s.submitted
           ? s.kind === '퀴즈'
             ? '응시 완료'
             : '제출 완료'
-          : s.uncertain
-            ? '응시 여부 확인 실패'
-            : s.kind === '퀴즈'
+          : s.kind === '퀴즈'
               ? '미응시'
               : '미제출'}
       </span>
@@ -478,6 +507,7 @@ export function LmsSection({
   notify,
   serverCollecting,
   collectFailed,
+  collectDelayed,
   lmsUnavailable,
   lmsError,
   studentMask,
@@ -494,6 +524,7 @@ export function LmsSection({
   serverCollecting?: boolean;
   /** 서버 측 수집이 실패/중단된 상태 — 계정 연결 자체는 유지됨 */
   collectFailed?: boolean;
+  collectDelayed?: boolean;
   /** 포털 로그인은 됐지만 COSMOS 접속 자체가 실패한 상태 */
   lmsUnavailable?: boolean;
   /** COSMOS 로그인 단계 실패 원인 — auth/landing/upstream */
@@ -528,13 +559,15 @@ export function LmsSection({
   const pendCount = snap ? pendingTasks(snap, before).length : 0;
 
   // 단일 동기화 상태 — 밴드와 연결 관리가 같은 판정을 본다
-  const band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh' =
+  const band: 'syncing' | 'login' | 'failed' | 'delayed' | 'setup' | 'stale' | 'fresh' =
     syncing
       ? 'syncing'
       : extStatus.status === 'login-required'
         ? 'login'
         : extStatus.status === 'failed' || collectFailed || lmsUnavailable
           ? 'failed'
+          : collectDelayed
+            ? 'delayed'
           : !snap
             ? 'setup'
             : stale !== null && stale >= 1
@@ -587,7 +620,7 @@ export function LmsSection({
         return;
       }
       setErr('');
-      await persist({ ...data, lms: valid }, '수업 현황을 가져왔습니다.');
+      await persist({ ...data, lms: mergeLmsSnapshot(data.lms, valid) }, '수업 현황을 가져왔습니다.');
     } catch {
       setErr('JSON 파일을 읽지 못했습니다. 수집 스크립트를 다시 실행해 보세요.');
     }
@@ -797,14 +830,14 @@ function MatchFixer({
       {pending.length > 0 ? (
         <b>
           {snap.courses.length}과목 중 {pending.length}과목이 개설강의
-          카탈로그와 이름이 달라 매칭되지 않았습니다.
+          카탈로그에서 자동으로 연결되지 않았습니다.
         </b>
       ) : (
         <b>모든 수업 과목이 개설강의 카탈로그와 연결되었습니다.</b>
       )}
       <p className="meta">
         {pending.length > 0
-          ? '아래 후보에서 같은 과목을 골라 직접 연결하거나, 수업이 아닌 과목(커뮤니티·특강)은 제외할 수 있습니다. 매칭되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
+          ? '개설 학기가 다르거나 카탈로그에 과목이 없을 수 있습니다. 같은 과목을 검색해 직접 연결하거나, 수업이 아닌 항목은 제외할 수 있습니다. 연결되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
           : '이름으로 자동 연결되지 않은 과목을 직접 연결하거나 제외한 내역입니다.'}
       </p>
       <div className="matchfix-list">
@@ -881,7 +914,10 @@ function MatchFixRow({
   onIgnore: () => void;
 }) {
   const disp = courseDisplay(m.course);
-  const candidates = open ? suggestMatchCandidates(m.course, catalog) : [];
+  const [query, setQuery] = useState('');
+  const candidates = !open ? [] : query.trim()
+    ? searchMatchCandidates(catalog, query)
+    : suggestMatchCandidates(m.course, catalog);
   return (
     <div className="matchfix-course">
       <div className="matchfix-row">
@@ -895,16 +931,17 @@ function MatchFixRow({
           <small>
             {m.course.prof || '교수 미기재'}
             {m.course.community ? ' · 커뮤니티' : ''}
+            {m.semesterMismatch ? ` · ${catalog.semester}와 다른 학기` : ''}
           </small>
         </div>
         <span className="enrolled-actions">
-          <button
+          {!m.semesterMismatch && <button
             className="secondary"
             onClick={onToggle}
             aria-expanded={open}
           >
             {open ? '후보 닫기' : '직접 연결'}
-          </button>
+          </button>}
           <button className="link" onClick={onIgnore}>
             해당 없음
           </button>
@@ -912,6 +949,16 @@ function MatchFixRow({
       </div>
       {open && (
         <div className="matchfix-cands">
+          <label>
+            <span className="meta">{catalog.semester} 개설과목 검색</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="과목명, 교수, 과목코드 또는 학과"
+              aria-label={`${disp.title} 연결할 과목 검색`}
+            />
+          </label>
           {candidates.length ? (
             candidates.map((c) => (
               <button
@@ -923,6 +970,7 @@ function MatchFixRow({
                   <b>{c.name}</b>
                   <small>
                     {c.dept} · {c.credits}학점
+                    {c.professor ? ` · ${c.professor}` : ''}
                     {c.sectionCount > 1
                       ? ` · 분반 ${c.sectionCount}개`
                       : ''}
@@ -939,12 +987,13 @@ function MatchFixRow({
             ))
           ) : (
             <p className="meta">
-              비슷한 이름의 개설 과목을 찾지 못했습니다 — 수업이 아닌
-              과목이면 ‘해당 없음’으로 제외하세요.
+              {query.trim()
+                ? '검색 결과가 없습니다. 과목명이나 학기를 확인해 주세요.'
+                : '추천할 과목이 없습니다. 과목명이나 교수 이름으로 직접 검색해 보세요.'}
             </p>
           )}
           <p className="meta">
-            직접 연결은 수강 추정에만 쓰이며 이수 확정이 아닙니다.
+            같은 과목인지 이름과 교수를 확인해 주세요. 직접 연결은 수강 추정이며 이수 확정이 아닙니다.
           </p>
         </div>
       )}
@@ -966,7 +1015,7 @@ function SyncBand({
   matchTotal = 0,
   serverLoginFailed,
 }: {
-  band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh';
+  band: 'syncing' | 'login' | 'failed' | 'delayed' | 'setup' | 'stale' | 'fresh';
   snap?: LmsSnapshot;
   now: number;
   pending: number;
@@ -997,6 +1046,12 @@ function SyncBand({
       d: snap
         ? '아래는 이전에 수집된 데이터입니다. 다시 시도해 주세요.'
         : '아직 표시할 데이터가 없습니다. 다시 시도해 주세요.',
+    },
+    delayed: {
+      t: '수집 결과 확인이 지연되고 있습니다',
+      d: snap
+        ? '아래는 이전에 수집된 데이터입니다. 서버에서 처리가 계속되고 있을 수 있습니다.'
+        : '아직 수집 결과를 확인하지 못했습니다. 서버에서 처리가 계속되고 있을 수 있습니다.',
     },
     setup: {
       t: 'COSMOS 수업 현황을 연결하세요',
@@ -1057,7 +1112,7 @@ function SyncBand({
             <dd>
               {relTime(snap.fetchedAt, now)}
               {snap.fetchedAt
-                ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})`
+                ? ` (${formatLmsTime(snap.fetchedAt)})`
                 : ''}
               {staleDays(snap, now) !== null && staleDays(snap, now)! >= 1 ? (
                 <span className="badge orange">오래된 데이터</span>
@@ -1269,7 +1324,7 @@ function ConnCard({
           <dt>마지막 동기화</dt>
           <dd>
             {snap.fetchedAt ? relTime(snap.fetchedAt, now) : '없음'}
-            {snap.fetchedAt ? ` (${snap.fetchedAt.slice(0, 16).replace('T', ' ')})` : ''}
+            {snap.fetchedAt ? ` (${formatLmsTime(snap.fetchedAt)})` : ''}
           </dd>
         </div>
         <div>
@@ -1389,28 +1444,32 @@ function RefreshForm({
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const slowRefresh = useSlowLoading(loading);
   const submit = async () => {
     if (loading) return;
     setErr('');
     setLoading(true);
     try {
-      const res = await fetch('/api/account/lms-refresh', {
+      const res = await apiFetch('/api/account/lms-refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId, password }),
-      });
-      const body = (await res.json()) as Account & { error?: string };
-      if (!res.ok) {
-        setErr(body.error || '재수집에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-        return;
-      }
+      }, 75000);
+      const body = await apiData<Account>(res);
       onAccount(body);
       setPassword('');
       setOpen(false);
       notify?.('서버에서 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.');
-    } catch {
-      setErr('요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    } catch (error) {
+      setErr(
+        error instanceof ApiRequestError && error.code === 'TIMEOUT'
+          ? '재수집 응답이 늦어 완료 여부를 확인하지 못했어요. 잠시 후 페이지를 새로고침해 상태를 확인해 주세요.'
+          : error instanceof ApiRequestError
+          ? error.message
+          : '요청에 실패했습니다. 네트워크를 확인해 주세요.',
+      );
     } finally {
+      setPassword('');
       setLoading(false);
     }
   };
@@ -1461,12 +1520,15 @@ function RefreshForm({
           onClick={() => {
             setOpen(false);
             setErr('');
+            setPassword('');
           }}
+          disabled={loading}
         >
           취소
         </button>
       </div>
-      {err && <p className="lms-error">{err}</p>}
+      {slowRefresh && <p className="meta" aria-live="polite">학교 응답이 평소보다 오래 걸리고 있어요. 연결을 확인 중이니 잠시만 기다려 주세요.</p>}
+      {err && <p className="lms-error" role="alert">{err}</p>}
     </form>
   );
 }
@@ -1505,8 +1567,9 @@ function DueSoonList({
               {t.course} ·{' '}
               {t.dueTs < now
                 ? '마감 지남'
-                : `D-${Math.ceil((t.dueTs - now) / DAY)}`}
-              {t.uncertain ? ' · 응시 여부 확인 실패' : ''}
+                : `D-${kstDateNumber(t.dueTs) - kstDateNumber(now)}`}
+              {t.uncertain ? ' · 상태 확인 실패' : ''}
+              {t.rangeUncertain ? ' · 기간 재확인 필요' : ''}
             </small>
           </div>
         </div>

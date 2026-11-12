@@ -4,7 +4,8 @@
  * 브라우저 수집기(public/lms-collect.js)와 동일한 셀렉터 계약을
  * Workers DOM 없이 정규식으로 구현 (dotbugi 구조 기반).
  */
-import { plainText } from './school.ts';
+import { plainText, transientSchoolRead } from './school.ts';
+import { retrySchoolRead } from './school-retry.ts';
 import type {
   LmsCourse,
   LmsSnapshot,
@@ -14,6 +15,7 @@ import type {
 
 const BASE = 'https://learn.hansung.ac.kr';
 const NOT_SUBMITTED = ['미제출', 'Not submitted', '提出なし', '没有作业'];
+const SUBMITTED = ['제출 완료', '제출됨', '제출함', 'submitted'];
 const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];
 const COL_WEEKLY_ATTENDANCE = ['주차 출석', 'Week attendance'];
 const COL_ATTENDANCE = ['출석', 'Attendance'];
@@ -25,6 +27,10 @@ export interface LmsSession {
 }
 
 const clsRe = (cls: string) => `class="[^"]*\\b${cls}\\b[^"]*"`;
+
+function hasClassTable(html: string, className: string): boolean {
+  return new RegExp(`<table[^>]*${clsRe(className)}[^>]*>`, 'i').test(html);
+}
 
 function tableRows(html: string, tableClass: string): string[] {
   const t = html.match(
@@ -70,6 +76,16 @@ function normDate(raw: string): string | null {
 
 const abs = (h: string) => (h.startsWith('http') ? h : BASE + h);
 
+function submissionState(status: string): Pick<LmsTask, 'submitted' | 'uncertain'> {
+  const normalized = status.toLocaleLowerCase();
+  if (NOT_SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+    return { submitted: false };
+  if (SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+    return { submitted: true };
+  // Unknown or blank text is not evidence that the student submitted the task.
+  return { submitted: false, uncertain: true };
+}
+
 /** 과제 목록 — mod/assign/index.php generaltable */
 export function parseAssigns(html: string): LmsTask[] {
   return tableRows(html, 'generaltable').flatMap((row) => {
@@ -81,7 +97,7 @@ export function parseAssigns(html: string): LmsTask[] {
       title: a.title,
       url: abs(a.href),
       due: dueRaw && dueRaw !== '-' ? normDate(dueRaw) : null,
-      submitted: !NOT_SUBMITTED.some((k) => status.includes(k)),
+      ...submissionState(status),
     };
   });
 }
@@ -100,32 +116,33 @@ export function parseQuizList(html: string): Omit<LmsTask, 'submitted'>[] {
   });
 }
 
-/** 퀴즈 상세 — quizattemptsummary tbody 행 존재 = 응시 이력 있음 */
-export function hasQuizAttempt(html: string): boolean {
+/** 퀴즈 상세 — missing table means unknown; an empty summary means not attempted. */
+export function hasQuizAttempt(html: string): boolean | null {
   const t = html.match(
     new RegExp(
       `<table[^>]*${clsRe('quizattemptsummary')}[^>]*>([\\s\\S]*?)</table>`,
       'i',
     ),
   );
-  if (!t) return false;
+  if (!t) return null;
   const tbody = t[1].match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i)?.[1] ?? '';
   return /<tr\b/i.test(tbody);
 }
 
 /** 온라인 출석부 — thead 동적 컬럼 매칭 + rowspan/colspan 평탄화 */
 export function parseProgress(html: string): LmsVod[] {
-  const thead = html.match(
+  const table = html.match(
     new RegExp(
-      `${clsRe('user_progress_table')}[^>]*>[\\s\\S]*?<thead[^>]*>([\\s\\S]*?)</thead>`,
+      `<table[^>]*${clsRe('user_progress_table')}[^>]*>([\\s\\S]*?)</table>`,
       'i',
     ),
   );
-  if (!thead) return [];
+  const thead = table?.[1].match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
+  if (!thead) throw new Error('lms:progress-header-missing');
   const headers = [...thead[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(
     (m) => plainText(m[1]),
   );
-  if (headers.length < 5) return [];
+  if (headers.length < 5) throw new Error('lms:progress-columns-missing');
   let att = -1,
     weekAtt = -1;
   const matched = new Set<number>();
@@ -142,15 +159,10 @@ export function parseProgress(html: string): LmsVod[] {
     if (att === -1 && !matched.has(i) && COL_ATTENDANCE.some((k) => t.includes(k)))
       att = i;
   });
-  if (att === -1 || weekAtt === -1) return [];
+  if (att === -1 || weekAtt === -1) throw new Error('lms:progress-columns-missing');
 
-  const tbody = html.match(
-    new RegExp(
-      `${clsRe('user_progress_table')}[^>]*>[\\s\\S]*?<tbody[^>]*>([\\s\\S]*?)</tbody>`,
-      'i',
-    ),
-  );
-  if (!tbody) return [];
+  const tbody = table?.[1].match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+  if (!tbody) throw new Error('lms:progress-body-missing');
   const trs = [...tbody[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(
     (m) => m[1],
   );
@@ -205,12 +217,15 @@ export function parseProgress(html: string): LmsVod[] {
     if (BULK_APPROVED.some((k) => (weekly ?? '').includes(k))) weekly = 'O';
     const w = parseInt(cells[0] ?? '', 10);
     if (!Number.isNaN(w)) curWeek = w;
-    if (!title || !status) return [];
+    if (!title) return [];
+    const attended = /^(?:o|출석|출석완료|출석인정)$/i.test(status.replace(/\s/g, ''));
+    const absent = /^(?:x|미출석|결석)$/i.test(status.replace(/\s/g, ''));
     return {
       title,
       week: curWeek,
       status,
-      attended: /^[Oo]$/.test(status) || status.includes('출석'),
+      attended,
+      uncertain: !attended && !absent || undefined,
       weeklyStatus: weekly || undefined,
     };
   });
@@ -255,23 +270,38 @@ export function parseVodRanges(
 export async function collectLms(
   session: LmsSession,
   courses: { id: string; name: string; community?: boolean }[],
+  options: { budgetMs?: number } = {},
 ): Promise<LmsSnapshot> {
-  const deadline = Date.now() + COLLECT_BUDGET_MS;
+  if (!courses.length) throw new Error('lms:no-courses-collected');
+  const budgetMs = options.budgetMs ?? COLLECT_BUDGET_MS;
+  if (!Number.isInteger(budgetMs) || budgetMs <= 0 || budgetMs > COLLECT_BUDGET_MS)
+    throw new Error('lms:invalid-budget');
+  const deadline = Date.now() + budgetMs;
   // 지연 수집은 로그인 invocation의 서브리퀘스트 예산을 공유한다 —
   // 학교 서버 부담과 플랜 한도(무료 50)를 위해 수집 요청에 상한을 둔다.
   // 초과 시 나머지 과목은 'budget' 오류로 표시하고 결과는 부분 보존.
   const REQ_BUDGET = 40;
   let used = 0;
+  let retryBudget = 3;
   // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
   // 이를 빈 결과로 삼키지 않고 throw해 errors[]에 남긴다.
   const html = async (url: string) => {
-    if (++used > REQ_BUDGET) throw new Error('lms:budget');
-    const r = await session.request(url);
-    const h = await r.text();
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error('lms:timeout');
+    const signal = AbortSignal.timeout(Math.max(1, remaining));
+    const { r, h } = await retrySchoolRead(async () => {
+      if (++used > REQ_BUDGET) throw new Error('lms:budget');
+      const r = await session.request(url, { signal });
+      return { r, h: await r.text() };
+    }, (error) => {
+      if (retryBudget <= 0 || used >= REQ_BUDGET || !transientSchoolRead(error)) return false;
+      retryBudget--;
+      return true;
+    }, signal);
     if (r.status !== 200 || !/\/login\/logout\.php/.test(h)) {
       console.log(
         '[lms] fetch',
-        url.replace(BASE, ''),
+        new URL(url).pathname,
         '→',
         r.status,
         'len',
@@ -305,24 +335,31 @@ export async function collectLms(
         lastErr = e; /* 다음 URL 시도 */
       }
     }
-    // 두 URL 모두 요청 실패(세션/HTTP)면 'vod' 오류로 표면화,
-    // 페이지는 왔지만 표가 없는 경우만 정상 빈 결과.
+    // A successful page without the expected table is not proof of no work.
     if (lastErr) throw lastErr;
-    return [];
+    throw new Error('lms:progress-table-missing');
   };
-  const fetchAssigns = async (id: string) =>
-    parseAssigns(await html(`${BASE}/mod/assign/index.php?id=${id}`));
+  const fetchAssigns = async (id: string) => {
+    const page = await html(`${BASE}/mod/assign/index.php?id=${id}`);
+    if (!hasClassTable(page, 'generaltable'))
+      throw new Error('lms:assign-table-missing');
+    return parseAssigns(page);
+  };
   const fetchQuizzes = async (id: string) => {
-    const items = parseQuizList(
-      await html(`${BASE}/mod/quiz/index.php?id=${id}`),
-    );
+    const page = await html(`${BASE}/mod/quiz/index.php?id=${id}`);
+    if (!hasClassTable(page, 'generaltable'))
+      throw new Error('lms:quiz-table-missing');
+    const items = parseQuizList(page);
     const out: LmsTask[] = [];
     let unchecked = 0;
     // 퀴즈별 제출 확인이 과목당 요청 수를 키운다 — 12개까지만 확인하고
     // 나머지는 미확인(uncertain)으로 표시한다.
     for (const it of items.slice(0, 12)) {
       const r = await html(it.url!)
-        .then((h) => ({ submitted: hasQuizAttempt(h), failed: false }))
+        .then((h) => {
+          const submitted = hasQuizAttempt(h);
+          return { submitted: submitted === true, failed: submitted === null };
+        })
         .catch(() => ({ submitted: false, failed: true }));
       if (r.failed) unchecked += 1;
       out.push({
@@ -342,7 +379,7 @@ export async function collectLms(
 
   const out: LmsCourse[] = [];
   for (const c of courses) {
-    if (Date.now() > deadline) {
+    if (Date.now() >= deadline) {
       out.push({
         id: c.id,
         title: c.name,
@@ -393,9 +430,11 @@ export async function collectLms(
       quizzes: quizOut.tasks,
       errors: [
         vods.status === 'rejected' && 'vod',
+        ranges.status === 'rejected' && 'vod-range',
         assigns.status === 'rejected' && 'assign',
         quizzes.status === 'rejected' && 'quiz',
         quizOut.unchecked > 0 && 'quiz-check',
+        Date.now() >= deadline && 'timeout-partial',
       ].filter((e): e is string => !!e),
     });
   }

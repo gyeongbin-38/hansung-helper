@@ -39,12 +39,21 @@ const base = {
   reqChecks: ['capstone'],
   notifiedIds: ['d1'],
   notifEnabled: false,
+  mascotEnabled: true,
+  mascotGuideSeen: false,
   lmsMatch: { 'crs-1': 'sec-1' },
   lms: { fetchedAt: 't0' },
   info: { fetchedAt: 't0', name: '한성인' },
   consent: true,
   rev: 5,
 };
+
+test('admission type follows local edits and preserves unrelated remote selections', () => {
+  const initial = { ...base, admissionType: 'unknown' };
+  const remote = { ...initial, admissionType: 'general-transfer' };
+  assert.equal(mergeProfile(initial, { ...initial, name: '새 이름' }, remote).admissionType, 'general-transfer');
+  assert.equal(mergeProfile(initial, { ...initial, admissionType: 'freshman' }, remote).admissionType, 'freshman');
+});
 const d = (over) => ({ ...base, ...over });
 
 test('양쪽 추가분은 모두 살아난다 — 집합 병합', () => {
@@ -90,6 +99,17 @@ test('스칼라 양쪽 변경 시 local 우선 — 사용자가 방금 쓴 값',
   assert.equal(merged.points, '200');
 });
 
+test('마스코트 설정은 local 변경을 보존하고 remote 변경을 따른다', () => {
+  const initial = d({ mascotEnabled: true, mascotGuideSeen: false });
+  const merged = mergeProfile(
+    initial,
+    { ...initial, mascotEnabled: false },
+    { ...initial, mascotGuideSeen: true },
+  );
+  assert.equal(merged.mascotEnabled, false);
+  assert.equal(merged.mascotGuideSeen, true);
+});
+
 test('레코드 필드는 키 단위 3-way — 양쪽 키 변경이 공존', () => {
   const merged = mergeProfile(
     d(),
@@ -115,6 +135,16 @@ test('plans 시나리오도 키 단위 — local 수정본과 remote 신규 안 
   );
   assert.deepEqual(merged.plans.A, ['s1', 's2']);
   assert.deepEqual(merged.plans.B, ['s9']);
+});
+
+test('학기별 계획은 서로 다른 학기와 같은 학기의 동시 추가를 보존한다', () => {
+  const p = (planned) => ({ sourceSemester: '2026-2', planned, plans: {} });
+  const base = d({ semesterPlans: { '2027-1': p(['s1']) } });
+  const local = d({ semesterPlans: { '2027-1': p(['s1', 's2']) } });
+  const remote = d({ semesterPlans: { '2027-1': p(['s1', 's3']), '2027-2': p(['s4']) } });
+  const merged = mergeProfile(base, local, remote);
+  assert.deepEqual(merged.semesterPlans['2027-1'].planned.sort(), ['s1', 's2', 's3']);
+  assert.deepEqual(merged.semesterPlans['2027-2'].planned, ['s4']);
 });
 
 test('completed·events·extActivities는 키 기준 집합 병합', () => {
@@ -180,4 +210,94 @@ test('같은 탭 연속 쓰기 — 내 변경이 직전 저장(remote) 위에 �
   const staleNext = { ...s0, saved: ['a1', 'a3'] }; // 두 번째 쓰기(구 data 기준)
   const merged = mergeProfile(s0, staleNext, synced);
   assert.deepEqual(new Set(merged.saved), new Set(['a1', 'a2', 'a3']));
+});
+
+test('온보딩 단계 0→2 변경을 원격 수집 결과와 함께 보존한다', () => {
+  const initial = d({ onboardingStep: 0 });
+  const merged = mergeProfile(
+    initial,
+    { ...initial, onboardingStep: 2 },
+    {
+      ...initial,
+      lms: { fetchedAt: 'remote-lms' },
+      info: { fetchedAt: 'remote-info', name: '수집 이름' },
+      rev: 6,
+    },
+  );
+
+  assert.equal(merged.onboardingStep, 2);
+  assert.equal(merged.lms.fetchedAt, 'remote-lms');
+  assert.equal(merged.info.fetchedAt, 'remote-info');
+  assert.equal(merged.rev, 6);
+});
+
+test('기존 온보딩 단계 1→2 및 완료 단계 8 변경을 병합한다', () => {
+  const stepOne = d({ onboardingStep: 1 });
+  assert.equal(
+    mergeProfile(stepOne, { ...stepOne, onboardingStep: 2 }, stepOne)
+      .onboardingStep,
+    2,
+  );
+
+  const stepTwo = d({ onboardingStep: 2 });
+  assert.equal(
+    mergeProfile(stepTwo, { ...stepTwo, onboardingStep: 8 }, stepTwo)
+      .onboardingStep,
+    8,
+  );
+});
+
+test('학기와 졸업 목표의 로컬 변경은 충돌 시 우선하고 다른 필드는 회귀하지 않는다', () => {
+  const initial = d({
+    semester: '2026-1',
+    graduationTarget: '2028-1',
+    onboardingStep: 2,
+  });
+  const merged = mergeProfile(
+    initial,
+    {
+      ...initial,
+      semester: '2026-2',
+      graduationTarget: '2027-2',
+    },
+    {
+      ...initial,
+      semester: '2025-2',
+      graduationTarget: '2029-1',
+      dept: '원격 변경 학과',
+      saved: ['a1', 'a3'],
+      lms: { fetchedAt: 'remote-new' },
+      rev: 9,
+    },
+  );
+
+  assert.equal(merged.semester, '2026-2');
+  assert.equal(merged.graduationTarget, '2027-2');
+  assert.equal(merged.onboardingStep, 2);
+  assert.equal(merged.dept, '원격 변경 학과');
+  assert.deepEqual(merged.saved, ['a1', 'a3']);
+  assert.equal(merged.lms.fetchedAt, 'remote-new');
+  assert.equal(merged.rev, 9);
+});
+
+test('로컬에서 바꾸지 않은 온보딩 스칼라는 원격 변경을 따른다', () => {
+  const initial = d({
+    semester: '2026-1',
+    graduationTarget: '2028-1',
+    onboardingStep: 1,
+  });
+  const merged = mergeProfile(
+    initial,
+    { ...initial },
+    {
+      ...initial,
+      semester: '2026-2',
+      graduationTarget: '2027-2',
+      onboardingStep: 8,
+    },
+  );
+
+  assert.equal(merged.semester, '2026-2');
+  assert.equal(merged.graduationTarget, '2027-2');
+  assert.equal(merged.onboardingStep, 8);
 });

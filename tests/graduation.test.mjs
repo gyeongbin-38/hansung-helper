@@ -4,7 +4,14 @@ import {
   evaluate,
   DEFAULT_RULES,
   graduationOutlook,
+  requirementQuantityName,
 } from '../lib/data/graduation.ts';
+
+test('교과와 비교과 필요 기준의 단위 명칭이 구분된다', () => {
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'points')), '포인트');
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'total')), '학점');
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'majorReq')), '학점');
+});
 
 const section = (id, category, credits) => ({
   id,
@@ -70,26 +77,28 @@ test('default rules carry honest provenance note and sane shape', () => {
 });
 
 test('official global baseline applies only for 2016+ entrants', () => {
-  const r16 = evaluate([], [], {}, { admitYear: 2023 });
+  const r16 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r16.find((x) => x.rule.id === 'total').required, 130);
   const r15 = evaluate([], [], {}, { admitYear: 2015 });
   // 2015학번 이전 전역 기준은 미수집 — 추측하지 않고 UNKNOWN
   assert.equal(r15.find((x) => x.rule.id === 'total').required, null);
   assert.equal(r15.find((x) => x.rule.id === 'total').status, 'unknown');
   const rNone = evaluate([], []);
-  assert.equal(rNone.find((x) => x.rule.id === 'total').required, 130);
+  assert.equal(rNone.find((x) => x.rule.id === 'total').required, null);
+  const transfer = evaluate([], [], {}, { admissionType: 'transfer', admitYear: 2023, points: 800 });
+  assert.equal(transfer.find((x) => x.rule.id === 'points').status, 'unknown');
   // 사용자가 직접 기준을 입력하면 미수집 연도에도 적용
   const rOver = evaluate([], [], { total: 140 }, { admitYear: 2014 });
   assert.equal(rOver.find((x) => x.rule.id === 'total').required, 140);
 });
 
 test('비교과 포인트 rule: 800P official, missing input stays unknown', () => {
-  const r = evaluate([], [], {}, { admitYear: 2023 });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   const pts = r.find((x) => x.rule.id === 'points');
   assert.equal(pts.required, 800);
   assert.equal(pts.rule.unit, 'P');
   assert.equal(pts.status, 'unknown'); // 입력 전 — 0/800으로 표시하지 않음
-  const r2 = evaluate([], [], {}, { admitYear: 2023, points: 900 });
+  const r2 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023, points: 900 });
   const pts2 = r2.find((x) => x.rule.id === 'points');
   assert.equal(pts2.earned, 900);
   assert.equal(pts2.status, 'met');
@@ -98,7 +107,7 @@ test('비교과 포인트 rule: 800P official, missing input stays unknown', () 
 // 학과 규정표(yearTable) 해석 기준 — 검증된 학과만 엔진에 연결
 test('deptTargets: 학과 기준이 미수집 전역 기준을 메운다 (pre-2016)', () => {
   // 2015학번: 전역 기준 미수집이지만 학과 규정표에 140학점 명시
-  const r = evaluate([], [], {}, { admitYear: 2015, deptTargets: { total: 140 } });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2015, deptTargets: { total: 140 } });
   const total = r.find((x) => x.rule.id === 'total');
   assert.equal(total.required, 140);
   assert.equal(total.requiredSource, 'dept');
@@ -115,8 +124,22 @@ test('deptTargets: 사용자 override가 학과 기준보다 우선한다', () =
   assert.equal(total.requiredSource, 'override');
 });
 
+test('사용자 수정값 삭제 후 공식 기준 또는 미확정 상태로 복원된다', () => {
+  const opts = { admitYear: 2023, admissionType: 'freshman', deptTargets: { total: 140 } };
+  const modified = evaluate([], [], { total: 150, major: 60 }, opts);
+  assert.equal(modified.find((x) => x.rule.id === 'total').requiredSource, 'override');
+  assert.equal(modified.find((x) => x.rule.id === 'major').required, 60);
+  const restored = evaluate([], [], {}, opts);
+  assert.equal(restored.find((x) => x.rule.id === 'total').required, 140);
+  assert.equal(restored.find((x) => x.rule.id === 'total').requiredSource, 'dept');
+  assert.equal(restored.find((x) => x.rule.id === 'major').required, null);
+  assert.equal(restored.find((x) => x.rule.id === 'major').requiredSource, undefined);
+  const global = evaluate([], [], {}, { admitYear: 2023, admissionType: 'freshman' });
+  assert.equal(global.find((x) => x.rule.id === 'total').requiredSource, 'global');
+});
+
 test('deptTargets: 비교과 포인트도 학과 기준으로 확정 가능', () => {
-  const r = evaluate([], [], {}, { admitYear: 2015, points: 500, deptTargets: { points: 800 } });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2015, points: 500, deptTargets: { points: 800 } });
   const pts = r.find((x) => x.rule.id === 'points');
   assert.equal(pts.required, 800);
   assert.equal(pts.requiredSource, 'dept');
@@ -136,11 +159,35 @@ test('planned already-completed code is not double counted', () => {
   assert.equal(total.planned, 3); // A1 계획분은 제외 — 6이 아니라 3
 });
 
+test('duplicate completed codes require review rather than counting retakes twice', () => {
+  const r = evaluate([done('A', '전필', 3), done('A', '전필', 3)], [], { total: 6 });
+  const total = r.find((x) => x.rule.id === 'total');
+  assert.equal(total.earned, 0);
+  assert.equal(total.status, 'unknown');
+  assert.equal(total.uncertainCredits, true);
+});
+
+test('confirmed admission types use their own baseline without applying freshman department targets to transfers', () => {
+  for (const [admissionType, total, points] of [['freshman', 130, 800], ['general-transfer', 130, 400], ['bachelor-transfer', 65, 400]]) {
+    const r = evaluate([], [], {}, { admitYear: 2025, admissionType, deptTargets: { total: 130, points: 800 } });
+    assert.equal(r[0].required, total);
+    assert.equal(r[1].required, points);
+  }
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'freshman' })[0].required, 140);
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'bachelor-transfer' })[0].required, 70);
+  assert.equal(evaluate([], [], {}, { admitYear: 2015, admissionType: 'freshman' })[1].required, null);
+});
+
+test('invalid admission year never receives a guessed baseline', () => {
+  for (const admitYear of [0, 1800, 9999, NaN])
+    assert.equal(evaluate([], [], {}, { admitYear, admissionType: 'freshman' })[0].required, null);
+});
+
 test('requiredSource: 전역 기준 경로는 global로 표시', () => {
-  const r = evaluate([], [], {}, { admitYear: 2023 });
+  const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');
   // 학과 기준이 있어도 total/points 외 규정에는 영향 없음
-  const r2 = evaluate([], [], {}, { admitYear: 2023, deptTargets: { total: 130, points: 800 } });
+  const r2 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023, deptTargets: { total: 130, points: 800 } });
   assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, undefined);
 });
 

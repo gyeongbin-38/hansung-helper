@@ -16,7 +16,7 @@ export function SemesterPlan({
   const credits = planned.reduce((n, s) => n + s.credits, 0);
   const semLabel = semester
     ? semester.replace(/(\d{4})-(\d)/, '$1학년도 $2학기')
-    : '다음 학기';
+    : '학기 미지정';
   return (
     <section className="card detail plan">
       <div className="between">

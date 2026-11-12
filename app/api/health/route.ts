@@ -1,8 +1,23 @@
-// 업타임 모니터링용 — 외부 체커(UptimeRobot·CF Health Checks)가 이
-// 엔드포인트를 주기적으로 호출해 워커 생존을 확인한다.
-export function GET() {
+import { accountAuthConfigured, database } from '@/lib/server/account';
+
+// Public data has bundle fallbacks, so it can work while all logins fail.
+// Check the account dependencies without reading any account records.
+export async function GET() {
+  const accountAuth = accountAuthConfigured();
+  let accountDatabase = false;
+  try {
+    const schema = await database()
+      .prepare(
+        "SELECT COUNT(*) AS tables FROM sqlite_master WHERE type = 'table' AND name IN ('academic_accounts', 'academic_sessions', 'academic_login_limits')",
+      )
+      .first<{ tables: number }>();
+    accountDatabase = schema?.tables === 3;
+  } catch {
+    // Health responses must not expose database errors or configuration values.
+  }
+  const ok = accountAuth && accountDatabase;
   return Response.json(
-    { ok: true, now: Date.now() },
-    { headers: { 'Cache-Control': 'no-store' } },
+    { ok, now: Date.now(), checks: { accountAuth, accountDatabase } },
+    { status: ok ? 200 : 503, headers: { 'Cache-Control': 'no-store' } },
   );
 }

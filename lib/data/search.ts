@@ -5,6 +5,7 @@ import {
   courseIsPast,
   currentSemesterStart,
   isPast,
+  lectureRangeStatus,
   parseDue,
   type LmsCourse,
 } from './lms.ts';
@@ -70,18 +71,22 @@ export function lmsTaskSearch(
       due: string | null;
       done: boolean;
       uncertain?: boolean;
+      rangeUncertain?: boolean;
     }[] = [
       ...c.vods.map((v) => ({
         kind: '강의' as const,
         title: v.title,
         due: v.range ?? null,
         done: v.attended,
+        uncertain: v.uncertain,
+        rangeUncertain: lectureRangeStatus(c, v).rangeUncertain,
       })),
       ...c.assigns.map((a) => ({
         kind: '과제' as const,
         title: a.title,
         due: a.due ?? null,
         done: a.submitted,
+        uncertain: a.uncertain,
       })),
       ...c.quizzes.map((t) => ({
         kind: '퀴즈' as const,
@@ -99,19 +104,18 @@ export function lmsTaskSearch(
         !tokens.every((w) => koreanMatch(`${c.title} ${t.title}`, w))
       )
         continue;
-      const state = t.done
-        ? '완료'
-        : t.uncertain
-          ? '응시 여부 확인 실패'
-          : '미완료';
+      const done = t.done && !t.uncertain;
+      const state = t.uncertain
+        ? `${t.kind === '강의' ? '출석' : t.kind === '과제' ? '제출' : '응시'} 여부 확인 실패`
+        : done ? '완료' : '미완료';
       rows.push({
-        done: t.done,
+        done,
         due: t.due,
         hit: {
           label: t.title,
           route: 'lms/' + c.id,
-          sub: `COSMOS ${t.kind} · ${c.title} · ${state}${t.due ? ` · 마감 ${t.due}` : ''}`,
-          done: t.done,
+          sub: `COSMOS ${t.kind} · ${c.title} · ${state}${t.due ? ` · 마감 ${t.due}` : ''}${t.rangeUncertain ? ' · 기간 재확인 필요' : ''}`,
+          done,
         },
       });
     }

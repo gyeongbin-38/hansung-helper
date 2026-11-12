@@ -1,0 +1,44 @@
+.home-progress-caption > span > b { color: var(--nt-primary); font-size: 23px; font-weight: 800; letter-spacing: -.5px; }
+.home-credit-help { background: var(--nt-tint-sky); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.9; color: var(--nt-slate); }
+.home-credit-help .link { display: inline-flex; align-items: center; gap: 4px; font-size: inherit; }
+.activity-summary { padding: 26px; margin-bottom: 24px; }
+.home-dashboard > .activity-summary { margin-bottom: 0; }
+.activity-summary-heading { display: flex; gap: 14px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.activity-summary-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 18px; margin: 0; }
+.activity-summary-heading h2 svg { color: var(--nt-primary); }
+.activity-summary-heading p { font-size: 12px; color: var(--nt-slate); margin: 8px 0 0; }
+.activity-summary .secondary { display: inline-flex; align-items: center; gap: 7px; }
+.activity-summary-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 22px 0; padding: 18px; border-radius: 12px; background: #f3f7fe; gap: 20px; }
+.activity-summary-stats small { display: block; font-size: 11px; color: var(--nt-slate); }
+.activity-summary-stats b { display: block; font-size: 20px; color: var(--nt-navy); margin-top: 8px; }
+.activity-summary-picks > div { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--nt-hairline-soft); }
+.activity-summary-title { text-align: left; flex: 1; min-width: 0; }
+.activity-summary-title b { display: block; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.activity-summary-title small { display: block; font-size: 11px; color: var(--nt-slate); line-height: 1.8; margin-top: 4px; }
+.activity-summary-picks .secondary { flex-shrink: 0; font-size: 12px; }
+.activity-summary .actions { display: flex; gap: 20px; margin: 20px 0 14px; flex-wrap: wrap; }
+.activity-summary .actions .link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.activity-summary > .meta { font-size: 11px; line-height: 1.9; color: var(--nt-slate); }
+.advisor-activity-picker { display: grid; gap: 9px; font-size: 13px; margin: 22px 0; }
+.advisor-activity-picker select { padding: 12px; width: 100%; min-width: 0; border: 1px solid var(--nt-hairline); border-radius: 9px; background: white; color: var(--nt-ink); font-size: 13px; }
+.advisor-activity-context, .advisor-application-draft { border: 1px solid #dbe7f9; background: #f6f9ff; padding: 23px; border-radius: 15px; margin: 20px 0; }
+.advisor-activity-context h3, .advisor-application-draft h3 { margin: 16px 0 8px; font-size: 18px; }
+.advisor-activity-context > p, .advisor-application-draft p { font-size: 12px; line-height: 1.9; color: var(--nt-slate); }
+.advisor-activity-context dl { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 16px 0; margin: 0; }
+.advisor-activity-context dt { color: var(--nt-slate); font-size: 11px; margin-bottom: 6px; }
+.advisor-activity-context dd { margin: 0; font-size: 13px; font-weight: 650; }
+.advisor-application-draft label { display: grid; gap: 10px; margin: 20px 0; font-size: 13px; }
+.advisor-application-draft textarea { width: 100%; padding: 14px; border: 1px solid var(--nt-hairline); border-radius: 10px; background: white; font-size: 13px; line-height: 1.9; color: var(--nt-ink); resize: vertical; }
+.advisor-application-draft .secondary { display: inline-flex; gap: 7px; align-items: center; }
+.profile select { padding: 12px; border: 1px solid var(--nt-hairline); border-radius: 8px; background: white; color: var(--nt-ink); }
+@media (max-width: 800px) {
+  .activity-summary-stats { grid-template-columns: 1fr 1fr; }
+  .activity-summary-picks > div { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .advisor-activity-context dl { grid-template-columns: 1fr; }
+}
+@media (max-width: 450px) {
+  .activity-summary, .advisor-activity-context, .advisor-application-draft { padding: 18px; }
+  .activity-summary-heading h2 { font-size: 16px; }
+  .activity-summary-stats { gap: 18px 10px; padding: 14px; }
+  .activity-summary-stats b { font-size: 18px; }
+}

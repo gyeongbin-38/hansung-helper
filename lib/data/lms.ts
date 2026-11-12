@@ -5,6 +5,12 @@
  */
 import type { Catalog, CourseSection } from './catalog';
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** 확장 수집 계정 확인 수단이 마련되기 전에는 로그인 계정에 쓰지 않는다. */
+export const canImportExtensionLms = (authenticated: boolean) => !authenticated;
+export const kstDateNumber = (timestamp: number) =>
+  Math.floor((timestamp + KST_OFFSET_MS) / 86400000);
+
 export type LmsTask = {
   title: string;
   url?: string;
@@ -13,6 +19,8 @@ export type LmsTask = {
   submitted: boolean;
   /** 제출/응시 여부 확인에 실패 — 미응시로 단정하지 않음 */
   uncertain?: boolean;
+  /** 확인 실패 시 보존한 제출·응시 상태의 확인 시각 */
+  statusRetainedAt?: string;
 };
 
 export type LmsVod = {
@@ -21,10 +29,13 @@ export type LmsVod = {
   /** 출석 상태 원문 (O/X/P 등) */
   status?: string;
   attended: boolean;
+  uncertain?: boolean;
   /** 주차 출석 원문 (일괄출석인정 포함) */
   weeklyStatus?: string;
   /** 수강 기간 원문 */
   range?: string;
+  /** 기간 조회가 실패해 이전 확인값을 사용한 시각 */
+  rangeRetainedAt?: string;
   /** LMS 강의 링크 */
   url?: string;
   /** 시청시간 'HH:mm[:ss]' (확장 수집기만 제공) */
@@ -41,9 +52,26 @@ export type LmsCourse = {
   vods: LmsVod[];
   assigns: LmsTask[];
   quizzes: LmsTask[];
-  /** 수집 실패한 항목 (vod/assign/quiz/quiz-check) — 부분 수집 표시용 */
+  /** 수집 실패한 항목 (vod/vod-range/assign/quiz/quiz-check) — 부분 수집 표시용 */
   errors?: string[];
+  /** 실패한 항목에 이전 수집 결과를 사용한 경우 그 수집 시각 */
+  retainedAt?: string;
+  /** 목록별 이전 결과의 마지막 성공 확인 시각 */
+  retainedAtByKind?: { vod?: string; assign?: string; quiz?: string };
 };
+
+/** 기간 확인 실패와 출석 확인 실패는 서로 다른 상태다. */
+export function lectureRangeStatus(course: LmsCourse, vod: LmsVod) {
+  const failures = new Set(course.errors ?? []);
+  const listFailed = failures.has('vod') || failures.has('timeout') || failures.has('budget');
+  const retainedAt = vod.rangeRetainedAt ?? (listFailed && !failures.has('vod-range')
+    ? course.retainedAtByKind !== undefined ? course.retainedAtByKind.vod : course.retainedAt
+    : undefined);
+  return {
+    rangeUncertain: !!vod.rangeRetainedAt || listFailed || failures.has('vod-range') || undefined,
+    rangeRetainedAt: retainedAt,
+  };
+}
 
 export type LmsSnapshot = {
   source: 'cosmos-lms';
@@ -56,6 +84,26 @@ export type LmsSnapshot = {
     scanned?: number;
   };
 };
+
+/** 이전 결과의 확인 시각은 그것을 포함한 수집 시각보다 늦을 수 없다. */
+function retainedTime(value: unknown, collectedAt: unknown): string | undefined {
+  if (typeof value !== 'string' || typeof collectedAt !== 'string') return undefined;
+  const time = Date.parse(value), upperBound = Date.parse(collectedAt);
+  return Number.isFinite(time) && Number.isFinite(upperBound) && time <= upperBound ? value : undefined;
+}
+
+/** 수집 파일의 링크는 인증된 학교 LMS 주소만 허용한다. */
+function safeLmsUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.origin !== 'https://learn.hansung.ac.kr' || url.username || url.password)
+      return undefined;
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
 
 /** 수집 JSON 검증 — 형식이 맞지 않으면 null (부분 보정 없이 거부) */
 export function validateLms(raw: unknown): LmsSnapshot | null {
@@ -76,10 +124,11 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
         if (typeof t.title !== 'string') return [];
         return {
           title: t.title,
-          url: typeof t.url === 'string' ? t.url : undefined,
+          url: safeLmsUrl(t.url),
           due: typeof t.due === 'string' ? t.due : null,
           submitted: !!t.submitted,
           uncertain: t.uncertain === true ? true : undefined,
+          statusRetainedAt: retainedTime(t.statusRetainedAt, s.fetchedAt),
         };
       });
     };
@@ -95,10 +144,12 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           week: typeof t.week === 'number' ? t.week : undefined,
           status: typeof t.status === 'string' ? t.status : undefined,
           attended: !!t.attended,
+          uncertain: t.uncertain === true ? true : undefined,
           weeklyStatus:
             typeof t.weeklyStatus === 'string' ? t.weeklyStatus : undefined,
           range: typeof t.range === 'string' ? t.range : undefined,
-          url: typeof t.url === 'string' ? t.url : undefined,
+          rangeRetainedAt: retainedTime(t.rangeRetainedAt, s.fetchedAt),
+          url: safeLmsUrl(t.url),
           watched: typeof t.watched === 'string' ? t.watched : undefined,
           required: typeof t.required === 'string' ? t.required : undefined,
         };
@@ -114,6 +165,11 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
       quizzes: tasks(co.quizzes),
       errors: Array.isArray(co.errors)
         ? co.errors.filter((e): e is string => typeof e === 'string')
+        : undefined,
+      retainedAt: retainedTime(co.retainedAt, s.fetchedAt),
+      retainedAtByKind: co.retainedAtByKind && typeof co.retainedAtByKind === 'object'
+        ? Object.fromEntries(Object.entries(co.retainedAtByKind).filter(([key, value]) =>
+          ['vod', 'assign', 'quiz'].includes(key) && !!retainedTime(value, s.fetchedAt)))
         : undefined,
     });
   }
@@ -136,6 +192,113 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
   };
 }
 
+/** 실패한 과목별 목록만 이전 결과로 보존하고 실패 표시는 유지한다. */
+export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSnapshot): LmsSnapshot {
+  if (!previous) return next;
+  const oldById = new Map(previous.courses.map((course) => [course.id, course]));
+  return { ...next, courses: next.courses.map((course) => {
+    const old = oldById.get(course.id);
+    if (!old) return course;
+    const errors = new Set(course.errors ?? []);
+    const all = errors.has('timeout') || errors.has('budget');
+    const vod = all || errors.has('vod');
+    const assign = all || errors.has('assign');
+    const quiz = all || errors.has('quiz');
+    const retained: NonNullable<LmsCourse['retainedAtByKind']> = {};
+    for (const kind of ['assign', 'quiz'] as const) {
+      const tasks = kind === 'assign' ? course.assigns : course.quizzes;
+      const time = retainedTime(course.retainedAtByKind?.[kind], next.fetchedAt);
+      if (tasks.some((task) => task.uncertain) && time)
+        retained[kind] = time;
+    }
+    type Kind = 'vod' | 'assign' | 'quiz';
+    const listTime = (item: LmsCourse, snapshot: LmsSnapshot, kind: Kind): string | undefined => {
+      const failures = new Set(item.errors ?? []);
+      const failed = failures.has(kind) || failures.has('timeout') || failures.has('budget');
+      // Legacy snapshots have only a course-wide retainedAt. A failed list
+      // without any retained timestamp has no known successful check time.
+      const time = failed
+        ? item.retainedAtByKind !== undefined
+          ? retainedTime(item.retainedAtByKind[kind], snapshot.fetchedAt)
+          : retainedTime(item.retainedAt, snapshot.fetchedAt)
+        : snapshot.fetchedAt;
+      return time && Number.isFinite(Date.parse(time)) ? time : undefined;
+    };
+    const oldTime = (kind: Kind) => listTime(old, previous, kind);
+    const selectFailed = <T,>(kind: Kind, prior: T[], current: T[]): T[] => {
+      const priorTime = oldTime(kind);
+      const currentTime = listTime(course, next, kind);
+      const takeCurrent = !!currentTime && (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime));
+      const chosenTime = takeCurrent ? currentTime : priorTime;
+      if (chosenTime) retained[kind] = chosenTime;
+      return takeCurrent ? current : prior;
+    };
+    const retainTaskStatus = (current: LmsTask[], prior: LmsTask[], kind: 'assign' | 'quiz') => current.map((task) => {
+      if (!task.uncertain) return task;
+      const matches = prior.filter((item) => task.url ? item.url === task.url : !item.url && item.title === task.title);
+      if (matches.length !== 1) return task;
+      const priorTime = matches[0].uncertain ? retainedTime(matches[0].statusRetainedAt, previous.fetchedAt) : oldTime(kind);
+      if (matches[0].uncertain && (!priorTime || !Number.isFinite(Date.parse(priorTime)))) return task;
+      // The legacy course-wide time is only unambiguous for one uncertain item.
+      const currentTime = retainedTime(task.statusRetainedAt, next.fetchedAt) ||
+        (current.filter((item) => item.uncertain).length === 1 ? retainedTime(course.retainedAtByKind?.[kind], next.fetchedAt) : undefined);
+      if (currentTime && Number.isFinite(Date.parse(currentTime)) &&
+          (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime))) {
+        retained[kind] = currentTime;
+        return task;
+      }
+      if (priorTime) retained[kind] = priorTime;
+      return { ...task, submitted: matches[0].submitted, statusRetainedAt: priorTime };
+    });
+    const assigns = assign ? selectFailed('assign', old.assigns, course.assigns) : retainTaskStatus(course.assigns, old.assigns, 'assign');
+    const quizzes = quiz ? selectFailed('quiz', old.quizzes, course.quizzes) : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
+    const vods = vod ? selectFailed('vod', old.vods, course.vods) : errors.has('vod-range')
+      ? course.vods.map((item) => {
+          const matches = old.vods.filter((prior) => prior.title === item.title);
+          if (matches.length !== 1 || course.vods.filter((v) => v.title === item.title).length !== 1)
+            return item;
+          const prior = matches[0];
+          if (!prior.range && !prior.url) return item;
+          // A retained range can be older than a successfully refreshed
+          // attendance list, including after a later whole-list failure.
+          const priorTime = retainedTime(prior.rangeRetainedAt, previous.fetchedAt) ??
+            ((old.errors ?? []).includes('vod-range') ? undefined : oldTime('vod'));
+          const currentTime = (item.range || item.url)
+            ? retainedTime(item.rangeRetainedAt, next.fetchedAt)
+            : undefined;
+          if (currentTime && (!priorTime || Date.parse(currentTime) >= Date.parse(priorTime)))
+            return item;
+          return { ...item, range: prior.range, url: prior.url, rangeRetainedAt: priorTime };
+        })
+      : course.vods;
+    // If an already-unverified range is carried by a retained whole list,
+    // retain that failure marker too; the list timestamp is not a range check.
+    const keepRangeFailure = vod && vods === old.vods && (old.errors ?? []).includes('vod-range');
+    if (keepRangeFailure) errors.add('vod-range');
+    return { ...course, vods,
+      ...(keepRangeFailure ? { errors: [...errors] } : {}),
+      assigns, quizzes,
+      retainedAt: Object.values(retained).sort((a, b) => Date.parse(a) - Date.parse(b))[0],
+      retainedAtByKind: Object.keys(retained).length ? retained : undefined };
+  }) };
+}
+
+/** 저장 경로별 스냅샷을 수집 시각 순서로 병합한다. */
+export function combineLmsSnapshots(...values: unknown[]): LmsSnapshot | undefined {
+  const latestPlausible = Date.now() + 5 * 60_000;
+  const snapshots = values.map(validateLms).filter((s): s is LmsSnapshot =>
+    !!s && Number.isFinite(Date.parse(s.fetchedAt)) && Date.parse(s.fetchedAt) <= latestPlausible);
+  snapshots.sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
+  return snapshots.reduce<LmsSnapshot | undefined>((old, next) => mergeLmsSnapshot(old, next), undefined);
+}
+
+/** 수집 시각은 기기 시간대와 무관하게 한국 시간으로 표시한다. */
+export function formatLmsTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '시각 미상';
+  return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date) + ' KST';
+}
+
 export type LmsPending = {
   course: string;
   kind: '강의' | '과제' | '퀴즈';
@@ -144,18 +307,21 @@ export type LmsPending = {
   due: string | null;
   /** 확인 실패 항목 — "미완료"가 아니라 "확인 불가"로 표시해야 함 */
   uncertain?: boolean;
+  /** 기간 조회 실패로 이전 값을 사용 중인 강의. 출석 상태와는 별개다. */
+  rangeUncertain?: boolean;
+  rangeRetainedAt?: string;
 };
 
 /** now 기준 현재 학기 시작 — 3/1(1학기)·9/1(2학기) 중 가장 최근.
  *  카탈로그 학기 문자열을 모를 때의 일반적 기본값. */
 export function currentSemesterStart(now: number): number {
-  const d = new Date(now);
-  const y = d.getFullYear();
-  const sep = new Date(y, 8, 1).getTime();
+  const d = new Date(now + KST_OFFSET_MS);
+  const y = d.getUTCFullYear();
+  const sep = Date.UTC(y, 8, 1) - KST_OFFSET_MS;
   if (now >= sep) return sep;
-  const mar = new Date(y, 2, 1).getTime();
+  const mar = Date.UTC(y, 2, 1) - KST_OFFSET_MS;
   if (now >= mar) return mar;
-  return new Date(y - 1, 8, 1).getTime();
+  return Date.UTC(y - 1, 8, 1) - KST_OFFSET_MS;
 }
 
 /** 마감 시각이 before보다 이전이면 지난 학기 항목.
@@ -175,8 +341,8 @@ export function courseIsPast(
     ...c.vods.map((v) => parseDue(v.range ?? null)),
     ...c.assigns.map((a) => parseDue(a.due ?? null)),
     ...c.quizzes.map((q) => parseDue(q.due ?? null)),
-  ].filter((t): t is number => t !== null);
-  return ts.length > 0 && ts.every((t) => t < before);
+  ];
+  return ts.length > 0 && ts.every((t) => t !== null && t < before);
 }
 
 /** 스냅샷 수집 후 경과 일수 — fetchedAt 파싱 불가면 null */
@@ -202,8 +368,8 @@ export function relTime(iso: string, now: number): string {
 /** 과목별 수강 진행 (온라인 강의 기준) */
 export function courseProgress(c: LmsCourse): { done: number; total: number } {
   return {
-    done: c.vods.filter((v) => v.attended).length,
-    total: c.vods.length,
+    done: c.vods.filter((v) => v.attended && !v.uncertain).length,
+    total: c.vods.filter((v) => !v.uncertain).length,
   };
 }
 
@@ -219,7 +385,7 @@ export type WeekProgress = {
 export function weekProgress(c: LmsCourse): WeekProgress[] {
   const map = new Map<number, WeekProgress>();
   for (const v of c.vods) {
-    if (typeof v.week !== 'number') continue;
+    if (typeof v.week !== 'number' || v.uncertain) continue;
     const g =
       map.get(v.week) ?? { week: v.week, done: 0, total: 0 };
     g.total += 1;
@@ -242,25 +408,28 @@ export function pendingTasks(
   };
   for (const c of snap.courses) {
     for (const v of c.vods)
-      if (!v.attended)
+      if (!v.attended || v.uncertain)
         push({
           course: c.title,
           kind: '강의',
           title: v.title,
           url: v.url,
           due: v.range ?? null,
+          uncertain: v.uncertain,
+          ...lectureRangeStatus(c, v),
         });
     for (const a of c.assigns)
-      if (!a.submitted)
+      if (!a.submitted || a.uncertain)
         push({
           course: c.title,
           kind: '과제',
           title: a.title,
           url: a.url,
           due: a.due ?? null,
+          uncertain: a.uncertain,
         });
     for (const q of c.quizzes)
-      if (!q.submitted)
+      if (!q.submitted || q.uncertain)
         push({
           course: c.title,
           kind: '퀴즈',
@@ -310,6 +479,7 @@ export function submissionItems(
         due: a.due ?? null,
         dueTs: parseDue(a.due ?? null),
         submitted: a.submitted,
+        uncertain: a.uncertain,
         past: isPast(parseDue(a.due ?? null), before) || undefined,
       });
     for (const q of c.quizzes)
@@ -348,6 +518,8 @@ export type BingeItem = {
   range?: string;
   /** 출석 상태 원문 (O/X/P 등) */
   status?: string;
+  uncertain?: boolean;
+  rangeUncertain?: boolean;
   /** 주차 출석 원문 (일괄출석인정 포함) */
   weeklyStatus?: string;
   /** 수강 기간 끝(마감) 시각 — 파싱 불가면 null */
@@ -381,6 +553,8 @@ export function bingeQueue(
           url: v.url,
           range: v.range,
           status: v.status,
+          uncertain: v.uncertain,
+          rangeUncertain: lectureRangeStatus(c, v).rangeUncertain,
           weeklyStatus: v.weeklyStatus,
           dueTs: parseDue(v.range ?? null),
           past: isPast(parseDue(v.range ?? null), before) || undefined,
@@ -402,16 +576,36 @@ export function bingeQueue(
 /** 'YYYY-MM-DD HH:mm' 또는 범위 'a ~ b'의 마감(끝) 시각 — 파싱 불가면 null */
 export const parseDue = (due: string | null): number | null => {
   if (!due) return null;
-  // 'YYYY-MM-DD HH:mm' — range 'a ~ b' 형태면 끝(마감) 쪽 날짜가 매칭됨
-  const m = due.match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?\s*$/);
+  // A range such as 'a ~ b' uses its last date. Moodle dates are KST unless
+  // an explicit timezone is present, so parsing is independent of browser TZ.
+  const matches = [
+    ...due.matchAll(
+      /(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?/g,
+    ),
+  ];
+  const m = matches.at(-1);
   if (!m) return null;
-  return new Date(
-    +m[1],
-    +m[2] - 1,
-    +m[3],
-    +(m[4] ?? 23),
-    +(m[5] ?? 59),
-  ).getTime();
+  const year = +m[1],
+    month = +m[2],
+    day = +m[3],
+    hour = +(m[4] ?? 23),
+    minute = +(m[5] ?? 59);
+  const utc = Date.UTC(year, month - 1, day, hour, minute);
+  const check = new Date(utc);
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day ||
+    hour > 23 ||
+    minute > 59
+  )
+    return null;
+  if (m[6]) {
+    const time = `${m[1]}-${m[2]}-${m[3]}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}${m[6]}`;
+    const explicit = Date.parse(time);
+    return Number.isNaN(explicit) ? null : explicit;
+  }
+  return utc - KST_OFFSET_MS;
 };
 
 export type EnrolledMatch = {
@@ -422,6 +616,7 @@ export type EnrolledMatch = {
   manual?: boolean;
   /** 사용자가 '해당 과목 없음'으로 제외한 과목 — 매칭 경고에서 빠진다 */
   ignored?: boolean;
+  semesterMismatch?: boolean;
 };
 
 /** 과목명 정규화 — 학기 표기·괄호 장식·공백을 제거해 이름 비교에 사용 */
@@ -474,6 +669,11 @@ export function matchEnrollment(
   return lms.courses.map((course) => {
     const ov = overrides?.[course.id];
     if (ov === 'ignore') return { course, sections: [], ignored: true };
+    const titleSemester = course.title.match(/(20\d{2})\s*(?:학년도\s*)?(?:[-./]\s*)?([12])\s*학기/);
+    const catalogSemester = catalog.semester.match(/^(20\d{2})-([12])$/);
+    if (titleSemester && catalogSemester &&
+        (titleSemester[1] !== catalogSemester[1] || titleSemester[2] !== catalogSemester[2]))
+      return { course, sections: [], semesterMismatch: true };
     if (ov) {
       const sec = byId.get(ov);
       if (sec)
@@ -511,6 +711,7 @@ export type MatchCandidate = {
   code: string;
   name: string;
   dept: string;
+  professor?: string;
   credits: number;
   sectionCount: number;
   /** override 저장에 쓰는 대표 분반 id */
@@ -519,6 +720,26 @@ export type MatchCandidate = {
   why: string[];
   score: number;
 };
+
+/** 사용자가 이름·교수·과목코드로 카탈로그를 직접 검색한다. */
+export function searchMatchCandidates(catalog: Catalog, query: string): MatchCandidate[] {
+  const term = query.trim().toLocaleLowerCase().replace(/\s+/g, '');
+  if (!term) return [];
+  const groups = new Map<string, MatchCandidate>();
+  for (const section of catalog.sections) {
+    const matches = [section.name, section.professor, section.code, section.dept]
+      .some((value) => value.toLocaleLowerCase().replace(/\s+/g, '').includes(term));
+    if (!matches) continue;
+    const existing = groups.get(section.code);
+    if (existing) existing.sectionCount++;
+    else groups.set(section.code, {
+      code: section.code, name: section.name, dept: section.dept, professor: section.professor,
+      credits: section.credits, sectionCount: 1, sectionId: section.id,
+      why: [], score: 0,
+    });
+  }
+  return [...groups.values()].slice(0, 30);
+}
 
 /** 정규화 문자열 두 개의 Dice bigram 유사도(0~1) — 짧은 과목명 비교용 */
 const diceSim = (a: string, b: string): number => {
@@ -591,6 +812,7 @@ export function suggestMatchCandidates(
         code: s.code,
         name: s.name,
         dept: s.dept,
+        professor: s.professor,
         credits: s.credits,
         sectionCount: 1,
         sectionId: s.id,

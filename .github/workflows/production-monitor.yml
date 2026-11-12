@@ -1,0 +1,46 @@
+name: Production monitor
+
+on:
+  schedule:
+    # Check endpoints and snapshot age every 15 minutes (UTC).
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: production-monitor
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify all production endpoints
+        run: python scripts/_verify_prod.py
+      - name: Verify snapshot data is current
+        run: python scripts/_verify_snapshots.py
+      - name: Detect a missed daily refresh run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/_check_refresh_workflow.py
+      - name: Open or update the alert issue
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONITOR_NAME: Production API and snapshot health
+          MONITOR_RESULT: failure
+        run: python scripts/_notify_monitor.py
+      - name: Close the alert issue after recovery
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONITOR_NAME: Production API and snapshot health
+          MONITOR_RESULT: success
+        run: python scripts/_notify_monitor.py

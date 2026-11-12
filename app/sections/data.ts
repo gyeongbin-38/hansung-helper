@@ -15,14 +15,14 @@ import type { ExtActivity } from '@/lib/data/activities';
 /* 사이드바 순서 — chrome.tsx NAV_GROUP_AT의 캡션 경계와 맞춘다 */
 export const menus = [
   ['home', '홈', Home],
+  ['graduation', '졸업 요건', GraduationCap],
+  ['lms', '수업·과제', MonitorPlay],
   ['timetable', '시간표 짜기', LayoutGrid],
-  ['lms', '수업 현황', MonitorPlay],
   ['semester-plan', '학기별 계획', Layers],
   ['courses', '과목 추천', BookOpen],
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
-  ['graduation', '졸업요건', GraduationCap],
-  ['advisor', '학사 안내', Sparkles],
+  ['advisor', 'AI 학사 도우미', Sparkles],
 ] as const;
 export type Completed = {
   code: string;
@@ -33,6 +33,7 @@ export type Completed = {
 export type Data = {
   name: string;
   year: string;
+  admissionType?: 'unknown' | 'freshman' | 'general-transfer' | 'bachelor-transfer';
   dept: string;
   credits: string;
   points: string;
@@ -41,12 +42,20 @@ export type Data = {
   /** 시간표 시나리오 — 'A'|'B'|'C' → 카탈로그 section.id 배열.
    *  planned는 현재 작업 중인 안이며, 시나리오는 저장·불러오기로만 연결된다 */
   plans?: Record<string, string[]>;
+  planSemester?: string;
+  semesterPlans?: Record<string, { sourceSemester: string; planned: string[]; plans: Record<string, string[]> }>;
+  setupHistory?: 'none' | 'later';
+  recommendationsSeen?: boolean;
   completed: Completed[];
   ruleOverrides: Record<string, number>;
   events: { title: string; date: string }[];
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 온보딩에서 저장한 학기 계획과 진행 상태 */
+  semester?: string;
+  graduationTarget?: string;
+  onboardingStep?: number;
   /** 활동 진행 단계(본인 확인용) — activity id → ACT_STAGES 단계 id */
   actStatus?: Record<string, string>;
   /** 직접 등록한 외부 활동 — hsportal 목록 외의 사용자 입력 데이터 */
@@ -59,6 +68,10 @@ export type Data = {
   notifiedIds?: string[];
   /** 브라우저 마감 알림 opt-in — 앱이 열려 있는 동안만 동작 */
   notifEnabled?: boolean;
+  /** 화면 아래를 걷는 마스코트 표시 — undefined면 켜짐으로 본다 */
+  mascotEnabled?: boolean;
+  /** 신규 이용 가이드를 끝까지 봤는지 — 한 번만 자동 표시한다 */
+  mascotGuideSeen?: boolean;
   /** COSMOS LMS 수집 스냅샷 (/lms-collect.js 콘솔 스크립트 또는 서버 수집 결과물) */
   lms?: LmsSnapshot;
   /** 수업 현황의 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore'(수업 아님) */
@@ -83,6 +96,7 @@ export const empty: Data = {
   events: [],
   prefs: [],
   readIds: [],
+  mascotEnabled: true,
   consent: false,
 };
 

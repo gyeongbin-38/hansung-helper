@@ -3,11 +3,16 @@ import { useState } from 'react';
 import {
   Bookmark,
   ArrowUpRight,
+  CalendarDays,
   Search,
   Plus,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 import type { Data } from './data';
+import { ActivitySummary } from './activity-summary';
+import { ActivityStageProgress, ProgressMetric } from './visual-progress';
+import { activityDigest } from '@/lib/data/activity-assistant';
 import { useActivities, useNow } from './catalog';
 import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
@@ -17,6 +22,7 @@ import {
   actScore,
   pointScore,
   liveStatus,
+  activityNeedsVerification,
   extToActivity,
   ACT_STAGES,
   type Activity,
@@ -107,19 +113,20 @@ export function Activities({
   const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
   const ptsRaw = data.info?.points ?? parseInt(data.points, 10);
   const ptsSet = Number.isInteger(ptsRaw);
-  const ptsReq = data.ruleOverrides?.points ?? 800;
-  const ptsDeficit = ptsSet ? Math.max(0, ptsReq - ptsRaw) : 0;
+  const ptsReq = activityDigest(data, snap, now).requiredPoints;
+  const ptsDeficit = ptsSet && ptsReq !== null ? Math.max(0, ptsReq - ptsRaw) : 0;
   const actStale = snap ? staleLabel(snap.fetchedAt, now) : null;
+  const needsVerification = snap ? activityNeedsVerification(snap.fetchedAt, now) : true;
   const pointsBand = (
     <div className="card pad act-band">
       <div>
         <b>
           {ptsSet
-            ? `비교과 포인트 ${ptsRaw} / ${ptsReq}P`
-            : `비교과 포인트 미입력 / ${ptsReq}P 필요`}
+            ? `비교과 포인트 ${ptsRaw}P${ptsReq !== null ? ` / ${ptsReq}P` : ' · 기준 확인 필요'}`
+            : '비교과 포인트 미입력'}
         </b>
         <small>
-          {ptsSet
+          {ptsReq === null ? '입학 구분·졸업 기준을 확인하면 부족 포인트를 계산해요.' : ptsSet
             ? ptsRaw >= ptsReq
               ? '졸업 포인트 기준을 채웠습니다'
               : `졸업까지 ${ptsReq - ptsRaw}P 남음`
@@ -143,6 +150,8 @@ export function Activities({
     if (!tracked) return null;
     const stage = data.actStatus?.[a.id];
     return (
+      <div className="activity-progress-detail">
+      <ActivityStageProgress title={a.title} stage={stage} />
       <fieldset className="act-steps" aria-label="활동 진행 단계">
         <span className={stage ? 'act-step done' : 'act-step active'}>
           저장됨
@@ -168,6 +177,7 @@ export function Activities({
           </button>
         ))}
       </fieldset>
+      </div>
     );
   };
 
@@ -320,8 +330,8 @@ export function Activities({
             />
           )}
           <span className="badge blue">
-            {liveStatus(a, now).label}
-            {liveStatus(a, now).dday &&
+            {!isExt(a) && needsVerification ? '현재 접수 여부 확인 필요' : liveStatus(a, now).label}
+            {(isExt(a) || !needsVerification) && liveStatus(a, now).dday &&
             liveStatus(a, now).dday !== liveStatus(a, now).label
               ? ' · ' + liveStatus(a, now).dday
               : ''}
@@ -358,7 +368,7 @@ export function Activities({
           {a.points != null && !isExt(a) && (
             <p className="meta">
               이 활동 완료 시 +{a.points}P
-              {ptsSet
+              {ptsSet && ptsReq !== null
                 ? ` · 누적 ${ptsRaw + a.points}P / ${ptsReq}P${
                     ptsRaw + a.points >= ptsReq
                       ? ' (졸업 기준 도달)'
@@ -368,6 +378,7 @@ export function Activities({
               . 비교과 포인트 인정 여부는 학교 기준을 따릅니다.
             </p>
           )}
+          <ProgressMetric label="누적 비교과 포인트" value={ptsSet ? ptsRaw : null} target={ptsReq} unit="P" tone="purple" />
           {stageRow(a)}
           {data.actStatus?.[a.id] === 'credited' && (
             <p className="meta">
@@ -379,6 +390,7 @@ export function Activities({
             </p>
           )}
           <div className="actions">
+            {!isExt(a) && <button className="secondary" onClick={() => go(`advisor/${a.id}`)}><Sparkles size={16} />AI와 요약·신청 준비</button>}
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
                 <Bookmark size={18} />
@@ -453,6 +465,7 @@ export function Activities({
     );
   return (
     <>
+      <ActivitySummary data={data} snapshot={snap} now={now} go={go} />
       {pointsBand}
       <div className="toolbar">
         <div className="tabs">
@@ -528,6 +541,7 @@ export function Activities({
       ) : shown.length ? (
         <>
           <ActivityCards
+            needsVerification={needsVerification}
             items={shown}
             data={data}
             go={go}
@@ -572,6 +586,30 @@ export function Activities({
   );
 }
 
+function ActivityCover({ cover }: { cover: Activity['cover'] }) {
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const visibleCover = cover && cover !== failedCover ? cover : null;
+
+  return (
+    <div className="activity-cover">
+      {visibleCover ? (
+        // eslint-disable-next-line next/no-img-element -- 외부 학교 이미지, next/image 없음
+        <img
+          src={visibleCover}
+          alt=""
+          loading="lazy"
+          onError={() => setFailedCover(visibleCover)}
+        />
+      ) : (
+        <div className="activity-cover-empty" aria-hidden="true">
+          <CalendarDays size={28} strokeWidth={1.8} />
+          <span>비교과 활동</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActivityCards({
   items,
   data,
@@ -579,48 +617,37 @@ function ActivityCards({
   save,
   now,
   scores,
+  needsVerification,
 }: {
   items: Activity[];
   data: Data;
   go: (route: string) => void;
   save: (id: string) => void;
   now: number;
+  needsVerification: boolean;
   /** 취향 추천 탭일 때만 전달 — 맞춤 점수·근거를 카드에 표시 */
   scores?: Map<string, { score: number; reasons: string[] }>;
 }) {
   return (
     <div className="cards">
-      {items.map((a, i) => {
+      {items.map((a) => {
         const live = liveStatus(a, now);
+        const uncertain = !isExt(a) && needsVerification;
         const sc = scores?.get(a.id);
         const stage = data.actStatus?.[a.id];
+        const liveLabel =
+          live.dday && live.dday !== live.label
+            ? `${live.label} · ${live.dday}`
+            : live.label;
         return (
         <article className="card activity" key={a.id}>
-          <div
-            className={'mini-art art' + (i % 6)}
-            style={
-              a.cover
-                ? {
-                    backgroundImage: `url(${a.cover})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }
-                : undefined
-            }
-          >
-            <span>{isExt(a) ? '직접 등록' : live.label}</span>
-            <strong>
-              {live.dday ?? (i + 1).toString().padStart(2, '0')}
-              <ArrowUpRight size={34} strokeWidth={1.2} />
-            </strong>
-            <small>
-              {isExt(a) ? a.dept.slice(0, 12) : `HANSUNG · ${a.dept.slice(0, 12)}`}
-            </small>
-          </div>
+          <ActivityCover cover={a.cover} />
           <div className="pad">
             <div className="between">
               <span className="badge">
-                {isExt(a) ? '직접 등록' : live.label}
+                {isExt(a)
+                  ? '직접 등록'
+                  : uncertain ? '현재 접수 여부 확인 필요' : liveLabel}
                 {a.points != null ? ` · ${a.points}P` : ''}
                 {a.certified ? ' · 인증' : ''}
               </span>
@@ -659,6 +686,7 @@ function ActivityCards({
             </h3>
             <p>{a.dept}</p>
             <small>신청 {period(a.applyStart, a.applyEnd)}</small>
+            {(data.saved.includes(a.id) || isExt(a)) && <ActivityStageProgress title={a.title} stage={stage} />}
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

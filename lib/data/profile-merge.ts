@@ -41,16 +41,44 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     return out;
   };
   const scalar = <T>(b: T, l: T, r: T): T => (l !== b ? l : r);
+  const semesterPlans = recMerge(base.semesterPlans, local.semesterPlans, remote.semesterPlans);
+  for (const [key, localPlan] of Object.entries(local.semesterPlans ?? {})) {
+    const basePlan = base.semesterPlans?.[key];
+    const remotePlan = remote.semesterPlans?.[key];
+    if (remotePlan && localPlan.sourceSemester === remotePlan.sourceSemester && (!basePlan || localPlan.sourceSemester === basePlan.sourceSemester)) {
+      semesterPlans[key] = {
+        sourceSemester: localPlan.sourceSemester,
+        planned: setMerge(basePlan?.planned ?? [], localPlan.planned, remotePlan.planned, (x) => x),
+        plans: recMerge(basePlan?.plans, localPlan.plans, remotePlan.plans),
+      };
+    }
+  }
   return {
     ...remote,
     name: scalar(base.name, local.name, remote.name),
     year: scalar(base.year, local.year, remote.year),
+    admissionType: scalar(base.admissionType, local.admissionType, remote.admissionType),
     dept: scalar(base.dept, local.dept, remote.dept),
+    semester: scalar(base.semester, local.semester, remote.semester),
+    graduationTarget: scalar(
+      base.graduationTarget,
+      local.graduationTarget,
+      remote.graduationTarget,
+    ),
+    onboardingStep: scalar(
+      base.onboardingStep,
+      local.onboardingStep,
+      remote.onboardingStep,
+    ),
     credits: scalar(base.credits, local.credits, remote.credits),
     points: scalar(base.points, local.points, remote.points),
     saved: setMerge(base.saved, local.saved, remote.saved, (x) => x),
     planned: setMerge(base.planned, local.planned, remote.planned, (x) => x),
     plans: recMerge(base.plans, local.plans, remote.plans),
+    planSemester: scalar(base.planSemester, local.planSemester, remote.planSemester),
+    setupHistory: scalar(base.setupHistory, local.setupHistory, remote.setupHistory),
+    recommendationsSeen: scalar(base.recommendationsSeen, local.recommendationsSeen, remote.recommendationsSeen),
+    semesterPlans,
     completed: setMerge(
       base.completed,
       local.completed,
@@ -99,6 +127,16 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
       base.notifEnabled,
       local.notifEnabled,
       remote.notifEnabled,
+    ),
+    mascotEnabled: scalar(
+      base.mascotEnabled,
+      local.mascotEnabled,
+      remote.mascotEnabled,
+    ),
+    mascotGuideSeen: scalar(
+      base.mascotGuideSeen,
+      local.mascotGuideSeen,
+      remote.mascotGuideSeen,
     ),
     lmsMatch: recMerge(base.lmsMatch, local.lmsMatch, remote.lmsMatch),
   };

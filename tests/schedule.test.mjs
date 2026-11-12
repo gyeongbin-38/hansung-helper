@@ -4,10 +4,32 @@ import assert from 'node:assert/strict';
 import {
   parseScheduleMonth,
   isScheduleAnomalous,
+  scheduleToday,
+  upcomingSchedule,
+  scheduleDateLabel,
 } from '../lib/data/schedule.ts';
 import snapshot from '../lib/data/schedule.json' with { type: 'json' };
 
 const fixture = readFileSync('tests/fixtures/hs-schedule-m3.html', 'utf-8');
+
+test('한국 날짜 기준으로 진행 중과 예정 일정만 남기고 기간을 표시한다', () => {
+  const now = Date.parse('2026-11-06T15:00:00Z'); // 한국 11월 7일 자정
+  const today = scheduleToday(now);
+  assert.equal(today, '2026-11-07');
+  assert.equal(scheduleToday(now - 1), '2026-11-06');
+  const events = [
+    { id: 'future', title: '예정', start: '2026-11-09', end: null },
+    { id: 'ended', title: '종료', start: '2026-11-02', end: '2026-11-06' },
+    { id: 'ongoing', title: '트랙선택 신청', start: '2026-11-02', end: '2026-11-20' },
+    { id: 'last-day', title: '종료일', start: '2026-11-01', end: '2026-11-07' },
+    { id: 'single-ended', title: '지난 단일 일정', start: '2026-11-06', end: null },
+  ];
+  const next = upcomingSchedule(events, today);
+  assert.deepEqual(next.map((event) => event.id), ['last-day', 'ongoing', 'future']);
+  assert.equal(scheduleDateLabel(next[1]), '2026-11-02 ~ 2026-11-20');
+  assert.equal(scheduleDateLabel(next[2]), '2026-11-09');
+  assert.equal(upcomingSchedule(events, '2026-11-21').length, 0);
+});
 
 test('parser extracts date|title rows from real 학사일정 markup', () => {
   const events = parseScheduleMonth(fixture);

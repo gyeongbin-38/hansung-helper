@@ -13,6 +13,7 @@
   const BASE = 'https://learn.hansung.ac.kr';
   const APP_URL = 'https://hansung-helper.gyeongbin-38.workers.dev/#lms';
   const NOT_SUBMITTED = ['미제출', 'Not submitted', '提出なし', '没有作业'];
+  const SUBMITTED = ['제출 완료', '제출됨', '제출함', 'submitted'];
   const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];
   const COL_WEEKLY_ATTENDANCE = ['주차 출석', 'Week attendance'];
   const COL_ATTENDANCE = ['출석', 'Attendance'];
@@ -26,6 +27,14 @@
   };
   const text = (el, sel) => el.querySelector(sel)?.textContent?.trim() ?? '';
   const abs = (h) => (h.startsWith('http') ? h : BASE + h);
+  const submissionState = (status) => {
+    const normalized = status.toLocaleLowerCase();
+    if (NOT_SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+      return { submitted: false };
+    if (SUBMITTED.some((value) => normalized.includes(value.toLocaleLowerCase())))
+      return { submitted: true };
+    return { submitted: false, uncertain: true };
+  };
   const normDate = (raw) => {
     if (!raw) return null;
     const s = raw.trim();
@@ -86,6 +95,8 @@
   // ── 과제 목록 ────────────────────────────────────────────────
   const fetchAssigns = async (id) => {
     const doc = await fetchHtml(`${BASE}/mod/assign/index.php?id=${id}`);
+    if (!doc.querySelector('table.generaltable'))
+      throw new Error('assign-table-missing');
     let week = '';
     return Array.from(
       doc.querySelectorAll('table.generaltable tbody tr'),
@@ -102,7 +113,7 @@
         title,
         url: abs(h),
         due: dueRaw && dueRaw !== '-' ? normDate(dueRaw) : null,
-        submitted: !NOT_SUBMITTED.some((k) => status.includes(k)),
+          ...submissionState(status),
       };
     });
   };
@@ -111,9 +122,11 @@
   const quizSubmitted = async (url) => {
     try {
       const doc = await fetchHtml(url);
+      const table = doc.querySelector('table.quizattemptsummary');
+      if (!table) return { submitted: false, uncertain: true };
       return {
         submitted:
-          doc.querySelectorAll('table.quizattemptsummary tbody tr').length > 0,
+          table.querySelectorAll('tbody tr').length > 0,
         uncertain: undefined,
       };
     } catch {
@@ -123,6 +136,8 @@
   };
   const fetchQuizzes = async (id) => {
     const doc = await fetchHtml(`${BASE}/mod/quiz/index.php?id=${id}`);
+    if (!doc.querySelector('table.generaltable'))
+      throw new Error('quiz-table-missing');
     let week = '';
     const items = Array.from(
       doc.querySelectorAll('table.generaltable tbody tr'),
@@ -156,21 +171,29 @@
           `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
           `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
         ];
-    let doc = null;
+    let doc = null, lastError = new Error('progress-table-missing');
     for (const u of urls) {
       try {
-        doc = await fetchHtml(u);
-        if (doc.querySelector('.user_progress_table')) break;
-      } catch {
-        /* 다음 URL 시도 */
+        const candidate = await fetchHtml(u);
+        if (!candidate.querySelector('.user_progress_table')) throw new Error('progress-table-missing');
+        const labels = Array.from(candidate.querySelectorAll('.user_progress_table > thead > tr > th'), (th) => th.textContent?.trim() ?? '');
+        const weekly = labels.findIndex((t) => COL_WEEKLY_ATTENDANCE.some((k) => t.includes(k)));
+        const attendance = labels.findIndex((t, i) => i !== weekly && !COL_REQUIRED_TIME.some((k) => t.includes(k)) && COL_ATTENDANCE.some((k) => t.includes(k)));
+        if (labels.length < 5 || weekly < 0 || attendance < 0) throw new Error('progress-columns-missing');
+        if (!candidate.querySelector('.user_progress_table > tbody')) throw new Error('progress-body-missing');
+        doc = candidate;
+        break;
+      } catch (error) {
+        const reason = error?.message;
+        lastError = new Error(['progress-table-missing', 'progress-columns-missing', 'progress-body-missing'].includes(reason) ? reason : 'progress-fetch-failed');
       }
     }
-    if (!doc?.querySelector('.user_progress_table')) return [];
+    if (!doc) throw lastError;
 
     const headers = Array.from(
       doc.querySelectorAll('.user_progress_table > thead > tr > th'),
     ).map((th) => th.textContent?.trim() ?? '');
-    if (headers.length < 5) return [];
+    if (headers.length < 5) throw new Error('progress-columns-missing');
     let att = -1,
       weekAtt = -1,
       req = null;
@@ -192,7 +215,8 @@
       )
         att = i;
     });
-    if (att === -1 || weekAtt === -1) return [];
+    if (att === -1 || weekAtt === -1) throw new Error('progress-columns-missing');
+    if (!doc.querySelector('.user_progress_table > tbody')) throw new Error('progress-body-missing');
 
     const pending = [],
       spanVal = [];
@@ -246,12 +270,15 @@
       if (BULK_APPROVED.some((k) => weekly.includes(k))) weekly = 'O';
       const w = parseInt(cells[0] ?? '', 10);
       if (!Number.isNaN(w)) curWeek = w;
-      if (!title || !status) return [];
+      if (!title) return [];
+      const attended = /^(?:o|출석|출석완료|출석인정)$/i.test(status.replace(/\s/g, ''));
+      const absent = /^(?:x|미출석|결석)$/i.test(status.replace(/\s/g, ''));
       return {
         title,
         week: curWeek,
         status,
-        attended: /^[Oo]$/.test(status) || status.includes('출석'),
+        attended,
+        uncertain: !attended && !absent || undefined,
         weeklyStatus: weekly || undefined,
         required: req !== null ? cells[req] || undefined : undefined,
         watched: (cells[att - 1] ?? '').match(/^(\d{1,2}:\d{2}(:\d{2})?)/)?.[1],
@@ -374,10 +401,10 @@
         if (confirm('다운로드 완료. 학사 도우미 수업 현황 페이지를 열까요?'))
           window.open(APP_URL, '_blank');
       } catch (e) {
-        console.error('[학사도우미]', e);
+        console.error('[학사도우미] 수집 실패');
         btn.textContent = String(e?.message ?? e).includes('수강 과목')
-          ? '과목 인식 실패 — 콘솔 확인'
-          : '수집 실패 — 콘솔 확인';
+          ? '과목 인식 실패 — 학교 화면을 확인해 주세요'
+          : '수집 실패 — 다시 시도해 주세요';
       }
       btn.disabled = false;
       setTimeout(() => (btn.textContent = '학사도우미 수집'), 10000);

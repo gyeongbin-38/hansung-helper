@@ -6,6 +6,7 @@ import hostingConfig from './.openai/hosting.json' with { type: 'json' };
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '00000000-0000-4000-8000-000000000000';
+const DEV_PREVIEW_DATABASE_ID = '00000000-0000-4000-8000-000000000000';
 
 const { d1, r2 } = hostingConfig;
 
@@ -14,6 +15,8 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
+  // Optional remote inference for local QA; ordinary builds need no AI access.
+  ...(process.env.HANSUNG_ENABLE_AI === '1' ? { ai: { binding: 'AI', remote: true } } : {}),
   compatibility_flags: ['nodejs_compat'],
   d1_databases: d1
     ? [
@@ -21,6 +24,10 @@ const localBindingConfig = {
           binding: d1,
           database_name: 'site-creator-d1',
           database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          // Local dev uses Wrangler's local D1. Remote preview fails closed
+          // until a separate development database has been configured.
+          preview_database_id: DEV_PREVIEW_DATABASE_ID,
+          migrations_dir: 'drizzle',
         },
       ]
     : [],

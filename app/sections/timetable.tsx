@@ -1,9 +1,10 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -31,6 +32,8 @@ import {
   roomLabel,
   slotLabel,
   slotsLabel,
+  sourceDurationLabel,
+  yearLabel,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
@@ -39,9 +42,10 @@ import {
   deptMatches,
   deptPoolOf,
   planBlockReason,
-  recommend,
 } from './catalog';
+import { recommend } from '@/lib/data/timetable-recommendations';
 import { matchEnrollment } from '@/lib/data/lms';
+import { filterRecommendationCandidates } from '@/lib/data/recommendation';
 import { RetryButton, SkeletonRows } from './skeleton';
 import type { Data } from './data';
 
@@ -81,29 +85,52 @@ function DragCard({ s }: { s: CourseSection }) {
   );
 }
 
+function DropArea({ id, className, children, describedBy }: {
+  id: string;
+  className: string;
+  children: ReactNode;
+  describedBy?: string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={className + (isOver ? ' drop-over' : '')} aria-describedby={describedBy}>
+      {children}
+    </div>
+  );
+}
+
 function CatRow({
   s,
   added,
+  busy,
   onAdd,
 }: {
   s: CourseSection;
   added: boolean;
+  busy: boolean;
   onAdd: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: 'cat:' + s.id,
     data: { section: s },
-    disabled: added,
+    disabled: added || busy,
   });
   return (
     <div
       ref={setNodeRef}
-      className={'cat-row' + (isDragging ? ' dragging' : '')}
+      data-section-id={s.id}
+      className={
+        'cat-row' +
+        (!added ? ' can-drag' : '') +
+        (isDragging ? ' dragging' : '')
+      }
+      {...(!added && !busy ? listeners : {})}
     >
       <button
+        type="button"
         className="cat-grip"
         aria-label={s.name + ' 끌어서 시간표에 추가'}
-        {...listeners}
+        disabled={added || busy}
         {...attributes}
       >
         <GripVertical size={15} />
@@ -123,6 +150,10 @@ function CatRow({
           className="icon"
           aria-label={s.name + (added ? ' 계획에서 제거' : ' 계획에 담기')}
           aria-pressed={added}
+          disabled={busy}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={onAdd}
         >
           {added ? <X size={16} /> : <Plus size={16} />}
@@ -141,6 +172,7 @@ function EnrolledStrip({
   overrides,
   onFilter,
   onAdd,
+  busy,
 }: {
   lms: NonNullable<Data['lms']>;
   catalog: Catalog;
@@ -149,7 +181,8 @@ function EnrolledStrip({
   overrides?: Record<string, string>;
   onFilter: (title: string) => void;
   /** 분반을 계획에 담기 — 충돌·중복·이수 검사는 호출처가 처리, 성공 여부 반환 */
-  onAdd: (s: CourseSection) => boolean;
+  onAdd: (s: CourseSection) => Promise<boolean>;
+  busy: boolean;
 }) {
   const matches = useMemo(
     () => matchEnrollment(lms, catalog, overrides),
@@ -190,8 +223,9 @@ function EnrolledStrip({
                   <span className="enrolled-actions">
                     <button
                       className="secondary"
+                      disabled={busy}
                       onClick={() => {
-                        if (sections.length === 1) onAdd(sections[0]);
+                        if (sections.length === 1) void onAdd(sections[0]);
                         else
                           setPicking(
                             picking === course.id ? null : course.id,
@@ -217,8 +251,9 @@ function EnrolledStrip({
                     <button
                       key={s.id}
                       className="enrolled-pick-row"
-                      onClick={() => {
-                        if (onAdd(s)) setPicking(null);
+                      disabled={busy}
+                      onClick={async () => {
+                        if (await onAdd(s)) setPicking(null);
                       }}
                     >
                       <b>{s.section}분반</b>
@@ -266,21 +301,25 @@ export function Timetable({
   onSaveScenario,
   onLoadScenario,
   onDeleteScenario,
+  onOpenSurvey,
 }: {
   catalog: Catalog | null;
   failed?: boolean;
   retry?: () => void;
   planned: CourseSection[];
   data: Data;
-  plan: (id: string) => void;
-  swap: (fromId: string, toId: string) => void;
+  plan: (id: string) => Promise<boolean>;
+  swap: (fromId: string, toId: string) => Promise<boolean>;
   notify: (msg: string) => void;
   /** 시나리오 슬롯 저장·불러오기·삭제 — 키는 'A'|'B'|'C' */
-  onSaveScenario: (key: string) => void;
-  onLoadScenario: (key: string) => void;
-  onDeleteScenario: (key: string) => void;
+  onSaveScenario: (key: string) => Promise<boolean>;
+  onLoadScenario: (key: string) => Promise<boolean>;
+  onDeleteScenario: (key: string) => Promise<boolean>;
+  onOpenSurvey: () => void;
 }) {
   const [q, setQ] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const comparisonRef = useRef<HTMLDetailsElement>(null);
   const [dept, setDept] = useState('');
   const [cat, setCat] = useState('전체');
   const [day, setDay] = useState('');
@@ -288,11 +327,20 @@ export function Timetable({
   const [selected, setSelected] = useState<CourseSection | null>(null);
   const [dragging, setDragging] = useState<CourseSection | null>(null);
   const [dragPlan, setDragPlan] = useState(false);
+  const [dragStatus, setDragStatus] = useState('');
+  const [avoidedDays, setAvoidedDays] = useState<number[]>([]);
+  const [maxCreditsInput, setMaxCreditsInput] = useState('');
+  const [lastRemoved, setLastRemoved] = useState<CourseSection | null>(null);
+  const [busy, setBusy] = useState(false);
+  const editing = useRef(false);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const dayColumns = useRef<(HTMLDivElement | null)[]>([]);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    }),
   );
-  const { setNodeRef: gridRef } = useDroppable({ id: 'tt-grid' });
-  const { setNodeRef: trashRef } = useDroppable({ id: 'tt-trash' });
 
   const depts = useMemo(
     () =>
@@ -327,10 +375,28 @@ export function Timetable({
       return dayOk && bandOk;
     });
   }, [catalog, dept, cat, q, day, band, myDept, deptPool]);
-  const recs = useMemo(
-    () => (catalog ? recommend(catalog.sections, data, planned) : []),
-    [catalog, data, planned],
-  );
+  const maxCreditsNumber = Number(maxCreditsInput);
+  const maxCreditsValid =
+    maxCreditsInput === '' ||
+    (Number.isInteger(maxCreditsNumber) &&
+      maxCreditsNumber >= 1 &&
+      maxCreditsNumber <= 30);
+  const maxCredits =
+    maxCreditsInput !== '' && maxCreditsValid ? maxCreditsNumber : undefined;
+  const recs = useMemo(() => {
+    if (!catalog) return [];
+    const ranked = recommend(
+      catalog.sections,
+      data,
+      planned,
+      catalog.sections.length,
+      { selectedDay: day, sourceSemester: catalog.semester },
+    );
+    return filterRecommendationCandidates(ranked, planned, {
+      avoidedDays,
+      maxCredits,
+    }).slice(0, 6);
+  }, [catalog, data, planned, day, avoidedDays, maxCredits]);
   const untimedPlanned = planned.filter((s) => s.untimed);
   const credits = planned.reduce((n, s) => n + s.credits, 0);
   const curConflicts = planned.filter(
@@ -346,17 +412,59 @@ export function Timetable({
         (x) => x.code === selected.code && x.id !== selected.id,
       ) ?? [])
     : [];
+  const preview = dragging && !dragPlan ? dragging : null;
+  const previewBlocked = preview ? planBlockReason(preview, data, planned) : null;
 
-  function tryAdd(s: CourseSection): boolean {
-    if (planned.some((p) => p.id === s.id)) return false;
+  async function runEdit(action: () => Promise<boolean>): Promise<boolean> {
+    if (editing.current) return false;
+    editing.current = true;
+    setBusy(true);
+    try {
+      return await action();
+    } catch {
+      notify('계획을 저장하지 못했습니다. 다시 시도해 주세요.');
+      return false;
+    } finally {
+      editing.current = false;
+      setBusy(false);
+    }
+  }
+  const changePlan = (id: string) => runEdit(() => plan(id));
+  async function tryAdd(s: CourseSection): Promise<boolean> {
+    if (planned.some((p) => p.id === s.id)) {
+      setDragStatus(`${s.name}은 이미 시간표에 있습니다.`);
+      return false;
+    }
     const blocked = planBlockReason(s, data, planned);
     if (blocked) {
+      setDragStatus(blocked);
       notify(blocked);
       return false;
     }
-    plan(s.id);
+    if (!await changePlan(s.id)) return false;
     setSelected(null);
+    setDragStatus(`${s.name}을 공식 개설 요일과 시간에 추가했습니다.`);
     return true;
+  }
+  async function removeCourse(s: CourseSection) {
+    if (!planned.some((p) => p.id === s.id)) {
+      setSelected(null);
+      return;
+    }
+    if (!await changePlan(s.id)) return;
+    setLastRemoved(s);
+    setSelected((current) => current?.id === s.id ? null : current);
+    setDragStatus(`${s.name}을 시간표에서 제거했습니다. 실행 취소로 다시 담을 수 있습니다.`);
+  }
+  async function undoRemoval() {
+    if (lastRemoved && await tryAdd(lastRemoved)) setLastRemoved(null);
+  }
+  function scrollToDay(dayIndex: number) {
+    const grid = gridScrollRef.current;
+    const column = dayColumns.current[dayIndex];
+    if (!grid || !column) return;
+    const offset = column.getBoundingClientRect().left - grid.getBoundingClientRect().left;
+    grid.scrollTo({ left: grid.scrollLeft + offset - 52, behavior: 'instant' });
   }
   function onDragStart(e: DragStartEvent) {
     const payload = e.active.data.current as
@@ -364,19 +472,38 @@ export function Timetable({
       | undefined;
     setDragging(payload?.section ?? null);
     setDragPlan(!!payload?.planned);
+    setDragStatus(
+      payload?.planned
+        ? `${payload.section.name}을 시간표에서 제거하려면 아래 제거 영역에 놓으세요.`
+        : payload
+          ? planBlockReason(payload.section, data, planned) ??
+            `${payload.section.name} · ${slotsLabel(payload.section)}. 시간표에 놓으면 계획에 추가됩니다.`
+          : '',
+    );
+  }
+  function resetDrag() {
+    setDragging(null);
+    setDragPlan(false);
   }
   function onDragEnd(e: DragEndEvent) {
     const payload = e.active.data.current as
       | { section: CourseSection; planned?: boolean }
       | undefined;
-    setDragging(null);
-    setDragPlan(false);
+    resetDrag();
     if (!payload) return;
-    if (e.over?.id === 'tt-grid' && !payload.planned) tryAdd(payload.section);
-    if (e.over?.id === 'tt-trash' && payload.planned) {
-      plan(payload.section.id);
-      setSelected(null);
+    if (e.over?.id === 'tt-grid' && !payload.planned) {
+      void tryAdd(payload.section);
+      return;
     }
+    if (e.over?.id === 'tt-trash' && payload.planned) {
+      void removeCourse(payload.section);
+      return;
+    }
+    setDragStatus(
+      payload.planned
+        ? `${payload.section.name}을 그대로 두었습니다.`
+        : `${payload.section.name}을 추가하지 않았습니다. 시간표 영역에 놓아 주세요.`,
+    );
   }
 
   function exportPng() {
@@ -510,6 +637,12 @@ export function Timetable({
           · 개인 계획이며 공식 수강신청이 아닙니다.
         </p>
         <div className="builder-actions">
+          <button className="secondary" onClick={() => {
+            if (!comparisonRef.current) return;
+            comparisonRef.current.open = true;
+            comparisonRef.current.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            comparisonRef.current.querySelector('summary')?.focus({ preventScroll: true });
+          }}>A/B/C 비교</button>
           <button
             className="secondary"
             onClick={exportPng}
@@ -523,79 +656,6 @@ export function Timetable({
           </div>
         </div>
       </div>
-      <fieldset className="plan-slots" aria-label="시간표 시나리오 비교">
-        <div className="plan-slot current">
-          <div className="plan-slot-head">
-            <b>현재 작업 중</b>
-            <span className="meta">
-              {planned.length}과목 · {credits}학점
-              {curConflicts ? ` · 충돌 ${curConflicts}건` : ''}
-              {freeDays.length ? ` · 공강 ${freeDays.length}일` : ''}
-            </span>
-          </div>
-        </div>
-        {['A', 'B', 'C'].map((k) => {
-          const ids = data.plans?.[k];
-          const st = ids ? scenarioStats(ids, catalog) : null;
-          return (
-            <div className={'plan-slot' + (st ? '' : ' empty')} key={k}>
-              <div className="plan-slot-head">
-                <b>안 {k}</b>
-                {st ? (
-                  <button
-                    className="icon"
-                    aria-label={`안 ${k} 삭제`}
-                    onClick={() => onDeleteScenario(k)}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                ) : null}
-              </div>
-              {st ? (
-                <>
-                  <span className="meta">
-                    {st.secs.length}과목 · {st.credits}학점
-                    {st.conflicts ? ` · 충돌 ${st.conflicts}건` : ''}
-                    {st.freeDays ? ` · 공강 ${st.freeDays}일` : ''}
-                  </span>
-                  {st.missing > 0 && (
-                    <span className="meta">
-                      현재 카탈로그에 없는 과목 {st.missing}개 포함
-                    </span>
-                  )}
-                  <div className="plan-slot-actions">
-                    <button
-                      className="secondary"
-                      onClick={() => onLoadScenario(k)}
-                    >
-                      불러오기
-                    </button>
-                    <button
-                      className="link"
-                      onClick={() => onSaveScenario(k)}
-                    >
-                      현재 안으로 덮어쓰기
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="meta">비어 있음</span>
-                  <div className="plan-slot-actions">
-                    <button
-                      className="secondary"
-                      disabled={!planned.length}
-                      onClick={() => onSaveScenario(k)}
-                    >
-                      현재 안 저장
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </fieldset>
       {hasTimed && (
         <div className="gap-chips">
           {freeDays.length > 0 && (
@@ -617,33 +677,39 @@ export function Timetable({
           )}
         </div>
       )}
-      {data.lms && catalog && (
-        <EnrolledStrip
-          lms={data.lms}
-          catalog={catalog}
-          planned={planned}
-          overrides={data.lmsMatch}
-          onFilter={(name) => {
-            setQ(name);
-            setDept('전체');
-            setCat('전체');
-            setDay('');
-            setBand('전체');
-          }}
-          onAdd={tryAdd}
-        />
-      )}
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onDragCancel={() => {
+          resetDrag();
+          setDragStatus('드래그를 취소했습니다.');
+        }}
       >
-        <div className="builder-cols">
+        <p className="meta builder-drag-help" id="timetable-drag-help">
+          강의 카드를 시간표로 끌어 놓으면 학교에서 정한 요일과 시간에
+          배치됩니다. 강의 시간은 드롭 위치에 따라 바뀌지 않습니다.
+        </p>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {dragStatus}
+        </p>
+        {preview && <p className={'meta' + (previewBlocked ? ' form-error' : '')}>
+          {previewBlocked ?? `${preview.name} · ${slotsLabel(preview)}${preview.untimed || !preview.slots.length ? ' · 계획에 추가되며 시간표 칸에는 표시되지 않습니다.' : ''}`}
+        </p>}
+        {lastRemoved && !planned.some((s) => s.id === lastRemoved.id) && (
+          <output className="tt-undo">
+            <span>{lastRemoved.name}을 계획에서 제거했습니다.</span>
+            <button type="button" className="link" disabled={busy} onClick={() => void undoRemoval()}>실행 취소</button>
+            <button type="button" className="icon" aria-label="삭제 안내 닫기" onClick={() => setLastRemoved(null)}><X size={14} /></button>
+          </output>
+        )}
+        <div className="builder-cols" aria-busy={busy}>
           <div className="builder-list card">
             <div className="builder-filters">
               <label className="cat-search">
                 <Search size={15} aria-hidden="true" />
                 <input
+                  ref={searchRef}
                   aria-label="과목 검색"
                   placeholder="과목명 · 교수 · 코드 검색"
                   value={q}
@@ -724,10 +790,11 @@ export function Timetable({
                   <CatRow
                     key={s.id}
                     s={s}
+                    busy={busy}
                     added={planned.some((p) => p.id === s.id)}
                     onAdd={() =>
                       planned.some((p) => p.id === s.id)
-                        ? plan(s.id)
+                        ? removeCourse(s)
                         : tryAdd(s)
                     }
                   />
@@ -746,14 +813,26 @@ export function Timetable({
             </div>
           </div>
 
-          <div className="builder-grid card scrollable">
+          <div className="builder-grid card scrollable" ref={gridScrollRef}>
+            <p className="meta timetable-scroll-hint">
+              시간표를 좌우로 밀어 요일을 확인하세요.
+            </p>
+            <nav className="tt-day-nav" aria-label="시간표 요일로 이동">
+              {DAY_SHORT.slice(0, 6).map((dayName, index) => (
+                <button type="button" key={dayName} onClick={() => scrollToDay(index)} aria-label={`${dayName}요일 시간표로 이동`}>{dayName}</button>
+              ))}
+            </nav>
             <div className="tt-head">
               <span>시간</span>
               {DAY_SHORT.slice(0, 6).map((d) => (
                 <b key={d}>{d}</b>
               ))}
             </div>
-            <div className="tt-body" ref={gridRef}>
+            <DropArea
+              id="tt-grid"
+              className={'tt-body' + (dragging && !dragPlan ? ' drop-ready' : '')}
+              describedBy="timetable-drag-help"
+            >
               <div className="tt-hours" aria-hidden="true">
                 {HOURS.map((h) => (
                   <small key={h} style={{ top: (h - GRID_START) * PPM }}>
@@ -762,7 +841,7 @@ export function Timetable({
                 ))}
               </div>
               {DAY_SHORT.slice(0, 6).map((_, d) => (
-                <div className="tt-col" key={d}>
+                <div className="tt-col" key={d} ref={(node) => { dayColumns.current[d] = node; }}>
                   {planned
                     .filter((s) => !s.untimed && s.slots.some((x) => x.d === d))
                     .map((s) => {
@@ -774,27 +853,38 @@ export function Timetable({
                           sl={sl}
                           color={planned.indexOf(s) % 5}
                           onSelect={setSelected}
+                          selected={selected?.id === s.id}
+                          disabled={busy}
+                          onRemove={() => void removeCourse(s)}
                         />
                       ));
                     })}
+                  {preview?.slots.filter((sl) => sl.d === d).map((sl) => (
+                    <div
+                      key={'preview-' + preview.id + '-' + sl.s}
+                      className={'tt-preview' + (previewBlocked ? ' blocked' : '')}
+                      style={{ top: (sl.s - GRID_START) * PPM, height: Math.max((sl.e - sl.s) * PPM, 24) }}
+                      aria-hidden="true"
+                    >
+                      <b>{preview.name}</b>
+                      <small>{previewBlocked ? '추가 불가' : '추가 미리보기'}</small>
+                    </div>
+                  ))}
                 </div>
               ))}
-              {planned.every((s) => s.untimed || !s.slots.length) && (
+              {!preview && planned.every((s) => s.untimed || !s.slots.length) && (
                 <div className="tt-empty">
                   <BookOpen size={28} aria-hidden="true" />
                   <p>
-                    왼쪽 목록에서 과목을 끌어다 놓거나
+                    과목 목록에서 끌어다 놓거나
                     <br />+ 버튼으로 담아 보세요.
                   </p>
                 </div>
               )}
-            </div>
-            <div
-              ref={trashRef}
-              className={'tt-trash' + (dragPlan ? ' visible' : '')}
-            >
+            </DropArea>
+            <DropArea id="tt-trash" className={'tt-trash' + (dragPlan ? ' visible' : '')}>
               <Trash2 size={15} aria-hidden="true" /> 여기에 놓으면 제거
-            </div>
+            </DropArea>
           </div>
 
           <div className="builder-recs card pad">
@@ -814,7 +904,7 @@ export function Timetable({
                 <p>
                   {selected.dept} · {selected.section}분반 ·{' '}
                   {selected.credits}학점
-                  {selected.year ? ` · ${selected.year}학년` : ''}
+                  {selected.year ? ` · ${yearLabel(selected.year)}` : ''}
                 </p>
                 <div className="detail-grid">
                   <div>
@@ -833,6 +923,12 @@ export function Timetable({
                     <small>시간</small>
                     <b>{slotsLabel(selected)}</b>
                   </div>
+                  {sourceDurationLabel(selected) && (
+                    <div>
+                      <small>원자료 시간 표기</small>
+                      <b>{sourceDurationLabel(selected)}</b>
+                    </div>
+                  )}
                   <div>
                     <small>타학과 수강</small>
                     <b>{selected.cross ? '가능' : '불가'}</b>
@@ -858,17 +954,15 @@ export function Timetable({
                           <button
                             key={a.id}
                             className="secondary"
-                            disabled={!!hits.length}
+                            disabled={busy || !!hits.length}
                             title={
                               hits.length
                                 ? `겹침: ${hits[0].name}`
                                 : '이 분반으로 변경'
                             }
-                            onClick={() => {
-                              swap(selected.id, a.id);
-                              setSelected(a);
-                              notify('분반을 변경했습니다.');
-                            }}
+                            onClick={() => void runEdit(() => swap(selected.id, a.id)).then((saved) => {
+                              if (saved) { setSelected(a); notify('분반을 변경했습니다.'); }
+                            })}
                           >
                             {a.section}분반 · {slotsLabel(a)}
                             {hits.length ? ' · 겹침' : ''}
@@ -881,10 +975,8 @@ export function Timetable({
                 <div className="actions">
                   <button
                     className="secondary danger"
-                    onClick={() => {
-                      plan(selected.id);
-                      setSelected(null);
-                    }}
+                    disabled={busy}
+                    onClick={() => void removeCourse(selected)}
                   >
                     시간표에서 제거
                   </button>
@@ -895,13 +987,109 @@ export function Timetable({
                 <h3>
                   <Sparkles size={17} aria-hidden="true" /> 맞춤 추천
                 </h3>
+                <button type="button" className="link" onClick={onOpenSurvey}>
+                  수업 선호 설문 {data.prefs.some(Boolean) ? '다시 설정' : '시작하기'}
+                </button>
                 <p className="meta">
-                  학과·학년·설문 선호·시간 충돌을 반영한 규칙 기반 추천입니다.
+                  입력한 이수 내역·학과·선택한 요일·설문 선호와 확인된 시간의 충돌을 반영합니다. 전필의 개인 적용 여부와 미확인 시간은 학교에서 확인해 주세요.
                   {data.prefs.some((p) =>
-                    ['이론', '실습', '프로젝트', '시험', '개인 과제', '팀 프로젝트'].includes(p),
+                    [
+                      '이론',
+                      '실습',
+                      '프로젝트',
+                      '시험',
+                      '개인 과제',
+                      '팀 프로젝트',
+                    ].includes(p),
                   ) &&
                     ' 수업방식·평가방식 선호는 과목별 평가 정보가 없어 아직 반영하지 않습니다.'}
                 </p>
+                <fieldset className="rec-constraints">
+                  <legend>추가 추천 조건</legend>
+                  <div className="rec-condition-row">
+                    <span className="rec-condition-label">피할 요일</span>
+                    <div
+                      className="rec-day-buttons"
+                      aria-label="피할 요일 선택"
+                    >
+                      {DAY_SHORT.map((label, dayIndex) => {
+                        const active = avoidedDays.includes(dayIndex);
+                        return (
+                          <button
+                            type="button"
+                            className={active ? 'active' : ''}
+                            aria-pressed={active}
+                            key={label}
+                            onClick={() =>
+                              setAvoidedDays((days) =>
+                                active
+                                  ? days.filter((day) => day !== dayIndex)
+                                  : [...days, dayIndex],
+                              )
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <label className="rec-credit-limit">
+                    <span className="rec-condition-label">최대 학점</span>
+                    <span className="rec-credit-input">
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        step="1"
+                        inputMode="numeric"
+                        value={maxCreditsInput}
+                        aria-invalid={!maxCreditsValid}
+                        aria-describedby="rec-credit-help"
+                        placeholder="미적용"
+                        onChange={(event) =>
+                          setMaxCreditsInput(event.target.value)
+                        }
+                      />
+                      <span>학점</span>
+                    </span>
+                  </label>
+                  <p
+                    id="rec-credit-help"
+                    className={'meta' + (!maxCreditsValid ? ' error' : '')}
+                    role={!maxCreditsValid ? 'alert' : undefined}
+                  >
+                    {maxCreditsValid
+                      ? '계획에 담은 학점을 포함해 계산합니다. 비워 두면 적용하지 않습니다.'
+                      : '1~30 사이의 정수를 입력해 주세요.'}
+                  </p>
+                  <div className="rec-condition-foot">
+                    <span className="meta">
+                      이 조건은 현재 화면에서만 임시로 적용됩니다.
+                    </span>
+                    {(avoidedDays.length > 0 || maxCreditsInput !== '') && (
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => {
+                          setAvoidedDays([]);
+                          setMaxCreditsInput('');
+                        }}
+                      >
+                        조건 초기화
+                      </button>
+                    )}
+                  </div>
+                </fieldset>
+                {avoidedDays.length > 0 &&
+                  recs.some(
+                    ({ section }) => section.untimed || !section.slots.length,
+                  ) && (
+                    <p className="rec-unknown-note">
+                      시간 미정 과목은 피할 요일을 확인할 수 없어 후보에
+                      남겼습니다. 수강신청 전에 요일을 확인해 주세요.
+                    </p>
+                  )}
                 {recs.map((r) => (
                   <div className="rec" key={r.section.id}>
                     <div>
@@ -915,11 +1103,16 @@ export function Timetable({
                             {x}
                           </span>
                         ))}
+                        {avoidedDays.length > 0 &&
+                          (r.section.untimed || !r.section.slots.length) && (
+                            <span className="badge">피할 요일 확인 불가</span>
+                          )}
                       </div>
                     </div>
                     <button
                       className="icon"
                       aria-label={r.section.name + ' 계획에 담기'}
+                      disabled={busy}
                       onClick={() => tryAdd(r.section)}
                     >
                       <Plus size={16} />
@@ -928,7 +1121,9 @@ export function Timetable({
                 ))}
                 {!recs.length && catalog && (
                   <p className="meta">
-                    추천할 과목이 없습니다. 필터나 계획을 조정해 보세요.
+                    {avoidedDays.length > 0 || maxCredits !== undefined
+                      ? '선택한 요일·학점 조건에 맞는 추천이 없습니다. 조건을 조정하거나 초기화해 보세요.'
+                      : '추천할 과목이 없습니다. 필터나 계획을 조정해 보세요.'}
                   </p>
                 )}
               </>
@@ -948,7 +1143,8 @@ export function Timetable({
                     <button
                       className="icon"
                       aria-label={s.name + ' 계획에서 제거'}
-                      onClick={() => plan(s.id)}
+                      disabled={busy}
+                      onClick={() => void removeCourse(s)}
                     >
                       <X size={16} />
                     </button>
@@ -958,10 +1154,105 @@ export function Timetable({
             )}
           </div>
         </div>
-        <DragOverlay>
+        <DragOverlay style={{ pointerEvents: 'none' }}>
           {dragging ? <DragCard s={dragging} /> : null}
         </DragOverlay>
       </DndContext>
+      {data.lms && catalog && (
+        <EnrolledStrip
+          lms={data.lms}
+          catalog={catalog}
+          planned={planned}
+          overrides={data.lmsMatch}
+          onFilter={(name) => {
+            setQ(name);
+            setDept('전체');
+            setCat('전체');
+            setDay('');
+            setBand('전체');
+            searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            searchRef.current?.focus({ preventScroll: true });
+          }}
+          onAdd={tryAdd}
+          busy={busy}
+        />
+      )}
+      <details ref={comparisonRef} className="plan-comparison card">
+        <summary>시간표 A/B/C 비교 <span className="meta">저장된 안 {['A', 'B', 'C'].filter((key) => data.plans?.[key]).length}개</span></summary>
+        <fieldset className="plan-slots" aria-label="시간표 시나리오 비교" disabled={busy}>
+          <div className="plan-slot current">
+            <div className="plan-slot-head">
+              <b>현재 작업 중</b>
+              <span className="meta">
+                {planned.length}과목 · {credits}학점
+                {curConflicts ? ` · 충돌 ${curConflicts}건` : ''}
+                {freeDays.length ? ` · 공강 ${freeDays.length}일` : ''}
+              </span>
+            </div>
+          </div>
+          {['A', 'B', 'C'].map((k) => {
+            const ids = data.plans?.[k];
+            const st = ids ? scenarioStats(ids, catalog) : null;
+            return (
+              <div className={'plan-slot' + (st ? '' : ' empty')} key={k}>
+                <div className="plan-slot-head">
+                  <b>안 {k}</b>
+                  {st ? (
+                    <button
+                      className="icon"
+                      aria-label={`안 ${k} 삭제`}
+                      onClick={() => void runEdit(() => onDeleteScenario(k))}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  ) : null}
+                </div>
+                {st ? (
+                  <>
+                    <span className="meta">
+                      {st.secs.length}과목 · {st.credits}학점
+                      {st.conflicts ? ` · 충돌 ${st.conflicts}건` : ''}
+                      {st.freeDays ? ` · 공강 ${st.freeDays}일` : ''}
+                    </span>
+                    {st.missing > 0 && (
+                      <span className="meta">
+                        현재 카탈로그에 없는 과목 {st.missing}개 포함
+                      </span>
+                    )}
+                    <div className="plan-slot-actions">
+                      <button
+                        className="secondary"
+                        onClick={() => void runEdit(() => onLoadScenario(k))}
+                      >
+                        불러오기
+                      </button>
+                      <button
+                        className="link"
+                        onClick={() => void runEdit(() => onSaveScenario(k))}
+                      >
+                        현재 안으로 덮어쓰기
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="meta">비어 있음</span>
+                    <div className="plan-slot-actions">
+                      <button
+                        className="secondary"
+                        disabled={!planned.length}
+                        onClick={() => void runEdit(() => onSaveScenario(k))}
+                      >
+                        현재 안 저장
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </fieldset>
+      </details>
     </section>
   );
 }
@@ -971,33 +1262,43 @@ function BlockCell({
   sl,
   color,
   onSelect,
+  selected,
+  onRemove,
+  disabled,
 }: {
   s: CourseSection;
   sl: { d: number; s: number; e: number };
   color: number;
   onSelect: (s: CourseSection) => void;
+  selected: boolean;
+  onRemove: () => void;
+  disabled: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: 'plan:' + s.id + ':' + sl.d + ':' + sl.s,
     data: { planned: true, section: s },
+    disabled,
   });
   return (
-    <button
+    <div
       ref={setNodeRef}
-      className={'tt-block cb' + color + (isDragging ? ' dragging' : '')}
+      className={'tt-block cb' + color + (isDragging ? ' dragging' : '') + (selected ? ' selected' : '')}
       style={{
         top: (sl.s - GRID_START) * PPM,
         height: Math.max((sl.e - sl.s) * PPM, 24),
       }}
-      onClick={() => onSelect(s)}
-      aria-label={s.name + ' ' + slotLabel(sl) + ', 눌러서 상세 보기'}
-      {...listeners}
-      {...attributes}
     >
-      <b>{s.name}</b>
-      <small>
-        {fmtMin(sl.s)}~{fmtMin(sl.e)}
-      </small>
-    </button>
+      <button className="tt-block-select" onClick={() => onSelect(s)}
+        disabled={disabled}
+        aria-label={s.name + ' ' + slotLabel(sl) + ', 눌러서 상세 보기'}
+        title={s.name + ' · ' + slotLabel(sl)}
+        {...listeners} {...attributes}>
+        <b>{s.name}</b>
+        <small>{fmtMin(sl.s)}~{fmtMin(sl.e)}</small>
+      </button>
+      <button className="tt-block-remove" disabled={disabled} onClick={onRemove} aria-label={s.name + ' 시간표에서 제거'}>
+        <X size={14} aria-hidden="true" />
+      </button>
+    </div>
   );
 }

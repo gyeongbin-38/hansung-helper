@@ -162,6 +162,14 @@ t('question words stripped, course-scoped tasks', algHits.length === 2 && algHit
 hits = searchAll('알고리즘 퀴즈', catalog, [], [], lmsTasks);
 t('kind filter: 퀴즈 only', hits.length === 1 && hits[0].label === '3주차 퀴즈');
 t('uncertain quiz → 확인 실패 표시', hits[0].sub.includes('응시 여부 확인 실패'));
+const uncertainTasks = [{ id: 'uncertain', title: '검증 과목',
+  vods: [{ title: '이전 강의', attended: true, uncertain: true }],
+  assigns: [{ title: '이전 과제', submitted: true, uncertain: true }],
+  quizzes: [{ title: '이전 퀴즈', submitted: true, uncertain: true }] }];
+for (const [query, state] of [['강의', '출석'], ['과제', '제출'], ['퀴즈', '응시']]) {
+  const found = searchAll(query, null, [], [], uncertainTasks).find((h) => h.route === 'lms/uncertain');
+  t(`uncertain ${query} → ${state} 확인 실패, 완료로 취급하지 않음`, found?.sub.includes(`${state} 여부 확인 실패`) && found.done === false);
+}
 
 // 초성 검색도 항목에 동작
 hits = searchAll('ㅈㄹ ㄱㅎ ㄱㅈ', catalog, [], [], lmsTasks);

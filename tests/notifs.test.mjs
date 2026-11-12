@@ -174,9 +174,10 @@ const task = (title, due, submitted = false, uncertain) => ({
   uncertain,
 });
 const dueStr = (ts) => {
-  const d = new Date(ts);
+  // Build a KST wall-clock timestamp independent of the machine timezone.
+  const d = new Date(ts + 9 * 60 * 60 * 1000);
   const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 };
 
 const lms1 = lmsSnap([
@@ -202,7 +203,9 @@ const lms2 = lmsSnap([
   course('c1', '퀴즈과목', [], [task('2주차 퀴즈', dueStr(NOW + DAY), false, true)]),
 ]);
 const rem2 = reminderTargets(lms2, NOW);
-t('reminder: uncertain 표기', rem2.length === 1 && rem2[0].body.includes('응시 여부 확인 실패'));
+t('reminder: 퀴즈 응시 여부 확인 실패', rem2.length === 1 && rem2[0].body.includes('응시 여부 확인 실패'));
+const uncertainAssign = lmsSnap([course('c2', '과제과목', [task('과제', dueStr(NOW + DAY), false, true)], [])]);
+t('reminder: 과제 제출 여부 확인 실패', reminderTargets(uncertainAssign, NOW)[0]?.body.includes('제출 여부 확인 실패'));
 t('reminder: 내일 마감', rem2[0].title.startsWith('내일 마감'));
 
 // --- actStatus 단계 리마인드 (활동 라이프사이클) ---

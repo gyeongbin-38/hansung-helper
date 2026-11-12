@@ -134,7 +134,7 @@ function DeadlineNotifSetting({
         <div>
           <b>마감 브라우저 알림</b>
           <p className="notif-sub">
-            수업 마감 24시간 전·당일에 운영체제 알림을 표시합니다.
+            수업·저장한 비교과 마감 24시간 전과 활동 수료·포인트 확인 알림을 표시합니다.
           </p>
         </div>
         {supported && !denied && (
