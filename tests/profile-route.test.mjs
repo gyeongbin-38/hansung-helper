@@ -34,6 +34,7 @@ for (const invalid of [
   { plans: 'invalid' }, { extActivities: 'invalid' }, { onboardingStep: 9 },
   { rev: Number.MAX_SAFE_INTEGER },
   { admissionType: 'guessed-freshman' }, { admissionType: null }, { admissionType: {} },
+  { surveyStatus: 'invalid' }, { surveyStatus: null }, { surveyStatus: {} },
 ]) {
   assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, ...invalid }) })).status, 400);
   assert.equal(Object.keys(profile).length, 0, 'invalid input must not save');
@@ -64,6 +65,12 @@ assert.deepEqual(profile.notifiedIds, ['deadline-1'], 'older client must not era
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 5, notifEnabled: false, notifiedIds: [] }) })).status, 200);
 assert.equal(profile.notifEnabled, false, 'explicit opt-out must be saved');
 assert.deepEqual(profile.notifiedIds, []);
-assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 6, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 6, surveyStatus: 'skipped' }) })).status, 200);
+assert.equal(profile.surveyStatus, 'skipped');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 7 }) })).status, 200);
+assert.equal(profile.surveyStatus, 'skipped', 'older client preserves the dismissed survey introduction');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 8, surveyStatus: 'completed' }) })).status, 200);
+assert.equal(profile.surveyStatus, 'completed');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 9, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
 assert.equal(profile.name, '처음');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');

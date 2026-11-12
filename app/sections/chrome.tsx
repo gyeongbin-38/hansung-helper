@@ -12,7 +12,6 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  ClipboardList,
 } from 'lucide-react';
 import { menus, type Data } from './data';
 import { currentSemesterStart, pendingTasks } from '@/lib/data/lms';
@@ -263,13 +262,10 @@ export function PageHeading({
   section,
   label,
   name,
-  onSurvey,
 }: {
   section: string;
   label: string;
   name: string;
-  /** 이 페이지 문맥에 맞는 설문을 연다 — 비교과면 비교과 설문, 그 외 수업 선호 */
-  onSurvey?: () => void;
 }) {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -310,20 +306,6 @@ export function PageHeading({
           <span className="date-label">
             {academicYear}학년도 {semester}학기
           </span>
-        )}
-        {onSurvey && section !== 'home' && (
-          <button
-            className="secondary survey-trigger"
-            onClick={onSurvey}
-            title={
-              section === 'activities'
-                ? '비교과 활동 취향을 알려주세요'
-                : '수업 선호를 알려주세요'
-            }
-          >
-            <ClipboardList size={15} />
-            {section === 'activities' ? '비교과 설문' : '수업 선호 설문'}
-          </button>
         )}
       </div>
     </div>

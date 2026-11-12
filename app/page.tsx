@@ -5,8 +5,6 @@ import { Logo } from './logo';
 import {
   menus,
   empty,
-  questions,
-  ACT_QUESTIONS,
   mergeProfile,
   type Data,
 } from './sections/data';
@@ -49,7 +47,8 @@ import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
-import { SurveyDialog } from './sections/survey-dialog';
+import { SurveyPage } from './sections/survey';
+import { surveyEntryRoute } from '@/lib/data/survey';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
@@ -88,12 +87,7 @@ export default function App() {
     [drawer, setDrawer] = useState(false),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
-    // 어떤 설문이 열려 있는지 — 'course'(수업 선호) | 'act'(비교과 취향)
-    [survey, setSurvey] = useState<false | 'course' | 'act'>(false),
-    [notifOpen, setNotifOpen] = useState(false),
-    [step, setStep] = useState(0),
-    [draft, setDraft] = useState<string[]>([]),
-    [actDraft, setActDraft] = useState<string[]>([]);
+    [notifOpen, setNotifOpen] = useState(false);
   const readyRef = useRef(ready);
   readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
@@ -112,7 +106,6 @@ export default function App() {
   const [accountError, setAccountError] = useState('');
   // 데스크톱 사이드바 아이콘 레일 — 로컬 기기 설정으로 영속화
   const [sideCollapsed, setSideCollapsed] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
   const { catalog, failed: catalogFailed, retry: retryCatalog } = useCatalog();
   const { snap: actsSnap } = useActivities();
   const { snap: schedSnap } = useSchedule();
@@ -126,8 +119,6 @@ export default function App() {
       allowExtensionImport.current = false;
       setAccount(null);
       setData(empty);
-      setDraft([]);
-      setActDraft([]);
       setRoute('home');
       location.hash = 'home';
       setAccountError('계정이 변경되었거나 로그인이 만료되었습니다. 새로고침해 현재 계정을 확인해 주세요.');
@@ -163,9 +154,12 @@ export default function App() {
             setAccountContext(result.sessionContext);
             allowExtensionImport.current = true;
             setAccount(result);
-            setData(accountData(result));
-            setDraft(result.profile.prefs || []);
-            setActDraft(result.profile.actPrefs || []);
+            const next = accountData(result);
+            setData(next);
+            if ((!location.hash || location.hash === '#home') && surveyEntryRoute(next) === 'survey') {
+              location.hash = 'survey';
+              setRoute('survey');
+            }
           }
         } else if (response.status !== 401 && active)
           setAccountError(
@@ -300,10 +294,6 @@ export default function App() {
     (account?.snapshot.portal === 'connected' &&
       !account.snapshot.infoData &&
       !account.snapshot.infoPending);
-  useEffect(() => {
-    if (survey) dialog.current?.showModal();
-    else dialog.current?.close();
-  }, [survey]);
   // 브라우저 마감 알림 — opt-in + 권한 부여된 경우에만, 앱이 열려 있는 동안
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
@@ -313,11 +303,8 @@ export default function App() {
       if (event.key !== DEMO_STORAGE_KEY || event.newValue !== null || !demoRef.current || accountRef.current) return;
       dataRef.current = empty;
       setData(empty);
-      setDraft([]);
-      setActDraft([]);
       setQuery('');
       setFilter('전체');
-      setSurvey(false);
       setToast('다른 탭에서 체험 데이터를 초기화했습니다.');
     };
     window.addEventListener('storage', onStorage);
@@ -616,8 +603,6 @@ export default function App() {
       setAccount(null);
       setDemo(false);
       setData(empty);
-      setDraft([]);
-      setActDraft([]);
       go('home');
     } catch {
       if (generation !== accountGeneration.current) return;
@@ -649,8 +634,6 @@ export default function App() {
       setAccountContext(null);
       setAccount(null);
       setData(empty);
-      setDraft([]);
-      setActDraft([]);
       go('home');
     } catch {
       if (generation !== accountGeneration.current) return;
@@ -663,11 +646,6 @@ export default function App() {
     setRoute(r);
     setDrawer(false);
     scrollTo(0, 0);
-  }
-  // 설문을 처음 문항부터 연다 — 이전에 보던 step이 남지 않게 리셋
-  function openSurvey(kind: 'course' | 'act') {
-    setStep(0);
-    setSurvey(kind);
   }
   function save(id: string) {
     void persist(
@@ -809,11 +787,8 @@ export default function App() {
       if (!accountRef.current && demoRef.current) {
         dataRef.current = empty;
         setData(empty);
-        setDraft([]);
-        setActDraft([]);
         setQuery('');
         setFilter('전체');
-        setSurvey(false);
       }
       setToast('이 브라우저의 체험 데이터를 초기화했습니다.');
       return true;
@@ -822,7 +797,8 @@ export default function App() {
       return false;
     }
   }
-  const section = route.split('/')[0],
+  const surveyOpen = route.split('/')[0] === 'survey';
+  const section = surveyOpen ? 'home' : route.split('/')[0],
     detail = route.split('/')[1],
     planned = (catalog?.sections ?? []).filter((s) =>
       visibleIds.includes(s.id),
@@ -850,6 +826,7 @@ export default function App() {
         settings: '설정',
         notifications: '알림함',
         search: '검색',
+        survey: '나를 위한 시작 설문',
       } as Record<string, string>
     )[section] ||
     '상세 정보';
@@ -876,16 +853,16 @@ export default function App() {
             clearExtensionCache();
             allowExtensionImport.current = true;
             setAccount(result);
-            setData(accountData(result));
-            setDraft(result.profile.prefs || []);
-            setActDraft(result.profile.actPrefs || []);
-            go('home');
+            const next = accountData(result);
+            setData(next);
+            go(surveyEntryRoute(next));
           }}
           onDemo={() => {
             accountGeneration.current += 1;
             clearExtensionCache();
             allowExtensionImport.current = false;
             setDemo(true);
+            let demoData = empty;
             try {
               const raw = localStorage.getItem(DEMO_STORAGE_KEY);
               if (raw) {
@@ -920,13 +897,14 @@ export default function App() {
                   const next = { ...empty, ...d };
                   next.lms = validateLms(d.lms) ?? undefined;
                   const info = validateInfo(d.info);
-                  setData(info ? applyInfo(next, info) : next);
+                  demoData = info ? applyInfo(next, info) : next;
                 }
               }
             } catch {
-              setData(empty);
+              demoData = empty;
             }
-            go('home');
+            setData(demoData);
+            go(surveyEntryRoute(demoData));
           }}
         />
       </>
@@ -966,9 +944,6 @@ export default function App() {
             section={section}
             label={section === 'graduation' ? ({ outlook: '졸업 전망', requirements: '요건별 충족 현황', completed: '이수한 과목', department: '학과·트랙별 요건' } as Record<string, string>)[detail ?? ''] ?? label : label}
             name={data.name}
-            onSurvey={section === 'home' ? undefined : () =>
-              openSurvey(section === 'activities' ? 'act' : 'course')
-            }
           />
           {section !== 'home' && (
             <AccountBar account={account} go={go} onConnect={exitDemo} />
@@ -1020,15 +995,12 @@ export default function App() {
               setActStage={setActStage}
               addExtActivity={addExtActivity}
               removeExtActivity={removeExtActivity}
-              onSurvey={() => openSurvey('act')}
             />
           ) : section === 'profile' ? (
             <ProfileSection
               data={data}
               account={account}
               persist={persist}
-              onOpenSurvey={() => openSurvey('course')}
-              onOpenActSurvey={() => openSurvey('act')}
               focus={detail}
               go={go}
             />
@@ -1078,7 +1050,6 @@ export default function App() {
               onSaveScenario={saveScenario}
               onLoadScenario={loadScenario}
               onDeleteScenario={deleteScenario}
-              onOpenSurvey={() => openSurvey('course')}
             />
           ) : section === 'calendar' ? (
             <CalendarSection
@@ -1179,26 +1150,17 @@ export default function App() {
           onConfirm={() => persist({ ...data, consent: true }, '')}
         />
       )}
-      <SurveyDialog
-        dialogRef={dialog}
-        label={survey === 'act' ? '비교과 선호' : '수업 선호'}
-        questions={survey === 'act' ? ACT_QUESTIONS : questions}
-        step={step}
-        draft={survey === 'act' ? actDraft : draft}
-        setDraft={survey === 'act' ? setActDraft : setDraft}
-        setStep={setStep}
-        onClose={() => setSurvey(false)}
-        onSubmit={(prefs) => {
-          void persist(
-            survey === 'act' ? { ...data, actPrefs: prefs } : { ...data, prefs },
-            survey === 'act'
-              ? '비교과 취향을 저장했습니다.'
-              : '수업 선호를 저장했습니다.',
-          ).then((ok) => {
-            if (ok) setSurvey(false);
-          });
-        }}
-      />
+      {surveyOpen && (
+        <SurveyPage
+          key={renderedGeneration}
+          data={data}
+          onSave={(answers) => persist(
+            { ...dataRef.current, ...answers },
+            answers.surveyStatus === 'completed' ? '설문 답변을 저장했습니다.' : '',
+          )}
+          onExit={() => go('home')}
+        />
+      )}
     </div>
   );
 }

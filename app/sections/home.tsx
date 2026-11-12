@@ -297,20 +297,6 @@ export function Home({
       '계획한 과목의 시간이 겹쳐요.',
       'timetable',
     ]);
-  if (!data.prefs.length)
-    tasks.push([
-      '05',
-      '수업 성향 설문하기',
-      '맞춤 추천에 선호가 반영돼요.',
-      'profile',
-    ]);
-  if (!(data.actPrefs ?? []).some((p) => p))
-    tasks.push([
-      '06',
-      '비교과 취향 설문하기',
-      '활동 목록에서 맞춤 추천을 받아보세요.',
-      'activities',
-    ]);
   const plannedCredits = planned.reduce((n, s) => n + s.credits, 0);
   const conflictCount = planned.filter(
     (s) => conflicts(s, planned).length,
@@ -391,7 +377,7 @@ export function Home({
       {setup.current < 3 && (
         <section className="card pad setup-guide" aria-label="시작하기">
           <h2>시작하기</h2>
-          <p className="meta">한 단계씩 진행해 보세요. 설문은 나중에 선택할 수 있어요.</p>
+          <p className="meta">한 단계씩 진행해 보세요.</p>
           <ol className="setup-steps">
             {['학적 입력', '이수 내역', '추천 확인'].map((label, i) => (
               <li key={label} aria-current={setup.current === i ? 'step' : undefined}>
