@@ -86,6 +86,9 @@ const items = collectCalItems({
 t('학사 2건', items.filter((i) => i.kind === 'academic').length === 2);
 t('제출 과제 제외', !items.some((i) => i.title === '과제2(제출함)'));
 t('LMS 마감 3건', items.filter((i) => i.kind === 'lms').length === 3);
+t('강의 기간의 종료일을 마감일로 표시', items.find((i) => i.title === '3주차 강의')?.start === '2026-10-26');
+const timezoneItems = collectCalItems({ lms: { ...lmsSnap, courses: [{ ...lmsSnap.courses[0], vods: [], quizzes: [], assigns: [{ title: '시간대 마감', due: '2026-10-20T18:00Z', submitted: false }] }] } });
+t('명시된 시간대를 한국 날짜로 변환', timezoneItems[0]?.start === '2026-10-21');
 t(
   'LMS 메타',
   items.find((i) => i.title === '퀴즈1')?.meta?.includes('확인 실패'),
