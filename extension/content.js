@@ -180,12 +180,12 @@
         /* 다음 URL 시도 */
       }
     }
-    if (!doc?.querySelector('.user_progress_table')) return [];
+    if (!doc?.querySelector('.user_progress_table')) throw new Error('progress-table-missing');
 
     const headers = Array.from(
       doc.querySelectorAll('.user_progress_table > thead > tr > th'),
     ).map((th) => th.textContent?.trim() ?? '');
-    if (headers.length < 5) return [];
+    if (headers.length < 5) throw new Error('progress-columns-missing');
     let att = -1,
       weekAtt = -1,
       req = null;
@@ -207,7 +207,8 @@
       )
         att = i;
     });
-    if (att === -1 || weekAtt === -1) return [];
+    if (att === -1 || weekAtt === -1) throw new Error('progress-columns-missing');
+    if (!doc.querySelector('.user_progress_table > tbody')) throw new Error('progress-body-missing');
 
     const pending = [],
       spanVal = [];

@@ -126,9 +126,16 @@ function mergeJsonObjects(older: string, newer: string) {
 export async function migrateLegacyStudentAccount(
   accountId: string,
   legacyId: string,
+  session?: { hash: string; accountId: string },
 ) {
   if (accountId === legacyId) return;
   const db = database();
+  // 재수집 요청은 장시간 학교 서버를 기다리는 동안 세션이 종료될 수 있다.
+  // 이전 배치의 모든 쓰기 시점에 동일 세션이 여전히 유효한지 확인한다.
+  const guard = session
+    ? " AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id IN (?, ?) AND expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER))"
+    : '';
+  const guardArgs = session ? [session.hash, session.accountId, accountId] : [];
   const legacy = await db
     .prepare(
       'SELECT id, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?',
@@ -146,7 +153,7 @@ export async function migrateLegacyStudentAccount(
   const accountWrite = current
     ? db
         .prepare(
-          'UPDATE academic_accounts SET student_mask = ?, profile = ?, snapshot = ?, onboarded = ?, created_at = ?, consent_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)',
+          'UPDATE academic_accounts SET student_mask = ?, profile = ?, snapshot = ?, onboarded = ?, created_at = ?, consent_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
         )
         .bind(
           current.student_mask || legacy.student_mask,
@@ -157,25 +164,26 @@ export async function migrateLegacyStudentAccount(
           Math.max(current.consent_at, legacy.consent_at),
           accountId,
           legacyId,
+          ...guardArgs,
         )
     : db
         .prepare(
-          'INSERT INTO academic_accounts (id, student_mask, profile, snapshot, onboarded, created_at, consent_at) SELECT ?, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ? ON CONFLICT(id) DO NOTHING',
+          'INSERT INTO academic_accounts (id, student_mask, profile, snapshot, onboarded, created_at, consent_at) SELECT ?, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?' + guard + ' ON CONFLICT(id) DO NOTHING',
         )
-        .bind(accountId, legacyId);
+        .bind(accountId, legacyId, ...guardArgs);
 
   await db.batch([
     accountWrite,
     db
       .prepare(
-        'UPDATE academic_sessions SET account_id = ? WHERE account_id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)',
+        'UPDATE academic_sessions SET account_id = ? WHERE account_id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
       )
-      .bind(accountId, legacyId, accountId),
+      .bind(accountId, legacyId, accountId, ...guardArgs),
     db
       .prepare(
-        'DELETE FROM academic_accounts WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)',
+        'DELETE FROM academic_accounts WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
       )
-      .bind(legacyId, accountId),
+      .bind(legacyId, accountId, ...guardArgs),
   ]);
 }
 

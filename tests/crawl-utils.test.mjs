@@ -13,6 +13,13 @@ test('retries transient responses and returns the successful body', async () => 
   assert.equal(calls, 3);
 });
 
+test('retries an HTTP 408 timeout', async () => {
+  let calls = 0;
+  const fetcher = async () => ++calls === 1 ? new Response('', { status: 408 }) : new Response('ok');
+  assert.equal(await fetchTextWithRetry('https://example.test', {}, { fetcher, delayMs: 0 }), 'ok');
+  assert.equal(calls, 2);
+});
+
 test('does not retry permanent errors and stops after bounded transient errors', async () => {
   let calls = 0;
   await assert.rejects(fetchTextWithRetry('https://example.test', {}, { delayMs: 0, fetcher: async () => { calls++; return new Response('', { status: 404 }); } }), /404/);
