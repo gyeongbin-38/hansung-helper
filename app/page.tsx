@@ -50,6 +50,7 @@ import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
+import { Mascot } from './mascot';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
@@ -1174,6 +1175,18 @@ export default function App() {
         go={go}
       />
       <ToastStack toasts={toasts} onClose={dismissToast} />
+      <Mascot
+        enabled={data.mascotEnabled !== false}
+        guideSeen={!!data.mascotGuideSeen}
+        isNewUser={!account || !account.onboarded}
+        survey={survey}
+        route={section}
+        hidden={drawer || notifOpen || (!account && !data.consent)}
+        data={data}
+        persist={persist}
+        go={go}
+        onOpenSurvey={openSurvey}
+      />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}
@@ -1187,6 +1200,7 @@ export default function App() {
         draft={survey === 'act' ? actDraft : draft}
         setDraft={survey === 'act' ? setActDraft : setDraft}
         setStep={setStep}
+        mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(

@@ -106,6 +106,10 @@ export async function PUT(request: Request) {
     }
     if (input.notifEnabled !== undefined && typeof input.notifEnabled !== 'boolean')
       return json({ error: '알림 설정 형식을 확인해 주세요.' }, 400);
+    if (input.mascotEnabled !== undefined && typeof input.mascotEnabled !== 'boolean')
+      return json({ error: '마스코트 설정 형식을 확인해 주세요.' }, 400);
+    if (input.mascotGuideSeen !== undefined && typeof input.mascotGuideSeen !== 'boolean')
+      return json({ error: '마스코트 설정 형식을 확인해 주세요.' }, 400);
     // 구버전 클라이언트가 새 필드를 보내지 않아도 저장된 설정을 지우지 않는다.
     let storedProfile: Record<string, unknown> = {};
     try { storedProfile = JSON.parse(row.profile); } catch { /* 기존 손상 값 무시 */ }
@@ -119,6 +123,10 @@ export async function PUT(request: Request) {
     if (validStringArray(notifiedIds, 200, 200)) profile.notifiedIds = notifiedIds;
     const notifEnabled = input.notifEnabled ?? storedProfile?.notifEnabled;
     if (typeof notifEnabled === 'boolean') profile.notifEnabled = notifEnabled;
+    const mascotEnabled = input.mascotEnabled ?? storedProfile?.mascotEnabled;
+    if (typeof mascotEnabled === 'boolean') profile.mascotEnabled = mascotEnabled;
+    const mascotGuideSeen = input.mascotGuideSeen ?? storedProfile?.mascotGuideSeen;
+    if (typeof mascotGuideSeen === 'boolean') profile.mascotGuideSeen = mascotGuideSeen;
     for (const key of ['ruleOverrides', 'actStatus', 'lmsMatch', 'plans'] as const) {
       if (input[key] !== undefined &&
           (!input[key] || typeof input[key] !== 'object' || Array.isArray(input[key])))

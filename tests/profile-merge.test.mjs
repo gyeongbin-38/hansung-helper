@@ -39,6 +39,8 @@ const base = {
   reqChecks: ['capstone'],
   notifiedIds: ['d1'],
   notifEnabled: false,
+  mascotEnabled: true,
+  mascotGuideSeen: false,
   lmsMatch: { 'crs-1': 'sec-1' },
   lms: { fetchedAt: 't0' },
   info: { fetchedAt: 't0', name: '한성인' },
@@ -95,6 +97,17 @@ test('스칼라는 local 변경분만 우선 — 손대지 않은 필드는 remo
 test('스칼라 양쪽 변경 시 local 우선 — 사용자가 방금 쓴 값', () => {
   const merged = mergeProfile(d(), d({ points: '200' }), d({ points: '300' }));
   assert.equal(merged.points, '200');
+});
+
+test('마스코트 설정은 local 변경을 보존하고 remote 변경을 따른다', () => {
+  const initial = d({ mascotEnabled: true, mascotGuideSeen: false });
+  const merged = mergeProfile(
+    initial,
+    { ...initial, mascotEnabled: false },
+    { ...initial, mascotGuideSeen: true },
+  );
+  assert.equal(merged.mascotEnabled, false);
+  assert.equal(merged.mascotGuideSeen, true);
 });
 
 test('레코드 필드는 키 단위 3-way — 양쪽 키 변경이 공존', () => {
