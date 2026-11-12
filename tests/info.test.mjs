@@ -228,6 +228,27 @@ t('collect: diag 실패 표면화', snap2.diag?.pages.find((p) => p.slot === 'gr
 t('collect: 포인트는 성공', snap2.points === 780);
 t('collect: 학적은 메인에서 보존', snap2.dept === '컴퓨터공학과');
 
+// HTTP 200 with a changed grade table must not erase the last known results.
+const malformedGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>기타</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 필수 성적 열 누락은 수집 실패', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
+t('collect: 구조 변경은 이전 이수 내역을 보존', mergeInfoSnapshot(snap, malformedGrade).completed.length === snap.completed.length);
+const emptyGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 정상 빈 성적표는 성공', emptyGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === true && emptyGrade.completed.length === 0);
+const nonOkSession = fakeSession({ 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML });
+const previousRequest = nonOkSession.request;
+nonOkSession.request = async (url) => url.includes('s_sung.s_sung_grade')
+  ? new Response('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>', { status: 500 })
+  : previousRequest(url);
+const serverError = await collectInfo(nonOkSession, { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: HTTP 500 성적표는 실패로 표시하고 이전 결과 보존',
+  serverError.diag?.pages.find((p) => p.slot === 'grades')?.ok === false && mergeInfoSnapshot(snap, serverError).completed.length === snap.completed.length);
+
 // 실계정 마크업 e2e — 프레임 메뉴 발견 → 누적성적 수집 → 학적 병합
 const snap3 = await collectInfo(
   fakeSession({

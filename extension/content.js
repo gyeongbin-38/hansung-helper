@@ -171,16 +171,24 @@
           `${BASE}/report/ubcompletion/user_progress_a.php?id=${id}`,
           `${BASE}/report/ubcompletion/user_progress.php?id=${id}`,
         ];
-    let doc = null;
+    let doc = null, lastError = new Error('progress-table-missing');
     for (const u of urls) {
       try {
-        doc = await fetchHtml(u);
-        if (doc.querySelector('.user_progress_table')) break;
-      } catch {
-        /* 다음 URL 시도 */
+        const candidate = await fetchHtml(u);
+        if (!candidate.querySelector('.user_progress_table')) throw new Error('progress-table-missing');
+        const labels = Array.from(candidate.querySelectorAll('.user_progress_table > thead > tr > th'), (th) => th.textContent?.trim() ?? '');
+        const weekly = labels.findIndex((t) => COL_WEEKLY_ATTENDANCE.some((k) => t.includes(k)));
+        const attendance = labels.findIndex((t, i) => i !== weekly && !COL_REQUIRED_TIME.some((k) => t.includes(k)) && COL_ATTENDANCE.some((k) => t.includes(k)));
+        if (labels.length < 5 || weekly < 0 || attendance < 0) throw new Error('progress-columns-missing');
+        if (!candidate.querySelector('.user_progress_table > tbody')) throw new Error('progress-body-missing');
+        doc = candidate;
+        break;
+      } catch (error) {
+        const reason = error?.message;
+        lastError = new Error(['progress-table-missing', 'progress-columns-missing', 'progress-body-missing'].includes(reason) ? reason : 'progress-fetch-failed');
       }
     }
-    if (!doc?.querySelector('.user_progress_table')) throw new Error('progress-table-missing');
+    if (!doc) throw lastError;
 
     const headers = Array.from(
       doc.querySelectorAll('.user_progress_table > thead > tr > th'),
