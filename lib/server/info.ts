@@ -291,7 +291,7 @@ export function parseGrades(html: string): {
             ?.slice(1)
             .join('-')) ||
         curSem;
-      if (/^(F|FA)$/i.test(gradeCell)) {
+      if (/^F/i.test(gradeCell)) {
         failedCourses.push({ code: code.slice(0, 30), name: name.slice(0, 100),
           category: infoCategory(iCat !== -1 ? cells[iCat] || '' : ''), credits: cr <= 20 ? cr : 0,
           semester: sem?.slice(0, 10), grade: gradeCell.slice(0, 10),

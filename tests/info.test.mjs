@@ -102,6 +102,8 @@ t('grades: 확정 과목과 빈 성적이 섞여 있어도 빈 성적은 제외'
 const failedOnly = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>미이수 과목</td><td>3</td><td>F</td></tr></table>');
 t('grades: 확정 F만 있는 표는 미확정이 아닌 정상 빈 이수 목록',
   !failedOnly.hasUnconfirmed && failedOnly.recognized && failedOnly.completed.length === 0);
+const failedVariants = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>과목1</td><td>3</td><td>F0</td></tr><tr><td>과목2</td><td>3</td><td>F(재수강)</td></tr></table>');
+t('grades: F 변형 표기도 미이수 이력으로 분리', failedVariants.completed.length === 0 && failedVariants.failedCourses.length === 2);
 
 // ── 실계정 마크업 (덤프 구조 재현, 익명화) ─────────────────
 const REAL_MAIN = `<html><frameset>

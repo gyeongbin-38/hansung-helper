@@ -31,6 +31,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Load the current published rules baseline
+        run: node scripts/_dept_rules_baseline.mjs
       - name: Collect complete department rules
         run: node --experimental-strip-types scripts/crawl-dept-rules.mts
       - name: Build generated Wrangler config
@@ -38,7 +40,7 @@ jobs:
       - name: Publish department rules only
         run: node scripts/_publish_snapshots.mjs --remote --only=dept-rules
       - name: Verify department rules freshness
-        run: python scripts/_verify_snapshots.py --only=/api/dept-rules
+        run: python scripts/_verify_snapshots.py --only=/api/dept-rules --match-local
       - name: Open or update the alert issue
         if: failure()
         env:
