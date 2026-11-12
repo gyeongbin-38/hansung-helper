@@ -113,6 +113,11 @@ export function CalendarSection({
       setEventErr('일정 내용을 입력해 주세요.');
       return;
     }
+    if (p.invalidDate) {
+      setPreview(null);
+      setEventErr('존재하지 않는 날짜입니다. 날짜를 다시 확인해 주세요.');
+      return;
+    }
     setEventErr('');
     setPreview(p);
   };

@@ -131,6 +131,11 @@ t(
   parseQuickAdd('10월 5일 재시험', REF)?.date === '2027-10-05',
 );
 t('M/D', parseQuickAdd('11/3 보고서', REF)?.date === '2026-11-03');
+t('존재하지 않는 날짜 차단', parseQuickAdd('2월 30일 보고서', REF)?.invalidDate === true);
+t('잘못된 월 차단', parseQuickAdd('13/1 발표', REF)?.invalidDate === true);
+t('윤년 아닌 연도 2월 29일 차단', parseQuickAdd('2027-02-29 발표', REF)?.invalidDate === true);
+t('윤년 2월 29일 허용', parseQuickAdd('2028-02-29 발표', REF)?.date === '2028-02-29');
+t('연도 없는 2월 29일은 다음 윤년', parseQuickAdd('2월 29일 발표', REF)?.date === '2028-02-29');
 t(
   '연도 표기',
   parseQuickAdd('2027-03-02 개강', REF)?.date === '2027-03-02',
