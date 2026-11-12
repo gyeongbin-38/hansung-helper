@@ -3,6 +3,18 @@ export type ApiSuccess<T> = { ok: true; data: T };
 export type ApiFailure = { ok: false; error: ApiError };
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
+let accountContext: string | null = null;
+export function setAccountContext(value: string | null) {
+  accountContext = value;
+}
+export function getAccountContext() {
+  return accountContext;
+}
+export function shouldResetSession(type: unknown, context: unknown, current: string | null): boolean {
+  if (type === 'session-ended') return !context || context === current;
+  return type === 'session-changed' && typeof context === 'string' && context !== current;
+}
+
 export class ApiRequestError extends Error {
   readonly code: string;
   readonly status: number;
@@ -25,10 +37,25 @@ export async function apiFetch(
   timeoutMs = 15000,
 ): Promise<Response> {
   try {
-    return await fetch(input, {
+    const headers = new Headers(init.headers);
+    const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : new URL(input.url).pathname;
+    const context = accountContext;
+    if (context && (path.startsWith('/api/account') && path !== '/api/account/login' || path === '/api/advisor'))
+      headers.set('X-Hansung-Session-Context', context);
+    const response = await fetch(input, {
       ...init,
+      headers,
       signal: init.signal ?? AbortSignal.timeout(timeoutMs),
     });
+    // Refresh can also return 401 for rejected school credentials. Limit this
+    // signal to endpoints whose 401 means the app session is no longer valid.
+    const sessionRejected = response.status === 401 &&
+      (path === '/api/account' || path === '/api/account/profile' || path === '/api/advisor' ||
+        (path === '/api/account/lms-refresh' && response.headers.get('X-Hansung-Session-Invalid') === '1'));
+    const logoutMismatch = response.status === 409 && path === '/api/account/logout';
+    if (context && context === accountContext && (sessionRejected || logoutMismatch) && typeof window !== 'undefined')
+      window.dispatchEvent(new Event('hansung-session-invalid'));
+    return response;
   } catch (error) {
     const timedOut =
       error instanceof DOMException &&

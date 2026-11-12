@@ -44,7 +44,7 @@ import {
   activityReminderTargets,
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
-import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
+import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
@@ -119,17 +119,10 @@ export default function App() {
   // 벨 배지·패널의 마감 계산도 실제 시각을 따라가도록 주기 갱신
   const notifNow = useNow(30000);
   useEffect(() => {
-    if (typeof BroadcastChannel === 'undefined') return;
-    let channel: BroadcastChannel;
-    try {
-      channel = new BroadcastChannel('hansung-session-v1');
-    } catch {
-      return;
-    }
-    sessionChannel.current = channel;
-    channel.onmessage = (event) => {
-      if (event.data?.type !== 'session-ended' || demoRef.current) return;
+    const resetSession = () => {
+      if (demoRef.current) return;
       accountGeneration.current += 1;
+      setAccountContext(null);
       allowExtensionImport.current = false;
       setAccount(null);
       setData(empty);
@@ -137,11 +130,24 @@ export default function App() {
       setActDraft([]);
       setRoute('home');
       location.hash = 'home';
-      setAccountError('다른 탭에서 로그아웃했거나 계정을 삭제했습니다.');
+      setAccountError('계정이 변경되었거나 로그인이 만료되었습니다. 새로고침해 현재 계정을 확인해 주세요.');
     };
+    window.addEventListener('hansung-session-invalid', resetSession);
+    let channel: BroadcastChannel | undefined;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('hansung-session-v1');
+        sessionChannel.current = channel;
+        channel.onmessage = (event) => {
+          const { type, context } = event.data ?? {};
+          if (shouldResetSession(type, context, getAccountContext())) resetSession();
+        };
+      }
+    } catch { /* 서버의 세션 검사가 탭 간 알림 실패를 보완한다 */ }
     return () => {
+      window.removeEventListener('hansung-session-invalid', resetSession);
       sessionChannel.current = null;
-      channel.close();
+      channel?.close();
     };
   }, []);
   // Browser storage is read after hydration to keep the initial server render stable.
@@ -154,6 +160,7 @@ export default function App() {
         if (response.ok) {
           const result = await apiData<Account>(response);
           if (active && generation === accountGeneration.current) {
+            setAccountContext(result.sessionContext);
             allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
@@ -592,6 +599,8 @@ export default function App() {
   async function logout() {
     if (!window.confirm('정말 로그아웃하시겠습니까?')) return;
     accountGeneration.current += 1;
+    const generation = accountGeneration.current;
+    const context = getAccountContext();
     allowExtensionImport.current = false;
     try {
       const response = await apiFetch('/api/account/logout', {
@@ -599,9 +608,11 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
+      if (generation !== accountGeneration.current) return;
       if (!response.ok) throw new Error();
-      try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 로그아웃을 방해하지 않는다 */ }
+      try { sessionChannel.current?.postMessage({ type: 'session-ended', context }); } catch { /* 알림 실패는 로그아웃을 방해하지 않는다 */ }
       clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setDemo(false);
       setData(empty);
@@ -609,6 +620,7 @@ export default function App() {
       setActDraft([]);
       go('home');
     } catch {
+      if (generation !== accountGeneration.current) return;
       allowExtensionImport.current = true;
       setToast('로그아웃 결과를 확인하지 못했습니다. 다시 확인해 주세요.');
     }
@@ -621,6 +633,8 @@ export default function App() {
     )
       return;
     accountGeneration.current += 1;
+    const generation = accountGeneration.current;
+    const context = getAccountContext();
     allowExtensionImport.current = false;
     try {
       const response = await apiFetch('/api/account', {
@@ -628,15 +642,18 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
+      if (generation !== accountGeneration.current) return;
       if (!response.ok) throw new Error();
-      try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 탈퇴를 방해하지 않는다 */ }
+      try { sessionChannel.current?.postMessage({ type: 'session-ended', context }); } catch { /* 알림 실패는 탈퇴를 방해하지 않는다 */ }
       clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setData(empty);
       setDraft([]);
       setActDraft([]);
       go('home');
     } catch {
+      if (generation !== accountGeneration.current) return;
       allowExtensionImport.current = true;
       setToast('계정 삭제 결과를 확인하지 못했습니다. 로그인 상태를 확인해 주세요.');
     }
@@ -854,6 +871,8 @@ export default function App() {
           notice={accountError || undefined}
           onAuthenticated={(result) => {
             accountGeneration.current += 1;
+            setAccountContext(result.sessionContext);
+            try { sessionChannel.current?.postMessage({ type: 'session-changed', context: result.sessionContext }); } catch { /* ignore */ }
             clearExtensionCache();
             allowExtensionImport.current = true;
             setAccount(result);

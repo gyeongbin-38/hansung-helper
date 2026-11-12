@@ -17,6 +17,8 @@ import {
 import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { ActivitySummary } from './activity-summary';
+import { CreditComposition, ProgressMetric } from './visual-progress';
+import { targetProgress } from '@/lib/data/visual-progress';
 import {
   conflicts,
   fmtMin,
@@ -46,7 +48,7 @@ import { gettingStarted } from '@/lib/data/getting-started';
 import { evaluate } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
-import { dateDeadlineDays, deadlineDays, isUpcomingUrgent } from '@/lib/data/home-deadlines';
+import { dateDeadlineDays, deadlineDays, isUpcomingUrgent, needsApplication } from '@/lib/data/home-deadlines';
 
 type Planned = CourseSection[];
 
@@ -58,12 +60,14 @@ function TodayStrip({
   lmsDue,
   acts,
   saved,
+  stages,
   now,
   go,
 }: {
   lmsDue: { dueTs: number; kind: string; title: string; course: string; uncertain?: boolean }[];
   acts: Parameters<typeof liveStatus>[0][];
   saved: string[];
+  stages?: Record<string, string>;
   now: number;
   go: (route: string) => void;
 }) {
@@ -79,7 +83,7 @@ function TodayStrip({
   }
   for (const a of acts) {
     const live = liveStatus(a, now);
-    if (live.status === 'closing' && saved.includes(a.id))
+    if (live.status === 'closing' && saved.includes(a.id) && needsApplication(stages, a.id))
       items.push({
         label: `저장한 활동 ${live.dday ?? '마감임박'}`,
         desc: a.title,
@@ -180,7 +184,7 @@ export function Home({
     route: 'lms',
   }));
   for (const a of actsNeedVerification ? [] : (acts?.items ?? [])) {
-    if (!data.saved.includes(a.id) || !a.applyEnd) continue;
+    if (!data.saved.includes(a.id) || !needsApplication(data.actStatus, a.id) || !a.applyEnd) continue;
     const dd = dateDeadlineDays(a.applyEnd, now);
     if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
@@ -193,7 +197,7 @@ export function Home({
   }
   // 직접 등록한 외부 활동도 신청 마감이 임박하면 함께 올린다
   for (const e of data.extActivities ?? []) {
-    if (!e.applyEnd) continue;
+    if (!needsApplication(data.actStatus, e.id) || !e.applyEnd) continue;
     const dd = dateDeadlineDays(e.applyEnd, now);
     if (dd !== null && dd >= 0 && dd <= 7)
       week.push({
@@ -348,10 +352,7 @@ export function Home({
     hasCredits && total.required !== null
       ? Math.max(0, total.required - credits)
       : null;
-  const percent =
-    hasCredits && total.required
-      ? Math.min(100, Math.max(0, Math.round((credits / total.required) * 100)))
-      : null;
+  const percent = targetProgress(hasCredits ? credits : null, total.required)?.percent ?? null;
   const major = graduation.find((r) => r.rule.id === 'major')!;
   const general = graduation.find((r) => r.rule.id === 'gen')!;
   const weekday = (new Date(now + 9 * 3600_000).getUTCDay() + 6) % 7;
@@ -422,7 +423,7 @@ export function Home({
           <p className="form-error">이 계획은 {planSourceSemester ?? planSemester} 자료로 저장되어 현재 자료로는 표시하거나 수정할 수 없습니다. 저장된 계획은 보존됩니다.</p>
         </output>
       )}
-      <TodayStrip lmsDue={lmsDue} acts={actsNeedVerification ? [] : (acts?.items ?? [])} saved={data.saved} now={now} go={go} />
+      <TodayStrip lmsDue={lmsDue} acts={actsNeedVerification ? [] : (acts?.items ?? [])} saved={data.saved} stages={data.actStatus} now={now} go={go} />
       <div className="home-overview">
         <section
           className="card home-graduation"
@@ -515,6 +516,8 @@ export function Home({
               <small>누적 비교과 포인트</small>
             </button>
           </div>
+          <CreditComposition total={credits} major={major.earned} general={general.earned} other={graduation.find(r => r.rule.id === 'free')!.earned} />
+          <ProgressMetric label="비교과 포인트 적립" value={points} target={graduation.find(r => r.rule.id === 'points')!.required} unit="P" tone="purple" />
         </section>
         <section
           className="card home-deadlines"

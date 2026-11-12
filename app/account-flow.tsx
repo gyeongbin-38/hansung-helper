@@ -38,6 +38,7 @@ export type Profile = {
   rev?: number;
 };
 export type Account = {
+  sessionContext: string;
   profile: Partial<Profile>;
   snapshot: SchoolSnapshot;
   onboarded: boolean;

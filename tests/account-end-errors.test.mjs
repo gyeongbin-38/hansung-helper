@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const cookie = '__Host-hansung_session=' + 'a'.repeat(64);
-const request = { headers: new Headers({ cookie }) };
+const request = { headers: new Headers({ cookie, 'x-hansung-session-context': 'hashed' }) };
 let authenticated = async () => ({ id: 'fixture', session_hash: 'token' });
 let dbFailure = false;
 let changes = 1;
@@ -23,7 +23,6 @@ const account = {
     },
   }),
   hash: async () => 'hashed',
-  sessionCookie: () => 'cleared',
   json: (body, status = 200, headers = {}) => ({ body, status, headers }),
 };
 async function load(path) {
@@ -36,7 +35,8 @@ async function load(path) {
 const { DELETE } = await load('app/api/account/route.ts');
 const { POST } = await load('app/api/account/logout/route.ts');
 assert.equal((await DELETE(request)).status, 200);
-assert.equal((await POST(request)).headers['Set-Cookie'], 'cleared');
+assert.equal((await DELETE(request)).headers['Set-Cookie'], undefined);
+assert.equal((await POST(request)).headers['Set-Cookie'], undefined);
 changes = 0;
 assert.equal((await DELETE(request)).status, 401);
 changes = 1;
@@ -51,4 +51,4 @@ authenticated = async () => { throw new Error('private lookup detail'); };
 const failedLookup = await DELETE(request);
 assert.equal(failedLookup.status, 503);
 assert.ok(!JSON.stringify(failedLookup).includes('private lookup detail'));
-console.log('account termination: database failures return sanitized errors without a success cookie');
+console.log('account termination: success and failure responses cannot overwrite a newer session cookie');

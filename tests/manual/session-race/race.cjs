@@ -5,7 +5,7 @@ const hash=x=>crypto.createHash('sha256').update(x).digest('hex');
 const hmac=x=>crypto.createHmac('sha256','fixture-key-'.repeat(4)).update('hansung:student-id:'+x).digest('hex');
 let notify, held;
 const gate=http.createServer((req,res)=>{held=res;notify?.();});
-const headers=c=>({origin:base,'content-type':'application/json',cookie:'__Host-hansung_session='+c.repeat(64)});
+const headers=c=>({origin:base,'content-type':'application/json',connection:'close',cookie:'__Host-hansung_session='+c.repeat(64),'x-hansung-session-context':hash(c.repeat(64))});
 const query=(sql)=>{const p=cp.spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','site-creator-d1','--local','--config','dist/server/wrangler.json','--command',sql,'--json'],{encoding:'utf8'});if(p.status!==0)throw Error(p.stderr);return JSON.parse(p.stdout)[0].results};
 const get=(id)=>query(`SELECT profile, snapshot FROM academic_accounts WHERE id='${id}'`)[0];
 (async()=>{

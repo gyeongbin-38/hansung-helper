@@ -1,0 +1,48 @@
+.visual-progress { min-width: 0; margin: 22px 0 8px; }
+.visual-progress-caption { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--nt-slate); }
+.visual-progress-caption strong { color: var(--nt-ink); font-size: 18px; }
+.visual-progress-caption strong small { font-size: 12px; color: var(--nt-slate); font-weight: 450; }
+.visual-progress-track { --progress-fill: var(--nt-primary); width: 100%; height: 11px; display: block; appearance: none; border: 0; border-radius: 20px; background: var(--nt-hairline-soft); overflow: hidden; margin: 12px 0 7px; }
+.visual-progress-track::-webkit-progress-bar { background: var(--nt-hairline-soft); border-radius: 20px; }
+.visual-progress-track::-webkit-progress-value { background: var(--progress-fill); border-radius: 20px; }
+.visual-progress-track::-moz-progress-bar { background: var(--progress-fill); border-radius: 20px; }
+.visual-progress-purple .visual-progress-track { --progress-fill: var(--nt-purple); }
+.visual-progress-teal .visual-progress-track, .activity-stage-progress .visual-progress-track { --progress-fill: var(--nt-teal); }
+.visual-progress-note { display: flex; gap: 12px; justify-content: space-between; font-size: 11px; color: var(--nt-slate); }
+.visual-progress-note b { color: var(--nt-primary-deep); }
+.visual-progress-pending { width: 100%; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--nt-slate); font-size: 11px; line-height: 1.8; margin: 12px 0; }
+.visual-progress-pending > span { width: 50px; height: 9px; border-radius: 10px; background: repeating-linear-gradient(120deg, #d8e2ef 0 4px, #f1f5fa 4px 8px); }
+.credit-composition { margin: 22px 0; padding-top: 18px; border-top: 1px solid var(--nt-hairline-soft); }
+.credit-composition figcaption { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 12px; }
+.credit-composition figcaption small { font-size: 11px; color: var(--nt-slate); }
+.credit-composition-bar { display: flex; gap: 3px; border-radius: 7px; overflow: hidden; margin: 12px 0; height: 25px; }
+.credit-segment { flex-basis: 0; min-width: 0; display: grid; place-items: center; color: white; font-size: 11px; font-weight: 700; }
+.credit-segment-0 { background: var(--nt-primary); }
+.credit-segment-1 { background: var(--nt-teal-deep); }
+.credit-segment-2 { background: var(--nt-purple); }
+.credit-segment-3 { background: #a6b6ca; color: var(--nt-ink); }
+.credit-composition-key { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.credit-composition-key > span { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--nt-slate); }
+.credit-composition-key i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; }
+.credit-composition-key b { color: var(--nt-ink); }
+.home-graduation .home-progress { height: 11px; }
+.activity-summary-progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
+.activity-summary-progress-grid > .visual-progress, .activity-progress-empty { margin: 0; padding: 18px; border: 1px solid var(--nt-hairline); border-radius: 12px; }
+.activity-progress-empty { display: grid; align-content: center; color: var(--nt-slate); font-size: 12px; line-height: 1.9; }
+.activity-stage-overview { padding: 16px; border-radius: 12px; background: #f5f9fd; margin-bottom: 16px; }
+.activity-stage-overview > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.activity-stage-overview > div > span { display: grid; gap: 5px; text-align: center; font-size: 11px; color: var(--nt-slate); position: relative; }
+.activity-stage-overview > div > span:not(:last-child)::after { content: '›'; position: absolute; right: -7px; top: 3px; font-size: 19px; color: var(--nt-stone); }
+.activity-stage-overview b { color: var(--nt-teal-deep); font-size: 20px; }
+.activity-stage-overview .meta { font-size: 10px; margin: 15px 0 0; }
+.activity-stage-progress { margin: 16px 0; }
+.activity-stage-progress > div { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 650; color: var(--nt-teal-deep); }
+.activity-stage-progress > small { display: block; font-size: 10px; color: var(--nt-slate); line-height: 1.8; }
+.activity-stage-progress .visual-progress-track { height: 8px; }
+.activity-progress-detail { padding: 8px 0; }
+.graduation-workspace .visual-progress-pending { margin: 0; }
+@media (max-width: 650px) {
+  .activity-summary-progress-grid { grid-template-columns: 1fr; gap: 12px; }
+  .credit-composition-key { gap: 8px 12px; }
+  .visual-progress-caption strong { font-size: 17px; }
+}

@@ -20,6 +20,7 @@ import {
   rulesetMatchesDept,
 } from '@/lib/data/dept-rules';
 import { staleLabel } from '@/lib/data/freshness';
+import { targetProgress } from '@/lib/data/visual-progress';
 import { deptPoolOf, useDeptRules, useNow } from './catalog';
 import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
@@ -312,7 +313,7 @@ export function Graduation({
 
   const shown = (r: (typeof results)[number]) => r.earned;
   const pct = (r: (typeof results)[number]) =>
-    r.required ? Math.min(100, Math.round((shown(r) / r.required) * 100)) : 0;
+    targetProgress(shown(r), r.required)?.percent ?? 0;
 
   // /graduation/:id — 규정 상세: 어떤 과목이 이 규정에 잡혔는지 분해 표시
   if (detail && detail !== 'completed') {

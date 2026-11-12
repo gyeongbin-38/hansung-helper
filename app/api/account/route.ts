@@ -3,7 +3,6 @@ import {
   accountView,
   database,
   json,
-  sessionCookie,
   validOrigin,
 } from '@/lib/server/account';
 export async function GET(request: Request) {
@@ -31,7 +30,10 @@ export async function DELETE(request: Request) {
         .bind(account.id, `refresh:${account.id}`, account.id),
     ]);
     if (!result[0].meta.changes) return json({ error: '로그인이 필요합니다.' }, 401);
-    return json({ deleted: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+    // The account deletion invalidates every session through the foreign key.
+    // Omitting an expiry cookie prevents this delayed response from clearing a
+    // newer login that completed while deletion was in flight.
+    return json({ deleted: true });
   } catch {
     return json({ error: '계정 삭제 결과를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.' }, 503);
   }

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Data } from './data';
 import { ActivitySummary } from './activity-summary';
+import { ActivityStageProgress, ProgressMetric } from './visual-progress';
 import { activityDigest } from '@/lib/data/activity-assistant';
 import { useActivities, useNow } from './catalog';
 import { RetryButton, SkeletonCards } from './skeleton';
@@ -149,6 +150,8 @@ export function Activities({
     if (!tracked) return null;
     const stage = data.actStatus?.[a.id];
     return (
+      <div className="activity-progress-detail">
+      <ActivityStageProgress title={a.title} stage={stage} />
       <fieldset className="act-steps" aria-label="활동 진행 단계">
         <span className={stage ? 'act-step done' : 'act-step active'}>
           저장됨
@@ -174,6 +177,7 @@ export function Activities({
           </button>
         ))}
       </fieldset>
+      </div>
     );
   };
 
@@ -374,6 +378,7 @@ export function Activities({
               . 비교과 포인트 인정 여부는 학교 기준을 따릅니다.
             </p>
           )}
+          <ProgressMetric label="누적 비교과 포인트" value={ptsSet ? ptsRaw : null} target={ptsReq} unit="P" tone="purple" />
           {stageRow(a)}
           {data.actStatus?.[a.id] === 'credited' && (
             <p className="meta">
@@ -681,6 +686,7 @@ function ActivityCards({
             </h3>
             <p>{a.dept}</p>
             <small>신청 {period(a.applyStart, a.applyEnd)}</small>
+            {(data.saved.includes(a.id) || isExt(a)) && <ActivityStageProgress title={a.title} stage={stage} />}
             <div className="card-foot">
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

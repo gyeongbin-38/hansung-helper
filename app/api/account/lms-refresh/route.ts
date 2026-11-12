@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   try {
     const account = await authenticated(request);
-    if (!account) return json({ error: '로그인이 필요합니다.' }, 401);
+    if (!account) return json({ error: '로그인이 필요합니다.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
     const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
     if (!input || typeof input !== 'object')
@@ -79,21 +79,19 @@ export async function POST(request: Request) {
         /* 이전 스냅샷 손상은 무시 */
       }
     }
-    // 학교 인증을 기다리는 동안 다른 수집이 먼저 저장됐다면, 이 요청이 읽은
-    // 이전 snapshot으로 최신 값을 덮지 않는다. 레거시 계정은 아래 이전 과정이
-    // snapshot 자체를 합칠 수 있으므로 별도의 경합 처리 검증이 필요하다.
-    const currentAccount = id === account.id;
+    // The source snapshot is the baseline even if the account was migrated
+    // while school authentication was pending. A merged or newer destination
+    // must be refreshed again instead of overwritten by this older request.
     const updated = await database()
-      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ?' +
-        (currentAccount ? ' AND snapshot = ?' : '') +
+      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ? AND snapshot = ?' +
         ' AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
-      .bind(JSON.stringify(snapshot), id, ...(currentAccount ? [account.snapshot] : []), account.session_hash, Date.now())
+      .bind(JSON.stringify(snapshot), id, account.snapshot, account.session_hash, Date.now())
       .run();
     if (!updated.meta.changes) {
       const stillActive = await authenticated(request);
-      if (stillActive?.id === id && currentAccount)
+      if (stillActive?.id === id)
         return json({ error: '다른 수집이 먼저 저장되었습니다. 새로고침 후 다시 시도해 주세요.' }, 409);
-      return json({ error: '다시 로그인해 주세요.' }, 401);
+      return json({ error: '다시 로그인해 주세요.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
     }
     if (deferredCollect)
       waitUntil(
@@ -185,7 +183,7 @@ export async function POST(request: Request) {
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
       .bind(id)
       .first<AccountRow>();
-    return json(accountView(row!));
+    return json(accountView(row!, account.session_hash));
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
       return json({ error: '입력 크기를 초과했습니다.' }, 413);

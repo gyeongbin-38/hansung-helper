@@ -366,7 +366,7 @@ export function pendingTasks(
   };
   for (const c of snap.courses) {
     for (const v of c.vods)
-      if (!v.attended)
+      if (!v.attended || v.uncertain)
         push({
           course: c.title,
           kind: '강의',

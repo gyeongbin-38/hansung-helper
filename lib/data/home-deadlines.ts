@@ -15,3 +15,8 @@ export function isUpcomingUrgent(item: { dueTs: number; uncertain?: boolean }, n
   const days = deadlineDays(item.dueTs, now);
   return !item.uncertain && item.dueTs >= now && days >= 0 && days <= 1;
 }
+
+/** 신청 이후 단계는 더 이상 신청 마감으로 안내하지 않는다. */
+export function needsApplication(stages: Record<string, string> | undefined, id: string): boolean {
+  return !stages?.[id];
+}

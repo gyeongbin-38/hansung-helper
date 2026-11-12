@@ -14,6 +14,7 @@ import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
+import { targetProgress } from '@/lib/data/visual-progress';
 
 type Props = ComponentProps<typeof Graduation>;
 const VIEWS = [
@@ -27,7 +28,9 @@ const MODES = [
 ] as const;
 
 function Ratio({ result, known = true }: { result: RuleResult; known?: boolean }) {
-  const percent = known && result.required ? Math.min(100, Math.round(result.earned / result.required * 100)) : 0;
+  const progress = targetProgress(known ? result.earned : null, result.required);
+  if (!progress) return <div className="visual-progress-pending"><span aria-hidden="true" />{known ? '기준 확인 후 진행률 표시' : '이수 정보 확인 후 진행률 표시'}</div>;
+  const percent = progress.percent;
   return <progress className="progress-track" max={100} value={percent}
     aria-label={`${result.rule.label} 충족률`}
     aria-valuetext={!known ? '미입력' : result.required === null ? '기준 미확정' : `${percent}%`} />;
@@ -171,7 +174,7 @@ export function GraduationWorkspace(props: Props) {
           <div className="graduation-hero-heading"><div><h2>졸업 준비는 <em>한눈에</em> 확인하세요.</h2><p>총 이수학점과 비교과 포인트 등 졸업에 필요한 주요 요건의 진행 상황을 확인할 수 있습니다.</p></div><span className="badge"><Info size={13} /> 선택한 유형 · {selectedMode.label}</span></div>
           <div className="graduation-hero-metrics">
             {[total, pointResult].map(r => <div key={r.rule.id}><h3>{r.rule.source === 'points' ? <Database size={18} /> : <GraduationCap size={19} />}{r.rule.source === 'points' ? '비교과 포인트' : '총 이수학점'}</h3>
-              <div className="graduation-value"><strong>{value(r)}</strong>{known(r) && r.required ? <small>{Math.min(100, Math.round(r.earned / r.required * 100))}% {r.rule.source === 'points' ? '적립' : '이수'}</small> : <ResultBadge result={r} known={known(r)} />}</div>
+              <div className="graduation-value"><strong>{value(r)}</strong>{known(r) && targetProgress(r.earned, r.required) ? <small>{targetProgress(r.earned, r.required)!.percent}% {r.rule.source === 'points' ? '적립' : '이수'}</small> : <ResultBadge result={r} known={known(r)} />}</div>
               <Ratio result={r} known={known(r)} /></div>)}
           </div>
         </section>

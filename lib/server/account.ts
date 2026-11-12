@@ -144,55 +144,74 @@ export async function migrateLegacyStudentAccount(
     ? " AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id IN (?, ?) AND expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER))"
     : '';
   const guardArgs = session ? [session.hash, session.accountId, accountId] : [];
-  const legacy = await db
-    .prepare(
-      'SELECT id, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?',
-    )
-    .bind(legacyId)
-    .first<StudentAccountRow>();
-  if (!legacy) return;
-
-  const current = await db
-    .prepare(
-      'SELECT id, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?',
-    )
-    .bind(accountId)
-    .first<StudentAccountRow>();
-  const accountWrite = current
-    ? db
-        .prepare(
-          'UPDATE academic_accounts SET student_mask = ?, profile = ?, snapshot = ?, onboarded = ?, created_at = ?, consent_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
-        )
-        .bind(
-          current.student_mask || legacy.student_mask,
-          mergeJsonObjects(legacy.profile, current.profile),
-          mergeJsonObjects(legacy.snapshot, current.snapshot),
-          Math.max(current.onboarded, legacy.onboarded),
-          Math.min(current.created_at, legacy.created_at),
-          Math.max(current.consent_at, legacy.consent_at),
-          accountId,
-          legacyId,
-          ...guardArgs,
-        )
-    : db
-        .prepare(
-          'INSERT INTO academic_accounts (id, student_mask, profile, snapshot, onboarded, created_at, consent_at) SELECT ?, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?' + guard + ' ON CONFLICT(id) DO NOTHING',
-        )
-        .bind(accountId, legacyId, ...guardArgs);
-
-  await db.batch([
-    accountWrite,
-    db
+  // D1 batch is transactional, but the reads before it are not. Compare both
+  // rows inside the batch so a concurrent profile or snapshot write cannot be
+  // overwritten or discarded by the legacy deletion.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const legacy = await db
       .prepare(
-        'UPDATE academic_sessions SET account_id = ? WHERE account_id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
+        'SELECT id, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?',
       )
-      .bind(accountId, legacyId, accountId, ...guardArgs),
-    db
+      .bind(legacyId)
+      .first<StudentAccountRow>();
+    if (!legacy) return;
+
+    const current = await db
       .prepare(
-        'DELETE FROM academic_accounts WHERE id = ? AND EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)' + guard,
+        'SELECT id, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ?',
       )
-      .bind(legacyId, accountId, ...guardArgs),
-  ]);
+      .bind(accountId)
+      .first<StudentAccountRow>();
+    const legacyValues = [legacy.student_mask, legacy.profile, legacy.snapshot, legacy.onboarded, legacy.created_at, legacy.consent_at];
+    const legacyMatches = 'SELECT 1 FROM academic_accounts WHERE id = ? AND student_mask IS ? AND profile IS ? AND snapshot IS ? AND onboarded IS ? AND created_at IS ? AND consent_at IS ?';
+    const merged = current ? [
+      current.student_mask || legacy.student_mask,
+      mergeJsonObjects(legacy.profile, current.profile),
+      mergeJsonObjects(legacy.snapshot, current.snapshot),
+      Math.max(current.onboarded, legacy.onboarded),
+      Math.min(current.created_at, legacy.created_at),
+      Math.max(current.consent_at, legacy.consent_at),
+    ] : legacyValues;
+    const accountWrite = current
+      ? db
+          .prepare(
+            'UPDATE academic_accounts SET student_mask = ?, profile = ?, snapshot = ?, onboarded = ?, created_at = ?, consent_at = ? WHERE id = ? AND student_mask IS ? AND profile IS ? AND snapshot IS ? AND onboarded IS ? AND created_at IS ? AND consent_at IS ? AND EXISTS (' + legacyMatches + ')' + guard,
+          )
+          .bind(
+            ...merged,
+            accountId,
+            current.student_mask, current.profile, current.snapshot, current.onboarded, current.created_at, current.consent_at,
+            legacyId, ...legacyValues,
+            ...guardArgs,
+          )
+      : db
+          .prepare(
+            'INSERT INTO academic_accounts (id, student_mask, profile, snapshot, onboarded, created_at, consent_at) SELECT ?, student_mask, profile, snapshot, onboarded, created_at, consent_at FROM academic_accounts WHERE id = ? AND student_mask IS ? AND profile IS ? AND snapshot IS ? AND onboarded IS ? AND created_at IS ? AND consent_at IS ?' + guard + ' ON CONFLICT(id) DO NOTHING',
+          )
+          .bind(accountId, legacyId, ...legacyValues, ...guardArgs);
+
+    const targetMatches = 'SELECT 1 FROM academic_accounts WHERE id = ? AND student_mask IS ? AND profile IS ? AND snapshot IS ? AND onboarded IS ? AND created_at IS ? AND consent_at IS ?';
+    const result = await db.batch([
+      accountWrite,
+      db
+        .prepare(
+          'UPDATE academic_sessions SET account_id = ? WHERE account_id = ? AND EXISTS (' + targetMatches + ') AND EXISTS (' + legacyMatches + ')' + guard,
+        )
+        .bind(accountId, legacyId, accountId, ...merged, legacyId, ...legacyValues, ...guardArgs),
+      db
+        .prepare(
+          'DELETE FROM academic_accounts WHERE id = ? AND EXISTS (' + targetMatches + ') AND student_mask IS ? AND profile IS ? AND snapshot IS ? AND onboarded IS ? AND created_at IS ? AND consent_at IS ?' + guard,
+        )
+        .bind(legacyId, accountId, ...merged, ...legacyValues, ...guardArgs),
+    ]);
+    if (result[2].meta.changes) return;
+    if (session) {
+      const active = await db.prepare("SELECT 1 AS active FROM academic_sessions WHERE token_hash = ? AND account_id IN (?, ?) AND expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)")
+        .bind(...guardArgs).first();
+      if (!active) return;
+    }
+  }
+  throw new Error('Concurrent account migration could not be completed');
 }
 
 export function json(
@@ -253,19 +272,24 @@ export async function authenticated(
     .get('cookie')
     ?.match(/(?:^|;\s*)__Host-hansung_session=([a-f0-9]{64})(?:;|$)/)?.[1];
   if (!token) return null;
+  const sessionHash = await hash(token);
+  const context = request.headers.get('x-hansung-session-context');
+  const initialAccountRead = request.method === 'GET' && new URL(request.url).pathname === '/api/account';
+  if ((!context && !initialAccountRead) || (context && context !== sessionHash)) return null;
   return database()
     .prepare(
       'SELECT a.id, a.profile, a.snapshot, a.onboarded, a.student_mask, s.token_hash AS session_hash FROM academic_accounts a JOIN academic_sessions s ON s.account_id = a.id WHERE s.token_hash = ? AND s.expires_at > ?',
     )
-    .bind(await hash(token), Date.now())
+    .bind(sessionHash, Date.now())
     .first<AccountRow & { session_hash: string }>();
 }
-export function accountView(row: AccountRow) {
+export function accountView(row: AccountRow, sessionContext?: string) {
   return {
     profile: JSON.parse(row.profile),
     snapshot: JSON.parse(row.snapshot),
     onboarded: !!row.onboarded,
     studentMask: row.student_mask,
+    sessionContext: sessionContext ?? (row as AccountRow & { session_hash?: string }).session_hash,
   };
 }
 export function sessionCookie(token: string, age = 86400) {

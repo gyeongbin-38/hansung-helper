@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { dateDeadlineDays, deadlineDays, isUpcomingUrgent } from '../lib/data/home-deadlines.ts';
+import { dateDeadlineDays, deadlineDays, isUpcomingUrgent, needsApplication } from '../lib/data/home-deadlines.ts';
 
 const now = Date.parse('2026-11-11T14:30:00Z'); // 11월 11일 23:30 KST
 const today = Date.parse('2026-11-11T14:45:00Z');
@@ -13,4 +13,8 @@ assert.equal(isUpcomingUrgent({ dueTs: today }, now), true);
 assert.equal(isUpcomingUrgent({ dueTs: tomorrow }, now), true);
 assert.equal(isUpcomingUrgent({ dueTs: now - 1 }, now), false);
 assert.equal(isUpcomingUrgent({ dueTs: today, uncertain: true }, now), false);
+assert.equal(needsApplication(undefined, 'a'), true);
+for (const stage of ['applied', 'joined', 'done', 'credited'])
+  assert.equal(needsApplication({ a: stage }, 'a'), false);
+assert.equal(needsApplication({ a: 'applied' }, 'b'), true);
 console.log('home deadlines: KST dates, expired and uncertain status handled');

@@ -6,12 +6,14 @@ import ts from 'typescript';
 
 const db = new DatabaseSync(':memory:');
 db.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));
+let beforeBatch;
 const d1 = {
   prepare(sql) { return { bind(...args) { return {
     first: async () => db.prepare(sql).get(...args),
     run: async () => ({ meta: { changes: Number(db.prepare(sql).run(...args).changes) } }),
   }; } }; },
   async batch(statements) {
+    if (beforeBatch) { const hook = beforeBatch; beforeBatch = undefined; hook(); }
     db.exec('BEGIN');
     try { const result = []; for (const s of statements) result.push(await s.run()); db.exec('COMMIT'); return result; }
     catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -44,4 +46,24 @@ assert.ok(get('old2')); assert.equal(get('new2'), undefined);
 // Login has independently verified school credentials and keeps the existing migration path.
 await exports.migrateLegacyStudentAccount('new2', 'old2');
 assert.equal(get('old2'), undefined); assert.ok(get('new2'));
-console.log('account migration: expired/revoked sessions cannot write; valid session and login migrate');
+// A destination write after the read must be kept, including its revision.
+insert('old3', 'old3'); insert('new3', 'before');
+beforeBatch = () => db.prepare('UPDATE academic_accounts SET profile = ? WHERE id = ?')
+  .run(JSON.stringify({ name: 'concurrent', rev: 8 }), 'new3');
+await exports.migrateLegacyStudentAccount('new3', 'old3');
+assert.deepEqual(JSON.parse(get('new3').profile), { name: 'concurrent', rev: 8 });
+assert.equal(get('old3'), undefined);
+// A legacy update must also be merged before the old row is deleted.
+insert('old4', 'before'); insert('new4', '');
+beforeBatch = () => db.prepare('UPDATE academic_accounts SET profile = ? WHERE id = ?')
+  .run(JSON.stringify({ name: 'legacy update', rev: 9 }), 'old4');
+await exports.migrateLegacyStudentAccount('new4', 'old4');
+assert.deepEqual(JSON.parse(get('new4').profile), { name: 'legacy update', rev: 9 });
+assert.equal(get('old4'), undefined);
+// A destination created after the initial read must be merged, never deleted around.
+insert('old5', 'legacy');
+beforeBatch = () => insert('new5', 'created concurrently');
+await exports.migrateLegacyStudentAccount('new5', 'old5');
+assert.equal(JSON.parse(get('new5').profile).name, 'created concurrently');
+assert.equal(get('old5'), undefined);
+console.log('account migration: session guards and concurrent writes are preserved');
