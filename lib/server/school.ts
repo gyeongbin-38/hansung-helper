@@ -34,7 +34,7 @@ export type SchoolSnapshot = {
 };
 
 export class SchoolError extends Error {
-  constructor(public code: 'credentials' | 'upstream') {
+  constructor(public code: 'credentials' | 'upstream', public status?: number) {
     super(code);
   }
 }
@@ -72,7 +72,10 @@ export class SchoolSession {
       if (index > 0) jar.set(pair.slice(0, index), pair.slice(index + 1));
     }
     this.cookies.set(target.hostname, jar);
-    if (response.status >= 400) throw new SchoolError('upstream');
+    if (response.status >= 400) {
+      await response.body?.cancel().catch(() => {});
+      throw new SchoolError('upstream', response.status);
+    }
     return response;
   }
   async follow(response: Response, base: string, signal?: AbortSignal) {
@@ -118,10 +121,12 @@ export function parseCourses(html: string): SchoolCourse[] {
   for (const match of html.matchAll(
     /<a\b[^>]*href=["']([^"']*\/course\/view\.php\?[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi,
   )) {
-    const url = new URL(
-      match[1].replace(/&amp;/g, '&'),
-      'https://learn.hansung.ac.kr',
-    );
+    let url: URL;
+    try {
+      url = new URL(match[1].replace(/&amp;/g, '&'), 'https://learn.hansung.ac.kr');
+    } catch {
+      continue;
+    }
     if (
       url.hostname !== 'learn.hansung.ac.kr' ||
       url.pathname !== '/course/view.php'
@@ -153,7 +158,21 @@ export async function connectSchool(
   },
 ): Promise<SchoolSnapshot> {
   const session = new SchoolSession();
-  await (await session.request('https://info.hansung.ac.kr/')).arrayBuffer();
+  // Only retry idempotent page reads. Never automatically repeat a password POST:
+  // a lost response can occur after the school already accepted the login.
+  const readPage = async (url: string) => {
+    try {
+      return await session.request(url);
+    } catch (error) {
+      const transient = error instanceof TypeError ||
+        (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) ||
+        (error instanceof SchoolError && [502, 503, 504].includes(error.status ?? 0));
+      if (!transient) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return session.request(url);
+    }
+  };
+  await (await readPage('https://info.hansung.ac.kr/')).arrayBuffer();
   const response = await session.request(
     'https://info.hansung.ac.kr/servlet/s_gong.gong_login_ssl',
     {
@@ -177,7 +196,8 @@ export async function connectSchool(
     : '';
   if (response.status !== 302 || path !== '/h_dae/dae_main.html') {
     await response.arrayBuffer();
-    throw new SchoolError('credentials');
+    const rejected = redirect && new URL(redirect, 'https://info.hansung.ac.kr').searchParams.get('pwrechk') === 'N';
+    throw new SchoolError(rejected ? 'credentials' : 'upstream');
   }
   const main = await session.follow(response, 'https://info.hansung.ac.kr/');
   const mainHtml = new TextDecoder('euc-kr').decode(await main.arrayBuffer());
@@ -190,7 +210,7 @@ export async function connectSchool(
     await protectedMenu.arrayBuffer(),
   );
   if (!menuHtml.includes('head_bt_logout.gif'))
-    throw new SchoolError('credentials');
+    throw new SchoolError('upstream');
   const snapshot: SchoolSnapshot = {
     portal: 'connected',
     lms: 'unavailable',
@@ -206,10 +226,24 @@ export async function connectSchool(
     html?: string;
     err?: 'auth' | 'landing' | 'upstream';
   }> => {
+    let loginStarted = false;
+    const probeSession = async () => {
+      try {
+        const probe = await session.follow(
+          await readPage('https://learn.hansung.ac.kr/my/'),
+          'https://learn.hansung.ac.kr/my/',
+        );
+        const html = await probe.text();
+        return /\/login\/logout\.php/.test(html) ? html : null;
+      } catch {
+        return null;
+      }
+    };
     try {
       await (
-        await session.request('https://learn.hansung.ac.kr/login.php')
+        await readPage('https://learn.hansung.ac.kr/login.php')
       ).arrayBuffer();
+      loginStarted = true;
       const login = await session.request(
         'https://learn.hansung.ac.kr/login/index.php',
         {
@@ -245,32 +279,23 @@ export async function connectSchool(
       if (code === '3') return { err: 'auth' };
       // 세션이 열렸는데 중간 안내 페이지에 멈춘 경우 — /my/는 로그인 상태로
       // 렌더되므로 여기서 세션 유효성을 재확인한다.
-      try {
-        const probe = await session.follow(
-          await session.request('https://learn.hansung.ac.kr/my/'),
-          'https://learn.hansung.ac.kr/my/',
-        );
-        const probeHtml = await probe.text();
-        if (/\/login\/logout\.php/.test(probeHtml)) {
-          console.log('[lms] session valid via /my/ — interstitial bypassed');
-          return { html: probeHtml };
-        }
-      } catch {
-        /* probe 실패는 아래 err 결과로 처리 */
+      const probeHtml = await probeSession();
+      if (probeHtml) {
+        console.log('[lms] session valid via /my/ — interstitial bypassed');
+        return { html: probeHtml };
       }
       return { err: code ? 'auth' : 'landing' };
     } catch {
       console.log('[lms] login request failed: upstream');
+      if (loginStarted) {
+        const probeHtml = await probeSession();
+        if (probeHtml) return { html: probeHtml };
+      }
       return { err: 'upstream' };
     }
   };
   try {
-    let res = await lmsLogin();
-    if (res.err === 'upstream') {
-      // 순간 네트워크 오류는 1회 재시도 — 자격 거부는 재시도하지 않는다
-      await new Promise((r) => setTimeout(r, 1500));
-      res = await lmsLogin();
-    }
+    const res = await lmsLogin();
     if (res.err) snapshot.lmsError = res.err;
     else {
       snapshot.lms = 'connected';

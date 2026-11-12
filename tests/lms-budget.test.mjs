@@ -42,6 +42,24 @@ const merged = mergeLmsSnapshot(prior, partial);
 assert.equal(merged.courses[0].assigns[0].title, 'fixture', 'successful assignment survives partial timeout');
 assert.equal(merged.courses[0].quizzes[0].title, 'old quiz', 'failed quiz keeps previous data');
 
+const rangePrior = { source: 'cosmos-lms', fetchedAt: '2026-09-01T00:00:00Z', courses: [{ id: 'range', title: 'fixture',
+  vods: [{ title: 'lecture', attended: false, range: '2026-09-01 ~ 2026-09-10', url: 'https://learn.hansung.ac.kr/mod/vod/view.php?id=1' }], assigns: [], quizzes: [] }] };
+const rangePartial = await collectLms({ request: async (url) => {
+  if (url.includes('course/view.php')) throw new Error('temporary range failure');
+  if (url.includes('user_progress')) return auth('<table class="user_progress_table"><thead><tr><th>주차</th><th>콘텐츠</th><th>시간</th><th>출석</th><th>주차 출석</th></tr></thead><tbody><tr><td>1</td><td>lecture</td><td></td><td>O</td><td></td></tr></tbody></table>');
+  return auth('<table class="generaltable"><tbody></tbody></table>');
+} }, [{ id: 'range', name: 'fixture' }]);
+assert.ok(rangePartial.courses[0].errors.includes('vod-range'), 'range-page failure must be visible');
+// Test the merge separately with an unambiguous same-title item and new attendance.
+rangePartial.courses[0].vods = [{ title: 'lecture', attended: true }];
+const retainedRange = mergeLmsSnapshot(rangePrior, rangePartial).courses[0].vods[0];
+assert.equal(retainedRange.attended, true, 'new attendance is kept');
+assert.equal(retainedRange.range, '2026-09-01 ~ 2026-09-10', 'prior range is retained');
+assert.equal(retainedRange.rangeRetainedAt, rangePrior.fetchedAt);
+const ambiguous = structuredClone(rangePrior);
+ambiguous.courses[0].vods.push({ ...ambiguous.courses[0].vods[0] });
+assert.equal(mergeLmsSnapshot(ambiguous, rangePartial).courses[0].vods[0].range, undefined, 'duplicate titles must not be matched');
+
 let requests = 0;
 const manyCourses = Array.from({ length: 15 }, (_, i) => ({ id: String(i + 1), name: 'fixture' }));
 const bounded = await collectLms({ request: async (url) => {

@@ -421,6 +421,7 @@ export async function collectLms(
       quizzes: quizOut.tasks,
       errors: [
         vods.status === 'rejected' && 'vod',
+        ranges.status === 'rejected' && 'vod-range',
         assigns.status === 'rejected' && 'assign',
         quizzes.status === 'rejected' && 'quiz',
         quizOut.unchecked > 0 && 'quiz-check',
