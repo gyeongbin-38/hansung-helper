@@ -11,6 +11,8 @@ export async function POST(request: Request) {
     const token = request.headers
       .get('cookie')
       ?.match(/(?:^|;\s*)__Host-hansung_session=([a-f0-9]{64})(?:;|$)/)?.[1];
+    if (token && request.headers.get('x-hansung-session-context') !== await hash(token))
+      return json({ error: '계정이 변경되었습니다. 화면을 새로고침해 주세요.' }, 409);
     if (token)
       await database()
         .prepare('DELETE FROM academic_sessions WHERE token_hash = ?')

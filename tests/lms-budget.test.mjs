@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { collectLms } from '../lib/server/lms.ts';
 import { mergeLmsSnapshot } from '../lib/data/lms.ts';
-import { SchoolSession } from '../lib/server/school.ts';
+import { SchoolError, SchoolSession } from '../lib/server/school.ts';
+import { retrySchoolRead } from '../lib/server/school-retry.ts';
 
 const auth = (html) => new Response(html + '<a href="/login/logout.php">logout</a>');
 const emptyProgress = '<table class="user_progress_table"><thead><tr><th>주차</th><th>콘텐츠</th><th>시간</th><th>출석</th><th>주차 출석</th></tr></thead><tbody></tbody></table>';
@@ -42,6 +43,24 @@ const merged = mergeLmsSnapshot(prior, partial);
 assert.equal(merged.courses[0].assigns[0].title, 'fixture', 'successful assignment survives partial timeout');
 assert.equal(merged.courses[0].quizzes[0].title, 'old quiz', 'failed quiz keeps previous data');
 
+const rangePrior = { source: 'cosmos-lms', fetchedAt: '2026-09-01T00:00:00Z', courses: [{ id: 'range', title: 'fixture',
+  vods: [{ title: 'lecture', attended: false, range: '2026-09-01 ~ 2026-09-10', url: 'https://learn.hansung.ac.kr/mod/vod/view.php?id=1' }], assigns: [], quizzes: [] }] };
+const rangePartial = await collectLms({ request: async (url) => {
+  if (url.includes('course/view.php')) throw new Error('temporary range failure');
+  if (url.includes('user_progress')) return auth('<table class="user_progress_table"><thead><tr><th>주차</th><th>콘텐츠</th><th>시간</th><th>출석</th><th>주차 출석</th></tr></thead><tbody><tr><td>1</td><td>lecture</td><td></td><td>O</td><td></td></tr></tbody></table>');
+  return auth('<table class="generaltable"><tbody></tbody></table>');
+} }, [{ id: 'range', name: 'fixture' }]);
+assert.ok(rangePartial.courses[0].errors.includes('vod-range'), 'range-page failure must be visible');
+// Test the merge separately with an unambiguous same-title item and new attendance.
+rangePartial.courses[0].vods = [{ title: 'lecture', attended: true }];
+const retainedRange = mergeLmsSnapshot(rangePrior, rangePartial).courses[0].vods[0];
+assert.equal(retainedRange.attended, true, 'new attendance is kept');
+assert.equal(retainedRange.range, '2026-09-01 ~ 2026-09-10', 'prior range is retained');
+assert.equal(retainedRange.rangeRetainedAt, rangePrior.fetchedAt);
+const ambiguous = structuredClone(rangePrior);
+ambiguous.courses[0].vods.push({ ...ambiguous.courses[0].vods[0] });
+assert.equal(mergeLmsSnapshot(ambiguous, rangePartial).courses[0].vods[0].range, undefined, 'duplicate titles must not be matched');
+
 let requests = 0;
 const manyCourses = Array.from({ length: 15 }, (_, i) => ({ id: String(i + 1), name: 'fixture' }));
 const bounded = await collectLms({ request: async (url) => {
@@ -51,6 +70,53 @@ const bounded = await collectLms({ request: async (url) => {
 } }, manyCourses);
 assert.ok(requests <= 40, 'request budget must limit actual school calls');
 assert.ok(bounded.courses.some((course) => course.errors.includes('budget')), 'unstarted courses must report budget exhaustion');
+
+let assignCalls = 0;
+const retryRecovered = await collectLms({ request: async (url) => {
+  if (url.includes('user_progress')) return auth(emptyProgress);
+  if (url.includes('mod/assign')) {
+    if (++assignCalls === 1) throw new TypeError('fetch failed');
+    return auth(assignment);
+  }
+  return auth('<table class="generaltable"><tbody></tbody></table>');
+} }, [{ id: '1', name: 'fixture' }]);
+assert.equal(assignCalls, 2, 'one transient GET failure is retried once');
+assert.equal(retryRecovered.courses[0].assigns[0].submitted, true);
+assert.ok(!retryRecovered.courses[0].errors.includes('assign'));
+
+let limitedCalls = 0;
+const rateLimited = await collectLms({ request: async (url) => {
+  if (url.includes('user_progress')) return auth(emptyProgress);
+  if (url.includes('mod/assign')) { limitedCalls++; throw new SchoolError('upstream', 429); }
+  return auth('<table class="generaltable"><tbody></tbody></table>');
+} }, [{ id: '1', name: 'fixture' }]);
+assert.equal(limitedCalls, 1, '429 must not be retried');
+assert.ok(rateLimited.courses[0].errors.includes('assign'));
+
+const callsByCourse = new Map();
+let totalRetriesTestCalls = 0;
+const retryLimited = await collectLms({ request: async (url) => {
+  totalRetriesTestCalls++;
+  if (url.includes('user_progress')) return auth(emptyProgress);
+  if (url.includes('mod/assign')) {
+    const id = new URL(url).searchParams.get('id');
+    const attempts = (callsByCourse.get(id) ?? 0) + 1;
+    callsByCourse.set(id, attempts);
+    if (attempts === 1) throw new SchoolError('upstream', 503);
+    return auth(assignment);
+  }
+  return auth('<table class="generaltable"><tbody></tbody></table>');
+} }, Array.from({ length: 5 }, (_, i) => ({ id: String(i + 1), name: 'fixture' })));
+assert.deepEqual([...callsByCourse.values()], [2, 2, 2, 1, 1], 'collection has at most three additional retries');
+assert.ok(totalRetriesTestCalls <= 40);
+assert.ok(retryLimited.courses[3].errors.includes('assign'));
+
+const retryAbort = new AbortController();
+let retryAttempts = 0;
+const abortingRetry = retrySchoolRead(async () => { retryAttempts++; throw new TypeError('fetch failed'); }, () => true, retryAbort.signal);
+setTimeout(() => retryAbort.abort(), 20);
+await assert.rejects(abortingRetry);
+assert.equal(retryAttempts, 1, 'cancellation prevents another attempt');
 
 const originalFetch = globalThis.fetch;
 try {

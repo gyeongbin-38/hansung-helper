@@ -2,8 +2,8 @@
  * 학사 캘린더 통합 뷰 — 공식 학사일정·COSMOS 마감·개인 일정을 하나의
  * 월 그리드로 합치는 순수 로직. 출처별 kind를 유지해 화면에서 구분한다.
  */
-import { pendingTasks, type LmsPending, type LmsSnapshot } from './lms.ts';
-import type { ScheduleEvent } from './schedule.ts';
+import { parseDue, pendingTasks, type LmsPending, type LmsSnapshot } from './lms.ts';
+import { scheduleToday, type ScheduleEvent } from './schedule.ts';
 
 export type CalKind = 'academic' | 'lms' | 'personal';
 
@@ -110,7 +110,10 @@ export function collectCalItems(input: {
     ? pendingTasks(input.lms, input.lmsBefore ?? null)
     : [];
   pending.forEach((t, i) => {
-    const start = dueToIso(t.due);
+    const normalized = t.due?.replace(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/g,
+      (_, year: string, month: string, day: string) => `${year}-${pad(+month)}-${pad(+day)}`) ?? null;
+    const due = parseDue(normalized);
+    const start = due === null ? null : scheduleToday(due);
     if (!start) return;
     out.push({
       id: `lms-${i}-${start}`,

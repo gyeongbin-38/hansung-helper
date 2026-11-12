@@ -28,6 +28,10 @@ test('course parser flags .course_label_ec community courses', () => {
     },
   ]);
 });
+test('a malformed course link does not prevent other courses from being collected', () => {
+  const html = '<a href="https://[bad/course/view.php?id=1">bad</a><a href="/course/view.php?id=2">good</a>';
+  assert.deepEqual(parseCourses(html).map((course) => course.id), ['2']);
+});
 test('authentication upgrades legacy redirect and isolates per-host cookies', async () => {
   const original = globalThis.fetch,
     requests = [];
@@ -133,6 +137,15 @@ test('failed portal auth never creates a school snapshot or attempts LMS login',
     globalThis.fetch = original;
   }
 });
+test('unexpected portal login response is a connection failure, not a wrong-password claim', async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response(calls === 1 ? '' : 'maintenance'); };
+  try {
+    await assert.rejects(connectSchool('0000000', 'fixture'), { code: 'upstream' });
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = original; }
+});
 test('portal success survives an LMS outage with an explicit unavailable state', async () => {
   const original = globalThis.fetch;
   let calls = 0;
@@ -174,4 +187,82 @@ test('unexpected redirect host is rejected before cookies are sent', async () =>
   } finally {
     globalThis.fetch = original;
   }
+});
+
+test('transient LMS login-page failure retries the GET but not the password POST', async () => {
+  const original = globalThis.fetch;
+  let portalCalls = 0, lmsReads = 0, lmsPosts = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input);
+    if (url.hostname === 'info.hansung.ac.kr') {
+      portalCalls++;
+      if (portalCalls === 1) return new Response('');
+      if (portalCalls === 2) return new Response('', { status: 302, headers: { Location: '/h_dae/dae_main.html' } });
+      return new Response(portalCalls === 3 ? 'infohaksamain_portal.jsp' : 'head_bt_logout.gif');
+    }
+    if (url.pathname === '/login.php') {
+      if (++lmsReads === 1) return new Response('', { status: 503 });
+      return new Response('');
+    }
+    if (url.pathname === '/login/index.php') {
+      assert.equal(init.method, 'POST'); lmsPosts++;
+      return new Response('<a href="/login/logout.php">logout</a><a href="/course/view.php?id=5">fixture</a>');
+    }
+    throw new Error('unexpected request');
+  };
+  try {
+    const snapshot = await connectSchool('0000000', 'fixture', { deferLms() {}, deferInfo() {} });
+    assert.equal(snapshot.lms, 'connected');
+    assert.equal(lmsReads, 2);
+    assert.equal(lmsPosts, 1);
+  } finally { globalThis.fetch = original; }
+});
+
+test('lost LMS login response probes the session without submitting credentials twice', async () => {
+  const original = globalThis.fetch;
+  let portalCalls = 0, posts = 0, probes = 0;
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'info.hansung.ac.kr') {
+      portalCalls++;
+      if (portalCalls === 1) return new Response('');
+      if (portalCalls === 2) return new Response('', { status: 302, headers: { Location: '/h_dae/dae_main.html' } });
+      return new Response(portalCalls === 3 ? 'infohaksamain_portal.jsp' : 'head_bt_logout.gif');
+    }
+    if (url.pathname === '/login.php') return new Response('');
+    if (url.pathname === '/login/index.php') { posts++; throw new TypeError('network'); }
+    if (url.pathname === '/my/') { probes++; return new Response('<a href="/login/logout.php">logout</a><a href="/course/view.php?id=5">fixture</a>'); }
+    throw new Error('unexpected request');
+  };
+  try {
+    const snapshot = await connectSchool('0000000', 'fixture', { deferLms() {}, deferInfo() {} });
+    assert.equal(snapshot.lms, 'connected');
+    assert.equal(snapshot.courses.length, 1);
+    assert.equal(posts, 1);
+    assert.equal(probes, 1);
+  } finally { globalThis.fetch = original; }
+});
+
+test('a failed LMS login and failed session probe never resend the password', async () => {
+  const original = globalThis.fetch;
+  let portalCalls = 0, posts = 0;
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'info.hansung.ac.kr') {
+      portalCalls++;
+      if (portalCalls === 1) return new Response('');
+      if (portalCalls === 2) return new Response('', { status: 302, headers: { Location: '/h_dae/dae_main.html' } });
+      return new Response(portalCalls === 3 ? 'infohaksamain_portal.jsp' : 'head_bt_logout.gif');
+    }
+    if (url.pathname === '/login.php') return new Response('');
+    if (url.pathname === '/login/index.php') { posts++; throw new TypeError('network'); }
+    if (url.pathname === '/my/') return new Response('login required');
+    throw new Error('unexpected request');
+  };
+  try {
+    const snapshot = await connectSchool('0000000', 'fixture', { deferLms() {}, deferInfo() {} });
+    assert.equal(snapshot.lms, 'unavailable');
+    assert.equal(snapshot.lmsError, 'upstream');
+    assert.equal(posts, 1);
+  } finally { globalThis.fetch = original; }
 });

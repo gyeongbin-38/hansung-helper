@@ -21,6 +21,17 @@ The shared status codes are `INVALID_REQUEST` (400), `AUTH_REQUIRED` (401),
 Client fetch timeouts and network failures use `TIMEOUT` and `NETWORK_ERROR`;
 malformed JSON uses `INVALID_RESPONSE`.
 
+Account login, current-account reads and successful refresh responses include an
+opaque `sessionContext` (a SHA-256 digest of the random session token, never the
+cookie itself). Each tab keeps its own value in memory and sends it as
+`X-Hansung-Session-Context` on authenticated account mutations and advisor
+requests, and on subsequent account reads. Mutations reject a missing or
+mismatched context, and account reads reject a mismatched context; an initial
+account read may omit it to restore a session. Logout with a mismatched context
+returns 409 without clearing the new account's cookie. A new login signals
+other tabs to clear their displayed account state. Older clients without this
+header must reload after deployment before saving or using authenticated actions.
+
 The client helper unwraps only successful envelopes and surfaces the same
 `message` for account and public-data requests. Account APIs remain
 `Cache-Control: no-store, private` and vary by cookie.
@@ -53,6 +64,19 @@ deadline; `timeout-partial` marks a deadline reached during a course. In the
 latter case the individual `vod`, `assign` and `quiz` errors identify failed
 lists, allowing successful lists to remain current. This does not claim a
 deadline over school login or the separate academic-information collector.
+
+`vod-range` means the course page used to obtain lecture periods could not be
+checked. Newly collected attendance is preserved; an earlier range and link
+are retained only for an unambiguous same-title lecture. `rangeRetainedAt`
+records the last known range check when available. The course remains marked as
+partially failed so that a retained range is not presented as freshly verified.
+
+School page reads use `p-retry` 9.0.0 (MIT) for at most one retry of a
+transient network error or HTTP 502/503/504. Login POSTs are never retried.
+Detailed LMS collection permits at most three such extra attempts, all counted
+against its 40-request and 60-second limits. HTTP 429, authentication rejection,
+unrecognized page structure and caller cancellation are not retried. Retrying cannot
+guarantee that the school service is available or that all items fit the budget.
 
 For a task with `uncertain: true`, optional `statusRetainedAt` records when
 its retained submission/attempt status was last confirmed. The course's

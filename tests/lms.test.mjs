@@ -296,6 +296,7 @@ const unSnap = {
 };
 const unPend = pendingTasks(unSnap);
 const uncertainVodSnap = { ...unSnap, courses: [{ ...unSnap.courses[0], vods: [{ title: '출석 확인 실패', attended: false, uncertain: true }] }] };
+t('uncertain: 이전 출석 결과가 있어도 확인 필요 항목에 포함', pendingTasks({ ...uncertainVodSnap, courses: [{ ...uncertainVodSnap.courses[0], vods: [{ title: '이전 출석', attended: true, uncertain: true }] }] }).some((p) => p.title === '이전 출석' && p.uncertain));
 t('uncertain: 출석 확인 실패 플래그 전달', pendingTasks(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true && bingeQueue(validateLms(uncertainVodSnap)).find((p) => p.title === '출석 확인 실패')?.uncertain === true);
 const oldLms = { source: 'cosmos-lms', fetchedAt: '2026-09-19T00:00:00Z', courses: [{ id: '301', title: '과목', vods: [{ title: '이전 강의', attended: true }], assigns: [{ title: '이전 과제', submitted: true }], quizzes: [{ title: '이전 퀴즈', submitted: true }] }] };
 const partialLms = { ...unSnap, fetchedAt: '2026-09-20T00:00:00Z', courses: [{ ...unSnap.courses[0], vods: [], assigns: [], errors: ['vod', 'assign'] }] };

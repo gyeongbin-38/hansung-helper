@@ -43,7 +43,7 @@ import {
   stageReminderTargets,
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
-import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
+import { apiData, apiFetch, ApiRequestError, setAccountContext } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
@@ -129,6 +129,7 @@ export default function App() {
     channel.onmessage = (event) => {
       if (event.data?.type !== 'session-ended' || demoRef.current) return;
       accountGeneration.current += 1;
+      setAccountContext(null);
       allowExtensionImport.current = false;
       setAccount(null);
       setData(empty);
@@ -136,7 +137,7 @@ export default function App() {
       setActDraft([]);
       setRoute('home');
       location.hash = 'home';
-      setAccountError('다른 탭에서 로그아웃했거나 계정을 삭제했습니다.');
+      setAccountError('다른 탭에서 계정이 변경되었거나 로그아웃했습니다.');
     };
     return () => {
       sessionChannel.current = null;
@@ -153,6 +154,7 @@ export default function App() {
         if (response.ok) {
           const result = await apiData<Account>(response);
           if (active && generation === accountGeneration.current) {
+            setAccountContext(result.sessionContext);
             allowExtensionImport.current = true;
             setAccount(result);
             setData(accountData(result));
@@ -599,6 +601,7 @@ export default function App() {
       if (!response.ok) throw new Error();
       try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 로그아웃을 방해하지 않는다 */ }
       clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setDemo(false);
       setData(empty);
@@ -628,6 +631,7 @@ export default function App() {
       if (!response.ok) throw new Error();
       try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* 알림 실패는 탈퇴를 방해하지 않는다 */ }
       clearExtensionCache();
+      setAccountContext(null);
       setAccount(null);
       setData(empty);
       setDraft([]);
@@ -851,6 +855,8 @@ export default function App() {
           notice={accountError || undefined}
           onAuthenticated={(result) => {
             accountGeneration.current += 1;
+            setAccountContext(result.sessionContext);
+            try { sessionChannel.current?.postMessage({ type: 'session-ended' }); } catch { /* ignore */ }
             clearExtensionCache();
             allowExtensionImport.current = true;
             setAccount(result);

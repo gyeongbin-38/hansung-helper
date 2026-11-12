@@ -48,6 +48,7 @@ const DAY = 86400000;
 /** 수집 오류 코드 → 화면 표시명 */
 const ERROR_LABELS: Record<string, string> = {
   vod: '강의',
+  'vod-range': '강의 수강 기간',
   assign: '과제',
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',

@@ -18,7 +18,6 @@ import {
   addMonths,
   collectCalItems,
   dowOf,
-  isoOf,
   itemsInRange,
   itemsOnDay,
   kindLabel,
@@ -28,6 +27,7 @@ import {
   type CalItem,
 } from '@/lib/data/calendar';
 import { buildIcs } from '@/lib/data/ics';
+import { scheduleToday } from '@/lib/data/schedule';
 import { useCatalog, useNow, useSchedule } from './catalog';
 import { RetryButton, SkeletonRows } from './skeleton';
 
@@ -57,7 +57,7 @@ export function CalendarSection({
   const { snap, failed, retry } = useSchedule();
   const { catalog } = useCatalog();
   const now = useNow(30000);
-  const todayIso = isoOf(new Date(now));
+  const todayIso = scheduleToday(now);
   const [selected, setSelected] = useState(todayIso);
   const [month, setMonth] = useState(todayIso.slice(0, 7));
   const [quick, setQuick] = useState('');
@@ -142,7 +142,7 @@ export function CalendarSection({
       .map((id) => catalog?.sections.find((s) => s.id === id))
       .filter((s): s is NonNullable<typeof s> => !!s);
     const semesterStartIso =
-      before != null ? isoOf(new Date(before)) : undefined;
+      before != null ? scheduleToday(before) : undefined;
     const text = buildIcs({
       items,
       planned,

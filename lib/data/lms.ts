@@ -34,6 +34,8 @@ export type LmsVod = {
   weeklyStatus?: string;
   /** 수강 기간 원문 */
   range?: string;
+  /** 기간 조회가 실패해 이전 확인값을 사용한 시각 */
+  rangeRetainedAt?: string;
   /** LMS 강의 링크 */
   url?: string;
   /** 시청시간 'HH:mm[:ss]' (확장 수집기만 제공) */
@@ -50,7 +52,7 @@ export type LmsCourse = {
   vods: LmsVod[];
   assigns: LmsTask[];
   quizzes: LmsTask[];
-  /** 수집 실패한 항목 (vod/assign/quiz/quiz-check) — 부분 수집 표시용 */
+  /** 수집 실패한 항목 (vod/vod-range/assign/quiz/quiz-check) — 부분 수집 표시용 */
   errors?: string[];
   /** 실패한 항목에 이전 수집 결과를 사용한 경우 그 수집 시각 */
   retainedAt?: string;
@@ -133,6 +135,7 @@ export function validateLms(raw: unknown): LmsSnapshot | null {
           weeklyStatus:
             typeof t.weeklyStatus === 'string' ? t.weeklyStatus : undefined,
           range: typeof t.range === 'string' ? t.range : undefined,
+          rangeRetainedAt: retainedTime(t.rangeRetainedAt, s.fetchedAt),
           url: safeLmsUrl(t.url),
           watched: typeof t.watched === 'string' ? t.watched : undefined,
           required: typeof t.required === 'string' ? t.required : undefined,
@@ -236,7 +239,19 @@ export function mergeLmsSnapshot(previous: LmsSnapshot | undefined, next: LmsSna
     });
     const assigns = assign ? selectFailed('assign', old.assigns, course.assigns) : retainTaskStatus(course.assigns, old.assigns, 'assign');
     const quizzes = quiz ? selectFailed('quiz', old.quizzes, course.quizzes) : retainTaskStatus(course.quizzes, old.quizzes, 'quiz');
-    const vods = vod ? selectFailed('vod', old.vods, course.vods) : course.vods;
+    const vods = vod ? selectFailed('vod', old.vods, course.vods) : errors.has('vod-range')
+      ? course.vods.map((item) => {
+          const matches = old.vods.filter((prior) => prior.title === item.title);
+          if (matches.length !== 1 || course.vods.filter((v) => v.title === item.title).length !== 1)
+            return item;
+          const prior = matches[0];
+          if (!prior.range && !prior.url) return item;
+          const time = (old.errors ?? []).includes('vod-range')
+            ? retainedTime(prior.rangeRetainedAt, previous.fetchedAt)
+            : oldTime('vod');
+          return { ...item, range: prior.range, url: prior.url, rangeRetainedAt: time };
+        })
+      : course.vods;
     return { ...course, vods,
       assigns, quizzes,
       retainedAt: Object.values(retained).sort((a, b) => Date.parse(a) - Date.parse(b))[0],
@@ -366,7 +381,7 @@ export function pendingTasks(
   };
   for (const c of snap.courses) {
     for (const v of c.vods)
-      if (!v.attended)
+      if (!v.attended || v.uncertain)
         push({
           course: c.title,
           kind: '강의',
