@@ -185,7 +185,7 @@ export async function POST(request: Request) {
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
       .bind(id)
       .first<AccountRow>();
-    return json(accountView(row!));
+    return json(accountView(row!, account.session_hash));
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
       return json({ error: '입력 크기를 초과했습니다.' }, 413);

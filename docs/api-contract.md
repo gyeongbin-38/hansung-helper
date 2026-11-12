@@ -21,6 +21,17 @@ The shared status codes are `INVALID_REQUEST` (400), `AUTH_REQUIRED` (401),
 Client fetch timeouts and network failures use `TIMEOUT` and `NETWORK_ERROR`;
 malformed JSON uses `INVALID_RESPONSE`.
 
+Account login, current-account reads and successful refresh responses include an
+opaque `sessionContext` (a SHA-256 digest of the random session token, never the
+cookie itself). Each tab keeps its own value in memory and sends it as
+`X-Hansung-Session-Context` on authenticated account mutations and advisor
+requests, and on subsequent account reads. Mutations reject a missing or
+mismatched context, and account reads reject a mismatched context; an initial
+account read may omit it to restore a session. Logout with a mismatched context
+returns 409 without clearing the new account's cookie. A new login signals
+other tabs to clear their displayed account state. Older clients without this
+header must reload after deployment before saving or using authenticated actions.
+
 The client helper unwraps only successful envelopes and surfaces the same
 `message` for account and public-data requests. Account APIs remain
 `Cache-Control: no-store, private` and vary by cookie.

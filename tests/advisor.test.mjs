@@ -77,6 +77,7 @@ restoreSession();
 function req(body = { personal: false, messages: [{ role: 'user', content: '시간표 쓰는 법' }] }, options = {}) {
   return new Request('https://app.test/api/advisor', { method: 'POST',
     headers: { Origin: options.origin ?? 'https://app.test', 'Content-Type': 'application/json',
+      'X-Hansung-Session-Context': tokenHash,
       ...(options.anonymous ? {} : { Cookie: `__Host-hansung_session=${token}` }) },
     body: typeof body === 'string' ? body : JSON.stringify(body) });
 }

@@ -253,19 +253,24 @@ export async function authenticated(
     .get('cookie')
     ?.match(/(?:^|;\s*)__Host-hansung_session=([a-f0-9]{64})(?:;|$)/)?.[1];
   if (!token) return null;
+  const sessionHash = await hash(token);
+  const context = request.headers.get('x-hansung-session-context');
+  const initialAccountRead = request.method === 'GET' && new URL(request.url).pathname === '/api/account';
+  if ((!context && !initialAccountRead) || (context && context !== sessionHash)) return null;
   return database()
     .prepare(
       'SELECT a.id, a.profile, a.snapshot, a.onboarded, a.student_mask, s.token_hash AS session_hash FROM academic_accounts a JOIN academic_sessions s ON s.account_id = a.id WHERE s.token_hash = ? AND s.expires_at > ?',
     )
-    .bind(await hash(token), Date.now())
+    .bind(sessionHash, Date.now())
     .first<AccountRow & { session_hash: string }>();
 }
-export function accountView(row: AccountRow) {
+export function accountView(row: AccountRow, sessionContext?: string) {
   return {
     profile: JSON.parse(row.profile),
     snapshot: JSON.parse(row.snapshot),
     onboarded: !!row.onboarded,
     studentMask: row.student_mask,
+    sessionContext: sessionContext ?? (row as AccountRow & { session_hash?: string }).session_hash,
   };
 }
 export function sessionCookie(token: string, age = 86400) {

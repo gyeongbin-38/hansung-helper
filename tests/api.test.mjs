@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { apiData, apiFetch, ApiRequestError } from '../lib/data/api.ts';
+import { apiData, apiFetch, ApiRequestError, setAccountContext } from '../lib/data/api.ts';
 
 const data = { value: 42 };
 assert.deepEqual(await apiData(new Response(JSON.stringify({ ok: true, data }))), data);
@@ -35,6 +35,18 @@ await assert.rejects(
 
 const originalFetch = globalThis.fetch;
 try {
+  let headers;
+  globalThis.fetch = async (_input, init) => { headers = init.headers; return new Response(); };
+  setAccountContext('fixture-context');
+  await apiFetch('/api/account/profile', { method: 'PUT' });
+  assert.equal(headers.get('X-Hansung-Session-Context'), 'fixture-context');
+  await apiFetch('/api/account/login', { method: 'POST' });
+  assert.equal(headers.get('X-Hansung-Session-Context'), null);
+  await apiFetch('/api/activities');
+  assert.equal(headers.get('X-Hansung-Session-Context'), null);
+  setAccountContext(null);
+  await apiFetch('/api/account/profile', { method: 'PUT' });
+  assert.equal(headers.get('X-Hansung-Session-Context'), null);
   globalThis.fetch = async () => {
     throw new DOMException('timed out', 'TimeoutError');
   };
@@ -43,6 +55,7 @@ try {
     (error) => error instanceof ApiRequestError && error.code === 'TIMEOUT',
   );
 } finally {
+  setAccountContext(null);
   globalThis.fetch = originalFetch;
 }
 

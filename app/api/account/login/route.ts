@@ -228,7 +228,7 @@ export async function POST(request: Request) {
           }
         })(),
       );
-    return json(accountView(row!), 200, { 'Set-Cookie': sessionCookie(token) });
+    return json(accountView(row!, tokenHash), 200, { 'Set-Cookie': sessionCookie(token) });
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
       return json({ error: '입력 크기를 초과했습니다.' }, 413);

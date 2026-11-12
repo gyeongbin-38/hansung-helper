@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const cookie = '__Host-hansung_session=' + 'a'.repeat(64);
-const request = { headers: new Headers({ cookie }) };
+const request = { headers: new Headers({ cookie, 'x-hansung-session-context': 'hashed' }) };
 let authenticated = async () => ({ id: 'fixture', session_hash: 'token' });
 let dbFailure = false;
 let changes = 1;

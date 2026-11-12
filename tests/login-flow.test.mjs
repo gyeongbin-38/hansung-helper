@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import vm from 'node:vm';
@@ -77,10 +77,11 @@ const profile = await load('app/api/account/profile/route.ts', {
 const logout = await load('app/api/account/logout/route.ts', imports);
 const health = await load('app/api/health/route.ts', imports);
 const base = 'https://app.test';
-function request(path, method = 'GET', body, cookie) {
+function request(path, method = 'GET', body, cookie, context) {
   return new Request(base + path, {
     method,
-    headers: { Origin: base, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+    headers: { Origin: base, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie,
+      'X-Hansung-Session-Context': context ?? createHash('sha256').update(cookie.split('=')[1]).digest('hex') } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
@@ -127,6 +128,19 @@ const id = await account.studentAccountId(input.studentId);
 assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM academic_accounts WHERE id=?').get(legacy).n, 0);
 assert.equal(sql.prepare('SELECT account_id FROM academic_sessions WHERE token_hash=?').get('legacy-session').account_id, id);
 assert.equal((await current.GET(request('/api/account', 'GET', undefined, cookie))).status, 200);
+
+// A stale tab still carrying A's state must not read, modify, delete or log out B.
+response = await login.POST(request('/api/account/login', 'POST', { ...input, studentId: '00000002' }));
+assert.equal(response.status, 200);
+const bCookie = response.headers.get('Set-Cookie').split(';')[0];
+const aContext = loggedIn.sessionContext;
+const bBefore = (await (await current.GET(request('/api/account', 'GET', undefined, bCookie))).json()).data;
+assert.equal((await current.GET(request('/api/account', 'GET', undefined, bCookie, aContext))).status, 401);
+const staleProfile = { ...loggedIn.profile, rev: 0, saved: [], planned: [], prefs: [], events: [], completed: [] };
+assert.equal((await profile.PUT(request('/api/account/profile', 'PUT', staleProfile, bCookie, aContext))).status, 401);
+assert.equal((await current.DELETE(request('/api/account', 'DELETE', {}, bCookie, aContext))).status, 401);
+assert.equal((await logout.POST(request('/api/account/logout', 'POST', {}, bCookie, aContext))).status, 409);
+assert.deepEqual((await (await current.GET(request('/api/account', 'GET', undefined, bCookie))).json()).data.profile, bBefore.profile);
 
 const changes = {
   name: '저장한 프로필', saved: ['activity-1'], planned: [], prefs: ['실습'],

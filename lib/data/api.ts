@@ -3,6 +3,11 @@ export type ApiSuccess<T> = { ok: true; data: T };
 export type ApiFailure = { ok: false; error: ApiError };
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
+let accountContext: string | null = null;
+export function setAccountContext(value: string | null) {
+  accountContext = value;
+}
+
 export class ApiRequestError extends Error {
   readonly code: string;
   readonly status: number;
@@ -25,8 +30,13 @@ export async function apiFetch(
   timeoutMs = 15000,
 ): Promise<Response> {
   try {
+    const headers = new Headers(init.headers);
+    const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : new URL(input.url).pathname;
+    if (accountContext && (path.startsWith('/api/account') && path !== '/api/account/login' || path === '/api/advisor'))
+      headers.set('X-Hansung-Session-Context', accountContext);
     return await fetch(input, {
       ...init,
+      headers,
       signal: init.signal ?? AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
