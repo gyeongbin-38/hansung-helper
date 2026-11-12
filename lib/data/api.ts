@@ -47,7 +47,9 @@ export async function apiData<T>(response: Response): Promise<T> {
   let payload: unknown;
   try {
     payload = await response.json();
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+      throw new ApiRequestError('요청 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.', 'TIMEOUT', response.status);
     throw new ApiRequestError('서버 응답을 읽지 못했습니다.', 'INVALID_RESPONSE', response.status);
   }
   if (

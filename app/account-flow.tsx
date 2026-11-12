@@ -5,6 +5,7 @@ import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
 import type { Catalog } from '@/lib/data/catalog';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
+import { useSlowLoading } from './use-slow-loading';
 
 export type Profile = {
   name: string;
@@ -50,6 +51,7 @@ export function SignIn({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<'signup' | 'login'>('signup');
+  const slowLogin = useSlowLoading(busy);
   return (
     <div className="auth-page">
       <div className="auth-brand">
@@ -70,9 +72,10 @@ export function SignIn({
           나에게 맞는 다음 학기를 준비하세요.
         </p>
         {notice && (
-          <p className="auth-error" role="alert">
-            {notice}
-          </p>
+          <div className="auth-error" role="alert">
+            <p>{notice}</p>
+            <button type="button" className="link" onClick={() => location.reload()}>다시 확인</button>
+          </div>
         )}
         <form
           className="auth-form"
@@ -101,7 +104,9 @@ export function SignIn({
               onAuthenticated(result);
             } catch (error) {
               setError(
-                error instanceof ApiRequestError
+                error instanceof ApiRequestError && error.code === 'TIMEOUT'
+                  ? '학교 로그인 응답이 늦어 완료 여부를 확인하지 못했어요. 잠시 후 페이지를 새로고침해 로그인 상태를 확인해 주세요.'
+                  : error instanceof ApiRequestError
                   ? error.message
                   : '연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.',
               );
@@ -162,6 +167,11 @@ export function SignIn({
           {error && (
             <p className="auth-error" role="alert">
               {error}
+            </p>
+          )}
+          {slowLogin && (
+            <p className="meta" aria-live="polite">
+              학교 응답이 평소보다 오래 걸리고 있어요. 연결을 확인 중이니 잠시만 기다려 주세요.
             </p>
           )}
           <button className="primary" disabled={busy}>

@@ -9,6 +9,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useSlowLoading } from '../use-slow-loading';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
@@ -491,6 +492,7 @@ export function LmsSection({
   notify,
   serverCollecting,
   collectFailed,
+  collectDelayed,
   lmsUnavailable,
   lmsError,
   studentMask,
@@ -507,6 +509,7 @@ export function LmsSection({
   serverCollecting?: boolean;
   /** 서버 측 수집이 실패/중단된 상태 — 계정 연결 자체는 유지됨 */
   collectFailed?: boolean;
+  collectDelayed?: boolean;
   /** 포털 로그인은 됐지만 COSMOS 접속 자체가 실패한 상태 */
   lmsUnavailable?: boolean;
   /** COSMOS 로그인 단계 실패 원인 — auth/landing/upstream */
@@ -541,13 +544,15 @@ export function LmsSection({
   const pendCount = snap ? pendingTasks(snap, before).length : 0;
 
   // 단일 동기화 상태 — 밴드와 연결 관리가 같은 판정을 본다
-  const band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh' =
+  const band: 'syncing' | 'login' | 'failed' | 'delayed' | 'setup' | 'stale' | 'fresh' =
     syncing
       ? 'syncing'
       : extStatus.status === 'login-required'
         ? 'login'
         : extStatus.status === 'failed' || collectFailed || lmsUnavailable
           ? 'failed'
+          : collectDelayed
+            ? 'delayed'
           : !snap
             ? 'setup'
             : stale !== null && stale >= 1
@@ -995,7 +1000,7 @@ function SyncBand({
   matchTotal = 0,
   serverLoginFailed,
 }: {
-  band: 'syncing' | 'login' | 'failed' | 'setup' | 'stale' | 'fresh';
+  band: 'syncing' | 'login' | 'failed' | 'delayed' | 'setup' | 'stale' | 'fresh';
   snap?: LmsSnapshot;
   now: number;
   pending: number;
@@ -1026,6 +1031,12 @@ function SyncBand({
       d: snap
         ? '아래는 이전에 수집된 데이터입니다. 다시 시도해 주세요.'
         : '아직 표시할 데이터가 없습니다. 다시 시도해 주세요.',
+    },
+    delayed: {
+      t: '수집 결과 확인이 지연되고 있습니다',
+      d: snap
+        ? '아래는 이전에 수집된 데이터입니다. 서버에서 처리가 계속되고 있을 수 있습니다.'
+        : '아직 수집 결과를 확인하지 못했습니다. 서버에서 처리가 계속되고 있을 수 있습니다.',
     },
     setup: {
       t: 'COSMOS 수업 현황을 연결하세요',
@@ -1418,6 +1429,7 @@ function RefreshForm({
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const slowRefresh = useSlowLoading(loading);
   const submit = async () => {
     if (loading) return;
     setErr('');
@@ -1435,11 +1447,14 @@ function RefreshForm({
       notify?.('서버에서 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.');
     } catch (error) {
       setErr(
-        error instanceof ApiRequestError
+        error instanceof ApiRequestError && error.code === 'TIMEOUT'
+          ? '재수집 응답이 늦어 완료 여부를 확인하지 못했어요. 잠시 후 페이지를 새로고침해 상태를 확인해 주세요.'
+          : error instanceof ApiRequestError
           ? error.message
           : '요청에 실패했습니다. 네트워크를 확인해 주세요.',
       );
     } finally {
+      setPassword('');
       setLoading(false);
     }
   };
@@ -1490,12 +1505,15 @@ function RefreshForm({
           onClick={() => {
             setOpen(false);
             setErr('');
+            setPassword('');
           }}
+          disabled={loading}
         >
           취소
         </button>
       </div>
-      {err && <p className="lms-error">{err}</p>}
+      {slowRefresh && <p className="meta" aria-live="polite">학교 응답이 평소보다 오래 걸리고 있어요. 연결을 확인 중이니 잠시만 기다려 주세요.</p>}
+      {err && <p className="lms-error" role="alert">{err}</p>}
     </form>
   );
 }
