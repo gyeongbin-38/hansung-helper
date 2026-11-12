@@ -7,12 +7,16 @@ import {
   parsePoints,
   parseAudit,
   parseIdentity,
+  parseSemesterGrades,
+  parseAcademic,
   collectInfo,
 } from '../lib/server/info.ts';
 import {
   infoCategory,
   mergeCompleted,
   mergeInfoSnapshot,
+  resolveEarnedCredits,
+  semestersFromCourses,
   validateInfo,
 } from '../lib/data/info.ts';
 
@@ -87,6 +91,32 @@ const GRADES_INLINE = `<table>
 </table>`;
 const gi = parseGrades(GRADES_INLINE);
 t('grades: 인라인 학기행 인식', gi.completed[0]?.semester === '2023-1');
+const UNCONFIRMED_GRADES = `<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr>
+<tr><td>현재 수강 과목</td><td>3</td><td></td></tr></table>`;
+const unconfirmedParsed = parseGrades(UNCONFIRMED_GRADES);
+t('grades: 전체 성적이 비어 있어도 미확정 과목을 이수로 계산하지 않음',
+  unconfirmedParsed.hasUnconfirmed && unconfirmedParsed.completed.length === 0);
+const mixedGrades = parseGrades(`<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr>
+<tr><td>확정 과목</td><td>3</td><td>A+</td></tr>
+<tr><td>미확정 과목</td><td>3</td><td></td></tr></table>`);
+t('grades: 확정 과목과 빈 성적이 섞여 있어도 빈 성적은 제외',
+  mixedGrades.hasUnconfirmed && mixedGrades.completed.length === 1 && mixedGrades.completed[0].name === '확정 과목');
+const failedOnly = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>미이수 과목</td><td>3</td><td>F</td></tr></table>');
+t('grades: 확정 F만 있는 표는 미확정이 아닌 정상 빈 이수 목록',
+  !failedOnly.hasUnconfirmed && failedOnly.recognized && failedOnly.completed.length === 0);
+
+// 새 성적 화면 — 헤더 없이 th에 과목명이 오는 형태
+const NEW_STYLE_GRADES = `<div class="panel-heading"><h3>2026 학년도 1 학기</h3></div>
+<table><tr><th>인공지능 수학</th><td>전필</td><td>3</td><td>A+</td><td>Y030004</td></tr></table>`;
+const newStyle = parseGrades(NEW_STYLE_GRADES);
+t(
+  'grades: 헤더 없는 새 화면도 과목으로 인식',
+  newStyle.recognized &&
+    newStyle.completed.length === 1 &&
+    newStyle.completed[0].name === '인공지능 수학' &&
+    newStyle.completed[0].code === 'Y030004' &&
+    newStyle.completed[0].grade === 'A+',
+);
 
 // ── 실계정 마크업 (덤프 구조 재현, 익명화) ─────────────────
 const REAL_MAIN = `<html><frameset>
@@ -188,6 +218,99 @@ t('id: 소속', id.dept === '컴퓨터공학과');
 t('id: 학번→입학연도', id.admitYear === 2024);
 t('id: 없으면 빈 객체', Object.keys(parseIdentity('<p>none</p>')).length === 0);
 
+// ── 학기별 성적/학적 ─────────────────────────────────────
+const SEMESTER_GRADES_HTML = `<html><body>
+<div id="div_total">
+  <div><div class="panel-body">신청학점 53</div></div>
+  <div><div class="panel-body">취득학점 50</div></div>
+  <div><div class="panel-body">평점총계 145.2</div></div>
+  <div><div class="panel-body">평균평점 2.87</div></div>
+  <div><div class="panel-body">백분위 78.5</div></div>
+  <div><div class="panel-body">기초(필수) 3</div></div>
+  <div><div class="panel-body">전필 12</div></div>
+  <div><div class="panel-body">전선 15</div></div>
+</div>
+<div id="main_content">
+  <div class="container divOutSide">
+    <div class="panel-heading"><h3>2026 학년도 1 학기</h3></div>
+    <div class="panel-body">
+      <div>신청학점 15 취득학점 15 평점총계 60.0 평균평점 4.0 백분위 90</div>
+      <table><thead><tr><th>구분</th><th>교과명</th><th>교과코드</th><th>학점</th><th>성적</th></tr></thead>
+      <tbody><tr><td>전필</td><td>인공지능 수학</td><td>Y030004</td><td>3</td><td>A+</td></tr>
+      <tr><td>전선</td><td>자료구조</td><td>CS201</td><td>3</td><td>B+</td></tr></tbody></table>
+    </div>
+  </div>
+  <div class="container divOutSide">
+    <div class="panel-heading"><h3>2025 학년도 2 학기</h3></div>
+    <div class="panel-body">
+      <div>신청학점 18 취득학점 15 평점총계 45.0 평균평점 3.0 백분위 70</div>
+      <table><thead><tr><th>구분</th><th>교과명</th><th>교과코드</th><th>학점</th><th>성적</th></tr></thead>
+      <tbody><tr><td>교필</td><td>사고와 표현</td><td>GEN0925</td><td>3</td><td>C+</td></tr>
+      <tr><td>전필</td><td>미확정 과목</td><td>Y030005</td><td>3</td><td></td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+</body></html>`;
+
+const semesterGrades = parseSemesterGrades(SEMESTER_GRADES_HTML);
+t('semester grades: 2학기', semesterGrades.semesters.length === 2);
+t('semester grades: 최신 학기 우선', semesterGrades.semesters[0].semester === '2026-1');
+t(
+  'semester grades: 학기 요약 숫자',
+  semesterGrades.semesters[0].applied === 15 &&
+    semesterGrades.semesters[0].earned === 15 &&
+    semesterGrades.semesters[0].gpa === 4.0 &&
+    semesterGrades.semesters[0].percentile === 90,
+);
+t(
+  'semester grades: 학기별 과목',
+  semesterGrades.semesters[0].courses.length === 2 &&
+    semesterGrades.semesters[0].courses[0].name === '인공지능 수학',
+);
+t(
+  'semester grades: 미확정 과목 제외',
+  semesterGrades.semesters[1].courses.length === 1 &&
+    semesterGrades.semesters[1].courses[0].name === '사고와 표현',
+);
+t(
+  'semester grades: 이수구분별 학점',
+  semesterGrades.creditCategories?.some((c) => c.label === '기초(필수)' && c.credits === 3) === true &&
+    semesterGrades.creditCategories?.some((c) => c.label === '전필' && c.credits === 12) === true,
+);
+
+const HAKJUK_HTML = `<table class="table table-condensed">
+<tr><td><img name="sajin" src="x.jpg"></td><td>사진</td></tr>
+<tr><th>성명</th><td>홍길동</td></tr>
+<tr><th>제1트랙</th><td>AI응용학과</td></tr>
+<tr><th>제2트랙</th><td>컴퓨터공학</td></tr>
+<tr><th>학년</th><td>2</td></tr>
+<tr><th>상태</th><td>재학</td></tr>
+<tr><th>입학일자</th><td>2025.03.01</td></tr>
+</table>`;
+const academic = parseAcademic(HAKJUK_HTML);
+t(
+  'academic: 학년·상태·트랙·입학일',
+  academic?.grade === 2 &&
+    academic?.status === '재학' &&
+    academic?.tracks?.[0] === 'AI응용학과' &&
+    academic?.tracks?.[1] === '컴퓨터공학' &&
+    academic?.admissionDate === '2025-03-01',
+);
+t('academic: 빈 문서는 undefined', parseAcademic('<p>none</p>') === undefined);
+
+const grouped = semestersFromCourses([
+  { code: 'A', name: '과목A', category: '전필', credits: 3, semester: '2026-1' },
+  { code: 'B', name: '과목B', category: '전선', credits: 2, semester: '2026-1' },
+  { code: 'C', name: '과목C', category: '교필', credits: 3, semester: '2025-2' },
+]);
+t(
+  'semestersFromCourses: 학기 그룹·학점 합계',
+  grouped.length === 2 &&
+    grouped[0].semester === '2026-1' &&
+    grouped[0].earned === 5 &&
+    grouped[1].earned === 3,
+);
+
 // ── collectInfo 오케스트레이션 ────────────────────────────
 const fakeSession = (routes) => ({
   request: async (url) => {
@@ -203,12 +326,16 @@ const snap = await collectInfo(fakeSession({
   's_sung.s_sung_grade': GRADES_HTML,
   's_etc.point_view': POINTS_HTML,
   'dae_grad_check': AUDIT_HTML,
+  'seongjeok_new': SEMESTER_GRADES_HTML,
+  'collage_register': HAKJUK_HTML,
 }), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
 t('collect: 스냅샷 조립', snap.source === 'info-hansung');
 t('collect: 과목 수', snap.completed.length === 4);
 t('collect: 포인트', snap.points === 780);
 t('collect: 사정표', snap.audit?.length === 3);
 t('collect: 학적', snap.name === '홍길동' && snap.admitYear === 2024);
+t('collect: 학기별 성적', snap.semesters?.length === 2);
+t('collect: 학적 상세', snap.academic?.grade === 2 && snap.academic?.status === '재학');
 t('collect: diag 메뉴 기록', (snap.diag?.menu.length ?? 0) > 0);
 t(
   'collect: diag 대상 페이지 ok',
@@ -225,8 +352,54 @@ const snap2 = await collectInfo(fakeSession({
 }), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
 t('collect: 로그인벽 → 과목 없음', snap2.completed.length === 0);
 t('collect: diag 실패 표면화', snap2.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
+t('collect: 로그인 화면은 재인증 필요로 분류', snap2.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'session-expired');
 t('collect: 포인트는 성공', snap2.points === 780);
 t('collect: 학적은 메인에서 보존', snap2.dept === '컴퓨터공학과');
+
+// HTTP 200 with a changed grade table must not erase the last known results.
+const malformedGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>기타</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 필수 성적 열 누락은 수집 실패', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === false);
+t('collect: 성적 구조 변경 분류', malformedGrade.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'structure');
+t('collect: 구조 변경은 이전 이수 내역을 보존', mergeInfoSnapshot(snap, malformedGrade).completed.length === snap.completed.length);
+const emptyBody = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '', 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: HTTP 200 빈 본문은 구조 오류로 분류',
+  emptyBody.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'structure');
+t('collect: 빈 본문은 기존 이수 내역을 보존',
+  mergeInfoSnapshot(snap, emptyBody).completed.length === snap.completed.length);
+const emptyGrade = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': '<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>',
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 정상 빈 성적표는 성공', emptyGrade.diag?.pages.find((p) => p.slot === 'grades')?.ok === true && emptyGrade.completed.length === 0);
+const unconfirmedSnap = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': UNCONFIRMED_GRADES,
+  's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML,
+}), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 빈 성적 행이 있으면 확인 실패로 분류',
+  unconfirmedSnap.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'unconfirmed');
+t('collect: 성적 미확정 시 기존 이수 내역 보존',
+  mergeInfoSnapshot(snap, unconfirmedSnap).completed.length === snap.completed.length);
+t('collect: 확인 실패 분류는 유효성 검사 후에도 유지',
+  validateInfo(unconfirmedSnap)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'unconfirmed');
+const nonOkSession = fakeSession({ 's_etc.point_view': POINTS_HTML, 'dae_grad_check': AUDIT_HTML });
+const previousRequest = nonOkSession.request;
+nonOkSession.request = async (url) => url.includes('s_sung.s_sung_grade')
+  ? new Response('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr></table>', { status: 500 })
+  : previousRequest(url);
+const serverError = await collectInfo(nonOkSession, { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: HTTP 500 성적표는 실패로 표시하고 이전 결과 보존',
+  serverError.diag?.pages.find((p) => p.slot === 'grades')?.ok === false && mergeInfoSnapshot(snap, serverError).completed.length === snap.completed.length);
+t('collect: HTTP 오류 분류', serverError.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'upstream');
+const networkSession = fakeSession({});
+networkSession.request = async () => { throw new Error('private upstream detail'); };
+const networkError = await collectInfo(networkSession, { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+t('collect: 요청 실패는 원문 없이 상위 오류로 분류', networkError.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'upstream' && !JSON.stringify(networkError.diag).includes('private upstream detail'));
+t('collect: 요청 실패 시 기존 성적 유지', mergeInfoSnapshot(snap, networkError).completed.length === snap.completed.length);
 
 // 실계정 마크업 e2e — 프레임 메뉴 발견 → 누적성적 수집 → 학적 병합
 const snap3 = await collectInfo(
@@ -237,11 +410,15 @@ const snap3 = await collectInfo(
     total_grade: REAL_GRADES,
     joluprequire:
       '<html><body>졸업(가)사정 자료가 존재하지 않습니다.</body></html>',
+    seongjeok_new: SEMESTER_GRADES_HTML,
+    collage_register: HAKJUK_HTML,
   }),
   { menuHtml: REAL_TOP_MENU, mainHtml: REAL_MAIN, studentId: '2199999' },
 );
 t('real collect: 과목 수', snap3.completed.length === 5);
 t('real collect: 취득학점/평점', snap3.credits === 50 && snap3.gpa === 2.87);
+t('real collect: 학기별 성적', snap3.semesters?.length === 2);
+t('real collect: 학적 상세', snap3.academic?.grade === 2);
 t(
   'real collect: 학적',
   snap3.name === '홍길동' &&
@@ -276,14 +453,53 @@ t('merge: 수동 고유 항목 유지', merged.some((c) => c.name === '오프라
 t('merge: 수동 목록 불변', manual.length === 2 && manual[0].name === '프로그래밍기초');
 t('merge: info 없으면 수동만', mergeCompleted(manual, undefined).every((c) => c.src === 'manual'));
 
+t('credits: school total includes supplemental manual courses', resolveEarnedCredits(merged, 45, '') === 46);
+t('credits: manual total is used when school total is missing', resolveEarnedCredits(merged, undefined, '70') === 70);
+t('credits: completed courses are the fallback', resolveEarnedCredits(merged, undefined, '') === 7);
+t('credits: no known value stays missing', resolveEarnedCredits([], undefined, '') === null);
+
 // ── validateInfo ──────────────────────────────────────────
 const valid = validateInfo(snap);
 t('validate: 정상 통과', valid !== null && valid.completed.length === 4);
+t('validate: 알려진 실패 사유 유지', validateInfo(snap2)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === 'session-expired');
+const unsafeDiag = structuredClone(snap2);
+unsafeDiag.diag.pages.find((p) => p.slot === 'grades').reason = 'private upstream detail';
+t('validate: 허용되지 않은 실패 사유 제거', validateInfo(unsafeDiag)?.diag?.pages.find((p) => p.slot === 'grades')?.reason === undefined);
 t('validate: 잘못된 source 거부', validateInfo({ source: 'x', fetchedAt: 'now' }) === null);
 t('validate: 비객체 거부', validateInfo('nope') === null && validateInfo(null) === null);
 t('validate: 범위 초과 클램프', validateInfo({ source: 'info-hansung', fetchedAt: 't', points: 999999, completed: [] })?.points === undefined);
 t('validate: completed 필터', validateInfo({ source: 'info-hansung', fetchedAt: 't', completed: [{ name: 'x' }, { code: 'A', name: '과목', category: '전필', credits: 3 }] })?.completed.length === 1);
 t('validate: 학기/등급 문자열 길이 제한', valid?.completed.every((c) => (c.semester ?? '').length <= 10) === true);
+const richValid = validateInfo({
+  source: 'info-hansung',
+  fetchedAt: 't',
+  completed: [],
+  academic: {
+    grade: 2,
+    status: '재학',
+    tracks: ['AI응용학과', '컴퓨터공학'],
+    admissionDate: '2025-03-01',
+  },
+  semesters: [
+    {
+      semester: '2026-1',
+      earned: 15,
+      gpa: 4.0,
+      percentile: 90,
+      courses: [
+        { code: 'X', name: '과목', category: '전필', credits: 3, grade: 'A+' },
+      ],
+    },
+  ],
+  creditCategories: [{ label: '전필', credits: 12 }],
+});
+t(
+  'validate: 학기별 성적·학적·이수구분 유지',
+  richValid?.semesters?.[0].gpa === 4.0 &&
+    richValid?.semesters?.[0].courses.length === 1 &&
+    richValid?.academic?.tracks?.length === 2 &&
+    richValid?.creditCategories?.[0].label === '전필',
+);
 
 // ── mergeInfoSnapshot: 부분 수집 보호 ──────────────────────
 const prevSnap = {
@@ -340,6 +556,64 @@ t('merge-info: 성공 슬롯 사정 갱신', mg2.audit[0].earned === '45');
 t('merge-info: 실패 슬롯 포인트 보존', mg2.points === 120);
 t('merge-info: 신원 빈칸은 이전 유지', mg2.name === '홍길동' && mg2.dept === 'AI응용학과');
 t('merge-info: prev 없으면 next 그대로', mergeInfoSnapshot(undefined, fullNext) === fullNext);
+
+const prevRich = {
+  ...prevSnap,
+  academic: {
+    grade: 2,
+    status: '재학',
+    tracks: ['AI응용학과'],
+    admissionDate: '2025-03-01',
+  },
+  semesters: [
+    { semester: '2025-2', earned: 15, gpa: 3.0, courses: [] },
+  ],
+  creditCategories: [{ label: '전필', credits: 12 }],
+};
+const degradedRich = {
+  ...degradedNext,
+  diag: {
+    menu: [],
+    pages: [
+      { slot: 'grades', path: '-', ok: false },
+      { slot: 'semesterGrades', path: '-', ok: false },
+      { slot: 'academic', path: '-', ok: false },
+    ],
+  },
+};
+const mg3 = mergeInfoSnapshot(prevRich, degradedRich);
+t(
+  'merge-info: 학기별 성적·이수구분 학점 보존',
+  mg3.semesters?.length === 1 && mg3.creditCategories?.[0].credits === 12,
+);
+t(
+  'merge-info: 학적 상세 보존',
+  mg3.academic?.grade === 2 && mg3.academic?.tracks?.[0] === 'AI응용학과',
+);
+
+const nextRich = {
+  ...fullNext,
+  academic: { grade: 3, status: '재학', tracks: ['컴퓨터공학'] },
+  semesters: [
+    { semester: '2026-1', earned: 18, gpa: 4.0, courses: [] },
+  ],
+  creditCategories: [{ label: '전선', credits: 21 }],
+  diag: {
+    menu: [],
+    pages: [
+      { slot: 'grades', path: 'x.jsp', ok: true },
+      { slot: 'semesterGrades', path: 's.jsp', ok: true },
+      { slot: 'academic', path: 'a.jsp', ok: true },
+    ],
+  },
+};
+const mg4 = mergeInfoSnapshot(prevRich, nextRich);
+t(
+  'merge-info: 성공한 학기·학적 슬롯은 새 값',
+  mg4.semesters?.[0].gpa === 4.0 &&
+    mg4.creditCategories?.[0].label === '전선' &&
+    mg4.academic?.grade === 3,
+);
 
 console.log(`info.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
