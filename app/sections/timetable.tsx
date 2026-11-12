@@ -31,6 +31,8 @@ import {
   roomLabel,
   slotLabel,
   slotsLabel,
+  sourceDurationLabel,
+  yearLabel,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
@@ -814,7 +816,7 @@ export function Timetable({
                 <p>
                   {selected.dept} · {selected.section}분반 ·{' '}
                   {selected.credits}학점
-                  {selected.year ? ` · ${selected.year}학년` : ''}
+                  {selected.year ? ` · ${yearLabel(selected.year)}` : ''}
                 </p>
                 <div className="detail-grid">
                   <div>
@@ -833,6 +835,12 @@ export function Timetable({
                     <small>시간</small>
                     <b>{slotsLabel(selected)}</b>
                   </div>
+                  {sourceDurationLabel(selected) && (
+                    <div>
+                      <small>원자료 시간 표기</small>
+                      <b>{sourceDurationLabel(selected)}</b>
+                    </div>
+                  )}
                   <div>
                     <small>타학과 수강</small>
                     <b>{selected.cross ? '가능' : '불가'}</b>

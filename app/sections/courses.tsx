@@ -5,10 +5,10 @@ import {
   conflicts,
   courseMatch,
   deliveryLabel,
-  placeLabel,
   roomLabel,
-  slotLabel,
+  sourceDurationLabel,
   slotsLabel,
+  yearLabel,
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
@@ -187,7 +187,7 @@ export function Courses({
           <h2>{s.name}</h2>
           <p>
             {s.dept} · {s.code}-{s.section} · {s.credits}학점
-            {s.year ? ` · ${s.year}학년` : ''}
+            {s.year ? ` · ${yearLabel(s.year)}` : ''}
           </p>
           <div className="detail-grid">
             {[
@@ -196,13 +196,13 @@ export function Courses({
               ['수업 방식', deliveryLabel(s)],
               [
                 '강의실',
-                roomLabel(s) ||
-                  (s.online ? '온라인' : s.room || '강의실 미정'),
+                roomLabel(s) || '강의실 미기재',
               ],
               [
                 '수업 시간',
-                s.slots.length ? s.slots.map(slotLabel).join(' · ') : '온라인 · 시간 미정',
+                slotsLabel(s),
               ],
+              ...(sourceDurationLabel(s) ? [['원자료 시간 표기', sourceDurationLabel(s)]] : []),
             ].map(([l, v]) => (
               <div key={l}>
                 <small>{l}</small>
@@ -210,6 +210,7 @@ export function Courses({
               </div>
             ))}
           </div>
+          {s.online && roomLabel(s) && <p className="meta">원자료에 온라인과 강의실이 함께 표시되어 있습니다. 실제 운영 방식은 교수 공지 또는 COSMOS에서 확인해 주세요.</p>}
           {clashes.length > 0 && !added && (
             <p className="meta">
               현재 계획과 시간이 겹칩니다:{' '}
@@ -397,12 +398,18 @@ export function Courses({
               </h3>
               <p>
                 {s.dept} · {s.section}분반 · {s.credits}학점
-                {s.year ? ` · ${s.year}학년` : ''}
+                {s.year ? ` · ${yearLabel(s.year)}` : ''}
               </p>
               <p>
-                {s.professor || '교수 미정'} · {slotsLabel(s)}
+                {s.professor || '교수 미정'}
               </p>
-              <small>{placeLabel(s)}</small>
+              <dl className="course-facts">
+                <div><dt>수업 방식</dt><dd>{deliveryLabel(s)}</dd></div>
+                <div><dt>수업 시간</dt><dd>{slotsLabel(s)}</dd></div>
+                <div><dt>강의실</dt><dd>{roomLabel(s) || '미기재'}</dd></div>
+                {sourceDurationLabel(s) && <div><dt>원자료 시간 표기</dt><dd>{sourceDurationLabel(s)}</dd></div>}
+              </dl>
+              {s.online && roomLabel(s) && <p className="meta">온라인·강의실 병기: 실제 운영 방식 확인 필요</p>}
               <p className="meta">{reasons.length ? `추천 근거 · ${reasons.join(' · ')}` : '과목 탐색 결과 · 추천 근거 없음'}</p>
               <button className="secondary full" onClick={() => toggle(s)}>
                 {added ? <Check size={17} /> : <Plus size={17} />}{' '}
