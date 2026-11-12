@@ -106,7 +106,7 @@ export function advisorContext(
     } : null,
     lms: lms ? {
       asOf: lms.fetchedAt,
-      deadlines: dueSoon(lms, now, 7, 0, before).map((t) => ({ title: t.title, course: t.course, kind: t.kind, due: t.due })),
+      deadlines: dueSoon(lms, now, 7, 0, before).map((t) => ({ title: t.title, course: t.course, kind: t.kind, due: t.due, rangeUncertain: !!t.rangeUncertain })),
       uncertainItems: pendingTasks(lms, before).filter((t) => t.uncertain).length,
       note: '수집 시점 기준. 확인 불명확·이전 결과 보존 항목은 학교 원문에서 확인',
     } : null,

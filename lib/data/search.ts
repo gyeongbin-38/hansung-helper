@@ -5,6 +5,7 @@ import {
   courseIsPast,
   currentSemesterStart,
   isPast,
+  lectureRangeStatus,
   parseDue,
   type LmsCourse,
 } from './lms.ts';
@@ -70,6 +71,7 @@ export function lmsTaskSearch(
       due: string | null;
       done: boolean;
       uncertain?: boolean;
+      rangeUncertain?: boolean;
     }[] = [
       ...c.vods.map((v) => ({
         kind: '강의' as const,
@@ -77,6 +79,7 @@ export function lmsTaskSearch(
         due: v.range ?? null,
         done: v.attended,
         uncertain: v.uncertain,
+        rangeUncertain: lectureRangeStatus(c, v).rangeUncertain,
       })),
       ...c.assigns.map((a) => ({
         kind: '과제' as const,
@@ -111,7 +114,7 @@ export function lmsTaskSearch(
         hit: {
           label: t.title,
           route: 'lms/' + c.id,
-          sub: `COSMOS ${t.kind} · ${c.title} · ${state}${t.due ? ` · 마감 ${t.due}` : ''}`,
+          sub: `COSMOS ${t.kind} · ${c.title} · ${state}${t.due ? ` · 마감 ${t.due}` : ''}${t.rangeUncertain ? ' · 기간 재확인 필요' : ''}`,
           done,
         },
       });

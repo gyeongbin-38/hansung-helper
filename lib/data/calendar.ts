@@ -121,7 +121,7 @@ export function collectCalItems(input: {
       title: t.title,
       start,
       url: t.url,
-      meta: `${t.kind} · ${t.course}${t.uncertain ? ' · 확인 실패' : ''}`,
+      meta: `${t.kind} · ${t.course}${t.uncertain ? ' · 확인 실패' : ''}${t.rangeUncertain ? ' · 기간 재확인 필요' : ''}`,
     });
   });
   (input.events ?? []).forEach((e, i) => {

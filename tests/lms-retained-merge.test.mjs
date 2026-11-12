@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeLmsSnapshot, combineLmsSnapshots, validateLms } from '../lib/data/lms.ts';
+import { mergeLmsSnapshot, combineLmsSnapshots, validateLms, pendingTasks, dueSoon, bingeQueue } from '../lib/data/lms.ts';
+import { collectCalItems } from '../lib/data/calendar.ts';
+import { reminderTargets } from '../lib/data/notifs.ts';
+import { isUpcomingUrgent } from '../lib/data/home-deadlines.ts';
+import { lmsTaskSearch } from '../lib/data/search.ts';
 
 const snap = (day, submitted, errors = [], extra = {}) => ({
   source: 'cosmos-lms', fetchedAt: `2026-09-${day}T00:00:00Z`, courses: [{
@@ -62,6 +66,61 @@ test('re-merging uncertain item status keeps the newer retained value and time',
   assert.equal(result.courses[0].quizzes[0].submitted, true);
   assert.equal(result.courses[0].quizzes[0].uncertain, true);
   assert.equal(result.courses[0].retainedAtByKind.quiz, newer.fetchedAt);
+});
+
+test('retained lecture ranges survive re-merges and subsequent failures without inventing check times', () => {
+  const lecture = (range, url = 'https://learn.hansung.ac.kr/mod/vod/view.php?id=1') =>
+    [{ title: 'lecture', attended: true, ...(range ? { range, url } : {}) }];
+  const older = snap('19', null, [], { vods: lecture('old range') });
+  const newer = snap('20', null, [], { vods: lecture('new range') });
+  const failed = snap('21', null, ['vod-range'], { vods: lecture(null) });
+  const retained = mergeLmsSnapshot(newer, failed);
+  const again = mergeLmsSnapshot(older, retained);
+  assert.equal(again.courses[0].vods[0].range, 'new range');
+  assert.equal(again.courses[0].vods[0].rangeRetainedAt, newer.fetchedAt);
+  assert.equal(combineLmsSnapshots(older, retained).courses[0].vods[0].range, 'new range');
+  const failedAgain = mergeLmsSnapshot(again, snap('22', null, ['vod-range'], { vods: lecture(null) }));
+  assert.equal(failedAgain.courses[0].vods[0].range, 'new range');
+  assert.equal(failedAgain.courses[0].vods[0].rangeRetainedAt, newer.fetchedAt);
+  const listFailed = mergeLmsSnapshot(retained, snap('22', null, ['vod'], { vods: [] }));
+  const afterListFailure = mergeLmsSnapshot(listFailed, snap('23', null, ['vod-range'], { vods: lecture(null) }));
+  assert.equal(afterListFailure.courses[0].vods[0].rangeRetainedAt, newer.fetchedAt);
+  const newerPrior = mergeLmsSnapshot(newer, mergeLmsSnapshot(older, failed));
+  assert.equal(newerPrior.courses[0].vods[0].range, 'new range');
+  assert.equal(newerPrior.courses[0].vods[0].rangeRetainedAt, newer.fetchedAt);
+  const unknown = snap('21', null, ['vod-range'], { vods: lecture('unknown-age range') });
+  const unknownList = mergeLmsSnapshot(unknown, snap('22', null, ['vod'], { vods: [] }));
+  assert.ok(unknownList.courses[0].errors.includes('vod-range'));
+  assert.equal(pendingTasks({ ...unknownList, courses: [{ ...unknownList.courses[0], vods: [{ ...unknownList.courses[0].vods[0], attended: false }] }] })[0].rangeRetainedAt, undefined);
+  const unknownAgain = mergeLmsSnapshot(unknownList, snap('23', null, ['vod-range'], { vods: lecture(null) }));
+  assert.equal(unknownAgain.courses[0].vods[0].rangeRetainedAt, undefined);
+  const combinedFailures = mergeLmsSnapshot(unknown, snap('22', null, ['vod', 'vod-range'], { vods: [] }));
+  assert.equal(combinedFailures.courses[0].errors.filter(error => error === 'vod-range').length, 1);
+});
+
+test('retained lecture deadlines are labelled separately from attendance across consumers', () => {
+  const before = snap('20', null, [], { vods: [{ title: 'lecture', attended: false, range: '2026-09-22 23:59' }] });
+  const failed = snap('21', null, ['vod-range'], { vods: [{ title: 'lecture', attended: false }] });
+  const retained = mergeLmsSnapshot(before, failed);
+  const now = Date.parse('2026-09-21T03:00:00Z');
+  const task = pendingTasks(retained)[0];
+  assert.equal(task.rangeUncertain, true);
+  assert.equal(task.rangeRetainedAt, before.fetchedAt);
+  assert.equal(task.uncertain, undefined, 'attendance remains independently confirmed');
+  assert.equal(bingeQueue(retained)[0].rangeUncertain, true);
+  const due = dueSoon(retained, now)[0];
+  assert.equal(isUpcomingUrgent(due, now), false);
+  assert.match(collectCalItems({ lms: retained })[0].meta, /기간 재확인/);
+  assert.match(reminderTargets(retained, now)[0].body, /기간 재확인/);
+  assert.match(lmsTaskSearch(retained.courses, '강의')[0].sub, /기간 재확인/);
+  for (const failure of ['vod', 'timeout', 'budget']) {
+    const listFailure = mergeLmsSnapshot(before, snap('21', null, [failure]));
+    const listTask = pendingTasks(listFailure)[0];
+    assert.equal(listTask.rangeUncertain, true, failure);
+    assert.equal(listTask.rangeRetainedAt, before.fetchedAt, failure);
+    assert.equal(isUpcomingUrgent(dueSoon(listFailure, now)[0], now), false, failure);
+    assert.match(collectCalItems({ lms: listFailure })[0].meta, /기간 재확인/, failure);
+  }
 });
 
 test('fresh task list remains newer when only one submission status was retained', () => {

@@ -11,9 +11,9 @@ export function dateDeadlineDays(date: string | null | undefined, now: number): 
 }
 
 /** 긴급 항목은 완료 상태가 확인됐고 마감이 남아 있는 오늘·내일 항목만 포함한다. */
-export function isUpcomingUrgent(item: { dueTs: number; uncertain?: boolean }, now: number): boolean {
+export function isUpcomingUrgent(item: { dueTs: number; uncertain?: boolean; rangeUncertain?: boolean }, now: number): boolean {
   const days = deadlineDays(item.dueTs, now);
-  return !item.uncertain && item.dueTs >= now && days >= 0 && days <= 1;
+  return !item.uncertain && !item.rangeUncertain && item.dueTs >= now && days >= 0 && days <= 1;
 }
 
 /** 신청 이후 단계는 더 이상 신청 마감으로 안내하지 않는다. */

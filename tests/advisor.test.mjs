@@ -40,6 +40,11 @@ const deadlineData = { lms: { source: 'cosmos-lms', fetchedAt: '2026-11-12T03:00
 }] } };
 assert.deepEqual(advisorContext(deadlineData, publicData, fixedNow).personalFacts.lms.deadlines.map((d) => d.title), ['다가오는 마감']);
 assert.match(guideReply('이번 주 마감', deadlineData, publicData, fixedNow).answer, /1건/);
+const retainedDeadlineData = { lms: { source: 'cosmos-lms', fetchedAt: '2026-11-12T03:00:00Z', courses: [{
+  id: 'test', title: '테스트 과목', errors: ['vod-range'], assigns: [], quizzes: [],
+  vods: [{ title: '강의', attended: false, range: '2026-11-13 12:00', rangeRetainedAt: '2026-11-11T03:00:00Z' }],
+}] } };
+assert.equal(advisorContext(retainedDeadlineData, publicData, fixedNow).personalFacts.lms.deadlines[0].rangeUncertain, true);
 
 const sql = new DatabaseSync(':memory:');
 sql.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));

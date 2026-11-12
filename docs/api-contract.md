@@ -70,6 +70,19 @@ latter case the individual `vod`, `assign` and `quiz` errors identify failed
 lists, allowing successful lists to remain current. This does not claim a
 deadline over school login or the separate academic-information collector.
 
+`vod-range` means the course page used to obtain lecture periods could not be
+checked. Newly collected attendance is preserved; an earlier range and link
+are retained only for an unambiguous same-title lecture. `rangeRetainedAt`
+records the last known range check when available. The course remains marked as
+partially failed so that a retained range is not presented as freshly verified.
+
+School page reads use `p-retry` 9.0.0 (MIT) for at most one retry of a
+transient network error or HTTP 502/503/504. Login POSTs are never retried.
+Detailed LMS collection permits at most three such extra attempts, all counted
+against its 40-request and 60-second limits. HTTP 429, authentication rejection,
+unrecognized page structure and caller cancellation are not retried. Retrying cannot
+guarantee that the school service is available or that all items fit the budget.
+
 For a task with `uncertain: true`, optional `statusRetainedAt` records when
 its retained submission/attempt status was last confirmed. The course's
 `retainedAtByKind` describes a retained list; it may have a later timestamp

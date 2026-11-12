@@ -24,6 +24,7 @@ import {
   dueSoon,
   isPast,
   kstDateNumber,
+  lectureRangeStatus,
   matchEnrollment,
   mergeLmsSnapshot,
   parseDue,
@@ -48,6 +49,7 @@ const DAY = 86400000;
 /** 수집 오류 코드 → 화면 표시명 */
 const ERROR_LABELS: Record<string, string> = {
   vod: '강의',
+  'vod-range': '강의 수강 기간',
   assign: '과제',
   quiz: '퀴즈',
   'quiz-check': '퀴즈 응시 여부',
@@ -87,6 +89,8 @@ function TaskRow({
   due,
   uncertain,
   statusRetainedAt,
+  rangeUncertain,
+  rangeRetainedAt,
   watched,
   required,
   past,
@@ -99,6 +103,8 @@ function TaskRow({
   /** 제출·응시 여부 확인 실패 — 미완료로 단정하지 않고 표시만 한다 */
   uncertain?: boolean;
   statusRetainedAt?: string;
+  rangeUncertain?: boolean;
+  rangeRetainedAt?: string;
   /** 시청시간/요구시간 — 강의 항목에서만 온다 */
   watched?: string;
   required?: string;
@@ -130,6 +136,7 @@ function TaskRow({
             : '마감 미기재'}
           {uncertain ? ' · 상태 확인 실패' : ''}
           {uncertain && statusRetainedAt ? ` · 이전 상태 확인 ${formatLmsTime(statusRetainedAt)}` : ''}
+          {rangeUncertain ? ` · 기간 재확인 필요${rangeRetainedAt ? ` (이전 확인 ${formatLmsTime(rangeRetainedAt)})` : ''}` : ''}
           {watched
             ? ` · 시청 ${watched}${required ? ` / 요구 ${required}` : ''}`
             : ''}
@@ -164,6 +171,7 @@ function CourseCard({
         url: v.url,
         due: v.range ?? null,
         uncertain: v.uncertain,
+        ...lectureRangeStatus(c, v),
         watched: v.watched,
         required: v.required,
         past: pastCourse || isPast(parseDue(v.range ?? null), before),
@@ -318,6 +326,7 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
         <small>
           {b.course}
           {b.uncertain ? ' · 출석 상태 확인 실패' : ''}
+          {b.rangeUncertain ? ' · 기간 재확인 필요' : ''}
           {b.range ? ` · ${shortRange(b.range)}` : ''}
           {dd !== null
             ? dd < 0
@@ -1560,6 +1569,7 @@ function DueSoonList({
                 ? '마감 지남'
                 : `D-${kstDateNumber(t.dueTs) - kstDateNumber(now)}`}
               {t.uncertain ? ' · 상태 확인 실패' : ''}
+              {t.rangeUncertain ? ' · 기간 재확인 필요' : ''}
             </small>
           </div>
         </div>

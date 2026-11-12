@@ -64,7 +64,7 @@ function TodayStrip({
   now,
   go,
 }: {
-  lmsDue: { dueTs: number; kind: string; title: string; course: string; uncertain?: boolean }[];
+  lmsDue: { dueTs: number; kind: string; title: string; course: string; uncertain?: boolean; rangeUncertain?: boolean }[];
   acts: Parameters<typeof liveStatus>[0][];
   saved: string[];
   stages?: Record<string, string>;
@@ -179,7 +179,7 @@ export function Home({
     overdue: t.dueTs < now,
     kind: t.kind,
     title: t.title,
-    sub: t.course + (t.uncertain ? ` · ${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 필요` : ''),
+    sub: t.course + (t.uncertain ? ` · ${t.kind === '과제' ? '제출' : t.kind === '퀴즈' ? '응시' : '출석'} 여부 확인 필요` : '') + (t.rangeUncertain ? ' · 기간 재확인 필요' : ''),
     url: t.url,
     route: 'lms',
   }));
@@ -633,6 +633,7 @@ export function Home({
                     {t.course}
                     {t.due ? ` · ${t.due} 마감` : ' · 마감일 미지정'}
                     {t.uncertain ? ' · 완료 여부 확인 필요' : ''}
+                    {t.rangeUncertain ? ' · 기간 재확인 필요' : ''}
                   </small>
                 </span>
                 <ArrowUpRight size={14} />
