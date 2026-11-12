@@ -151,3 +151,33 @@
 
 .graduation-workspace fieldset { min-width: 0; margin-inline: 0; border: 0; }
 .graduation-course-filters > fieldset { padding: 0; }
+
+/* Figma Page 3: 졸업 요약 — 합산 카드 + 교양/전공 분해 + 전공별 요건 */
+.graduation-summary-hero { padding: 0; overflow: hidden; border-radius: 22px; }
+.graduation-summary-hero-grid { display: grid; grid-template-columns: 1fr 1px 1fr; }
+.graduation-summary-metric { display: flex; flex-direction: column; align-items: flex-start; gap: 13px; padding: 32px 38px; min-width: 0; }
+.graduation-summary-metric h3 { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--nt-slate); font-weight: 650; }
+.graduation-summary-metric h3 svg { color: var(--nt-primary); }
+.graduation-summary-metric > strong { font-size: 38px; font-weight: 800; letter-spacing: -1.1px; color: var(--nt-ink); line-height: 1.1; }
+.graduation-summary-meta { display: flex; align-items: center; min-height: 22px; }
+.graduation-summary-meta small { font-size: 13px; color: var(--nt-slate); font-weight: 650; }
+.graduation-summary-divider { background: var(--nt-hairline); }
+.graduation-summary-metric .progress-track { margin-top: auto; }
+.graduation-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.graduation-area-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 28px; cursor: pointer; text-align: left; width: 100%; }
+.graduation-area-card .graduation-section-heading { width: 100%; margin-bottom: 8px; }
+.graduation-area-card > strong { font-size: 30px; font-weight: 800; letter-spacing: -.8px; color: var(--nt-ink); margin: 4px 0 14px; }
+.graduation-area-card .progress-track { width: 100%; }
+.graduation-area-card > small { font-size: 12px; color: var(--nt-slate); margin-top: 12px; }
+.graduation-major-requirements { padding: 6px 2px 0; }
+.graduation-major-requirements > .graduation-section-heading { margin-bottom: 18px; }
+.graduation-major-requirements h2 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 750; letter-spacing: -.4px; margin: 0; }
+
+@media (max-width: 650px) {
+  .graduation-summary-hero-grid { grid-template-columns: 1fr; }
+  .graduation-summary-divider { width: auto; height: 1px; }
+  .graduation-summary-metric { padding: 24px 22px; }
+  .graduation-summary-metric > strong { font-size: 30px; }
+  .graduation-area-grid { grid-template-columns: 1fr; gap: 16px; }
+  .graduation-area-card > strong { font-size: 26px; }
+}
