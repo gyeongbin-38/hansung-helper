@@ -190,12 +190,15 @@ export function evaluate(
     } else if (rule.id === 'points' && year >= 2016) {
       required = admission === 'freshman' ? 800 : 400;
       requiredSource = 'global';
-    } else if (rule.id === 'major' && year === 2023 && admission === 'freshman' && opts.programMode === 'fusion1') {
+    } else if (rule.id === 'major' && (year === 2023 || year === 2024) && admission === 'freshman' && opts.programMode === 'fusion1') {
       // 39학점씩 두 전공의 충족 여부는 과목별 소속이 확인돼야 한다.
       required = 78;
       requiredSource = 'global';
-    } else if (rule.id === 'gen' && year === 2023 && admission === 'freshman') {
-      required = 28;
+    } else if (rule.id === 'gen' && (year === 2023 || year === 2024) && admission === 'freshman') {
+      required = year === 2024 ? 31 : 28;
+      requiredSource = 'global';
+    } else if (rule.id === 'free' && year === 2024 && admission === 'freshman' && opts.programMode === 'fusion1') {
+      required = 21;
       requiredSource = 'global';
     } else {
       required = null;
@@ -207,7 +210,8 @@ export function evaluate(
     const uncertainCredits = !isPoints && ambiguous.some((c) => rule.groups.includes(gradGroup(c.category)));
     const uncertainTrack = rule.id === 'major' && requiredSource === 'global' && required === 78;
     // 19~23학번 기준에는 일반선택이 일부 포함될 수 있어 분류만으로 배분할 수 없다.
-    const uncertainAllocation = rule.id === 'gen' && requiredSource === 'global' && year === 2023;
+    const uncertainAllocation = requiredSource === 'global' &&
+      ((rule.id === 'gen' && (year === 2023 || year === 2024)) || (rule.id === 'free' && year === 2024));
     const status: RuleStatus =
       required === null || missingInput || uncertainCredits || uncertainTrack || uncertainAllocation
         ? 'unknown'

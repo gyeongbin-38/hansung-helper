@@ -38,6 +38,20 @@ test('23학번 융합전공 I 78학점은 트랙별 인정 확인 전 충족으�
   assert.equal(evaluate(courses, [], {}, { admitYear: 2023, admissionType: 'freshman', programMode: 'fusion2' }).find((r) => r.rule.id === 'major').required, null);
 });
 
+test('24학번 신입학 융합전공 I에 31·78·21 기준을 적용하되 배분 확정은 보류한다', () => {
+  const results = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman', programMode: 'fusion1' });
+  for (const [id, required] of [['gen', 31], ['major', 78], ['free', 21]]) {
+    const rule = results.find((r) => r.rule.id === id);
+    assert.equal(rule.required, required);
+    assert.equal(rule.status, 'unknown');
+  }
+  assert.match(generalEducationReference(2024, 'freshman').note, /13학점.*15학점.*3학점/);
+  const transfer = evaluate([], [], {}, { admitYear: 2024, admissionType: 'general-transfer', programMode: 'fusion1' });
+  for (const id of ['gen', 'major', 'free']) assert.equal(transfer.find((r) => r.rule.id === id).required, null);
+  const otherMode = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman', programMode: 'fusion2' });
+  for (const id of ['major', 'free']) assert.equal(otherMode.find((r) => r.rule.id === id).required, null);
+});
+
 test('교과와 비교과 필요 기준의 단위 명칭이 구분된다', () => {
   assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'points')), '포인트');
   assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'total')), '학점');

@@ -174,7 +174,8 @@ export function GraduationWorkspace(props: Props) {
         <a className="link" href="https://rule.hansung.ac.kr/lmxsrv/law/lawFullContent.do?SEQ=104&amp;SEQ_HISTORY=1640" target="_blank" rel="noreferrer">학교 졸업사정 기준 확인</a>
         {genReference ? <p>{year}학번 교양 참고 기준: 총 {genReference.total}학점 이상 · {genReference.note} <a className="link" href={genReference.url} target="_blank" rel="noreferrer">학교 원문</a></p> : <p>학번·입학유형별 교양 세부 기준은 학교에서 확인해 주세요.</p>}
         {year === 2023 && admission === 'freshman' && <p className="meta">31학점(13·15·3)은 학교 안내의 24학번 기준으로, 23학번에 자동 적용하지 않습니다.</p>}
-        {year === 2023 && admission === 'freshman' && mode === 'fusion1' && <p className="meta">융합전공 I 선택 시 두 전공 합계 78학점, 각 전공 39학점이 기준입니다. 과목별 트랙 인정과 중복 적용 여부는 확인해야 합니다.</p>}
+        {(year === 2023 || year === 2024) && admission === 'freshman' && mode === 'fusion1' && <p className="meta">융합전공 I 선택 시 두 전공 합계 78학점, 각 전공 39학점이 기준입니다. 과목별 트랙 인정과 중복 적용 여부는 확인해야 합니다.</p>}
+        {year === 2024 && admission === 'freshman' && mode === 'fusion1' && <p className="meta">자유선택 참고 기준은 21학점입니다. 교양 자율선택 3학점과 과목별 중복 배분은 학교 사정표에서 확인해야 합니다.</p>}
         <p className="meta">전공별 학점 배분·교양 영역과 졸업 가능 여부는 포털의 개인 기준과 학과에서 확인해야 합니다.</p>
         <p><a className="link" href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noreferrer">학교 비교과 포털에서 포인트 확인</a>{' · '}<button className="link" onClick={() => go('profile/points')}>확인한 포인트 입력</button></p>
       </section>}
