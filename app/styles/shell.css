@@ -2,25 +2,27 @@
    Owner: shell agent. Use var(--nt-*) tokens only. */
 .shell {
   min-height: 100dvh;
+  position: relative;
 }
-/* ---- sidebar: Notion-style quiet nav on gray surface ---- */
+/* ---- sidebar ---- */
 .sidebar {
   position: fixed;
-  width: 240px;
+  width: 236px;
   inset: 0 auto 0 0;
-  background: var(--nt-surface);
+  background: var(--nt-canvas);
   border-right: 1px solid var(--nt-hairline);
   z-index: 30;
   display: flex;
   flex-direction: column;
-  padding: 14px 10px 12px;
+  padding: 22px 12px 18px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .sidebar-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  margin-bottom: 18px;
 }
 .sidebar-head .brand {
   flex: 1;
@@ -29,6 +31,12 @@
 .side-collapse {
   flex-shrink: 0;
   color: var(--nt-stone);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.sidebar:hover .side-collapse,
+.side-collapse:focus-visible {
+  opacity: 1;
 }
 .brand {
   display: flex;
@@ -36,60 +44,59 @@
   gap: 10px;
   width: 100%;
   text-align: left;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: var(--nt-r-md);
   white-space: nowrap;
   color: var(--nt-ink);
   transition: background-color 0.15s ease;
 }
 .brand:hover {
-  background: var(--nt-tint-gray);
+  background: var(--nt-surface-soft);
 }
 .brand small {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-top: 3px;
-  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  margin-top: 1px;
+  font-weight: 400;
   color: var(--nt-stone);
 }
 .brand-icon {
   background: var(--nt-navy);
   color: var(--nt-on-dark);
-  border-radius: var(--nt-r-md);
-  width: 32px;
-  height: 32px;
+  border-radius: 12px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 .nav-caption {
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--nt-stone);
-  margin: 20px 10px 6px;
+  margin: 18px 16px 7px;
 }
 nav {
   display: grid;
-  gap: 1px;
+  gap: 3px;
 }
 nav button,
 .sidebar-bottom > button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  padding: 6px 10px;
-  border-radius: var(--nt-r-sm);
+  min-height: 39px;
+  padding: 8px 14px;
+  border-radius: 11px;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 550;
   color: var(--nt-slate);
   transition:
     background-color 0.12s ease,
@@ -106,12 +113,12 @@ nav button:hover,
   color: var(--nt-charcoal);
 }
 nav button.selected {
-  background: var(--nt-hairline);
-  color: var(--nt-ink);
-  font-weight: 500;
+  background: #e8f1ff;
+  color: var(--nt-primary);
+  font-weight: 650;
 }
 nav button.selected svg {
-  color: var(--nt-ink);
+  color: var(--nt-primary);
 }
 .tiny {
   font-size: 10px;
@@ -125,18 +132,37 @@ nav button.selected svg {
 }
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--nt-hairline-soft);
+  padding-top: 12px;
+  border-top: 0;
   display: grid;
   gap: 1px;
 }
 .sidebar-bottom .profile-mini {
-  padding: 8px 10px 12px;
+  order: 4;
+  position: relative;
+  margin-top: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: 12px;
+  background: var(--nt-surface-soft);
+}
+.sidebar-bottom .profile-mini::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #21bd83;
+  box-shadow: 0 0 0 3px #dff8ef;
+  flex: 0 0 auto;
+}
+.sidebar-bottom .profile-mini .avatar {
+  display: none;
 }
 .footnote {
   display: block;
   font-size: 11px;
-  margin: 8px 10px 2px;
+  order: 5;
+  margin: 10px 10px 0;
   color: var(--nt-stone);
 }
 .nav-label {
@@ -180,8 +206,13 @@ nav button.selected svg {
     height: 34px;
     font-size: 14px;
   }
+  .side-collapsed .profile-mini::before {
+    width: 10px;
+    height: 10px;
+  }
   .side-collapsed .workspace {
     margin-left: 68px;
+    width: calc(100% - 68px);
   }
   .side-collapsed .cookie {
     left: calc(50% + 34px);
@@ -203,38 +234,41 @@ nav button.selected svg {
 }
 /* ---- workspace / topbar ---- */
 .workspace {
-  margin-left: 240px;
+  margin-left: 236px;
+  width: calc(100% - 236px);
+  min-height: 100dvh;
+  overflow-x: clip;
 }
 .topbar {
-  height: 56px;
-  background: var(--nt-paper);
+  height: 64px;
+  background: var(--nt-canvas);
   border-bottom: 1px solid var(--nt-hairline);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 28px;
+  padding: 0 36px;
   position: sticky;
   top: 0;
   z-index: 20;
 }
-/* fake quick-find: filled surface, muted icon, kbd chip */
+/* global search field */
 .global-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 300px;
-  height: 32px;
-  padding: 0 6px 0 10px;
+  width: min(392px, 42vw);
+  height: 38px;
+  padding: 0 8px 0 13px;
   color: var(--nt-stone);
   background: var(--nt-surface);
-  border: 1px solid transparent;
-  border-radius: var(--nt-r-md);
+  border: 1px solid var(--nt-hairline);
+  border-radius: 11px;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
 }
 .global-search:hover {
-  border-color: var(--nt-hairline);
+  border-color: var(--nt-hairline-strong);
 }
 .global-search:focus-within {
   background: var(--nt-canvas);
@@ -251,12 +285,20 @@ nav button.selected svg {
 .global-search kbd {
   border: 1px solid var(--nt-hairline);
   background: var(--nt-canvas);
-  border-radius: var(--nt-r-xs);
+  border-radius: 6px;
   padding: 0 5px;
   font-family: inherit;
   font-size: 11px;
   line-height: 18px;
   color: var(--nt-stone);
+  white-space: nowrap;
+}
+.topbar-date {
+  margin-left: auto;
+  color: var(--nt-steel);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 .notification {
   position: relative;
@@ -272,31 +314,36 @@ nav button.selected svg {
   box-shadow: 0 0 0 2px var(--nt-paper);
 }
 main {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: auto;
-  padding: 36px 32px 0;
+  padding: 30px 40px 0;
 }
-/* ---- editorial page heading: 문서 마스터헤드처럼 얇은 룰로 본문과 분리 ---- */
+/* ---- page heading ---- */
 .page-heading {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 24px;
-  margin-bottom: 26px;
-  padding-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--nt-hairline-soft);
 }
 .eyebrow {
-  font-size: 11px;
-  color: var(--nt-stone);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--nt-primary-deep);
+  letter-spacing: -0.01em;
+  font-weight: 650;
+  margin-bottom: 8px;
 }
 .page-heading h1 {
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
+  color: var(--nt-ink);
+}
+.page-heading-copy > p {
+  margin: 7px 0 0;
+  color: var(--nt-steel);
+  font-size: 13px;
 }
 .date-label {
   font-size: 13px;
@@ -314,6 +361,29 @@ main {
   gap: 8px;
   flex: none;
 }
+.page-heading.home-heading {
+  position: relative;
+  min-height: 88px;
+  margin-bottom: 16px;
+  padding: 0;
+  border-bottom: 0;
+}
+.home-heading .page-heading-side {
+  position: absolute;
+  right: 0;
+  top: -14px;
+  justify-content: center;
+}
+.home-heading .page-heading-copy {
+  max-width: calc(100% - 330px);
+}
+.heading-owl {
+  display: block;
+  width: min(320px, 30vw);
+  height: 111px;
+  object-fit: contain;
+  object-position: center right;
+}
 button.survey-trigger {
   display: inline-flex;
   align-items: center;
@@ -322,7 +392,15 @@ button.survey-trigger {
   padding: 7px 12px;
   white-space: nowrap;
 }
-/* ---- account bar: avatar + status inside the hairline card ---- */
+/* ---- compact account status ---- */
+.workspace .account-bar,
+.workspace .demo-note {
+  min-height: 48px;
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  background: var(--nt-canvas);
+}
 .account-id {
   display: flex;
   align-items: center;
@@ -330,13 +408,14 @@ button.survey-trigger {
   min-width: 0;
 }
 .account-id .avatar {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
 }
 .account-id b {
   font-size: 14px;
 }
-/* purple CTA inside the demo note beats the quiet .demo-note button */
+/* account connection action inside the demo note */
 .demo-note button.primary {
   color: var(--nt-on-primary);
   min-height: 34px;
@@ -547,6 +626,7 @@ footer {
   }
   .workspace {
     margin-left: 210px;
+    width: calc(100% - 210px);
   }
   main {
     padding: 32px 24px 0;
@@ -563,6 +643,20 @@ footer {
   .date-label {
     display: none;
   }
+  .heading-owl {
+    width: min(250px, 26vw);
+  }
+}
+@media (max-width: 900px) {
+  .home-heading .page-heading-side {
+    display: none;
+  }
+  .home-heading .page-heading-copy {
+    max-width: none;
+  }
+  .topbar-date {
+    display: none;
+  }
 }
 @media (max-width: 767px) {
   .sidebar {
@@ -575,6 +669,7 @@ footer {
   }
   .workspace {
     margin-left: 0;
+    width: 100%;
   }
   .topbar .mobile {
     display: flex;
@@ -608,6 +703,15 @@ footer {
   }
   .page-heading {
     margin-bottom: 20px;
+  }
+  .page-heading.home-heading {
+    min-height: 104px;
+  }
+  .home-heading .page-heading-copy {
+    max-width: none;
+  }
+  .heading-owl {
+    display: none;
   }
   .demo-note {
     font-size: 13px;

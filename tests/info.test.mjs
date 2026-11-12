@@ -13,6 +13,7 @@ import {
   infoCategory,
   mergeCompleted,
   mergeInfoSnapshot,
+  resolveEarnedCredits,
   validateInfo,
 } from '../lib/data/info.ts';
 
@@ -275,6 +276,19 @@ t('merge: 수집본 우선 dedup(공백 무시)', merged.filter((c) => c.src ===
 t('merge: 수동 고유 항목 유지', merged.some((c) => c.name === '오프라인 특강' && c.src === 'manual'));
 t('merge: 수동 목록 불변', manual.length === 2 && manual[0].name === '프로그래밍기초');
 t('merge: info 없으면 수동만', mergeCompleted(manual, undefined).every((c) => c.src === 'manual'));
+t(
+  'credits: school total includes supplemental manual courses',
+  resolveEarnedCredits(merged, 45, '') === 46,
+);
+t(
+  'credits: manual total is used when school total is missing',
+  resolveEarnedCredits(merged, undefined, '70') === 70,
+);
+t(
+  'credits: completed courses are the fallback',
+  resolveEarnedCredits(merged, undefined, '') === 7,
+);
+t('credits: no known value stays missing', resolveEarnedCredits([], undefined, '') === null);
 
 // ── validateInfo ──────────────────────────────────────────
 const valid = validateInfo(snap);

@@ -88,8 +88,7 @@ export default function App() {
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]),
     [actDraft, setActDraft] = useState<string[]>([]);
-  const { items: toasts, push: setToast, dismiss: dismissToast } =
-    useToasts();
+  const { items: toasts, push: setToast, dismiss: dismissToast } = useToasts();
   const [account, setAccount] = useState<Account | null>(null);
   const [demo, setDemo] = useState(false);
   const [accountError, setAccountError] = useState('');
@@ -142,10 +141,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     try {
-      localStorage.setItem(
-        'hsu-side-collapsed',
-        sideCollapsed ? '1' : '0',
-      );
+      localStorage.setItem('hsu-side-collapsed', sideCollapsed ? '1' : '0');
     } catch {
       /* 저장 실패는 무시 — 세션 내 동작은 유지된다 */
     }
@@ -190,10 +186,8 @@ export default function App() {
           if (info) setData((prev) => applyInfo(prev, info));
           // 수집이 끝났으면(성공·실패 무관) 폴링 중단
           const snap = result.snapshot;
-          const doneLms =
-            !snap?.lmsPending || !!snap?.lmsFailedAt;
-          const doneInfo =
-            !snap?.infoPending || !!snap?.infoFailedAt;
+          const doneLms = !snap?.lmsPending || !!snap?.lmsFailedAt;
+          const doneInfo = !snap?.infoPending || !!snap?.infoFailedAt;
           if (doneLms && doneInfo) return;
         }
       } catch {
@@ -314,8 +308,7 @@ export default function App() {
         setExt((p) => ({
           ...p,
           installed: true,
-          version:
-            typeof d.version === 'string' ? d.version : p.version,
+          version: typeof d.version === 'string' ? d.version : p.version,
         }));
         return;
       }
@@ -347,8 +340,7 @@ export default function App() {
     // content script가 리스너보다 먼저 ready를 보냈을 수 있으므로 능동 확인
     window.postMessage({ type: 'hsu-extension-ping' }, location.origin);
     const reping = setTimeout(
-      () =>
-        window.postMessage({ type: 'hsu-extension-ping' }, location.origin),
+      () => window.postMessage({ type: 'hsu-extension-ping' }, location.origin),
       2500,
     );
     return () => {
@@ -407,21 +399,31 @@ export default function App() {
     const timers = targets
       .filter((r) => !fired.has(r.id))
       .map((r) =>
-        setTimeout(() => {
-          new Notification(r.title, { body: r.body });
-          const cur = dataRef.current;
-          void persist(
-            {
-              ...cur,
-              notifiedIds: [...(cur.notifiedIds ?? []), r.id].slice(-200),
-            },
-            '',
-          );
-        }, Math.max(0, r.fireAt - Date.now())),
+        setTimeout(
+          () => {
+            new Notification(r.title, { body: r.body });
+            const cur = dataRef.current;
+            void persist(
+              {
+                ...cur,
+                notifiedIds: [...(cur.notifiedIds ?? []), r.id].slice(-200),
+              },
+              '',
+            );
+          },
+          Math.max(0, r.fireAt - Date.now()),
+        ),
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, catalog, actsSnap]);
+  }, [
+    data.notifEnabled,
+    data.lms,
+    data.actStatus,
+    data.extActivities,
+    catalog,
+    actsSnap,
+  ]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
@@ -780,7 +782,9 @@ export default function App() {
               openSurvey(section === 'activities' ? 'act' : 'course')
             }
           />
-          <AccountBar account={account} go={go} onConnect={exitDemo} />
+          {section !== 'home' && (
+            <AccountBar account={account} go={go} onConnect={exitDemo} />
+          )}
           {section === 'home' ? (
             <Home
               data={data}
@@ -821,9 +825,7 @@ export default function App() {
               planned={planned}
               persist={persist}
               detail={detail}
-              infoPending={
-                infoPending && !collectStale(infoPending)
-              }
+              infoPending={infoPending && !collectStale(infoPending)}
               infoFailed={infoFailed}
             />
           ) : section === 'courses' ? (
@@ -883,12 +885,7 @@ export default function App() {
               catalog={catalog}
             />
           ) : section === 'advisor' ? (
-            <Advisor
-              data={data}
-              planned={planned}
-              catalog={catalog}
-              go={go}
-            />
+            <Advisor data={data} planned={planned} catalog={catalog} go={go} />
           ) : section === 'search' ? (
             <SearchResults
               query={query}
@@ -959,7 +956,9 @@ export default function App() {
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(
-            survey === 'act' ? { ...data, actPrefs: prefs } : { ...data, prefs },
+            survey === 'act'
+              ? { ...data, actPrefs: prefs }
+              : { ...data, prefs },
             survey === 'act'
               ? '비교과 취향을 저장했습니다.'
               : '수업 선호를 저장했습니다.',

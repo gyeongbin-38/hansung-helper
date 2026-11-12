@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -79,6 +79,11 @@ function DragCard({ s }: { s: CourseSection }) {
       </small>
     </div>
   );
+}
+
+function DropArea({ id, className, children }: { id: string; className: string; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return <div ref={setNodeRef} className={className + (isOver ? ' drop-over' : '')}>{children}</div>;
 }
 
 function CatRow({
@@ -291,8 +296,6 @@ export function Timetable({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
-  const { setNodeRef: gridRef } = useDroppable({ id: 'tt-grid' });
-  const { setNodeRef: trashRef } = useDroppable({ id: 'tt-trash' });
 
   const depts = useMemo(
     () =>
@@ -637,6 +640,10 @@ export function Timetable({
         sensors={sensors}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onDragCancel={() => {
+          setDragging(null);
+          setDragPlan(false);
+        }}
       >
         <div className="builder-cols">
           <div className="builder-list card">
@@ -747,13 +754,14 @@ export function Timetable({
           </div>
 
           <div className="builder-grid card scrollable">
+            <div className="tt-canvas">
             <div className="tt-head">
               <span>시간</span>
               {DAY_SHORT.slice(0, 6).map((d) => (
                 <b key={d}>{d}</b>
               ))}
             </div>
-            <div className="tt-body" ref={gridRef}>
+            <DropArea id="tt-grid" className="tt-body">
               <div className="tt-hours" aria-hidden="true">
                 {HOURS.map((h) => (
                   <small key={h} style={{ top: (h - GRID_START) * PPM }}>
@@ -788,12 +796,10 @@ export function Timetable({
                   </p>
                 </div>
               )}
-            </div>
-            <div
-              ref={trashRef}
-              className={'tt-trash' + (dragPlan ? ' visible' : '')}
-            >
+            </DropArea>
+            <DropArea id="tt-trash" className={'tt-trash' + (dragPlan ? ' visible' : '')}>
               <Trash2 size={15} aria-hidden="true" /> 여기에 놓으면 제거
+            </DropArea>
             </div>
           </div>
 

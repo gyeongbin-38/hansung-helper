@@ -1,5 +1,4 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 @import 'tailwindcss';
 @import './styles/shell.css';
 @import './styles/auth.css';
@@ -7,7 +6,7 @@
 @import './styles/learning.css';
 @import './styles/progress.css';
 /*
-  Notion design system token layer.
+  Page 3 academic dashboard design tokens.
   Single contract for every section stylesheet. Do not re-declare these
   values locally; use the variables.
 */
@@ -21,19 +20,19 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #37352f;
-  background: #ffffff;
+  color: #17243a;
+  background: #f7f9fc;
   font-synthesis: none;
-  /* brand + primary — 잉크 네이비: 행동 버튼은 차분한 굵은 잉크 톤 */
-  --nt-primary: #33415c;
-  --nt-primary-pressed: #27334a;
-  --nt-primary-deep: #1f2a3e;
+  /* brand + primary — 선명한 파랑 행동과 네이비 브랜드 */
+  --nt-primary: #1769ff;
+  --nt-primary-pressed: #0f56d9;
+  --nt-primary-deep: #0b4fc0;
   --nt-on-primary: #ffffff;
-  --nt-navy: #0a1530;
-  --nt-navy-deep: #070f24;
-  --nt-navy-mid: #1a2a52;
-  --nt-link: #0068c4;
-  --nt-link-pressed: #005bab;
+  --nt-navy: #0d2f68;
+  --nt-navy-deep: #08234f;
+  --nt-navy-mid: #315a91;
+  --nt-link: #1769ff;
+  --nt-link-pressed: #0f56d9;
   /* brand spectrum */
   --nt-orange: #dd5b00;
   --nt-orange-deep: #793400;
@@ -48,34 +47,33 @@
   --nt-green-deep: #127a2b;
   --nt-yellow: #f5d75e;
   --nt-brown: #523410;
-  /* pastel card tints — 종이색을 향해 한 단계 바랜 "잿빛 파스텔" */
+  /* semantic card tints */
   --nt-tint-peach: #f7ebdf;
   --nt-tint-rose: #f7e7ed;
   --nt-tint-mint: #e2efe5;
   --nt-tint-lavender: #eae8f1;
-  --nt-tint-sky: #e5eef4;
+  --nt-tint-sky: #eaf2ff;
   --nt-tint-yellow: #f7f1dc;
   --nt-tint-yellow-bold: #f2e6ae;
   --nt-tint-cream: #f6f3e9;
-  --nt-tint-gray: #f0eeec;
-  /* surface — 종이색 캔버스 + 노션 회색 패널 */
+  --nt-tint-gray: #f2f5f9;
+  /* surface — 흰 카드와 청회색 작업 공간 */
   --nt-canvas: #ffffff;
-  --nt-paper: #fbfaf7;
-  --nt-surface: #f7f6f3;
-  --nt-surface-soft: #fbfbfa;
-  /* display — 노션 세리프 모드: 제목·숫자·날짜만 한글 세리프로 인쇄물 계층 */
-  --nt-font-display:
-    'Gowun Batang', 'Noto Serif KR', 'Source Serif 4', serif;
-  --nt-hairline: #e5e3df;
-  --nt-hairline-soft: #ede9e4;
-  --nt-hairline-strong: #c8c4be;
-  /* text — 순수 검정 대신 따뜻한 잉크 */
-  --nt-ink: #37352f;
-  --nt-charcoal: #37352f;
-  --nt-slate: #5d5b54;
-  --nt-steel: #6f6c66;
-  --nt-stone: #736f68;
-  --nt-muted: #8a867e;
+  --nt-paper: #f7f9fc;
+  --nt-surface: #f4f7fb;
+  --nt-surface-soft: #fafcff;
+  /* display — 화면 전체가 Pretendard 계층을 공유한다 */
+  --nt-font-display: 'Pretendard Variable', Pretendard, sans-serif;
+  --nt-hairline: #e2e9f3;
+  --nt-hairline-soft: #edf1f7;
+  --nt-hairline-strong: #cbd7e6;
+  /* text — 네이비 제목과 청회색 보조 정보 */
+  --nt-ink: #17243a;
+  --nt-charcoal: #22324a;
+  --nt-slate: #536984;
+  --nt-steel: #6f84a0;
+  --nt-stone: #8193aa;
+  --nt-muted: #9aaac0;
   --nt-on-dark: #ffffff;
   --nt-on-dark-muted: #a4a097;
   /* semantic */
@@ -91,10 +89,10 @@
   --nt-r-xxl: 20px;
   --nt-r-pill: 9999px;
   /* elevation */
-  --nt-shadow-1: rgba(15, 15, 15, 0.04) 0px 1px 2px 0px;
-  --nt-shadow-2: rgba(15, 15, 15, 0.08) 0px 4px 12px 0px;
-  --nt-shadow-3: rgba(15, 15, 15, 0.2) 0px 24px 48px -8px;
-  --nt-shadow-modal: rgba(15, 15, 15, 0.16) 0px 16px 48px -8px;
+  --nt-shadow-1: rgba(25, 50, 84, 0.035) 0 1px 2px;
+  --nt-shadow-2: rgba(25, 50, 84, 0.06) 0 4px 14px;
+  --nt-shadow-3: rgba(25, 50, 84, 0.16) 0 24px 48px -8px;
+  --nt-shadow-modal: rgba(25, 50, 84, 0.16) 0 16px 48px -8px;
   /* motion */
   --nt-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -183,8 +181,7 @@ small {
   color: var(--nt-stone);
   line-height: 1.5;
 }
-/* ---- display serif: 페이지 제목·섹션 제목·큰 숫자·D-day에만 적용.
-   본문·라벨·버튼은 산스 유지 — 문서 계층과 UI 크롬을 서체로 분리한다 ---- */
+/* ---- display typography ---- */
 .page-heading h1,
 .section-heading h2,
 .detail > h2,
@@ -200,13 +197,13 @@ small {
 .mini-art strong,
 .event-date b {
   font-family: var(--nt-font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
 }
 /* ---- shared primitives (card-base / buttons / badges / fields) ---- */
 .card {
   background: var(--nt-canvas);
   border: 1px solid var(--nt-hairline);
-  border-radius: var(--nt-r-lg);
+  border-radius: var(--nt-r-xl);
   overflow: hidden;
 }
 .pad {

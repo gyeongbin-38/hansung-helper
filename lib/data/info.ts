@@ -223,3 +223,30 @@ export function mergeCompleted(
   }
   return out;
 }
+
+/** Total completed credits, including manually added courses not in the school snapshot. */
+export function resolveEarnedCredits(
+  courses: Pick<MergedCourse, 'credits' | 'src'>[],
+  infoCredits: number | undefined,
+  manualCredits: string,
+): number | null {
+  if (infoCredits !== undefined) {
+    return (
+      infoCredits +
+      courses.reduce(
+        (sum, course) => sum + (course.src === 'manual' ? course.credits : 0),
+        0,
+      )
+    );
+  }
+
+  const entered = manualCredits.trim();
+  if (entered) {
+    const value = Number(entered);
+    if (Number.isFinite(value) && value >= 0) return value;
+  }
+
+  return courses.length
+    ? courses.reduce((sum, course) => sum + course.credits, 0)
+    : null;
+}
