@@ -4,7 +4,14 @@ import {
   evaluate,
   DEFAULT_RULES,
   graduationOutlook,
+  requirementQuantityName,
 } from '../lib/data/graduation.ts';
+
+test('교과와 비교과 필요 기준의 단위 명칭이 구분된다', () => {
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'points')), '포인트');
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'total')), '학점');
+  assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'majorReq')), '학점');
+});
 
 const section = (id, category, credits) => ({
   id,

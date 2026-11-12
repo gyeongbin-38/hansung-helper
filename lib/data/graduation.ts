@@ -22,6 +22,11 @@ export type GradRequirement = {
   note?: string;
 };
 
+/** 사용자에게 보여주는 필요 수량 이름 — 비교과는 포인트, 교과는 학점. */
+export function requirementQuantityName(rule: Pick<GradRequirement, 'source'>): '포인트' | '학점' {
+  return rule.source === 'points' ? '포인트' : '학점';
+}
+
 /** 전역 졸업 기준의 공식 출처 — hansung.ac.kr 비교과 포인트 안내 */
 export const GLOBAL_RULE_SOURCE = {
   url: 'https://www.hansung.ac.kr/hansung/6217/subview.do',
