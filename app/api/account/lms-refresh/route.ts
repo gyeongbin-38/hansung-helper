@@ -79,11 +79,22 @@ export async function POST(request: Request) {
         /* 이전 스냅샷 손상은 무시 */
       }
     }
+    // 학교 인증을 기다리는 동안 다른 수집이 먼저 저장됐다면, 이 요청이 읽은
+    // 이전 snapshot으로 최신 값을 덮지 않는다. 레거시 계정은 아래 이전 과정이
+    // snapshot 자체를 합칠 수 있으므로 별도의 경합 처리 검증이 필요하다.
+    const currentAccount = id === account.id;
     const updated = await database()
-      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
-      .bind(JSON.stringify(snapshot), id, account.session_hash, Date.now())
+      .prepare('UPDATE academic_accounts SET snapshot = ? WHERE id = ?' +
+        (currentAccount ? ' AND snapshot = ?' : '') +
+        ' AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
+      .bind(JSON.stringify(snapshot), id, ...(currentAccount ? [account.snapshot] : []), account.session_hash, Date.now())
       .run();
-    if (!updated.meta.changes) return json({ error: '다시 로그인해 주세요.' }, 401);
+    if (!updated.meta.changes) {
+      const stillActive = await authenticated(request);
+      if (stillActive?.id === id && currentAccount)
+        return json({ error: '다른 수집이 먼저 저장되었습니다. 새로고침 후 다시 시도해 주세요.' }, 409);
+      return json({ error: '다시 로그인해 주세요.' }, 401);
+    }
     if (deferredCollect)
       waitUntil(
         (async () => {
