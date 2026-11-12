@@ -291,7 +291,7 @@ try {
   await page.waitForSelector('.settings-removal button:disabled');
   assert.ok(await page.$eval('.settings-removal button', (el) => el.disabled));
   await page.waitForFunction(() =>
-    document.body.textContent.includes('삭제하지 못했습니다.'),
+    document.body.textContent.includes('계정 삭제 결과를 확인하지 못했습니다.'),
   );
   assert.ok(await page.$('.settings'));
   await page.waitForFunction(

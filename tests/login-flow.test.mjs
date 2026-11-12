@@ -31,6 +31,8 @@ const d1 = {
   },
 };
 const env = { DB: d1 };
+const diagnosticLogs = [];
+const testConsole = { ...console, error: (...args) => diagnosticLogs.push(args) };
 async function load(file, imports) {
   const source = await readFile(file, 'utf8');
   const js = ts.transpileModule(source, {
@@ -44,13 +46,14 @@ async function load(file, imports) {
       return imports[name];
     },
     crypto: webcrypto, TextEncoder, TextDecoder, Uint8Array, Response, URL, Date, Math,
-    JSON, Object, Array, Number, String, SyntaxError, console,
+    JSON, Object, Array, Number, String, SyntaxError, console: testConsole,
   }, { filename: file });
   return exports;
 }
 const account = await load('lib/server/account.ts', { 'cloudflare:workers': { env } });
 let schoolCalls = 0;
 let rejectCredentials = false;
+let rejectUpstream = false;
 class SchoolError extends Error { constructor(code) { super(code); this.code = code; } }
 const imports = { '@/lib/server/account': account };
 const login = await load('app/api/account/login/route.ts', {
@@ -61,6 +64,7 @@ const login = await load('app/api/account/login/route.ts', {
     async connectSchool() {
       schoolCalls += 1;
       if (rejectCredentials) throw new SchoolError('credentials');
+      if (rejectUpstream) throw new SchoolError('upstream');
       return { portal: 'connected', lms: 'unavailable', courses: [], checkedAt: new Date().toISOString() };
     },
   },
@@ -86,6 +90,7 @@ const input = { studentId: '00000000', password: 'fixture-password', agreed: tru
 // healthy even when the missing account key prevents every login.
 assert.equal(await account.authenticated(request('/api/account')), null);
 assert.equal((await login.POST(request('/api/account/login', 'POST', input))).status, 503);
+assert.deepEqual(diagnosticLogs.pop(), ['[login] failed', 'account-setup', 'internal']);
 assert.equal(schoolCalls, 0);
 assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM academic_login_limits').get().n, 0);
 let response = await health.GET();
@@ -98,6 +103,10 @@ assert.equal(account.accountAuthConfigured(), true);
 response = await health.GET();
 assert.equal(response.status, 200);
 assert.equal(response.headers.get('Cache-Control'), 'no-store');
+rejectUpstream = true;
+assert.equal((await login.POST(request('/api/account/login', 'POST', input))).status, 503);
+assert.deepEqual(diagnosticLogs.pop(), ['[login] failed', 'school', 'school-upstream']);
+rejectUpstream = false;
 
 // Existing accounts retain profile and sessions when adopting the HMAC ID.
 const legacy = await account.hash('hansung:' + input.studentId);

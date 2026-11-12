@@ -22,6 +22,7 @@ import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
+  let stage: 'input' | 'account-setup' | 'school' | 'account-storage' = 'input';
   try {
     const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         { error: '학번, 비밀번호와 정보 조회·보관 동의를 확인해 주세요.' },
         400,
       );
+    stage = 'account-setup';
     const id = await studentAccountId(input.studentId);
     const legacyId = await hash('hansung:' + input.studentId);
     const ip = await ipRateLimitKey(
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
+    stage = 'school';
     const snapshot = await connectSchool(input.studentId, input.password, {
       deferLms: (collect) => {
         deferredCollect = collect;
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
         deferredInfo = collect;
       },
     });
+    stage = 'account-storage';
     input.password = '';
     await migrateLegacyStudentAccount(id, legacyId);
     if (deferredCollect) snapshot.lmsPending = true;
@@ -238,6 +242,8 @@ export async function POST(request: Request) {
         },
         401,
       );
+    // Fixed labels only: never record credentials, identifiers, response bodies or errors.
+    console.error('[login] failed', stage, error instanceof SchoolError ? 'school-upstream' : 'internal');
     return json(
       {
         error:
