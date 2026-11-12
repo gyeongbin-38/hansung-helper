@@ -2,6 +2,7 @@ import { collectLms } from './lms.ts';
 import { collectInfo } from './info.ts';
 import type { LmsSnapshot } from '../data/lms.ts';
 import type { InfoSnapshot } from '../data/info.ts';
+import { retrySchoolRead } from './school-retry.ts';
 
 export type SchoolCourse = {
   id: string;
@@ -37,6 +38,12 @@ export class SchoolError extends Error {
   constructor(public code: 'credentials' | 'upstream', public status?: number) {
     super(code);
   }
+}
+
+export function transientSchoolRead(error: unknown): boolean {
+  return error instanceof TypeError ||
+    (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) ||
+    (error instanceof SchoolError && [502, 503, 504].includes(error.status ?? 0));
 }
 
 // Each login gets its own cookie jar. Neither credentials nor school cookies persist.
@@ -160,18 +167,7 @@ export async function connectSchool(
   const session = new SchoolSession();
   // Only retry idempotent page reads. Never automatically repeat a password POST:
   // a lost response can occur after the school already accepted the login.
-  const readPage = async (url: string) => {
-    try {
-      return await session.request(url);
-    } catch (error) {
-      const transient = error instanceof TypeError ||
-        (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) ||
-        (error instanceof SchoolError && [502, 503, 504].includes(error.status ?? 0));
-      if (!transient) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      return session.request(url);
-    }
-  };
+  const readPage = (url: string) => retrySchoolRead(() => session.request(url), transientSchoolRead);
   await (await readPage('https://info.hansung.ac.kr/')).arrayBuffer();
   const response = await session.request(
     'https://info.hansung.ac.kr/servlet/s_gong.gong_login_ssl',

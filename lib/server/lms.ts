@@ -4,7 +4,8 @@
  * 브라우저 수집기(public/lms-collect.js)와 동일한 셀렉터 계약을
  * Workers DOM 없이 정규식으로 구현 (dotbugi 구조 기반).
  */
-import { plainText } from './school.ts';
+import { plainText, transientSchoolRead } from './school.ts';
+import { retrySchoolRead } from './school-retry.ts';
 import type {
   LmsCourse,
   LmsSnapshot,
@@ -281,14 +282,22 @@ export async function collectLms(
   // 초과 시 나머지 과목은 'budget' 오류로 표시하고 결과는 부분 보존.
   const REQ_BUDGET = 40;
   let used = 0;
+  let retryBudget = 3;
   // 세션 만료·리다이렉트(303→로그인) 시 본문이 비거나 로그인 폼이 온다.
   // 이를 빈 결과로 삼키지 않고 throw해 errors[]에 남긴다.
   const html = async (url: string) => {
     const remaining = deadline - Date.now();
     if (remaining <= 0) throw new Error('lms:timeout');
-    if (++used > REQ_BUDGET) throw new Error('lms:budget');
-    const r = await session.request(url, { signal: AbortSignal.timeout(Math.max(1, remaining)) });
-    const h = await r.text();
+    const signal = AbortSignal.timeout(Math.max(1, remaining));
+    const { r, h } = await retrySchoolRead(async () => {
+      if (++used > REQ_BUDGET) throw new Error('lms:budget');
+      const r = await session.request(url, { signal });
+      return { r, h: await r.text() };
+    }, (error) => {
+      if (retryBudget <= 0 || used >= REQ_BUDGET || !transientSchoolRead(error)) return false;
+      retryBudget--;
+      return true;
+    }, signal);
     if (r.status !== 200 || !/\/login\/logout\.php/.test(h)) {
       console.log(
         '[lms] fetch',
