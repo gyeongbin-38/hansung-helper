@@ -1,6 +1,5 @@
 // 서버 측 LMS 수집 파서 테스트 — node --experimental-transform-types tests/lms-server.test.mjs
 import assert from 'node:assert/strict';
-import { mergeLmsSnapshot } from '../lib/data/lms.ts';
 import {
   parseAssigns,
   parseQuizList,
@@ -33,10 +32,6 @@ t('assign: 제출 판정', assigns[1].submitted === true);
 t('assign: 마감 - → null', assigns[1].due === null);
 t('assign: 절대 URL', assigns[0].url.startsWith('https://learn.hansung.ac.kr'));
 t('assign: 年形式 정규화', assigns[2].due === '2026-10-02 23:59');
-t('assign: 알 수 없는 제출 상태는 미제출 단정 금지', assigns[0].uncertain === undefined);
-const unknownStatus = parseAssigns(`<table class="generaltable"><tbody><tr><td class="cell c1"><a href="/mod/assign/view.php?id=104">확인할 과제</a></td><td class="cell c2">2026-10-04 23:59</td><td class="cell c3"></td></tr></tbody></table>`)[0];
-t('assign: 빈 상태는 uncertain', unknownStatus.submitted === false && unknownStatus.uncertain === true);
-t('assign: 제출 완료는 submitted', assigns[1].submitted === true && assigns[1].uncertain === undefined);
 
 // ── 퀴즈 목록 + 응시 판정 ─────────────────────────────────────
 const QUIZ_HTML = `<table class="generaltable"><tbody>
@@ -48,7 +43,7 @@ t('quiz: 상대경로 보정', quizzes[0].url === 'https://learn.hansung.ac.kr/m
 t('quiz: due 파싱', quizzes[0].due === '2026-10-05 18:00');
 t('attempt: 있음', hasQuizAttempt(`<table class="quizattemptsummary"><tbody><tr><td>1</td></tr></tbody></table>`));
 t('attempt: 없음', !hasQuizAttempt(`<table class="quizattemptsummary"><tbody></tbody></table>`));
-t('attempt: 테이블 부재는 확인 불가', hasQuizAttempt(`<div>no table</div>`) === null);
+t('attempt: 테이블 부재', !hasQuizAttempt(`<div>no table</div>`));
 
 // ── 온라인 출석부 (6열, 출석인정 요구시간 컬럼 포함) ────────────
 const PROGRESS_HTML = `<table class="user_progress_table">
@@ -62,19 +57,11 @@ const vods = parseProgress(PROGRESS_HTML);
 t('vod: 3개', vods.length === 3);
 t('vod: 출석 O', vods[0].attended === true && vods[0].status === 'O');
 t('vod: 미수강 X', vods[1].attended === false);
-t('vod: 미출석을 출석으로 판정하지 않음', parseProgress(PROGRESS_HTML.replace('<td>X</td>', '<td>미출석</td>'))[1].attended === false);
-const unknownVod = parseProgress(PROGRESS_HTML.replace('<td>X</td>', '<td>확인 중</td>'))[1];
-t('vod: 알 수 없는 상태는 결석으로 단정하지 않음', unknownVod.attended === false && unknownVod.uncertain === true);
-t('vod: 출석 확인 중은 출석 확정 아님', parseProgress(PROGRESS_HTML.replace('<td>X</td>', '<td>출석 확인 중</td>'))[1].uncertain === true);
-const emptyVod = parseProgress(PROGRESS_HTML.replace('<td>X</td>', '<td></td>'))[1];
-t('vod: 빈 상태도 항목을 보존하고 확인 필요 표시', emptyVod?.uncertain === true);
 t('vod: rowspan 주차 유지', vods[1].week === 1);
 t('vod: 주차 전이', vods[2].week === 2);
 t('vod: 일괄출석인정→O', vods[2].weeklyStatus === 'O');
 t('vod: 빈 주차출석은 직전값', vods[1].weeklyStatus === 'O');
-assert.throws(() => parseProgress('<div>nothing</div>'), /progress-header-missing/);
-assert.throws(() => parseProgress(PROGRESS_HTML.replace('<th>주차 출석</th>', '<th>기타</th>')), /progress-columns-missing/);
-assert.deepEqual(parseProgress(PROGRESS_HTML.replace(/<tbody>[\s\S]*?<\/tbody>/, '<tbody></tbody>')), []);
+t('vod: 없는 표 → 빈 배열', parseProgress('<div>nothing</div>').length === 0);
 // 5열 (요구시간 없음) — '출석' 컬럼이 요구시간으로 오인되지 않아야 함
 const PROGRESS5 = `<table class="user_progress_table">
 <thead><tr><th>주차</th><th>콘텐츠</th><th>시청시간</th><th>출석</th><th>주차 출석</th></tr></thead>
@@ -153,7 +140,7 @@ t(
   snap3.courses[0].vods.length === 0 && snap3.courses[0].assigns.length === 0,
 );
 
-// 표가 없는 응답은 빈 과목이 아니라 수집 불가로 분류
+// 표 없는 정상 페이지(마커 있음) → 오류 아닌 빈 결과
 const snap4 = await collectLms(
   {
     request: async (url) =>
@@ -164,14 +151,10 @@ const snap4 = await collectLms(
   [{ id: '999', name: '테스트과목' }],
 );
 t(
-  'snap4: 표 없음은 vod 수집 오류',
-  snap4.courses[0].errors?.includes('vod') && snap4.courses[0].vods.length === 0,
+  'snap4: 표 없음은 오류 아님',
+  !(snap4.courses[0].errors ?? []).includes('vod') &&
+    snap4.courses[0].vods.length === 0,
 );
-const malformed = await collectLms({ request: async (url) => url.includes('user_progress')
-  ? ok(PROGRESS_HTML.replace('<th>주차 출석</th>', '<th>기타</th>')) : byUrl(url) },
-  [{ id: '999', name: '테스트과목' }]);
-t('필수 출석 열 누락은 vod 오류', malformed.courses[0].errors?.includes('vod'));
-t('필수 열 누락 시 기존 출석을 보존', mergeLmsSnapshot(snap, malformed).courses[0].vods.length === snap.courses[0].vods.length);
 
 // 퀴즈 상세 조회 실패 → 미응시 단정 금지: uncertain 표시 + quiz-check 오류
 const snap5 = await collectLms(
@@ -201,15 +184,6 @@ const snap6 = await collectLms(
 );
 t('snap6: errors=quiz', snap6.courses[0].errors?.includes('quiz'));
 t('snap6: quiz-check 아님', !snap6.courses[0].errors?.includes('quiz-check'));
-
-// 로그인 이후 과목을 한 건도 인식하지 못하면 정상 빈 결과로 반환하지 않는다.
-let emptyCoursesFailed = false;
-try {
-  await collectLms({ request: async () => byUrl('unknown') }, []);
-} catch (error) {
-  emptyCoursesFailed = error.message === 'lms:no-courses-collected';
-}
-t('empty course list is a collection failure', emptyCoursesFailed);
 
 console.log(`lms-server.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

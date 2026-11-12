@@ -40,7 +40,7 @@ export class SchoolError extends Error {
 }
 
 // Each login gets its own cookie jar. Neither credentials nor school cookies persist.
-export class SchoolSession {
+class SchoolSession {
   private cookies = new Map<string, Map<string, string>>();
   async request(url: string, init: RequestInit = {}) {
     const target = new URL(url);
@@ -61,9 +61,7 @@ export class SchoolSession {
     const response = await fetch(target, {
       ...init,
       redirect: 'manual',
-      signal: init.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)])
-        : AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(15000),
       headers,
     });
     for (const cookie of response.headers.getSetCookie()) {
@@ -75,7 +73,7 @@ export class SchoolSession {
     if (response.status >= 400) throw new SchoolError('upstream');
     return response;
   }
-  async follow(response: Response, base: string, signal?: AbortSignal) {
+  async follow(response: Response, base: string) {
     for (
       let n = 0;
       n < 6 && response.status >= 300 && response.status < 400;
@@ -86,7 +84,7 @@ export class SchoolSession {
       if (!location) throw new SchoolError('upstream');
       const target = new URL(location, base);
       base = target.href;
-      response = await this.request(base, { signal });
+      response = await this.request(base);
     }
     if (response.status !== 200) throw new SchoolError('upstream');
     return response;
@@ -235,10 +233,15 @@ export async function connectSchool(
       const code = (home.url + '\n' + html.slice(0, 4000)).match(
         /errorcode=(\d+)/,
       )?.[1];
+      const title =
+        html.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim() ?? '';
       console.log(
         '[lms] landing w/o session:',
+        home.url,
         'errorcode',
         code ?? '-',
+        'title',
+        title.slice(0, 80),
         'len',
         html.length,
       );
@@ -259,8 +262,11 @@ export async function connectSchool(
         /* probe 실패는 아래 err 결과로 처리 */
       }
       return { err: code ? 'auth' : 'landing' };
-    } catch {
-      console.log('[lms] login request failed: upstream');
+    } catch (e) {
+      console.log(
+        '[lms] login request failed:',
+        e instanceof Error ? e.message : String(e),
+      );
       return { err: 'upstream' };
     }
   };
@@ -285,8 +291,11 @@ export async function connectSchool(
           snapshot.lmsFailedAt = new Date().toISOString();
         }
     }
-  } catch {
-    console.log('[lms] connect failed');
+  } catch (e) {
+    console.log(
+      '[lms] connect failed:',
+      e instanceof Error ? e.message : String(e),
+    );
     /* Portal authentication remains valid when LMS is temporarily unavailable. */
   }
   // 종합정보 수집 — LMS 결과와 무관하게 info 세션으로 진행한다.
