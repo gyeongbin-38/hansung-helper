@@ -3389,8 +3389,17 @@ input[aria-invalid='true'] {
   background: var(--nt-tint-sky);
 }
 .tt-hours {
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--nt-canvas);
   height: 729px;
+}
+.tt-head > span:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--nt-canvas);
 }
 .tt-hours small {
   position: absolute;
