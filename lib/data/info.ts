@@ -25,6 +25,38 @@ export type InfoAuditRow = {
   verdict: string;
 };
 
+/** 학기별 성적 요약 — 성적조회(학기별) 페이지에서 수집한다. */
+export type InfoSemester = {
+  /** '2026-1' 형태 */
+  semester: string;
+  /** 신청학점 */
+  applied?: number;
+  /** 취득학점 */
+  earned?: number;
+  /** 평점총계 */
+  totalScore?: number;
+  /** 평균평점 */
+  gpa?: number;
+  /** 백분위점수 */
+  percentile?: number;
+  /** 해당 학기 이수 과목 */
+  courses: InfoCourse[];
+};
+
+/** 학적 요약 — 학년·재학상태·트랙·입학일 */
+export type InfoAcademic = {
+  grade?: number;
+  status?: string;
+  tracks?: string[];
+  admissionDate?: string;
+};
+
+/** 누적 이수구분별 취득학점 (기초·토대·전필·전선·일선 등) */
+export type InfoCreditCategory = {
+  label: string;
+  credits: number;
+};
+
 export type InfoSnapshot = {
   source: 'info-hansung';
   fetchedAt: string;
@@ -40,6 +72,12 @@ export type InfoSnapshot = {
   gpa?: number;
   /** 이수 완료 과목 (누적 성적 조회 페이지) */
   completed: InfoCourse[];
+  /** 학적 요약 — 학년·재학상태·트랙·입학일 */
+  academic?: InfoAcademic;
+  /** 학기별 성적 요약 + 과목 (성적조회 학기별 페이지) */
+  semesters?: InfoSemester[];
+  /** 누적 이수구분별 취득학점 */
+  creditCategories?: InfoCreditCategory[];
   /** 졸업가사정표 행 — 학교 기준 자체를 보여주는 참고표 */
   audit?: InfoAuditRow[];
   /** 이전 수집 대비 바뀐 지표 라벨 — '취득학점'|'평점'|'이수 과목 수'|'수집 시작'.
@@ -49,9 +87,12 @@ export type InfoSnapshot = {
    *  실계정 첫 수집 때 실제 메뉴 구조를 알려주는 계측이다. */
   diag?: {
     menu: { label: string; path: string }[];
-    pages: { slot: string; path: string; ok: boolean }[];
+    pages: { slot: string; path: string; ok: boolean; reason?: InfoPageFailure }[];
   };
 };
+
+export type InfoPageFailure = 'session-expired' | 'upstream' | 'structure' | 'missing' | 'unconfirmed';
+const infoPageFailures: readonly string[] = ['session-expired', 'upstream', 'structure', 'missing', 'unconfirmed'];
 
 /** 학교 이수구분 원문 → 앱 카테고리 어휘 (gradGroup 입력으로 바로 쓰인다) */
 export function infoCategory(raw: string): string {
@@ -94,6 +135,61 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
     typeof x === 'string' && x.length <= max && x.trim()
       ? x.trim()
       : undefined;
+  const course = (c: InfoCourse) => ({
+    code: c.code,
+    name: c.name,
+    category: c.category,
+    credits: c.credits,
+    semester: str(c.semester, 10),
+    grade: str(c.grade, 10),
+  });
+  const semesters = Array.isArray(s.semesters)
+    ? s.semesters
+        .flatMap((sem): InfoSemester[] => {
+          if (!sem || typeof sem !== 'object') return [];
+          const code = str((sem as InfoSemester).semester, 10);
+          if (!code) return [];
+          return [{
+            semester: code,
+            applied: num((sem as InfoSemester).applied, 300),
+            earned: num((sem as InfoSemester).earned, 300),
+            totalScore: num((sem as InfoSemester).totalScore, 1000),
+            gpa: num((sem as InfoSemester).gpa, 10),
+            percentile: num((sem as InfoSemester).percentile, 100),
+            courses: Array.isArray((sem as InfoSemester).courses)
+              ? (sem as InfoSemester).courses
+                  .filter(isCourse)
+                  .slice(0, 60)
+                  .map(course)
+              : [],
+          }];
+        })
+        .slice(0, 20)
+    : undefined;
+  const academic =
+    s.academic && typeof s.academic === 'object'
+      ? {
+          grade: num(s.academic.grade, 10),
+          status: str(s.academic.status, 20),
+          tracks: Array.isArray(s.academic.tracks)
+            ? s.academic.tracks
+                .filter((t): t is string => typeof t === 'string' && !!t.trim())
+                .map((t) => t.trim().slice(0, 40))
+                .slice(0, 4)
+            : undefined,
+          admissionDate: str(s.academic.admissionDate, 20),
+        }
+      : undefined;
+  const creditCategories = Array.isArray(s.creditCategories)
+    ? s.creditCategories
+        .flatMap((c): InfoCreditCategory[] => {
+          if (!c || typeof c !== 'object') return [];
+          const label = str((c as InfoCreditCategory).label, 40);
+          const credits = num((c as InfoCreditCategory).credits, 300);
+          return label && credits !== undefined ? [{ label, credits }] : [];
+        })
+        .slice(0, 30)
+    : undefined;
   return {
     source: 'info-hansung',
     fetchedAt: s.fetchedAt,
@@ -104,15 +200,11 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
     points: num(s.points, 10000),
     gpa: num(s.gpa, 10),
     completed: Array.isArray(s.completed)
-      ? s.completed.filter(isCourse).slice(0, 300).map((c) => ({
-          code: c.code,
-          name: c.name,
-          category: c.category,
-          credits: c.credits,
-          semester: str(c.semester, 10),
-          grade: str(c.grade, 10),
-        }))
+      ? s.completed.filter(isCourse).slice(0, 300).map(course)
       : [],
+    academic,
+    semesters,
+    creditCategories,
     changed: Array.isArray(s.changed)
       ? s.changed
           .filter((c): c is string => typeof c === 'string')
@@ -156,6 +248,12 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
                       typeof p.ok === 'boolean',
                   )
                   .slice(0, 20)
+                  .map((p) => ({
+                    slot: p.slot, path: p.path, ok: p.ok,
+                    ...(!p.ok && infoPageFailures.includes((p as { reason?: string }).reason ?? '')
+                      ? { reason: (p as { reason?: InfoPageFailure }).reason }
+                      : {}),
+                  }))
               : [],
           }
         : undefined,
@@ -170,6 +268,8 @@ export type MergedCourse = {
   /** 'info' = 종합정보 수집본, 'manual' = 사용자 직접 입력 */
   src: 'info' | 'manual';
   semester?: string;
+  /** 성적 등급 원문 — 수집본에만 있을 수 있다 */
+  grade?: string;
 };
 
 /** 부분 수집 병합 — diag.pages에서 fetch가 확인된(ok) 슬롯만 새 값을 믿고,
@@ -185,6 +285,9 @@ export function mergeInfoSnapshot(
   const ok = (slot: string) =>
     next.diag?.pages.some((p) => p.slot === slot && p.ok) ?? false;
   const gradesOk = ok('grades');
+  const semesterOk = ok('semesterGrades');
+  const academicOk = ok('academic');
+  const semesterCompleted = next.semesters?.flatMap((s) => s.courses) ?? [];
   return {
     ...next,
     name: next.name ?? prev.name,
@@ -192,11 +295,46 @@ export function mergeInfoSnapshot(
     admitYear: next.admitYear ?? prev.admitYear,
     credits: gradesOk ? (next.credits ?? prev.credits) : prev.credits,
     gpa: gradesOk ? (next.gpa ?? prev.gpa) : prev.gpa,
-    completed: gradesOk ? next.completed : prev.completed,
+    completed: gradesOk
+      ? next.completed
+      : prev.completed.length
+        ? prev.completed
+        : semesterCompleted,
+    academic: academicOk ? (next.academic ?? prev.academic) : prev.academic,
+    semesters:
+      semesterOk && (next.semesters?.length ?? 0) > 0
+        ? next.semesters
+        : prev.semesters,
+    creditCategories:
+      semesterOk && (next.creditCategories?.length ?? 0) > 0
+        ? next.creditCategories
+        : prev.creditCategories,
     points: ok('points') ? (next.points ?? prev.points) : prev.points,
     audit: ok('audit') ? (next.audit ?? prev.audit) : prev.audit,
     changed: next.changed,
   };
+}
+
+/** 학기 정보가 없을 때 이수 과목만으로 학기 타임라인을 구성한다.
+ *  평점·신청학점은 학교 성적 요약이 없으므로 비워 둔다. */
+export function semestersFromCourses(
+  courses: (InfoCourse | MergedCourse)[],
+): InfoSemester[] {
+  const map = new Map<string, InfoSemester>();
+  for (const c of courses) {
+    if (!c.semester) continue;
+    const sem = map.get(c.semester) ?? {
+      semester: c.semester,
+      courses: [],
+      earned: 0,
+    };
+    sem.courses.push(c as InfoCourse);
+    sem.earned = (sem.earned ?? 0) + c.credits;
+    map.set(c.semester, sem);
+  }
+  return [...map.values()].sort((a, b) =>
+    b.semester.localeCompare(a.semester),
+  );
 }
 
 const normKey = (s: string) => s.replace(/\s+/g, '').toLowerCase();
@@ -222,4 +360,31 @@ export function mergeCompleted(
     out.push({ ...c, src: 'manual' });
   }
   return out;
+}
+
+/** Total completed credits, including manually added courses not in the school snapshot. */
+export function resolveEarnedCredits(
+  courses: Pick<MergedCourse, 'credits' | 'src'>[],
+  infoCredits: number | undefined,
+  manualCredits: string,
+): number | null {
+  if (infoCredits !== undefined) {
+    return (
+      infoCredits +
+      courses.reduce(
+        (sum, course) => sum + (course.src === 'manual' ? course.credits : 0),
+        0,
+      )
+    );
+  }
+
+  const entered = manualCredits.trim();
+  if (entered) {
+    const value = Number(entered);
+    if (Number.isFinite(value) && value >= 0) return value;
+  }
+
+  return courses.length
+    ? courses.reduce((sum, course) => sum + course.credits, 0)
+    : null;
 }
