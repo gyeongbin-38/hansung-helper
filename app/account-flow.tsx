@@ -50,7 +50,7 @@ function AuthIntro({ compactOnMobile = false }: { compactOnMobile?: boolean }) {
     >
       <div className="auth-brand">
         <span className="auth-brand-mark">
-          <Logo size={28} />
+          <Logo size={52} />
         </span>
         <span>학사부기</span>
       </div>

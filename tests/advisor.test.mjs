@@ -100,6 +100,18 @@ assert.doesNotMatch(JSON.stringify(captured), /NEVER_SEND|INJECTED_PROFILE/);
 assert.equal(JSON.parse(captured.input.messages[1].content.split('\n')[1]).context.personalFacts.schoolSummary.credits, 30);
 assert.equal(captured.input.store, false);
 assert.match(captured.input.messages[0].content, /졸업 확정/);
+sql.prepare('DELETE FROM academic_login_limits').run();
+response = await route.POST(req({ personal: false, activityId: activities.items[0].id,
+  selectedActivity: { title: 'INJECTED_ACTIVITY' }, messages: [{ role: 'user', content: '이 활동 신청 준비를 도와줘' }] }));
+assert.equal(response.status, 200);
+let activityContext = JSON.parse(captured.input.messages[1].content.split('\n')[1]).context;
+assert.equal(activityContext.publicFacts.selectedActivity.title, activities.items[0].title);
+assert.equal(activityContext.personalFacts, null);
+assert.doesNotMatch(JSON.stringify(captured), /INJECTED_ACTIVITY|NEVER_SEND/);
+assert.match(captured.input.messages[0].content, /실제 접수 도구는 없다/);
+assert.equal((await route.POST(req({ personal: false, activityId: '../account', messages: [{ role: 'user', content: '신청' }] }))).status, 400);
+assert.equal((await route.POST(req({ personal: false, activityId: 'hs-999999999999', messages: [{ role: 'user', content: '신청' }] }))).status, 400);
+sql.prepare('DELETE FROM academic_login_limits').run();
 
 env.AI.run = async () => { sql.prepare('DELETE FROM academic_sessions').run(); return { response: 'late answer' }; };
 assert.equal((await route.POST(req())).status, 401);

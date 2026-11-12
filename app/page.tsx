@@ -29,7 +29,7 @@ import {
 import { Home } from './sections/home';
 import { Activities } from './sections/activities';
 import { ProfileSection } from './sections/profile';
-import { Graduation } from './sections/graduation';
+import { GraduationWorkspace } from './sections/graduation-workspace';
 import { Courses } from './sections/courses';
 import { SemesterPlan } from './sections/semester-plan';
 import { Timetable } from './sections/timetable';
@@ -41,6 +41,7 @@ import {
   deriveNotifs,
   reminderTargets,
   stageReminderTargets,
+  activityReminderTargets,
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
@@ -489,6 +490,7 @@ export default function App() {
       (catalog?.semester ? semesterStartTs(catalog.semester) : null) ??
       currentSemesterStart(Date.now());
     const targets = [
+      ...activityReminderTargets(actsSnap, d.saved, Date.now(), d.actStatus),
       // 활동 라이프사이클(수료·포인트 확인) + LMS 마감 — 같은 예약 큐
       ...stageReminderTargets({
         actStatus: d.actStatus,
@@ -517,7 +519,7 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, catalog, actsSnap]);
+  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, data.saved, catalog, actsSnap]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',
@@ -588,6 +590,7 @@ export default function App() {
     }
   }
   async function logout() {
+    if (!window.confirm('정말 로그아웃하시겠습니까?')) return;
     accountGeneration.current += 1;
     allowExtensionImport.current = false;
     try {
@@ -942,7 +945,7 @@ export default function App() {
         <main>
           <PageHeading
             section={section}
-            label={label}
+            label={section === 'graduation' ? ({ outlook: '졸업 전망', requirements: '요건별 충족 현황', completed: '이수한 과목', department: '학과·트랙별 요건' } as Record<string, string>)[detail ?? ''] ?? label : label}
             name={data.name}
             onSurvey={section === 'home' ? undefined : () =>
               openSurvey(section === 'activities' ? 'act' : 'course')
@@ -1011,7 +1014,7 @@ export default function App() {
               go={go}
             />
           ) : section === 'graduation' ? (
-            <Graduation
+            <GraduationWorkspace
               data={data}
               go={go}
               catalog={catalog}
@@ -1087,7 +1090,8 @@ export default function App() {
             />
           ) : section === 'advisor' ? (
             <Advisor
-              key={renderedGeneration}
+              key={`${renderedGeneration}:${detail ?? ''}`}
+              activityId={detail}
               signedIn={!!account}
               data={data}
               catalog={catalog}

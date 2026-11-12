@@ -45,6 +45,13 @@ const base = {
   consent: true,
   rev: 5,
 };
+
+test('admission type follows local edits and preserves unrelated remote selections', () => {
+  const initial = { ...base, admissionType: 'unknown' };
+  const remote = { ...initial, admissionType: 'general-transfer' };
+  assert.equal(mergeProfile(initial, { ...initial, name: '새 이름' }, remote).admissionType, 'general-transfer');
+  assert.equal(mergeProfile(initial, { ...initial, admissionType: 'freshman' }, remote).admissionType, 'freshman');
+});
 const d = (over) => ({ ...base, ...over });
 
 test('양쪽 추가분은 모두 살아난다 — 집합 병합', () => {

@@ -1,6 +1,7 @@
 import { conflicts, type CourseSection } from './catalog.ts';
 import {
   liveStatus,
+  activityNeedsVerification,
   type ActivitySnapshot,
   type ExtActivity,
 } from './activities.ts';
@@ -43,6 +44,21 @@ export type NotifInputs = {
 };
 
 const DAY = 86400000;
+
+/** Saved programs only; a stale feed cannot assert that applications remain open. */
+export function activityReminderTargets(snapshot: ActivitySnapshot | null, saved: string[], now: number, stages: Record<string, string> = {}): Reminder[] {
+  if (!snapshot || activityNeedsVerification(snapshot.fetchedAt, now)) return [];
+  const ids = new Set(saved);
+  return snapshot.items.filter(a => ids.has(a.id) && !stages[a.id] && a.applyEnd &&
+    ['open', 'closing'].includes(liveStatus(a, now).status) &&
+    Date.parse(a.applyEnd) > now && Date.parse(a.applyEnd) <= now + 7 * DAY)
+    .map(a => ({
+      id: `activity-deadline-${a.id}-${a.applyEnd}`,
+      fireAt: Math.max(now, Date.parse(a.applyEnd!) - DAY),
+      title: `관심 비교과 신청 마감: ${a.title}`,
+      body: `${a.applyEnd!.slice(0, 10)} 마감 · 신청 여부는 학교에서 확인하세요.`,
+    })).sort((a, b) => a.fireAt - b.fireAt).slice(0, 10);
+}
 
 export type Reminder = {
   /** 알림함 항목과 같은 id 형식 — notifiedIds로 중복 발송 방지 */
@@ -207,7 +223,8 @@ export function deriveNotifs({
 
   // 활동 신청 마감 임박 (7일 이내) — 저장한 활동을 먼저 강조.
   // 상태는 스냅샷 문자열이 아니라 신청 기간+현재 시각으로 재계산한다.
-  const deadlines = (acts?.items ?? []).filter((a) => {
+  const deadlines = (acts && !activityNeedsVerification(acts.fetchedAt, now) ? acts.items : []).filter((a) => {
+    if (data.actStatus?.[a.id]) return false;
     if (!a.applyEnd) return false;
     const t = Date.parse(a.applyEnd);
     const st = liveStatus(a, now).status;

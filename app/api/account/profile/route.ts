@@ -109,6 +109,12 @@ export async function PUT(request: Request) {
     // 구버전 클라이언트가 새 필드를 보내지 않아도 저장된 설정을 지우지 않는다.
     let storedProfile: Record<string, unknown> = {};
     try { storedProfile = JSON.parse(row.profile); } catch { /* 기존 손상 값 무시 */ }
+    const admissionTypes = ['unknown', 'freshman', 'general-transfer', 'bachelor-transfer'];
+    if (input.admissionType !== undefined && !admissionTypes.includes(input.admissionType))
+      return json({ error: '입학 구분을 확인해 주세요.' }, 400);
+    const admissionType = input.admissionType ?? storedProfile?.admissionType;
+    if (typeof admissionType === 'string' && admissionTypes.includes(admissionType))
+      profile.admissionType = admissionType;
     const notifiedIds = input.notifiedIds ?? storedProfile?.notifiedIds;
     if (validStringArray(notifiedIds, 200, 200)) profile.notifiedIds = notifiedIds;
     const notifEnabled = input.notifEnabled ?? storedProfile?.notifEnabled;

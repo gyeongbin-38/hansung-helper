@@ -13,7 +13,7 @@ import {
 } from '@/lib/data/graduation';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
-import { mergeCompleted } from '@/lib/data/info';
+import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import {
   deptRuleTargets,
@@ -87,6 +87,8 @@ export function Graduation({
   detail,
   infoPending,
   infoFailed,
+  admission,
+  onAdmissionChange,
 }: {
   data: Data;
   go: (route: string) => void;
@@ -98,6 +100,8 @@ export function Graduation({
   infoPending?: boolean;
   /** 종합정보 수집 실패 (로그인은 됐는데 페이지 파싱이 안 된 경우 포함) */
   infoFailed?: boolean;
+  admission?: AdmissionType;
+  onAdmissionChange?: (admission: AdmissionType) => void;
 }) {
   const [q, setQ] = useState('');
   const completedRef = useRef<HTMLElement>(null);
@@ -109,7 +113,9 @@ export function Graduation({
     }
   }, [detail]);
   const [pace, setPace] = useState('');
-  const [admissionType, setAdmissionType] = useState<AdmissionType>('unknown');
+  const [localAdmission, setLocalAdmission] = useState<AdmissionType>('unknown');
+  const admissionType = admission ?? data.admissionType ?? localAdmission;
+  const setAdmissionType = onAdmissionChange ?? setLocalAdmission;
   const guide = verifiedDeptGuide(data.dept, Number(data.year));
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
@@ -168,6 +174,7 @@ export function Graduation({
   // 비교과 포인트는 학교 수집값을 우선한다 — 수동 입력은 수집이
   // 없을 때의 폴백이다.
   const infoPoints = info?.points;
+  const earnedCredits = resolveEarnedCredits(merged, info?.credits, data.credits);
   const results = useMemo(() => {
     const year = parseInt(data.year, 10);
     const pts = infoPoints ?? parseInt(data.points, 10);
@@ -176,9 +183,15 @@ export function Graduation({
       admissionType,
       points: Number.isInteger(pts) ? pts : undefined,
       deptTargets: deptTargets ?? undefined,
+    }).map(r => r.rule.id !== 'total' || earnedCredits === null ? r : {
+      ...r,
+      earned: earnedCredits,
+      status: r.required === null || r.uncertainCredits ? 'unknown' as const
+        : earnedCredits >= r.required ? 'met' as const : 'progress' as const,
     });
   }, [
     merged,
+    earnedCredits,
     planned,
     data.ruleOverrides,
     data.year,
@@ -222,7 +235,7 @@ export function Graduation({
   const pointsEmpty =
     infoPoints === undefined && !(data.points ?? '').trim();
   const missingInput = (r: (typeof results)[number]) =>
-    r.rule.source === 'points' ? pointsEmpty : completedEmpty;
+    r.rule.id === 'total' ? earnedCredits === null : r.rule.source === 'points' ? pointsEmpty : completedEmpty;
   const reqCheckSet = new Set(data.reqChecks ?? []);
   function toggleReqCheck(label: string) {
     const next = new Set(data.reqChecks ?? []);

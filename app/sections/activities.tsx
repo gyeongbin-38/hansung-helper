@@ -7,8 +7,11 @@ import {
   Search,
   Plus,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 import type { Data } from './data';
+import { ActivitySummary } from './activity-summary';
+import { activityDigest } from '@/lib/data/activity-assistant';
 import { useActivities, useNow } from './catalog';
 import { RetryButton, SkeletonCards } from './skeleton';
 import { koreanMatch } from '@/lib/data/hangul';
@@ -109,8 +112,8 @@ export function Activities({
   const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
   const ptsRaw = data.info?.points ?? parseInt(data.points, 10);
   const ptsSet = Number.isInteger(ptsRaw);
-  const ptsReq = data.ruleOverrides?.points ?? 800;
-  const ptsDeficit = ptsSet ? Math.max(0, ptsReq - ptsRaw) : 0;
+  const ptsReq = activityDigest(data, snap, now).requiredPoints;
+  const ptsDeficit = ptsSet && ptsReq !== null ? Math.max(0, ptsReq - ptsRaw) : 0;
   const actStale = snap ? staleLabel(snap.fetchedAt, now) : null;
   const needsVerification = snap ? activityNeedsVerification(snap.fetchedAt, now) : true;
   const pointsBand = (
@@ -118,11 +121,11 @@ export function Activities({
       <div>
         <b>
           {ptsSet
-            ? `비교과 포인트 ${ptsRaw} / ${ptsReq}P`
-            : `비교과 포인트 미입력 / ${ptsReq}P 필요`}
+            ? `비교과 포인트 ${ptsRaw}P${ptsReq !== null ? ` / ${ptsReq}P` : ' · 기준 확인 필요'}`
+            : '비교과 포인트 미입력'}
         </b>
         <small>
-          {ptsSet
+          {ptsReq === null ? '입학 구분·졸업 기준을 확인하면 부족 포인트를 계산해요.' : ptsSet
             ? ptsRaw >= ptsReq
               ? '졸업 포인트 기준을 채웠습니다'
               : `졸업까지 ${ptsReq - ptsRaw}P 남음`
@@ -361,7 +364,7 @@ export function Activities({
           {a.points != null && !isExt(a) && (
             <p className="meta">
               이 활동 완료 시 +{a.points}P
-              {ptsSet
+              {ptsSet && ptsReq !== null
                 ? ` · 누적 ${ptsRaw + a.points}P / ${ptsReq}P${
                     ptsRaw + a.points >= ptsReq
                       ? ' (졸업 기준 도달)'
@@ -382,6 +385,7 @@ export function Activities({
             </p>
           )}
           <div className="actions">
+            {!isExt(a) && <button className="secondary" onClick={() => go(`advisor/${a.id}`)}><Sparkles size={16} />AI와 요약·신청 준비</button>}
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
                 <Bookmark size={18} />
@@ -456,6 +460,7 @@ export function Activities({
     );
   return (
     <>
+      <ActivitySummary data={data} snapshot={snap} now={now} go={go} />
       {pointsBand}
       <div className="toolbar">
         <div className="tabs">

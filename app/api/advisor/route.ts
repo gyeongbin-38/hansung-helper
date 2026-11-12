@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     let input;
     try { input = JSON.parse(raw); } catch { return json({ error: '질문 형식을 확인해 주세요.' }, 400); }
     if (!input || typeof input !== 'object' || Array.isArray(input) ||
+        (input.activityId !== undefined && (typeof input.activityId !== 'string' || !/^hs-\d{1,20}$/.test(input.activityId))) ||
         typeof input.personal !== 'boolean' || !Array.isArray(input.messages) ||
         input.messages.length < 1 || input.messages.length > 5 ||
         input.messages.some((m: AdvisorMessage, i: number) => !m ||
@@ -53,6 +54,8 @@ export async function POST(request: Request) {
     const [coursePayload, activityPayload, schedulePayload] = await Promise.all([
       apiData<Catalog>(courseResponse), apiData<ActivitySnapshot>(activityResponse), apiData<ScheduleSnapshot>(scheduleResponse),
     ]);
+    if (input.activityId && !activityPayload.items.some(a => a.id === input.activityId))
+      return json({ error: '선택한 활동을 공개 목록에서 찾지 못했어요. 비교과 목록에서 다시 선택해 주세요.' }, 400);
     let personal: Partial<Data> | null = null;
     if (input.personal) {
       const profile = JSON.parse(row.profile);
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
       catalog: coursePayload,
       activities: activityPayload,
       schedule: schedulePayload,
-    });
+    }, Date.now(), input.activityId);
     const answer = await generateAdvisorAnswer(context, SERVICE_GUIDES.map(({ label, route, text }) => ({ label, route, text })), input.messages);
     const current = await authenticated(request);
     if (!current || current.id !== row.id || current.session_hash !== row.session_hash)

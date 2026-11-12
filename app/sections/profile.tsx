@@ -76,6 +76,7 @@ export function ProfileSection({
             ...data,
             name: d.get('name') as string,
             year: d.get('year') as string,
+            admissionType: d.get('admissionType') as Data['admissionType'],
             dept: d.get('dept') as string,
             credits: d.get('credits') as string,
             points: d.get('points') as string,
@@ -83,6 +84,12 @@ export function ProfileSection({
         }}
       >
         <div className="form-grid">
+          <label>입학 구분
+            <select name="admissionType" defaultValue={data.admissionType ?? 'unknown'}>
+              <option value="unknown">선택해 주세요</option><option value="freshman">신입학</option>
+              <option value="general-transfer">일반편입</option><option value="bachelor-transfer">학사편입</option>
+            </select>
+          </label>
           {[
             ['name', '표시 이름', data.name, 'text'],
             ['year', '입학연도 (연결 시 자동 입력)', data.year, 'number'],

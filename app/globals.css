@@ -5,6 +5,8 @@
 @import './styles/home.css';
 @import './styles/learning.css';
 @import './styles/progress.css';
+@import './styles/graduation.css';
+@import './styles/activity-assistant.css';
 /*
   Toss-inspired product token layer.
   This sans-first contract supplies every section stylesheet with accessible

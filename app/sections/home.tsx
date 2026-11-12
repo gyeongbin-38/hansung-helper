@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
+import { ActivitySummary } from './activity-summary';
 import {
   conflicts,
   fmtMin,
@@ -43,7 +44,7 @@ import { addDays, dateOf } from '@/lib/data/calendar';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { gettingStarted } from '@/lib/data/getting-started';
 import { evaluate } from '@/lib/data/graduation';
-import { mergeCompleted } from '@/lib/data/info';
+import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { dateDeadlineDays, deadlineDays, isUpcomingUrgent } from '@/lib/data/home-deadlines';
 
@@ -322,12 +323,13 @@ export function Home({
   const myRules = deptRules?.items
     .filter((r) => rulesetMatchesDept(r, data.dept, pool))
     .sort((a, b) => richness(b) - richness(a))[0];
-  const year = parseInt(data.year, 10);
+  const year = data.info?.admitYear ?? parseInt(data.year, 10);
   const deptTargets =
     myRules && Number.isInteger(year) ? deptRuleTargets(myRules, year) : null;
   const points =
     data.info?.points ?? (data.points.trim() ? Number(data.points) : undefined);
   const graduation = evaluate(completed, planned, data.ruleOverrides, {
+    admissionType: data.admissionType,
     admitYear: Number.isInteger(year) ? year : undefined,
     points:
       points !== undefined && Number.isFinite(points) ? points : undefined,
@@ -336,13 +338,11 @@ export function Home({
   const total = graduation[0];
   const gradePages = data.info?.diag?.pages.filter((p) => p.slot === 'grades') ?? [];
   const gradesUnverified = gradePages.length > 0 && !gradePages.some((p) => p.ok);
-  const credits =
-    data.info?.credits ??
-    (data.credits.trim()
-      ? Number(data.credits)
-      : completed.length
-        ? total.earned
-        : null);
+  const credits = resolveEarnedCredits(
+    completed,
+    data.info?.credits,
+    data.credits,
+  );
   const hasCredits = credits !== null && Number.isFinite(credits);
   const remaining =
     hasCredits && total.required !== null
@@ -440,7 +440,7 @@ export function Home({
             </button>
           </div>
           <h3 className="home-grad-message">
-            {remaining !== null ? (
+            {hasCredits && remaining === null ? <>지금까지 <em>{credits}학점</em> 이수했어요</> : remaining !== null ? (
               remaining > 0 ? (
                 <>
                   졸업 학점, <em>{remaining}학점</em> 남았어요
@@ -458,7 +458,11 @@ export function Home({
           </h3>
           <p className="home-card-description">
             {hasCredits
-              ? '이번 학기 수강 중인 과목의 학점은 포함되지 않습니다.'
+              ? data.info?.credits !== undefined
+                ? '종합정보 수집값 + 직접 등록한 이수 과목'
+                : data.credits.trim()
+                  ? '내 정보에 입력한 총 이수학점'
+                  : '등록한 이수 과목 학점 합계'
               : '이수 내역을 연결하면 나의 졸업 현황을 볼 수 있어요.'}
           </p>
           {gradesUnverified && (
@@ -468,7 +472,7 @@ export function Home({
           )}
           <div className="home-progress-caption">
             <span>
-              이수 학점 <b>{hasCredits ? credits : '미입력'}</b>
+              이수 학점 <b>{hasCredits ? `${credits}학점` : '미입력'}</b>
               {total.required !== null && <span> / {total.required}학점</span>}
             </span>
             <b>
@@ -479,12 +483,12 @@ export function Home({
                   : '입력 대기'}
             </b>
           </div>
-          <progress
+          {percent !== null ? <progress
             className="home-progress"
             aria-label="졸업 학점 이수율"
-            value={percent ?? 0}
+            value={percent}
             max={100}
-          />
+          /> : <p className="home-credit-help">{hasCredits ? '이수학점은 반영됐어요. ' : '학점과 기준을 확인해 주세요. '}<button className="link" onClick={() => go('graduation')}>입학 구분·졸업 기준 확인 <ArrowRight size={13} /></button> 후 진행률을 계산해요.</p>}
           <div className="home-grad-breakdown">
             <button onClick={() => go('graduation/major')}>
               <span>
@@ -573,6 +577,7 @@ export function Home({
           </button>
         </section>
       </div>
+      <ActivitySummary data={data} snapshot={acts} now={now} go={go} />
       <div className="home-agenda-heading">
         <h2>
           다가오는 학사 일정{' '}

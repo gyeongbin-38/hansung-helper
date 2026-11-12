@@ -862,7 +862,7 @@ button.event-line.as-link > svg {
 }
 
 /* Page 3 visual layer */
-﻿/* Page 3 dashboard: the two card rows share one column rhythm. */
+/* Page 3 dashboard: the two card rows share one column rhythm. */
 .home-overview,
 .home-agenda {
   display: grid;

@@ -4,6 +4,7 @@ import { currentSemesterStart, dueSoon, pendingTasks } from './lms.ts';
 import { liveStatus, type ActivitySnapshot } from './activities.ts';
 import { scheduleToday, upcomingSchedule, type ScheduleSnapshot } from './schedule.ts';
 import { searchAll } from './search.ts';
+import { activityBrief, activityDigest } from './activity-assistant.ts';
 
 export const SERVICE_GUIDES = [
   { label: '로그인·학교 연결', route: 'settings', keywords: /로그인|연결|연동|수집|코스모스|COSMOS|오류|안돼|안되/i,
@@ -42,8 +43,10 @@ export function advisorContext(
   data: Partial<Data> | null,
   publicData: AdvisorPublicData,
   now = Date.now(),
+  activityId?: string,
 ) {
   const { catalog, activities, schedule } = publicData;
+  const selectedActivity = activities?.items.find(a => a.id === activityId);
   const open = activities?.items.filter((a) => ['open', 'closing'].includes(liveStatus(a, now).status)) ?? [];
   const sources: AdvisorSource[] = [
     { label: '서비스 사용 안내', route: 'settings' },
@@ -52,13 +55,15 @@ export function advisorContext(
     ...(schedule ? [{ label: '학교 학사일정', route: 'calendar', asOf: schedule.fetchedAt }] : []),
   ];
   const publicFacts = {
+    selectedActivity: selectedActivity ? activityBrief(selectedActivity, activities?.fetchedAt, now) : null,
     today: scheduleToday(now),
     courseSemester: catalog?.semester ?? null,
-    openActivities: open.slice(0, 8).map((a) => ({ title: a.title, end: a.applyEnd, points: a.points })),
+    openActivities: open.slice(0, 8).map((a) => ({ id: a.id, title: a.title, end: a.applyEnd, points: a.points })),
     openActivityCount: activities ? open.length : null,
     upcomingSchedule: schedule ? upcomingSchedule(schedule.items, scheduleToday(now)).slice(0, 8)
       .map((e) => ({ title: e.title, start: e.start, end: e.end })) : null,
   };
+  if (selectedActivity) sources.push({ label: selectedActivity.title, route: `activities/${selectedActivity.id}`, asOf: activities?.fetchedAt });
   if (!data) return { publicFacts, personalFacts: null, sources };
 
   // A future plan may use an older source catalog. Label both explicitly.
@@ -68,6 +73,13 @@ export function advisorContext(
   const lms = data.lms;
   const completed = data.completed ?? [];
   const personalFacts = {
+    selectedActivityStage: selectedActivity ? data.actStatus?.[selectedActivity.id] ?? null : null,
+    activitySummary: (() => {
+      const digest = activityDigest(data, activities, now);
+      return { saved: digest.saved, closing: digest.closing, participating: digest.participating,
+        awaitingPoints: digest.awaitingPoints, points: digest.points, requiredPoints: digest.requiredPoints,
+        remainingPoints: digest.remainingPoints, needsVerification: digest.stale };
+    })(),
     department: typeof data.dept === 'string' ? data.dept.slice(0, 100) : null,
     admissionYear: typeof data.year === 'string' ? data.year.slice(0, 4) : null,
     plan: {
@@ -106,14 +118,29 @@ export function advisorContext(
 }
 
 /** An explicitly labelled local guide remains available without model access. */
-export function guideReply(question: string, data: Partial<Data> | null, publicData: AdvisorPublicData, now = Date.now()): AdvisorReply {
+export function guideReply(question: string, data: Partial<Data> | null, publicData: AdvisorPublicData, now = Date.now(), activityId?: string): AdvisorReply {
   const guides = SERVICE_GUIDES.filter((g) => g.keywords.test(question));
-  const selected = guides.length ? guides.slice(0, 3) : SERVICE_GUIDES.slice(0, 3);
-  const context = advisorContext(data, publicData, now);
+  const selected = activityId ? SERVICE_GUIDES.filter(g => g.route === 'activities')
+    : guides.length ? guides.slice(0, 3) : SERVICE_GUIDES.slice(0, 3);
+  const context = advisorContext(data, publicData, now, activityId);
   const hits = searchAll(question, publicData.catalog, publicData.activities?.items ?? null,
     publicData.schedule?.items ?? null, data?.lms?.courses ?? null, now).slice(0, 6);
   const facts = context.personalFacts;
   const notes: string[] = [];
+  const activity = context.publicFacts.selectedActivity;
+  if (activity) {
+    const pointLabel = activity.points === null ? '포인트 미확인' : `${activity.points}P 안내`;
+    const statusLabel = activity.needsVerification ? '수집 후 시간이 지나 현재 접수 여부를 재확인해야 해요.' : `공개 목록 기준: ${activity.status}`;
+    notes.push(`${activity.title}\n운영: ${activity.department}\n신청 마감: ${activity.applicationEnd?.slice(0, 10) ?? '학교 공고 확인 필요'} · ${pointLabel}\n${statusLabel}`);
+    if (facts) {
+      const credits = facts.schoolSummary?.credits;
+      const points = facts.activitySummary.points;
+      notes.push(`신청 준비에 참고할 학사 정보: ${facts.department ?? '학과 미입력'} · ${facts.admissionYear || '입학연도 미입력'}학번${credits !== undefined && credits !== null ? ` · 학교 수집 ${credits}학점` : ''}${points !== null ? ` · 누적 비교과 ${points}P` : ''}. 학과·학번·학점만으로 지원 자격을 확정할 수 없어요.`);
+    }
+    notes.push('신청 준비 순서: 학교 공고에서 지원 대상·운영 시간·필수 서류와 신청 문항을 확인하고, 참여 목적과 가능한 시간을 정리해 주세요. 실제 경험이나 이수하지 않은 활동을 지원서에 추가하지 마세요. 준비한 메모를 검토한 뒤 학교 시스템에서 신청하세요. 현재 학교 접수는 이루어지지 않았어요.');
+  } else if (facts && /비교과|활동/.test(question)) {
+    notes.push(`저장한 비교과 ${facts.activitySummary.saved}개 · 참여 중 ${facts.activitySummary.participating}개 · 포인트 확인 대기 ${facts.activitySummary.awaitingPoints}개예요. ${facts.activitySummary.needsVerification ? '현재 접수 여부는 공고에서 재확인해 주세요.' : `관심 활동 중 7일 이내 마감 ${facts.activitySummary.closing}개예요.`}`);
+  }
   if (facts && /계획|시간표|수강/.test(question))
     notes.push(`현재 자료에서 확인한 계획은 ${facts.plan.count}과목 · ${facts.plan.credits}학점이며, 시간이 겹치는 과목은 ${facts.plan.conflictingCourses}개예요. 실제 수강신청 결과와는 별개예요.`);
   if (facts && /이번.?주|과제|마감/.test(question))
@@ -122,5 +149,5 @@ export function guideReply(question: string, data: Partial<Data> | null, publicD
       : '가져온 COSMOS 정보가 없어 개인 마감을 확인할 수 없어요. 수업 현황에서 연결 상태를 확인하세요.');
   return { mode: 'guide', personal: !!data, answer: [...notes, ...selected.map((g) => g.text),
       ...(hits.length ? [`관련 항목 ${hits.length}개를 찾았어요. 아래 화면에서 확인해 보세요.`] : [])].join('\n\n'),
-    sources: [...selected.map((g) => ({ label: g.label, route: g.route })), ...hits.map((h) => ({ label: h.label, route: h.route }))] };
+    sources: [...(activity ? [{ label: activity.title, route: `activities/${activity.id}` }] : []), ...selected.map((g) => ({ label: g.label, route: g.route })), ...hits.map((h) => ({ label: h.label, route: h.route }))] };
 }

@@ -33,15 +33,18 @@ for (const invalid of [
   { ruleOverrides: [] }, { actStatus: null }, { lmsMatch: [] },
   { plans: 'invalid' }, { extActivities: 'invalid' }, { onboardingStep: 9 },
   { rev: Number.MAX_SAFE_INTEGER },
+  { admissionType: 'guessed-freshman' }, { admissionType: null }, { admissionType: {} },
 ]) {
   assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, ...invalid }) })).status, 400);
   assert.equal(Object.keys(profile).length, 0, 'invalid input must not save');
 }
-assert.equal((await exports.PUT({ body: JSON.stringify(input) })).status, 200);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, admissionType: 'freshman' }) })).status, 200);
+assert.equal(profile.admissionType, 'freshman');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, name: '오래된 탭' }) })).status, 409);
 assert.equal(profile.name, '처음');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 1, name: '새 저장' }) })).status, 200);
 assert.equal(profile.name, '새 저장');
+assert.equal(profile.admissionType, 'freshman', 'older clients preserve the admission selection');
 const semesterPlans = { '2027-1': { sourceSemester: '2026-2', planned: ['course-1'], plans: { A: ['course-1'] } }, '2027-2': { sourceSemester: '2026-2', planned: ['course-2'], plans: {} } };
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 2, planSemester: '2027-1', semesterPlans, setupHistory: 'later', recommendationsSeen: true }) })).status, 200);
 assert.equal(JSON.stringify(profile.semesterPlans), JSON.stringify(semesterPlans));

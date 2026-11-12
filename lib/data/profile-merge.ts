@@ -57,6 +57,7 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     ...remote,
     name: scalar(base.name, local.name, remote.name),
     year: scalar(base.year, local.year, remote.year),
+    admissionType: scalar(base.admissionType, local.admissionType, remote.admissionType),
     dept: scalar(base.dept, local.dept, remote.dept),
     semester: scalar(base.semester, local.semester, remote.semester),
     graduationTarget: scalar(

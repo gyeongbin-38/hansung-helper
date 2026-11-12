@@ -15,12 +15,14 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { menus, type Data } from './data';
+import { currentSemesterStart, pendingTasks } from '@/lib/data/lms';
+import { useNow } from './catalog';
 
 /* menus 인덱스 → 그룹 캡션 시작점. 순서 바꾸면 경계도 함께 수정 */
 const NAV_GROUP_AT: Record<number, string> = {
-  1: '학업 계획',
-  5: '학교생활',
-  7: '졸업 점검',
+  3: '학업 계획',
+  6: '학교생활',
+  8: '학사 안내',
 };
 import { Logo } from '../logo';
 import type { Account } from '../account-flow';
@@ -47,6 +49,8 @@ export function Sidebar({
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
+  const now = useNow(30000);
+  const pendingCount = data.lms ? pendingTasks(data.lms, currentSemesterStart(now)).length : 0;
   useEffect(() => {
     if (!drawer) return;
     const onKey = (e: KeyboardEvent) => {
@@ -61,7 +65,7 @@ export function Sidebar({
         <div className="sidebar-head">
           <button className="brand" aria-label="한성 학사 도우미 홈으로" onClick={() => go('home')}>
             <span className="brand-icon">
-              <Logo size={20} />
+              <Logo size={42} />
             </span>
             <span className="nav-label">
               학사부기<small>나의 대학생활 한눈에</small>
@@ -97,6 +101,9 @@ export function Sidebar({
               >
                 <Icon size={18} />
                 <span className="nav-label">{name}</span>
+                {key === 'lms' && pendingCount > 0 && (
+                  <span className="tiny nav-label">{pendingCount}</span>
+                )}
               </button>
             </Fragment>
           ))}
@@ -208,7 +215,7 @@ export function Topbar({
       >
         <Search size={16} />
         <input
-          placeholder="과목, 과제, 일정 검색"
+          placeholder="과목·활동·학사일정 검색"
           aria-label="통합 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
