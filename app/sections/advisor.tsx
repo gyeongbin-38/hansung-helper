@@ -19,7 +19,7 @@ import {
 
 function planAnswer(data: Data, planned: CourseSection[]) {
   if (!planned.length)
-    return '아직 계획에 담긴 과목이 없습니다. 과목 추천이나 시간표 짜기에서 2026-2 개설 과목을 담아 보세요.';
+    return '아직 계획에 담긴 과목이 없습니다. 과목 추천이나 시간표 짜기에서 개설 과목을 담아 보세요.';
   const credits = planned.reduce((n, s) => n + s.credits, 0);
   const clashing = planned.filter((s) => conflicts(s, planned).length);
   const untimed = planned.filter((s) => s.untimed || !s.slots.length);
@@ -201,7 +201,7 @@ export function Advisor({
             </ul>
           )}
           <small>
-            근거: 내 계획·입력 정보 + 2026-2 개설과목·hsportal 수집 목록
+            근거: 내 계획·입력 정보 + {catalog?.semester ?? '학기 미확인'} 개설과목·hsportal 수집 목록
             {data.lms ? '·COSMOS 수업 현황' : ''} · AI 생성 답변 아님
           </small>
         </div>

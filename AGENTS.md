@@ -32,12 +32,12 @@
 ## 데이터
 - COSMOS 수집 경로 3개: ① 로그인 시 서버 자동 수집(`lib/server/lms.ts`) ② **`extension/` 크롬 확장**(chrome://extensions → 개발자 모드 → 압축해제된 확장 로드 — **앱 열 때 자동 수집**(background 워커가 LMS 탭에서 `__hsCollect` 실행 → postMessage) + LMS 페이지 수집 버튼 + 4h 주기 수집, 가장 견고) ③ `public/lms-collect.js` 콘솔 붙여넣기(백업)
 - 확장은 LMS와 프로덕션 앱 도메인에만 접근한다. 학사 스냅샷은 브라우저 세션 메모리에만 저장되며 브라우저 종료 시 지워진다.
-- 강의 카탈로그: `scripts/import-courses.py` → `lib/data/catalog-2026-2.json` → `GET /api/courses` (로컬 데이터만, 학교 사이트 실시간 요청 없음)
+- 강의 카탈로그: `scripts/import-courses.py --semester YYYY-S --source <xlsx>` → `lib/data/catalog-YYYY-S.json` → `GET /api/courses?semester=YYYY-S` (로컬 데이터만, 자료 없는 학기는 404)
 - 비교과: `node --experimental-strip-types scripts/crawl-activities.mts` → `lib/data/activities.json` → `GET /api/activities` (hsportal 공개 목록)
 - 학사일정: `node --experimental-strip-types scripts/crawl-schedule.mts` → `lib/data/schedule.json` → `GET /api/schedule` (hansung.ac.kr 공식 학사일정, month/year2 POST)
 - 크롤러 공통: 이상 감지(급감) 시 기존 스냅샷 유지, 사용자 요청 경로에서 라이브 수집 없음
 - 원본 xlsx: `data/source/` (재임포트용)
-- **스냅샷 게시**: `node scripts/_publish_snapshots.mjs --remote` 또는 명시적 로컬 `--local`; 원격은 `HANSUNG_D1_DATABASE_ID` 필요. 4개 JSON을 기존 행에 안전하게 upsert한다. API는 D1 우선+번들 폴백이며 `lib/server/snapshots.ts`가 60초 아이솔레이트 캐시 + fetched_at 비교로 처리
+- **스냅샷 게시**: `node scripts/_publish_snapshots.mjs --remote` 또는 명시적 로컬 `--local`; 원격은 `HANSUNG_D1_DATABASE_ID` 필요. 별도 세대에 청크를 적재한 뒤 활성 포인터를 교체하며 구 버전 행도 보존한다. API는 D1 우선+번들 폴백이며 `lib/server/snapshots.ts`가 60초 아이솔레이트 캐시 + fetched_at 비교로 처리. 이전 세대는 자동 삭제하지 않으므로 D1 용량을 관찰한다.
 - GitHub Actions: 매일 03:30 KST 공개 스냅샷 갱신, 15분마다 API·신선도 점검. 갱신 워크플로는 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `HANSUNG_D1_DATABASE_ID` 저장소 Actions secrets가 필요하다. 실패는 중복 방지 GitHub 이슈로 알림
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요
 

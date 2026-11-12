@@ -269,12 +269,15 @@
       if (BULK_APPROVED.some((k) => weekly.includes(k))) weekly = 'O';
       const w = parseInt(cells[0] ?? '', 10);
       if (!Number.isNaN(w)) curWeek = w;
-      if (!title || !status) return [];
+      if (!title) return [];
+      const attended = /^(?:o|출석|출석완료|출석인정)$/i.test(status.replace(/\s/g, ''));
+      const absent = /^(?:x|미출석|결석)$/i.test(status.replace(/\s/g, ''));
       return {
         title,
         week: curWeek,
         status,
-        attended: /^[Oo]$/.test(status) || status.includes('출석'),
+        attended,
+        uncertain: !attended && !absent || undefined,
         weeklyStatus: weekly || undefined,
         required: req !== null ? cells[req] || undefined : undefined,
         watched: (cells[att - 1] ?? '').match(/^(\d{1,2}:\d{2}(:\d{2})?)/)?.[1],

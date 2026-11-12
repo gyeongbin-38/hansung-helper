@@ -42,7 +42,7 @@ import {
   reminderTargets,
   stageReminderTargets,
 } from '@/lib/data/notifs';
-import { validateLms, currentSemesterStart } from '@/lib/data/lms';
+import { validateLms, currentSemesterStart, mergeLmsSnapshot } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
@@ -365,7 +365,7 @@ export default function App() {
         return;
       }
       void persistRef.current?.(
-        { ...cur, lms: valid },
+        { ...cur, lms: mergeLmsSnapshot(cur.lms, valid) },
         '확장 프로그램이 최신 수업 현황을 가져왔습니다.',
       ).then((saved) => {
         endSync(
@@ -475,7 +475,7 @@ export default function App() {
               ...send,
               // 전송 시점의 최신 rev — 큐에서 기다리는 동안 이전 저장이
               // rev를 올렸을 수 있으므로 next가 아닌 dataRef를 본다.
-              rev: dataRef.current.rev ?? send.rev,
+              rev: dataRef.current.rev ?? send.rev ?? 0,
               onboarded: complete ?? account.onboarded,
             }),
           });
@@ -487,44 +487,12 @@ export default function App() {
           } catch (error) {
             if (error instanceof ApiRequestError) errorMessage = error.message;
           }
-          // 다른 기기/탭이 먼저 씀 — 필드 단위 3-way 병합으로 양쪽 변경을
-          // 살려 한 번만 재시도하고, 또 충돌하면 서버 상태로 수렴한다.
+          // 충돌 시 자동 재시도는 같은 필드의 상대방 변경을 덮을 수 있다.
+          // 서버 저장값은 그대로 두고 현재 입력을 화면에 남긴다.
           if (response.status === 409) {
-            try {
-              const res = await apiFetch('/api/account', { cache: 'no-store' });
-              const fresh = await apiData<Account>(res);
-              const remote = accountData(fresh);
-              const merged = mergeProfile(dataRef.current, send, remote);
-              const retry = await apiFetch('/api/account/profile', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ...merged,
-                  rev: remote.rev,
-                  onboarded: complete ?? fresh.onboarded,
-                }),
-              });
-              if (retry.ok) {
-                const r2 = await apiData<{ saved: true; rev?: number }>(retry);
-                const stored = { ...merged, rev: r2.rev ?? remote.rev };
-                setAccount({
-                  ...fresh,
-                  profile: stored,
-                  onboarded: complete ?? fresh.onboarded,
-                });
-                setData(stored);
-                setToast('다른 기기의 변경과 병합해 저장했습니다.');
-                return true;
-              }
-              setAccount(fresh);
-              setData(remote);
-              setToast(
-                '다른 기기의 변경이 먼저 저장돼 서버 상태로 맞췄습니다.',
-              );
-              return false;
-            } catch {
-              /* 재수화 실패 시 안내 문구만 표시 */
-            }
+            setData(send);
+            setToast('다른 기기에서 먼저 저장했습니다. 입력 내용을 확인한 뒤 새로고침해 주세요.');
+            return false;
           }
           setToast(errorMessage);
           return false;
