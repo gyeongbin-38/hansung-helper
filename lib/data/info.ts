@@ -15,7 +15,12 @@ export type InfoCourse = {
   semester?: string;
   /** 성적 등급 원문 (A+ 등) — 참고용 */
   grade?: string;
+  /** 학교 성적표에 영역이 명시된 경우에만 보존 */
+  area?: string;
 };
+
+export type InfoRequirementCell = { text: string; colspan: number; rowspan: number; header: boolean };
+export type InfoRequirementTable = { heading: string; rows: InfoRequirementCell[][] };
 
 /** 졸업가사정표 행 — 구분/기준/취득/판정 원문 (숫자 강제 변환 없음) */
 export type InfoAuditRow = {
@@ -31,6 +36,8 @@ export type InfoSnapshot = {
   /** 학적 정보 — 있으면 프로필 빈칸 채움에 사용 */
   name?: string;
   dept?: string;
+  track?: string;
+  tracks?: string[];
   admitYear?: number;
   /** 누적 취득학점 총계 */
   credits?: number;
@@ -38,8 +45,11 @@ export type InfoSnapshot = {
   points?: number;
   /** 누적 평점 (있으면) */
   gpa?: number;
+  gpaVerifiedAt?: string;
   /** 이수 완료 과목 (누적 성적 조회 페이지) */
   completed: InfoCourse[];
+  failedCourses?: InfoCourse[];
+  requirements?: InfoRequirementTable[];
   /** 졸업가사정표 행 — 학교 기준 자체를 보여주는 참고표 */
   audit?: InfoAuditRow[];
   /** 이전 수집 대비 바뀐 지표 라벨 — '취득학점'|'평점'|'이수 과목 수'|'수집 시작'.
@@ -62,7 +72,8 @@ export function infoCategory(raw: string): string {
   if (/전공?필수|전필|계필/.test(s)) return '전필';
   if (/전공?선택|전선|MD전선/.test(s)) return '전선';
   if (/전공?기초|전기/.test(s)) return '전기';
-  if (/선필교|교양?필수|필수교양|교필/.test(s)) return '교필';
+  if (/선필교|선택필수교양|교양선택필수/.test(s)) return '선필교';
+  if (/교양?필수|필수교양|교필/.test(s)) return '교필';
   if (/교양?선택|교선|일반?교양|일교/.test(s)) return '일교';
   if (/일반?선택|자유?선택|일선|자선/.test(s)) return '일선';
   // 모르는 구분은 원문 유지 — gradGroup이 '기타'로 보내고 화면엔 원문이 보인다
@@ -102,10 +113,13 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
     fetchedAt: s.fetchedAt,
     name: str(s.name, 30),
     dept: str(s.dept, 80),
+    track: str(s.track, 80),
+    tracks: Array.isArray(s.tracks) ? s.tracks.filter((v): v is string => typeof v === 'string' && !!v.trim() && v.length <= 80).slice(0, 3) : undefined,
     admitYear: num(s.admitYear, 2100),
     credits: num(s.credits, 300),
     points: num(s.points, 10000),
     gpa: num(s.gpa, 10),
+    gpaVerifiedAt: str(s.gpaVerifiedAt, 40),
     completed: Array.isArray(s.completed)
       ? s.completed.filter(isCourse).slice(0, 300).map((c) => ({
           code: c.code,
@@ -114,8 +128,23 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
           credits: c.credits,
           semester: str(c.semester, 10),
           grade: str(c.grade, 10),
+          area: str(c.area, 80),
         }))
       : [],
+    failedCourses: Array.isArray(s.failedCourses)
+      ? s.failedCourses.filter(isCourse).slice(0, 300).map((c) => ({
+          code: c.code, name: c.name, category: c.category, credits: c.credits,
+          semester: str(c.semester, 10), grade: str(c.grade, 10), area: str(c.area, 80),
+        })) : undefined,
+    requirements: Array.isArray(s.requirements) ? s.requirements.flatMap((t) => {
+      if (!t || typeof t !== 'object' || typeof t.heading !== 'string' || !Array.isArray(t.rows)) return [];
+      const rows = t.rows.filter(Array.isArray).slice(0, 80).map((row) => row.slice(0, 20).flatMap((c) => {
+        if (!c || typeof c !== 'object' || typeof c.text !== 'string') return [];
+        const span = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 20 ? v : 1;
+        return [{ text: c.text.slice(0, 200), colspan: span(c.colspan), rowspan: span(c.rowspan), header: c.header === true }];
+      }));
+      return [{ heading: t.heading.slice(0, 120), rows }];
+    }).slice(0, 12) : undefined,
     changed: Array.isArray(s.changed)
       ? s.changed
           .filter((c): c is string => typeof c === 'string')
@@ -179,6 +208,7 @@ export type MergedCourse = {
   /** 'info' = 종합정보 수집본, 'manual' = 사용자 직접 입력 */
   src: 'info' | 'manual';
   semester?: string;
+  area?: string;
 };
 
 /** 부분 수집 병합 — diag.pages에서 fetch가 확인된(ok) 슬롯만 새 값을 믿고,
@@ -194,16 +224,26 @@ export function mergeInfoSnapshot(
   const ok = (slot: string) =>
     next.diag?.pages.some((p) => p.slot === slot && p.ok) ?? false;
   const gradesOk = ok('grades');
+  const gradesUnconfirmed = next.diag?.pages.some((p) => p.slot === 'grades' && p.reason === 'unconfirmed') ?? false;
+  const failedCourses = gradesOk ? next.failedCourses : gradesUnconfirmed
+    ? [...(prev.failedCourses ?? []), ...(next.failedCourses ?? [])].filter((course, index, all) =>
+        all.findIndex((candidate) => candidate.code === course.code && candidate.name === course.name && candidate.semester === course.semester) === index)
+    : prev.failedCourses;
   return {
     ...next,
     name: next.name ?? prev.name,
     dept: next.dept ?? prev.dept,
+    track: next.track ?? prev.track,
+    tracks: next.tracks?.length ? next.tracks : prev.tracks,
     admitYear: next.admitYear ?? prev.admitYear,
     credits: gradesOk ? (next.credits ?? prev.credits) : prev.credits,
     gpa: gradesOk ? (next.gpa ?? prev.gpa) : prev.gpa,
+    gpaVerifiedAt: gradesOk && next.gpa !== undefined ? next.gpaVerifiedAt : prev.gpaVerifiedAt,
     completed: gradesOk ? next.completed : prev.completed,
+    failedCourses,
     points: ok('points') ? (next.points ?? prev.points) : prev.points,
     audit: ok('audit') ? (next.audit ?? prev.audit) : prev.audit,
+    requirements: ok('requirements') ? (next.requirements ?? prev.requirements) : prev.requirements,
     changed: next.changed,
   };
 }

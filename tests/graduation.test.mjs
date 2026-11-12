@@ -5,7 +5,38 @@ import {
   DEFAULT_RULES,
   graduationOutlook,
   requirementQuantityName,
+  generalEducationReference,
+  evaluateGpa,
 } from '../lib/data/graduation.ts';
+
+test('교양 기준은 입학연도와 유형을 구분한다', () => {
+  assert.equal(generalEducationReference(2023, 'freshman').total, 28);
+  assert.equal(generalEducationReference(2024, 'freshman').total, 31);
+  assert.equal(generalEducationReference(2023, 'general-transfer'), null);
+  assert.equal(generalEducationReference(2022, 'freshman'), null);
+  const rule = evaluate([], [], {}, { admitYear: 2023, admissionType: 'freshman' }).find((r) => r.rule.id === 'gen');
+  assert.equal(rule.required, 28);
+  assert.equal(rule.status, 'unknown');
+  assert.equal(rule.uncertainAllocation, true);
+});
+
+test('평점 미수집·확인 실패는 충족으로 판정하지 않는다', () => {
+  assert.equal(evaluateGpa(undefined, true).status, 'unknown');
+  assert.equal(evaluateGpa(2.5, false).status, 'unknown');
+  assert.equal(evaluateGpa(2, true).status, 'met');
+  assert.equal(evaluateGpa(1.99, true).status, 'progress');
+  assert.equal(evaluateGpa(5, true).status, 'unknown');
+});
+
+test('23학번 융합전공 I 78학점은 트랙별 인정 확인 전 충족으로 단정하지 않는다', () => {
+  const courses = Array.from({ length: 26 }, (_, i) => ({ code: `M${i}`, name: `M${i}`, category: '전선', credits: 3 }));
+  const scoped = evaluate(courses, [], {}, { admitYear: 2023, admissionType: 'freshman', programMode: 'fusion1' }).find((r) => r.rule.id === 'major');
+  assert.equal(scoped.required, 78);
+  assert.equal(scoped.earned, 78);
+  assert.equal(scoped.status, 'unknown');
+  assert.equal(scoped.uncertainTrack, true);
+  assert.equal(evaluate(courses, [], {}, { admitYear: 2023, admissionType: 'freshman', programMode: 'fusion2' }).find((r) => r.rule.id === 'major').required, null);
+});
 
 test('교과와 비교과 필요 기준의 단위 명칭이 구분된다', () => {
   assert.equal(requirementQuantityName(DEFAULT_RULES.find((rule) => rule.id === 'points')), '포인트');
@@ -186,9 +217,10 @@ test('invalid admission year never receives a guessed baseline', () => {
 test('requiredSource: 전역 기준 경로는 global로 표시', () => {
   const r = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023 });
   assert.equal(r.find((x) => x.rule.id === 'total').requiredSource, 'global');
-  // 학과 기준이 있어도 total/points 외 규정에는 영향 없음
+  // 학과 기준이 있어도 별도로 확인한 23학번 교양 기준은 유지된다.
   const r2 = evaluate([], [], {}, { admissionType: 'freshman', admitYear: 2023, deptTargets: { total: 130, points: 800 } });
-  assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, undefined);
+  assert.equal(r2.find((x) => x.rule.id === 'gen').requiredSource, 'global');
+  assert.equal(r2.find((x) => x.rule.id === 'gen').status, 'unknown');
 });
 
 // ── graduationOutlook — 남은 학점 → 학기 역산 추정 ─────────

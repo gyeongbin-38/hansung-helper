@@ -1,5 +1,6 @@
 """Verify public snapshot API content and freshness after publication."""
 import json
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
@@ -58,7 +59,11 @@ def check(path: str, count_key: str) -> None:
 
 if __name__ == "__main__":
     try:
-        for endpoint, count_key in CHECKS.items():
+        requested = sys.argv[1:]
+        if requested not in ([], ["--only=/api/dept-rules"]):
+            raise ValueError("unsupported snapshot selection")
+        selected = {"/api/dept-rules": "itemCount"} if requested else CHECKS
+        for endpoint, count_key in selected.items():
             check(endpoint, count_key)
     except (HTTPError, URLError, TimeoutError, ValueError, RuntimeError) as error:
         raise SystemExit(f"snapshot verification failed: {error}") from error
