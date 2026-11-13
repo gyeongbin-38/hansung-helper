@@ -13,7 +13,8 @@ import {
   studentAccountId,
   type AccountRow,
 } from '@/lib/server/account';
-import { connectSchool, SchoolError } from '@/lib/server/school';
+import { connectSchool, SchoolError, SchoolSession } from '@/lib/server/school';
+import { saveSchoolSession } from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -24,6 +25,7 @@ import { infoChanges } from '@/lib/data/notifs';
 // 즉시 버리며 저장하지 않는다. 세션과 계정 데이터는 유지된다.
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
+  const schoolSessionIssuedAt = Date.now();
   try {
     const account = await authenticated(request);
     if (!account) return json({ error: '로그인이 필요합니다.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
@@ -51,7 +53,9 @@ export async function POST(request: Request) {
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
+    const session = new SchoolSession();
     const snapshot = await connectSchool(input.studentId, input.password, {
+      session,
       deferLms: (collect) => {
         deferredCollect = collect;
       },
@@ -92,6 +96,16 @@ export async function POST(request: Request) {
       if (stillActive?.id === id)
         return json({ error: '다른 수집이 먼저 저장되었습니다. 새로고침 후 다시 시도해 주세요.' }, 409);
       return json({ error: '다시 로그인해 주세요.' }, 401, { 'X-Hansung-Session-Invalid': '1' });
+    }
+    if (session.hasCookies()) {
+      try {
+        await saveSchoolSession(id, session.exportCookies(), {
+          sessionHash: account.session_hash,
+          issuedAt: schoolSessionIssuedAt,
+        });
+      } catch {
+        console.log('[vault] save failed');
+      }
     }
     if (deferredCollect)
       waitUntil(

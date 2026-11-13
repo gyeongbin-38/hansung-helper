@@ -1,14 +1,14 @@
 # 한성 학사 도우미 — 운영 메모
 
 ## 로컬 실행
-- 팀 공통 `npm run dev:backend` → 빌드, 로컬 전용 키 준비, 두 D1 마이그레이션 후 8787 실행. 기존 `.dev.vars` 키는 교체하지 않는다.
+- 팀 공통 `npm run dev:backend` → 빌드, 로컬 전용 키 준비, 세 D1 마이그레이션 후 8787 실행. 기존 `.dev.vars` 키는 교체하지 않는다.
 - `npm run dev` → vinext dev (보통 :3000/:3001). **D1 미바인딩 — 로그인·저장 불가, 체험 모드만 동작**
 - `npm run build && npm run start` → wrangler dev on **http://127.0.0.1:8787** (D1 바인딩, 전체 기능 동작)
 
 ## 로컬 D1 주의
 - 로컬 D1 state는 `dist/server/.wrangler/state/` 안에 생성됨 → **`dist` 삭제/재빌드 시 DB 초기화됨**
 - 재빌드 후 계정 기능 사용 전에 마이그레이션 재적용:
-  `npm run d1:migrate:local` (0000 계정 + 0001 공개 스냅샷)
+  `npm run d1:migrate:local` (0000 계정 + 0001 공개 스냅샷 + 0002 학교 세션 볼트)
 - 좀비 `workerd.exe`가 `dist`를 잠그면: `tasklist`로 PID 확인 → `taskkill /F /PID <pid>` 후 삭제
 
 ## 검증 명령
@@ -23,7 +23,7 @@
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
-- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`). 두 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
+- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002_school_session_vault.sql`). 세 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
 - 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
 - 백업: `npm run d1:backup:local` 또는 소유자 승인 후 `HANSUNG_D1_DATABASE_ID` 설정 + `npm run d1:backup:remote`; 백업은 gitignore된 `.d1-backups/`에 저장
@@ -48,7 +48,8 @@
 - Cloudflare 계정·데이터베이스 식별자와 비밀값은 저장소에 기록하지 않고 소유자 대시보드에서 확인한다.
 - 계정·로그인 IP 인덱스는 `ACCOUNT_INDEX_HMAC_KEY`로 HMAC 처리한다. 로컬 `.dev.vars` 또는 Worker 비밀값으로 32바이트 이상의 무작위 키를 설정하고, 계정 ID 마이그레이션 없이 키를 교체하지 않는다.
 - 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
-- **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
+- **학교 세션 볼트**: 로그인 성공 시 학교 세션 쿠키만 `SCHOOL_SESSION_KEY`(32바이트 이상, `ACCOUNT_INDEX_HMAC_KEY`와 별도)로 AES-GCM 암호화해 `school_session_vault`에 2시간 TTL로 보관. 비밀번호는 저장하지 않는다. `POST /api/account/lms-refresh-session`이 비밀번호 없이 재수집하고, 로그아웃·계정 삭제·만료 시 삭제. 상세: `docs/session-vault.md`
+- **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
   (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)
 - `/api/health`는 계정 HMAC 키와 계정 DB 테이블 준비 상태도 확인한다. 키 누락·DB 접근 실패 시 503이며, 공개 데이터 API의 200 또는 비로그인 `/api/account`의 401만으로 로그인 정상 여부를 판단하지 않는다.

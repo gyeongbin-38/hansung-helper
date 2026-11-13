@@ -36,8 +36,10 @@ const TABS = [
   '접수예정',
   '운영·마감',
   '저장한 활동',
-  '취향 추천',
+  '추천',
 ];
+
+const SORT_OPTIONS = ['기본 순', '마감임박 순', '포인트 많은 순', '포인트 적은 순'];
 
 const fmt = (iso: string | null) => (iso ? iso.slice(0, 10) : '미정');
 const period = (a: string | null, b: string | null) =>
@@ -57,7 +59,7 @@ function inTab(a: Activity, tab: string, saved: string[], now: number) {
   if (tab === '운영·마감')
     return st === 'running' || st === 'closed';
   if (tab === '저장한 활동') return saved.includes(a.id);
-  if (tab === '취향 추천' || tab === '포인트 채우기') return true; // 점수 함수가 걸러줌
+  if (tab === '추천' || tab === '포인트 채우기') return true; // 점수 함수가 걸러줌
   return true;
 }
 
@@ -106,6 +108,7 @@ export function Activities({
   const now = useNow(30000);
   const [extForm, setExtForm] = useState({ ...EMPTY_EXT });
   const [extError, setExtError] = useState('');
+  const [sort, setSort] = useState(SORT_OPTIONS[0]);
   const extItems = (data.extActivities ?? []).map(extToActivity);
   const items = [...(snap?.items ?? []), ...extItems];
   const a = items.find((x) => x.id === detail);
@@ -393,7 +396,10 @@ export function Activities({
             {!isExt(a) && <button className="secondary" onClick={() => go(`advisor/${a.id}`)}><Sparkles size={16} />AI와 요약·신청 준비</button>}
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
-                <Bookmark size={18} />
+                <Bookmark
+                  size={18}
+                  fill={data.saved.includes(a.id) ? 'currentColor' : 'none'}
+                />
                 {data.saved.includes(a.id) ? '저장 해제' : '활동 저장'}
               </button>
             )}
@@ -446,11 +452,23 @@ export function Activities({
     );
 
   const scored = new Map<string, { score: number; reasons: string[] }>();
-  if (filter === '취향 추천' && hasActPrefs)
+  if (filter === '추천' && hasActPrefs)
     for (const x of items) scored.set(x.id, actScore(x, data.actPrefs, now));
   if (filter === '포인트 채우기' && ptsDeficit > 0)
     for (const x of items) scored.set(x.id, pointScore(x, ptsDeficit, now));
-  const isScoredTab = filter === '취향 추천' || filter === '포인트 채우기';
+  const isScoredTab = filter === '추천' || filter === '포인트 채우기';
+  const urgency: Record<string, number> = {
+    closing: 0,
+    open: 1,
+    upcoming: 2,
+    running: 3,
+    unknown: 4,
+    closed: 5,
+  };
+  const deadlineTs = (x: Activity) => {
+    const ts = x.applyEnd ? Date.parse(x.applyEnd) : NaN;
+    return Number.isFinite(ts) ? ts : Number.MAX_SAFE_INTEGER;
+  };
   const shown = items
     .filter(
       (x) =>
@@ -458,11 +476,25 @@ export function Activities({
         activityMatch(x, query, koreanMatch),
     )
     .filter((x) => !isScoredTab || (scored.get(x.id)?.score ?? 0) > 0)
-    .sort((x, y) =>
-      isScoredTab
+    .sort((x, y) => {
+      if (sort === '마감임박 순')
+        return (
+          (urgency[liveStatus(x, now).status] ?? 9) -
+            (urgency[liveStatus(y, now).status] ?? 9) ||
+          deadlineTs(x) - deadlineTs(y)
+        );
+      if (sort === '포인트 많은 순' || sort === '포인트 적은 순') {
+        if (x.points == null && y.points == null) return 0;
+        if (x.points == null) return 1;
+        if (y.points == null) return -1;
+        return sort === '포인트 많은 순'
+          ? y.points - x.points
+          : x.points - y.points;
+      }
+      return isScoredTab
         ? (scored.get(y.id)?.score ?? 0) - (scored.get(x.id)?.score ?? 0)
-        : 0,
-    );
+        : 0;
+    });
   return (
     <>
       <ActivitySummary data={data} snapshot={snap} now={now} go={go} />
@@ -491,6 +523,18 @@ export function Activities({
           ))}
         </div>
         <div className="toolbar-side">
+          <select
+            className="field activity-sort"
+            aria-label="활동 정렬 순서"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
           <input
             className="field"
             aria-label="활동명 검색"
@@ -527,7 +571,7 @@ export function Activities({
         </div>
       ) : !snap && filter !== '직접 등록' ? (
         <SkeletonCards />
-      ) : filter === '취향 추천' && !hasActPrefs ? (
+      ) : filter === '추천' && !hasActPrefs ? (
         <div className="card empty-small">
           <Search />
           <h3>비교과 취향 설문을 하면 맞춤 추천이 생겨요.</h3>
@@ -625,7 +669,7 @@ function ActivityCards({
   save: (id: string) => void;
   now: number;
   needsVerification: boolean;
-  /** 취향 추천 탭일 때만 전달 — 맞춤 점수·근거를 카드에 표시 */
+  /** 추천 탭일 때만 전달 — 맞춤 점수·근거를 카드에 표시 */
   scores?: Map<string, { score: number; reasons: string[] }>;
 }) {
   return (
@@ -669,10 +713,14 @@ function ActivityCards({
               {!isExt(a) && (
                 <button
                   className={'icon ' + (data.saved.includes(a.id) ? 'saved' : '')}
-                  aria-label="활동 저장 전환"
+                  aria-label={data.saved.includes(a.id) ? '활동 저장 해제' : '활동 저장'}
+                  aria-pressed={data.saved.includes(a.id)}
                   onClick={() => save(a.id)}
                 >
-                  <Bookmark size={19} />
+                  <Bookmark
+                    size={19}
+                    fill={data.saved.includes(a.id) ? 'currentColor' : 'none'}
+                  />
                 </button>
               )}
             </div>

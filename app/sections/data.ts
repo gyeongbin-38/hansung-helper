@@ -70,10 +70,6 @@ export type Data = {
   notifiedIds?: string[];
   /** 브라우저 마감 알림 opt-in — 앱이 열려 있는 동안만 동작 */
   notifEnabled?: boolean;
-  /** 화면 아래를 걷는 마스코트 표시 — undefined면 켜짐으로 본다 */
-  mascotEnabled?: boolean;
-  /** 신규 이용 가이드를 끝까지 봤는지 — 한 번만 자동 표시한다 */
-  mascotGuideSeen?: boolean;
   /** COSMOS LMS 수집 스냅샷 (/lms-collect.js 콘솔 스크립트 또는 서버 수집 결과물) */
   lms?: LmsSnapshot;
   /** 수업 현황의 수동 매칭 보정 — LMS course.id → 카탈로그 section.id 또는 'ignore'(수업 아님) */
@@ -98,7 +94,6 @@ export const empty: Data = {
   events: [],
   prefs: [],
   readIds: [],
-  mascotEnabled: true,
   consent: false,
 };
 

@@ -69,6 +69,12 @@ try {
   finish(new Response(null, { status: 401 }));
   await oldRequest;
   assert.equal(invalidations, 2, 'late rejection from an older session does not clear the new one');
+  globalThis.fetch = async () => new Response(null, { status: 401, headers: { 'X-Hansung-School-Session': 'expired' } });
+  await apiFetch('/api/account/lms-refresh-session', { method: 'POST' });
+  assert.equal(invalidations, 2, 'expired school vault keeps the application session');
+  globalThis.fetch = async () => new Response(null, { status: 401, headers: { 'X-Hansung-Session-Invalid': '1' } });
+  await apiFetch('/api/account/lms-refresh-session');
+  assert.equal(invalidations, 3, 'vault status rejects an expired application session explicitly');
   assert.equal(shouldResetSession('session-ended', 'session-a', 'session-b'), false);
   assert.equal(shouldResetSession('session-ended', 'session-b', 'session-b'), true);
   assert.equal(shouldResetSession('session-ended', undefined, 'session-b'), true);

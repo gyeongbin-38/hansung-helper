@@ -51,7 +51,6 @@ import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyDialog } from './sections/survey-dialog';
-import { Mascot } from './mascot';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
@@ -104,6 +103,7 @@ export default function App() {
   const [account, setAccount] = useState<Account | null>(null);
   // 비동기 요청이 로그아웃·계정 전환 뒤 새 세션에 반영되지 않도록 한다.
   const accountGeneration = useRef(0);
+  const signInReturnRoute = useRef('home');
   const renderedGeneration = accountGeneration.current;
   const [demo, setDemo] = useState(false);
   const accountRef = useRef(account);
@@ -899,7 +899,9 @@ export default function App() {
             setDraft(result.profile.prefs || []);
             setActDraft(result.profile.actPrefs || []);
             setPainDraft(result.profile.painPrefs || []);
-            go('home');
+            const returnRoute = signInReturnRoute.current;
+            signInReturnRoute.current = 'home';
+            go(returnRoute);
           }}
           onDemo={() => {
             accountGeneration.current += 1;
@@ -1026,7 +1028,6 @@ export default function App() {
               planSemester={selectedSemester}
               planSourceMismatch={sourceMismatch}
               planSourceSemester={storedPlan?.sourceSemester}
-              persist={persist}
               onPainSurvey={() => openSurvey('pain')}
             />
           ) : section === 'activities' ? (
@@ -1134,6 +1135,19 @@ export default function App() {
               key={`${renderedGeneration}:${detail ?? ''}`}
               activityId={detail}
               signedIn={!!account}
+              onSchoolAccount={(result) => {
+                if (renderedGeneration !== accountGeneration.current || !accountRef.current) return;
+                setAccount(result);
+                const info = validateInfo(result.snapshot?.infoData);
+                if (info) setData(previous => applyInfo(previous, info));
+              }}
+              onSignIn={() => {
+                signInReturnRoute.current = route;
+                accountGeneration.current += 1;
+                setSurvey(false);
+                setDemo(false);
+                setData(empty);
+              }}
               data={data}
               catalog={catalog}
               go={go}
@@ -1196,18 +1210,6 @@ export default function App() {
         go={go}
       />
       <ToastStack toasts={toasts} onClose={dismissToast} />
-      <Mascot
-        enabled={data.mascotEnabled !== false}
-        guideSeen={!!data.mascotGuideSeen}
-        isNewUser={!account || !account.onboarded}
-        survey={survey}
-        route={section}
-        hidden={drawer || notifOpen || (!account && !data.consent)}
-        data={data}
-        persist={persist}
-        go={go}
-        onOpenSurvey={openSurvey}
-      />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}
@@ -1225,7 +1227,6 @@ export default function App() {
         draft={survey === 'act' ? actDraft : survey === 'pain' ? painDraft : draft}
         setDraft={survey === 'act' ? setActDraft : survey === 'pain' ? setPainDraft : setDraft}
         setStep={setStep}
-        mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(

@@ -3,6 +3,7 @@ import { collectInfo } from './info.ts';
 import type { LmsSnapshot } from '../data/lms.ts';
 import type { InfoSnapshot } from '../data/info.ts';
 import { retrySchoolRead } from './school-retry.ts';
+import type { SchoolCookieJar } from './school-session-crypto.ts';
 
 export type SchoolCourse = {
   id: string;
@@ -23,7 +24,7 @@ export type SchoolSnapshot = {
   lmsFailedAt?: string;
   /** COSMOS 로그인 단계 실패 원인 — 'auth' 자격 거부 / 'landing' 중간
    *  안내 페이지에서 세션 미확인 / 'upstream' 네트워크·HTTP 오류 */
-  lmsError?: 'auth' | 'landing' | 'upstream';
+  lmsError?: 'auth' | 'landing' | 'session' | 'upstream';
   /** 종합정보 수집 스냅샷 (이수 내역·비교과 포인트·졸업가사정표·학적) */
   infoData?: InfoSnapshot;
   /** 종합정보 지연 수집 진행 중 */
@@ -35,7 +36,10 @@ export type SchoolSnapshot = {
 };
 
 export class SchoolError extends Error {
-  constructor(public code: 'credentials' | 'upstream', public status?: number) {
+  constructor(
+    public code: 'credentials' | 'upstream' | 'session',
+    public status?: number,
+  ) {
     super(code);
   }
 }
@@ -46,9 +50,28 @@ export function transientSchoolRead(error: unknown): boolean {
     (error instanceof SchoolError && [502, 503, 504].includes(error.status ?? 0));
 }
 
-// Each login gets its own cookie jar. Neither credentials nor school cookies persist.
+// Each school operation gets its own cookie jar. Credentials are never retained;
+// callers may export only the allowlisted school cookies into the encrypted vault.
 export class SchoolSession {
   private cookies = new Map<string, Map<string, string>>();
+  constructor(initial?: SchoolCookieJar) {
+    if (initial) {
+      for (const [host, jar] of Object.entries(initial)) {
+        const map = new Map<string, string>();
+        for (const [name, value] of Object.entries(jar)) map.set(name, value);
+        if (map.size) this.cookies.set(host, map);
+      }
+    }
+  }
+  exportCookies(): SchoolCookieJar {
+    const out: SchoolCookieJar = {};
+    for (const [host, jar] of this.cookies)
+      out[host] = Object.fromEntries(jar);
+    return out;
+  }
+  hasCookies(): boolean {
+    return this.cookies.size > 0;
+  }
   async request(url: string, init: RequestInit = {}) {
     const target = new URL(url);
     if (
@@ -162,9 +185,12 @@ export async function connectSchool(
     deferLms?: (collect: () => Promise<LmsSnapshot>) => void;
     /** 종합정보 수집을 응답 후 waitUntil로 미루는 클로저 채널 */
     deferInfo?: (collect: () => Promise<InfoSnapshot | null>) => void;
+    /** 재사용할 세션 — 지정하면 호출자가 만든 쿠키 jar를 쓴다.
+     * (로그인 후 세션 볼트에 쿠키를 저장할 때 사용) */
+    session?: SchoolSession;
   },
 ): Promise<SchoolSnapshot> {
-  const session = new SchoolSession();
+  const session = opts?.session ?? new SchoolSession();
   // Only retry idempotent page reads. Never automatically repeat a password POST:
   // a lost response can occur after the school already accepted the login.
   const readPage = (url: string) => retrySchoolRead(() => session.request(url), transientSchoolRead);
@@ -322,6 +348,102 @@ export async function connectSchool(
     } catch {
       snapshot.infoFailedAt = new Date().toISOString();
     }
+  }
+  return snapshot;
+}
+
+/** 저장된 학교 세션 쿠키로 비밀번호 없이 수집을 재개한다.
+ *  종합정보와 COSMOS를 각각 프로브해 유효한 쪽만 수집하고, 양쪽 모두
+ *  무효하면 SchoolError('session')을 던진다. 로그인 POST는 수행하지 않는다. */
+export async function resumeSchool(
+  session: SchoolSession,
+  studentId: string,
+  opts?: {
+    deferLms?: (collect: () => Promise<LmsSnapshot>) => void;
+    deferInfo?: (collect: () => Promise<InfoSnapshot | null>) => void;
+  },
+): Promise<SchoolSnapshot> {
+  const snapshot: SchoolSnapshot = {
+    portal: 'connected',
+    lms: 'unavailable',
+    courses: [],
+    checkedAt: new Date().toISOString(),
+    courseScope:
+      '코스모스 로그인 첫 화면에 표시된 강의 · 전체 개설 과목이나 이수 내역 아님',
+  };
+  let infoOk = false;
+  let lmsOk = false;
+  let infoProbeError: unknown;
+  let lmsProbeError: unknown;
+  // 프로브는 멱등 GET이므로 연결 오류만 재시도한다. 로그인 POST는 없다.
+  const readPage = (url: string) =>
+    retrySchoolRead(() => session.request(url), transientSchoolRead);
+
+  // 종합정보 세션 확인 — 세션 만료면 로그인 프레임셋이 돌아와 판정에 실패한다.
+  try {
+    const main = await session.follow(
+      await readPage('https://info.hansung.ac.kr/h_dae/dae_main.html'),
+      'https://info.hansung.ac.kr/h_dae/dae_main.html',
+    );
+    const mainHtml = new TextDecoder('euc-kr').decode(await main.arrayBuffer());
+    if (mainHtml.includes('infohaksamain_portal.jsp')) {
+      const protectedMenu = await readPage(
+        'https://info.hansung.ac.kr/servlet/s_dae.dae_top_menu',
+      );
+      const menuHtml = new TextDecoder('euc-kr').decode(
+        await protectedMenu.arrayBuffer(),
+      );
+      if (menuHtml.includes('head_bt_logout.gif')) {
+        infoOk = true;
+        const runInfo = () =>
+          collectInfo(session, { menuHtml, mainHtml, studentId });
+        if (opts?.deferInfo) opts.deferInfo(() => runInfo().catch(() => null));
+        else
+          try {
+            snapshot.infoData = await runInfo();
+          } catch {
+            snapshot.infoFailedAt = new Date().toISOString();
+          }
+      }
+    }
+  } catch (error) {
+    // 예외는 세션 만료의 증거가 아니다. 네트워크/학교 서버 오류를 별도로
+    // 보존해 호출자가 유효한 볼트 쿠키를 지우지 않게 한다.
+    infoProbeError = error;
+  }
+  if (!infoOk) snapshot.infoFailedAt = new Date().toISOString();
+
+  // COSMOS 세션 확인 — 대시보드에 로그아웃 링크가 보이면 세션이 유효하다.
+  try {
+    const home = await session.follow(
+      await readPage('https://learn.hansung.ac.kr/'),
+      'https://learn.hansung.ac.kr/',
+    );
+    const html = await home.text();
+    if (/\/login\/logout\.php/.test(html)) {
+      lmsOk = true;
+      snapshot.lms = 'connected';
+      snapshot.courses = parseCourses(html);
+      if (opts?.deferLms)
+        opts.deferLms(() => collectLms(session, snapshot.courses));
+      else
+        try {
+          snapshot.lmsData = await collectLms(session, snapshot.courses);
+        } catch {
+          snapshot.lmsFailedAt = new Date().toISOString();
+        }
+    }
+  } catch (error) {
+    lmsProbeError = error;
+  }
+  if (!lmsOk) snapshot.lmsError = lmsProbeError ? 'upstream' : 'session';
+
+  if (!infoOk && !lmsOk) {
+    const upstream = infoProbeError ?? lmsProbeError;
+    if (upstream instanceof SchoolError && upstream.code === 'upstream')
+      throw upstream;
+    if (upstream) throw new SchoolError('upstream');
+    throw new SchoolError('session');
   }
   return snapshot;
 }

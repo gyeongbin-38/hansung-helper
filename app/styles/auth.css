@@ -133,19 +133,24 @@
   position: relative;
 }
 .auth-form .auth-password-input input {
-  padding-right: 82px;
+  padding-right: 54px;
 }
 .auth-password-toggle {
   position: absolute;
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  min-width: 64px;
-  min-height: 40px;
-  color: var(--nt-primary);
-  font-size: 14px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--nt-slate);
   border-radius: var(--nt-r-md);
+}
+.auth-password-toggle:hover {
+  color: var(--nt-ink);
+  background: var(--nt-tint-gray);
 }
 .auth-password-toggle:focus-visible {
   outline: 2px solid var(--nt-primary);
@@ -615,12 +620,11 @@ dialog.survey-dialog > p {
 }
 .auth-owl {
   display: block;
-  width: min(100%, 280px);
+  width: min(100%, 320px);
   height: auto;
-  max-height: 150px;
   margin: auto auto 0;
   object-fit: contain;
-  opacity: 0.94;
+  filter: drop-shadow(0 18px 26px color-mix(in srgb, var(--nt-navy) 16%, transparent));
 }
 .auth-panel {
   width: 100%;
@@ -1095,8 +1099,7 @@ dialog.survey-dialog > p {
     display: none;
   }
   .auth-owl {
-    width: 220px;
-    max-height: 100px;
+    width: 240px;
     margin: 24px auto 34px;
   }
   .auth-panel {

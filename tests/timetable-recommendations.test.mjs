@@ -38,3 +38,20 @@ test('자료 연도 없이 학년을 추측하지 않고, 선택한 요일과 �
   assert.deepEqual(result, []);
   assert.ok(!recommend([no], { ...data, prefs: [] }, [])[0].reasons.some((reason) => reason.includes('학년')));
 });
+
+test('타학과 수강 가능 과목은 본인 학과 과목보다 후순위로 밀려난다', () => {
+  const mine = section('MINE', { dept: '컴퓨터학과', category: '전선' });
+  const other = section('OTHER', { dept: '디자인학과', category: '전필' });
+  const result = recommend([other, mine], { ...data, prefs: ['졸업요건 충족', '오전', '금요일'] }, [], 6);
+  assert.deepEqual(result.map((r) => r.section.id), ['MINE', 'OTHER']);
+  assert.ok(result[1].reasons.includes('타학과 수강 가능 과목'));
+});
+
+test('같은 과목의 여러 분반은 점수가 높은 하나만 추천한다', () => {
+  const a = section('A', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
+  const b = section('B', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
+  const c = section('C', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
+  const other = section('D', { code: 'DIFF', name: '다른과목' });
+  const result = recommend([a, b, c, other], { ...data, prefs: [] }, [], 6);
+  assert.deepEqual(result.map((r) => r.section.code), ['SAME', 'DIFF']);
+});

@@ -26,8 +26,8 @@ export async function DELETE(request: Request) {
         .prepare('DELETE FROM academic_accounts WHERE id = ? AND EXISTS (SELECT 1 FROM academic_sessions WHERE token_hash = ? AND account_id = academic_accounts.id AND expires_at > ?)')
         .bind(account.id, account.session_hash, Date.now()),
       db
-        .prepare('DELETE FROM academic_login_limits WHERE key IN (?, ?) AND NOT EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)')
-        .bind(account.id, `refresh:${account.id}`, account.id),
+        .prepare('DELETE FROM academic_login_limits WHERE key IN (?, ?, ?) AND NOT EXISTS (SELECT 1 FROM academic_accounts WHERE id = ?)')
+        .bind(account.id, `refresh:${account.id}`, `session-refresh:${account.id}`, account.id),
     ]);
     if (!result[0].meta.changes) return json({ error: '로그인이 필요합니다.' }, 401);
     // The account deletion invalidates every session through the foreign key.

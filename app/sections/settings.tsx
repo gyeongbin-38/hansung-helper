@@ -236,8 +236,9 @@ export function SettingsSection({
         </div>
         <p className="meta">
           종합정보는 학교 계정으로 로그인할 때 조회해요. 수업 현황에서는 서버
-          재수집과 가져오기 안내를 확인할 수 있어요. 학교 비밀번호와 학교 로그인
-          쿠키는 수집 요청에 사용하며 서비스 계정에 보관하지 않아요.
+          재수집과 가져오기 안내를 확인할 수 있어요. 학교 비밀번호는 저장하지
+          않아요. 학교 세션 쿠키는 비밀번호 없이 재수집할 수 있도록 암호화해
+          최대 2시간만 보관하고, 로그아웃하면 즉시 삭제해요.
         </p>
       </section>
       <section aria-labelledby="public-connections-title">
@@ -286,51 +287,6 @@ export function SettingsSection({
         </p>
       </section>
       <section
-        aria-labelledby="mascot-settings-title"
-        className="settings-mascot"
-      >
-        <h3 id="mascot-settings-title">마스코트</h3>
-        <div className="mascot-setting">
-          <div>
-            <b>화면 아래 마스코트</b>
-            <p className="meta">
-              한성이가 화면 아래를 걸으며 설문을 응원하고, 처음 이용하는
-              분께 필요한 안내를 보여줘요.
-            </p>
-          </div>
-          <label className="mascot-switch">
-            <input
-              type="checkbox"
-              checked={data.mascotEnabled !== false}
-              onChange={(e) =>
-                void persist(
-                  { ...data, mascotEnabled: e.target.checked },
-                  e.target.checked
-                    ? '마스코트를 표시합니다.'
-                    : '마스코트를 잠시 숨겼습니다.',
-                )
-              }
-            />
-            <span className="mascot-switch-track" aria-hidden="true" />
-            <span className="sr-only">화면 아래 마스코트 표시</span>
-          </label>
-        </div>
-        {data.mascotEnabled !== false && (
-          <button
-            className="secondary"
-            onClick={() =>
-              window.dispatchEvent(new Event('hsu-mascot-guide'))
-            }
-          >
-            신규 이용 가이드 다시 보기
-          </button>
-        )}
-        <p className="meta">
-          마스코트는 이 브라우저 설정과 계정에 함께 저장돼요. 꺼 두어도
-          모든 기능은 그대로 이용할 수 있어요.
-        </p>
-      </section>
-      <section
         aria-labelledby="storage-location-title"
         className="settings-storage"
       >
@@ -358,6 +314,14 @@ export function SettingsSection({
             <dd>
               이수 내역·학점·포인트·수업 상태의 수집본이에요. 학교 원본은 이
               서비스에서 수정하지 않아요.
+            </dd>
+          </div>
+          <div>
+            <dt>학교 세션 볼트</dt>
+            <dd>
+              비밀번호 없이 다시 조회할 수 있도록 학교 세션 쿠키를 암호화해
+              최대 2시간만 보관해요. 로그아웃하거나 계정을 삭제하면 즉시
+              지워지고, 비밀번호는 저장하지 않아요.
             </dd>
           </div>
           <div>

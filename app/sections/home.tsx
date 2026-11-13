@@ -44,69 +44,12 @@ import {
 } from './catalog';
 import { addDays, dateOf } from '@/lib/data/calendar';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
-import { gettingStarted } from '@/lib/data/getting-started';
 import { evaluate } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
-import { dateDeadlineDays, deadlineDays, isUpcomingUrgent, needsApplication } from '@/lib/data/home-deadlines';
+import { dateDeadlineDays, deadlineDays, needsApplication } from '@/lib/data/home-deadlines';
 
 type Planned = CourseSection[];
-
-type Urgent = { label: string; desc: string; route: string };
-
-/** 오늘 처리할 일 — 오늘·내일 마감 수업 + 마감임박인 저장 활동.
- *  최대 3개. 확정된 마감 데이터만 올리고 미확정 데이터는 긴급 표기하지 않는다. */
-function TodayStrip({
-  lmsDue,
-  acts,
-  saved,
-  stages,
-  now,
-  go,
-}: {
-  lmsDue: { dueTs: number; kind: string; title: string; course: string; uncertain?: boolean; rangeUncertain?: boolean }[];
-  acts: Parameters<typeof liveStatus>[0][];
-  saved: string[];
-  stages?: Record<string, string>;
-  now: number;
-  go: (route: string) => void;
-}) {
-  const items: Urgent[] = [];
-  for (const t of lmsDue) {
-    const dd = deadlineDays(t.dueTs, now);
-    if (isUpcomingUrgent(t, now))
-      items.push({
-        label: `${t.kind} ${dd === 0 ? '오늘' : '내일'} 마감`,
-        desc: `${t.title} · ${t.course}`,
-        route: 'lms',
-      });
-  }
-  for (const a of acts) {
-    const live = liveStatus(a, now);
-    if (live.status === 'closing' && saved.includes(a.id) && needsApplication(stages, a.id))
-      items.push({
-        label: `저장한 활동 ${live.dday ?? '마감임박'}`,
-        desc: a.title,
-        route: 'activities/' + a.id,
-      });
-  }
-  const top = items.slice(0, 3);
-  if (!top.length) return null;
-  return (
-    <section className="today-strip card pad" aria-label="오늘 처리할 일">
-      <div className="section-heading">
-        <h2>오늘 처리할 일</h2>
-      </div>
-      {top.map((t, i) => (
-        <button className="today-item" key={i} onClick={() => go(t.route)}>
-          <span className="badge">{t.label}</span>
-          <b>{t.desc}</b>
-          <ArrowUpRight size={16} />
-        </button>
-      ))}
-    </section>
-  );
-}
 
 
 /** 마감 위젯 출처 칩 상태 — fresh 최신 / stale 오래됨 / failed 실패 /
@@ -186,7 +129,6 @@ export function Home({
   planSemester,
   planSourceMismatch,
   planSourceSemester,
-  persist,
   onPainSurvey,
 }: {
   data: Data;
@@ -197,7 +139,6 @@ export function Home({
   planSemester: string;
   planSourceMismatch: boolean;
   planSourceSemester?: string;
-  persist: (next: Data, msg?: string, complete?: boolean) => Promise<boolean>;
   onPainSurvey?: () => void;
 }) {
   const {
@@ -316,7 +257,6 @@ export function Home({
   const cur = slides[idx];
   const schoolNext = upcomingSchedule(sched?.items ?? [], today).slice(0, 3);
   const hasConflict = planned.some((s) => conflicts(s, planned).length);
-  const setup = gettingStarted(data);
   const tasks: [string, string, string, string][] = [];
   // 누락 필드를 실제로 비어 있는 것만 정확히 표기한다
   const missingProfile = [
@@ -538,42 +478,11 @@ export function Home({
       : '마감 확인 완료 — 수집 시점 기준이에요.';
   return (
     <div className="home-dashboard">
-      {setup.current < 3 && (
-        <section className="card pad setup-guide" aria-label="시작하기">
-          <h2>시작하기</h2>
-          <p className="meta">한 단계씩 진행해 보세요. 설문은 나중에 선택할 수 있어요.</p>
-          <ol className="setup-steps">
-            {['학적 입력', '이수 내역', '추천 확인'].map((label, i) => (
-              <li key={label} aria-current={setup.current === i ? 'step' : undefined}>
-                <span>{i + 1}</span> {label} {i < setup.current && <small>{i === 1 && !setup.hasHistory ? (data.setupHistory === 'later' ? '나중에' : '이수 없음') : '완료'}</small>}
-              </li>
-            ))}
-          </ol>
-          {setup.current === 0 ? (
-            <><p>학과와 입학연도를 입력하면 개인 정보에 맞는 안내를 볼 수 있어요.</p><button className="primary" onClick={() => go(profileRoute)}>학적 입력하기 <ArrowRight size={16} /></button></>
-          ) : setup.current === 1 ? (
-            <>
-              <p>이수한 과목을 확인하거나 직접 입력해 주세요. 아직 모르더라도 추천을 둘러볼 수 있어요.</p>
-              <div className="actions">
-                <button className="primary" onClick={() => go('graduation/completed')}>이수 내역 확인하기 <ArrowRight size={16} /></button>
-                <button className="secondary" onClick={() => void persist({ ...data, setupHistory: 'none' }, '이수 내역 없음으로 선택했습니다.')}>이수 내역 없음</button>
-                <button className="link" onClick={() => void persist({ ...data, setupHistory: 'later' }, '이수 내역은 나중에 입력할 수 있습니다.')}>나중에 입력</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>{data.setupHistory === 'later' && !setup.hasHistory ? '이수 내역이 없어 추천이 제한될 수 있어요. ' : ''}과목 추천에서 근거를 확인하고 계획을 세워 보세요.</p>
-              <button className="primary" onClick={async () => { if (await persist({ ...data, recommendationsSeen: true }, '', true)) go('courses'); }}>추천 확인하기 <ArrowRight size={16} /></button>
-            </>
-          )}
-        </section>
-      )}
       {planSourceMismatch && (
         <output className="card pad" aria-live="polite">
           <p className="form-error">이 계획은 {planSourceSemester ?? planSemester} 자료로 저장되어 현재 자료로는 표시하거나 수정할 수 없습니다. 저장된 계획은 보존됩니다.</p>
         </output>
       )}
-      <TodayStrip lmsDue={lmsDue} acts={actsNeedVerification ? [] : (acts?.items ?? [])} saved={data.saved} stages={data.actStatus} now={now} go={go} />
       <div className="home-overview">
         <section
           className="card home-graduation"

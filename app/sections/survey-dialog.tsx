@@ -1,7 +1,6 @@
 'use client';
 import { Check, X } from 'lucide-react';
 import type { RefObject } from 'react';
-import { MascotFigure } from '../mascot';
 
 export function SurveyDialog({
   dialogRef,
@@ -13,7 +12,6 @@ export function SurveyDialog({
   setStep,
   onClose,
   onSubmit,
-  mascotEnabled = false,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
   /** 배지 라벨 — '수업 선호' / '비교과 선호' 등 */
@@ -26,8 +24,6 @@ export function SurveyDialog({
   setStep: (value: number) => void;
   onClose: () => void;
   onSubmit: (prefs: string[]) => void;
-  /** 설정에서 마스코트를 켠 경우 설문지에서 손을 흔든다 */
-  mascotEnabled?: boolean;
 }) {
   const total = questions.length;
   const last = total - 1;
@@ -47,17 +43,8 @@ export function SurveyDialog({
           <X />
         </button>
       </div>
-      <div className="survey-intro">
-        {mascotEnabled && (
-          <span className="survey-mascot" aria-hidden="true">
-            <MascotFigure pose="wave" />
-          </span>
-        )}
-        <div className="survey-intro-copy">
-          <h2 id="survey-question">{questions[step][0]}</h2>
-          <p>선택하지 않고 건너뛰어도 사이트를 이용할 수 있어요.</p>
-        </div>
-      </div>
+      <h2 id="survey-question">{questions[step][0]}</h2>
+      <p>선택하지 않고 건너뛰어도 사이트를 이용할 수 있어요.</p>
       <div className="survey-options">
         {questions[step].slice(1).map((v) => (
           <button

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activityDigest, activityBrief } from '../lib/data/activity-assistant.ts';
+import { activityDigest, activityBrief, activityWorkspaceItems } from '../lib/data/activity-assistant.ts';
 import { activityReminderTargets } from '../lib/data/notifs.ts';
 import { advisorContext, guideReply } from '../lib/data/advisor.ts';
 
@@ -55,4 +55,12 @@ test('selected program is grounded with no inferred eligibility or identity leak
   assert.match(reply.answer, /활동 hs-1/);
   assert.match(reply.answer, /접수는 이루어지지 않았어요/);
   assert.ok(reply.sources.some(s => s.route === 'activities/hs-1'));
+});
+
+test('workspace finder searches, filters and orders only loaded activity facts', () => {
+  const saved = new Set(['hs-2']);
+  assert.deepEqual(activityWorkspaceItems(items, { filter: 'saved', saved, now }).map(a => a.id), ['hs-2']);
+  assert.deepEqual(activityWorkspaceItems(items, { filter: 'available', saved, now }).map(a => a.id), ['hs-2', 'hs-1', 'hs-4']);
+  assert.deepEqual(activityWorkspaceItems(items, { filter: 'all', query: '학생지원', saved, now }).map(a => a.id), ['hs-2', 'hs-3', 'hs-1', 'hs-4']);
+  assert.deepEqual(activityWorkspaceItems(items, { filter: 'all', query: '없는 활동', saved, now }), []);
 });

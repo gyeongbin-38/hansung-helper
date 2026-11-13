@@ -1,51 +1,145 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import { Sparkles, Send, RotateCcw, ArrowUpRight, Copy } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowUpRight,
+  Check,
+  ClipboardCheck,
+  Copy,
+  ListTodo,
+  MessageCircle,
+  RotateCcw,
+  Search,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 import type { Data } from './data';
 import { useActivities, useSchedule, useNow } from './catalog';
+import { SchoolConnection } from './school-connection';
+import type { Account } from '../account-flow';
 import type { Catalog } from '@/lib/data/catalog';
 import { apiData, apiFetch } from '@/lib/data/api';
-import { guideReply, type AdvisorMessage, type AdvisorReply } from '@/lib/data/advisor';
-import { activityBrief } from '@/lib/data/activity-assistant';
+import {
+  guideReply,
+  type AdvisorMessage,
+  type AdvisorReply,
+} from '@/lib/data/advisor';
+import {
+  extToActivity,
+  liveStatus,
+  type Activity,
+} from '@/lib/data/activities';
+import {
+  activityBrief,
+  activityWorkspaceItems,
+  type ActivityWorkspaceFilter,
+} from '@/lib/data/activity-assistant';
 
 type Turn = { question: string; reply: AdvisorReply };
-const QUESTIONS = ['이번 주에 뭐부터 해야 해?', '내 시간표 계획을 점검해 줘', '졸업 준비는 어디서 시작해?', '비교과 활동을 찾고 싶어', '학교 정보가 안 들어와', '저장한 정보는 어떻게 관리해?'];
+type Tab = 'find' | 'prepare' | 'chat';
+type Prep = {
+  purpose: string;
+  experience: string;
+  schedule: string;
+  notes: string;
+};
+const EMPTY: Prep = { purpose: '', experience: '', schedule: '', notes: '' };
+const QUESTIONS = [
+  '이번 주에는 무엇부터 해야 해?',
+  '다음 학기 계획을 점검해 줘',
+  '졸업 준비는 어디서 시작해?',
+  '나에게 맞는 비교과 활동을 찾아 줘',
+];
+const date = (value: string | null | undefined) =>
+  value ? value.slice(0, 10).replaceAll('-', '.') : '확인 필요';
 
-export function Advisor({ data, catalog, go, signedIn, activityId }: {
+function prepText(draft: Prep, activity: Activity) {
+  return [
+    `[활동] ${activity.title}`,
+    `[참여 목적]\n${draft.purpose || '(작성 전)'}`,
+    `[관련 경험·강점]\n${draft.experience || '(작성 전)'}`,
+    `[참여 가능 시간·일정]\n${draft.schedule || '(작성 전)'}`,
+    `[확인할 사항]\n${draft.notes || '(작성 전)'}`,
+  ].join('\n\n');
+}
+
+export function Advisor({
+  data,
+  catalog,
+  go,
+  signedIn,
+  activityId,
+  onSchoolAccount,
+  onSignIn,
+}: {
   data: Data;
   catalog: Catalog | null;
   go: (route: string) => void;
   signedIn: boolean;
   activityId?: string;
+  onSchoolAccount?: (account: Account) => void;
+  onSignIn?: () => void;
 }) {
   const { snap: activities } = useActivities();
   const { snap: schedule } = useSchedule();
   const now = useNow(30000);
-  const activity = activities?.items.find(a => a.id === activityId);
-  const brief = activity ? activityBrief(activity, activities?.fetchedAt, now) : null;
+  const all = useMemo(
+    () => [
+      ...(activities?.items ?? []),
+      ...(data.extActivities ?? []).map(extToActivity),
+    ],
+    [activities?.items, data.extActivities],
+  );
+  const activity = all.find((item) => item.id === activityId);
+  const external = activity?.id.startsWith('ext-') ?? false;
+  const brief = activity
+    ? activityBrief(activity, external ? undefined : activities?.fetchedAt, now)
+    : null;
+  const [tab, setTab] = useState<Tab>(activity ? 'prepare' : 'find');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ActivityWorkspaceFilter>('available');
   const [available, setAvailable] = useState<boolean | null>(null);
   const [mode, setMode] = useState<'ai' | 'guide'>(signedIn ? 'ai' : 'guide');
   const [personal, setPersonal] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [question, setQuestion] = useState(activityId === 'activities' ? '관심 비교과와 참여 현황을 요약하고 다음에 준비할 활동을 추천해 줘.' : '');
-  const [draft, setDraft] = useState('');
+  const [question, setQuestion] = useState('');
+  const [draft, setDraft] = useState<Prep>(EMPTY);
+  const [confirmed, setConfirmed] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const request = useRef<{ controller: AbortController; id: number } | null>(null);
+  const request = useRef<{ controller: AbortController; id: number } | null>(
+    null,
+  );
   const generation = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
   const useAi = mode === 'ai' && signedIn && available === true;
+  const started = Object.values(draft).some((value) => value.trim());
+  const quickQuestions = activity
+    ? ['이 활동의 신청 기간과 준비할 것을 요약해 줘', '참여 목적을 준비하려면 어떤 정보를 정리해야 해?']
+    : QUESTIONS;
+  const visible = activityWorkspaceItems(all, {
+    query,
+    filter,
+    saved: new Set(data.saved ?? []),
+    now,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
     apiFetch('/api/advisor', { signal: controller.signal })
       .then((r) => apiData<{ available: boolean }>(r))
-      .then((r) => { if (!controller.signal.aborted) setAvailable(r.available === true); })
-      .catch(() => { if (!controller.signal.aborted) setAvailable(false); });
-    return () => { controller.abort(); request.current?.controller.abort(); generation.current += 1; };
+      .then((r) => {
+        if (!controller.signal.aborted) setAvailable(r.available === true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailable(false);
+      });
+    return () => {
+      controller.abort();
+      request.current?.controller.abort();
+      generation.current += 1;
+    };
   }, []);
-
   function clear() {
     generation.current += 1;
     request.current?.controller.abort();
@@ -54,137 +148,537 @@ export function Advisor({ data, catalog, go, signedIn, activityId }: {
     setPending(false);
     setError('');
   }
-
   async function ask(raw: string) {
     const q = raw.trim();
     if (!q || q.length > 600 || request.current) return;
     setError('');
     if (!useAi) {
-      const reply = guideReply(q, personal ? data : null, { catalog, activities, schedule }, now, activity?.id);
+      const reply = guideReply(
+        q,
+        personal ? data : null,
+        { catalog, activities, schedule },
+        now,
+        activity && !external ? activity.id : undefined,
+      );
       setTurns((prev) => [...prev.slice(-9), { question: q, reply }]);
       setQuestion('');
       return;
     }
-    const id = ++generation.current;
-    const controller = new AbortController();
+    const id = ++generation.current,
+      controller = new AbortController();
     request.current = { controller, id };
     setPending(true);
     try {
-      const messages: AdvisorMessage[] = turns.filter((t) => t.reply.mode === 'ai').slice(-2)
-        .flatMap((t) => [{ role: 'user' as const, content: t.question }, { role: 'assistant' as const, content: t.reply.answer }]);
+      const messages: AdvisorMessage[] = turns
+        .filter((t) => t.reply.mode === 'ai')
+        .slice(-2)
+        .flatMap((t) => [
+          { role: 'user' as const, content: t.question },
+          { role: 'assistant' as const, content: t.reply.answer },
+        ]);
       messages.push({ role: 'user', content: q });
-      const response = await apiFetch('/api/advisor', {
-        method: 'POST', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]),
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, personal, ...(activity ? { activityId: activity.id } : {}) }),
-      }, 35000);
+      const response = await apiFetch(
+        '/api/advisor',
+        {
+          method: 'POST',
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(35000),
+          ]),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages,
+            personal,
+            ...(activity && !external ? { activityId: activity.id } : {}),
+          }),
+        },
+        35000,
+      );
       const reply = await apiData<AdvisorReply>(response);
       if (id !== generation.current) return;
       setTurns((prev) => [...prev.slice(-9), { question: q, reply }]);
       setQuestion('');
-    } catch (e) {
+    } catch (caught) {
       if (id === generation.current && !controller.signal.aborted)
-        setError(e instanceof Error ? e.message : '답변을 가져오지 못했어요. 다시 시도해 주세요.');
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : '답변을 가져오지 못했어요.',
+        );
     } finally {
-      if (id === generation.current) { request.current = null; setPending(false); }
+      if (id === generation.current) {
+        request.current = null;
+        setPending(false);
+      }
     }
   }
+  async function copy() {
+    if (!activity || !started) return;
+    try {
+      await navigator.clipboard.writeText(prepText(draft, activity));
+      setCopyStatus('준비 내용을 복사했어요.');
+    } catch {
+      setCopyStatus('자동 복사하지 못했어요. 직접 선택해 복사해 주세요.');
+    }
+  }
+  const steps = [
+    ['학교 계정 연결', signedIn],
+    ['활동 선택', !!activity],
+    ['신청 내용 준비', started],
+    ['내용 확인', confirmed],
+  ] as const;
+  const field = (
+    key: keyof Prep,
+    label: string,
+    placeholder: string,
+    rows = 3,
+  ) => (
+    <label>
+      {label}
+      <textarea
+        aria-label={label}
+        value={draft[key]}
+        maxLength={1500}
+        rows={rows}
+        placeholder={placeholder}
+        onChange={(e) => {
+          setDraft({ ...draft, [key]: e.target.value });
+          setConfirmed(false);
+          setCopyStatus('');
+        }}
+      />
+    </label>
+  );
 
   return (
-    <section className="card advisor" aria-labelledby="advisor-title">
-      <span className="ai-mark"><Sparkles size={30} aria-hidden="true" /></span>
-      <h2 id="advisor-title">AI 학사 도우미</h2>
-      <p>학사 계획부터 서비스 사용법까지, 궁금한 것을 물어보세요.</p>
-      <label className="advisor-activity-picker">비교과 신청 준비할 활동
-        <select aria-label="AI와 준비할 비교과 선택" value={activity?.id ?? ''} onChange={e => go(e.target.value ? `advisor/${e.target.value}` : 'advisor')}>
-          <option value="">활동을 선택하거나 아래에서 상담해 주세요</option>
-          {activities?.items.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
-        </select>
-      </label>
-      {brief && activity && <section className="advisor-activity-context" aria-label="선택한 비교과 신청 준비">
-        <span className="badge blue">1 공고 요약 · 2 AI 상담 · 3 신청 내용 검토</span>
-        <h3>{brief.title}</h3><p>{brief.department}</p>
-        <dl><div><dt>신청 마감</dt><dd>{brief.applicationEnd?.slice(0, 10) ?? '공고 확인 필요'}</dd></div>
-          <div><dt>운영 기간</dt><dd>{brief.runStart?.slice(0, 10) ?? '미정'} ~ {brief.runEnd?.slice(0, 10) ?? '미정'}</dd></div>
-          <div><dt>안내 포인트</dt><dd>{brief.points === null ? '확인 필요' : `${brief.points}P`}</dd></div></dl>
-        <p className="meta">{brief.needsVerification ? '현재 접수 여부 재확인 필요' : brief.status} · 수집일 {brief.asOf?.slice(0, 10)}. 지원 대상·필수 서류와 신청 문항은 학교 공고에서 확인해 주세요.</p>
-      </section>}
-      <fieldset className="advisor-mode">
-        <legend className="sr-only">답변 방식</legend>
-        <button className="secondary" aria-pressed={useAi} disabled={!signedIn || available !== true}
-          onClick={() => { clear(); setMode('ai'); }}>AI 상담</button>
-        <button className="secondary" aria-pressed={!useAi}
-          onClick={() => { clear(); setMode('guide'); }}>기본 안내</button>
-      </fieldset>
-      <output className="meta advisor-status">
-        {!signedIn ? '체험 모드에서는 기본 안내를 이용할 수 있어요. AI 상담은 학교 계정으로 로그인해 주세요.'
-          : available === null ? 'AI 연결 상태를 확인하고 있어요.'
-          : available === false ? 'AI 상담을 준비 중이에요. 지금은 기본 안내를 이용할 수 있어요.'
-          : useAi ? 'AI가 제공된 자료를 바탕으로 답해요. 공식 졸업 판정과 신청은 학교에서 확인하세요.'
-          : '사이트 데이터로 답하는 기본 안내예요. AI 생성 답변이 아니에요.'}
-      </output>
-      <label className="advisor-consent">
-        <input type="checkbox" checked={personal} disabled={pending}
-          onChange={(e) => { clear(); setDraft(''); setCopyStatus(''); setPersonal(e.target.checked); }} />
-        내 학사 요약 사용
-      </label>
-      <p className="meta advisor-privacy">
-        {useAi ? '질문·이 대화의 최근 답변을 Cloudflare AI로 보내요. 요약을 선택하면 학과·입학연도·계획·학점·포인트·마감도 사용해요. 이름·학번·성적·비밀번호는 자동 전송하지 않아요.'
-          : '기본 안내는 이 브라우저에서 처리해요. 요약을 선택하면 현재 화면의 학사 정보를 함께 확인해요.'}
-        {' '}대화는 서버에 저장하지 않으며 화면을 나가면 지워져요. 질문에 학번·비밀번호를 입력하지 마세요.
-      </p>
-      <div className="chips">
-        {activity && ['이 활동의 신청 기간·내용·준비할 것을 요약해 줘', '내가 공유한 학사 정보를 참고해 참여 목적과 신청 메모 초안을 함께 준비해 줘'].map(q => <button className="secondary" key={q} disabled={pending} onClick={() => { setQuestion(q); void ask(q); }}>{q}</button>)}
-        {QUESTIONS.map((q) => <button className="secondary" key={q} disabled={pending}
-          onClick={() => { setQuestion(q); void ask(q); }}>{q}</button>)}
-      </div>
-      <div className="advisor-conversation" role="log" aria-label="학사 상담 대화" aria-live="polite" aria-relevant="additions">
-        {turns.map((turn, i) => <article className="advisor-turn" key={i}>
-          <p className="advisor-question"><b>나</b>{turn.question}</p>
-          <div className="answer">
-            <b>{turn.reply.mode === 'ai' ? 'AI 답변' : '기본 안내 · AI 생성 아님'}</b>
-            <p className="advisor-answer-text">{turn.reply.answer}</p>
-            {activity && <button className="link" onClick={() => { setDraft(turn.reply.answer); setCopyStatus(''); }}>이 답변을 신청 준비 메모로 가져오기</button>}
-            <small>{turn.reply.personal ? '내 학사 요약 포함' : '개인 학사 정보 사용 안 함'} · 참고 자료와 확인할 화면</small>
-            <ul className="advisor-sources">{turn.reply.sources.map((s) => <li key={s.label + s.route}>
-              <button className="link" onClick={() => go(s.route)}>{s.label} →</button>
-              {s.asOf && <span>{s.asOf.slice(0, 10)} 기준</span>}
-            </li>)}</ul>
-          </div>
-        </article>)}
-      </div>
-      <form className="advisor-form" onSubmit={(e) => { e.preventDefault(); void ask(question); }}>
-        <label htmlFor="advisor-question">궁금한 점</label>
-        <textarea id="advisor-question" ref={input} className="field" rows={3} value={question}
-          onChange={(e) => setQuestion(e.target.value)} maxLength={600} disabled={pending}
-          placeholder="예: 시간표에 담은 과목은 실제로 신청된 거야?" />
-        <div className="advisor-form-actions">
-          <span className="meta">{question.length}/600</span>
-          <button type="button" className="secondary" onClick={clear} disabled={!turns.length && !pending && !error}>
-            <RotateCcw size={15} aria-hidden="true" /> 대화 지우기</button>
-          <button className="primary" disabled={pending || !question.trim()}>
-            <Send size={16} aria-hidden="true" />{pending ? '답변 준비 중…' : useAi ? 'AI에게 묻기' : '안내 보기'}</button>
+    <section className="advisor-workspace" aria-labelledby="advisor-title">
+      <header className="advisor-workspace-header">
+        <div>
+          <span className="eyebrow">
+            <Sparkles size={15} /> AI 활동 워크스페이스
+          </span>
+          <h1 id="advisor-title">활동을 찾고, 신청 전까지 함께 준비해요</h1>
+          <p>
+            공개 정보를 정리하고 최종 접수는 학교 공식 화면에서 본인이 확인해요.
+          </p>
         </div>
-      </form>
-      {activity && <section className="advisor-application-draft" aria-label="신청 준비 메모">
-        <h3>신청 내용 준비</h3><p className="meta">AI와 참여 목적·가능한 시간을 정리하고, 답변을 메모로 가져와 수정하세요. 메모는 이 화면에서만 유지돼요.</p>
-        <label>검토할 신청 메모<textarea aria-label="신청 준비 메모" value={draft} maxLength={6000} rows={7} placeholder="AI 답변을 가져오거나 참여 목적·준비할 서류를 적어 주세요." onChange={e => { setDraft(e.target.value); setCopyStatus(''); }} /></label>
-        <div className="actions"><button className="secondary" disabled={!draft.trim()} onClick={async () => {
-          try { await navigator.clipboard.writeText(draft); setCopyStatus('메모를 복사했어요. 학교 신청 문항에 맞게 검토해 주세요.'); }
-          catch { setCopyStatus('자동 복사가 되지 않았어요. 메모를 직접 선택해 복사해 주세요.'); }
-        }}><Copy size={15} />메모 복사</button>
-          <a className="secondary" href={activity.url} target="_blank" rel="noreferrer">학교 공고·신청 화면 열기 <ArrowUpRight size={15} /></a></div>
-        {copyStatus && <output className="meta">{copyStatus}</output>}
-        <p className="meta">현재 단계는 신청 준비예요. 학교 신청 화면에서 지원 자격·문항·개인 정보를 확인하고 제출해 주세요. 링크를 열거나 메모를 복사해도 접수 상태는 바뀌지 않아요.</p>
-      </section>}
-      {pending && <output className="advisor-status">학사 정보와 서비스 안내를 확인하고 있어요…</output>}
-      {error && <div className="advisor-error" role="alert"><p>{error}</p>
-        <button className="secondary" onClick={() => void ask(question)}>다시 시도</button>{' '}
-        <button className="secondary" onClick={() => { clear(); setMode('guide'); input.current?.focus(); }}>기본 안내로 전환</button>
-      </div>}
-      <div className="actions">
-        <button className="link" onClick={() => go('graduation')}>졸업요건 →</button>
-        <button className="link" onClick={() => go('settings')}>학교 연결·저장 정보 →</button>
+        <SchoolConnection
+          signedIn={signedIn}
+          onAccount={onSchoolAccount}
+          onSignIn={onSignIn}
+        />
+      </header>
+      <nav className="advisor-mobile-tabs" aria-label="AI 작업 화면">
+        {(
+          [
+            ['find', '활동 찾기', Search],
+            ['prepare', '신청 준비', ListTodo],
+            ['chat', 'AI 상담', MessageCircle],
+          ] as const
+        ).map(([id, label, Icon]) => (
+          <button
+            key={id}
+            aria-current={tab === id ? 'page' : undefined}
+            onClick={() => setTab(id)}
+          >
+            <Icon size={16} />
+            {label}
+          </button>
+        ))}
+      </nav>
+      <div className="advisor-workspace-grid">
+        <aside
+          className={`advisor-finder ${tab === 'find' ? 'is-mobile-active' : ''}`}
+        >
+          <div className="advisor-pane-title">
+            <div>
+              <span>ACTIVITIES</span>
+              <h2>활동 찾기</h2>
+            </div>
+            <Search size={18} />
+          </div>
+          <label className="advisor-search">
+            <Search size={16} />
+            <input
+              aria-label="활동 검색"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="활동명·운영 부서 검색"
+            />
+          </label>
+          <div className="advisor-filter">
+            {(
+              [
+                ['available', '접수 중·예정'],
+                ['saved', '관심 활동'],
+                ['all', '전체'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="advisor-result-count">{visible.length}개 활동</p>
+          <div className="advisor-activity-list">
+            {visible.map((item) => {
+              const status = liveStatus(item, now);
+              return (
+                <button
+                  key={item.id}
+                  aria-label={`${item.title} 선택`}
+                  className="advisor-activity-item"
+                  aria-current={activity?.id === item.id ? 'true' : undefined}
+                  onClick={() => go(`advisor/${item.id}`)}
+                >
+                  <span className={`advisor-status-dot is-${status.status}`} />
+                  <span>
+                    <b>{item.title}</b>
+                    <small>{item.dept}</small>
+                    <small>
+                      {status.label} · {date(item.applyEnd)}까지
+                    </small>
+                  </span>
+                </button>
+              );
+            })}
+            {!visible.length && (
+              <p className="advisor-empty">조건에 맞는 활동이 없어요.</p>
+            )}
+          </div>
+        </aside>
+        <section
+          className={`advisor-task ${tab === 'prepare' ? 'is-mobile-active' : ''}`}
+        >
+          <div className="advisor-pane-title">
+            <div>
+              <span>TASK</span>
+              <h2>신청 준비</h2>
+            </div>
+            <ClipboardCheck size={19} />
+          </div>
+          <ol className="advisor-stepper">
+            {steps.map(([label, done], index) => (
+              <li key={label} className={done ? 'is-done' : ''}>
+                <span>{done ? <Check size={13} /> : index + 1}</span>
+                <small>{label}</small>
+              </li>
+            ))}
+          </ol>
+          {!activity || !brief ? (
+            <div className="advisor-task-empty">
+              <Search size={28} />
+              <h3>준비할 활동을 선택해 주세요</h3>
+              <p>
+                접수 중인 비교과와 직접 등록한 대외활동을 함께 찾을 수 있어요.
+              </p>
+              <button className="primary" onClick={() => setTab('find')}>
+                활동 찾기
+              </button>
+            </div>
+          ) : (
+            <>
+              <article className="advisor-brief">
+                <div className="advisor-brief-heading">
+                  <span className="badge blue">
+                    {external ? '직접 등록' : '학교 공개 공고'}
+                  </span>
+                  <span>
+                    {brief.needsVerification
+                      ? '최신 정보 확인 필요'
+                      : `${date(brief.asOf)} 수집`}
+                  </span>
+                </div>
+                <h3>{brief.title}</h3>
+                <p>{brief.department}</p>
+                <dl>
+                  <div>
+                    <dt>신청 마감</dt>
+                    <dd>{date(brief.applicationEnd)}</dd>
+                  </div>
+                  <div>
+                    <dt>운영 기간</dt>
+                    <dd>
+                      {date(brief.runStart)} ~ {date(brief.runEnd)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>포인트</dt>
+                    <dd>
+                      {brief.points === null ? '확인 필요' : `${brief.points}P`}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="advisor-boundary">
+                  지원 자격·필수 서류·실시간 접수 여부는 공식 공고에서 확인해야
+                  해요.
+                </p>
+              </article>
+              <section className="advisor-prep-form">
+                <div className="advisor-section-heading">
+                  <div>
+                    <small>APPLICATION NOTES</small>
+                    <h3>신청 내용 정리</h3>
+                  </div>
+                  <span>{Object.values(draft).join('').length}/6000</span>
+                </div>
+                {field(
+                  'purpose',
+                  '참여 목적',
+                  '이 활동에서 얻고 싶은 것을 적어 보세요.',
+                )}
+                {field(
+                  'experience',
+                  '관련 경험·강점',
+                  '관련 수업, 프로젝트, 관심사를 적어 보세요.',
+                )}
+                {field(
+                  'schedule',
+                  '참여 가능 시간·일정',
+                  '수업·시험 일정과 겹치는지 확인해 보세요.',
+                  2,
+                )}
+                {field(
+                  'notes',
+                  '공식 화면에서 확인할 사항',
+                  '자격, 서류, 모집 인원 등을 적어 보세요.',
+                )}
+                <button
+                  className="secondary advisor-copy"
+                  disabled={!started}
+                  onClick={() => void copy()}
+                >
+                  <Copy size={15} />
+                  준비 내용 복사
+                </button>
+                <button
+                  className="secondary advisor-copy"
+                  disabled={!started || pending}
+                  onClick={() => {
+                    const prompt = '내가 작성한 신청 메모야. 없는 경험을 추가하지 말고 참여 목적을 다듬을 점을 알려 줘.\n';
+                    setQuestion((prompt + prepText(draft, activity)).slice(0, 600));
+                    setTab('chat');
+                    window.requestAnimationFrame(() => input.current?.focus());
+                  }}
+                >
+                  <MessageCircle size={15} /> 이 메모로 상담하기
+                </button>
+                {copyStatus && <output className="meta">{copyStatus}</output>}
+              </section>
+              <section className="advisor-review">
+                <h3>최종 확인</h3>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    disabled={!started}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                  />
+                  <span>
+                    내용을 검토했고, 자격·서류·접수 완료는 공식 화면에서 직접
+                    확인할게요.
+                  </span>
+                </label>
+                {activity.url ? (
+                  <a
+                    className={`primary advisor-handoff${confirmed ? '' : ' is-disabled'}`}
+                    href={confirmed ? activity.url : undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-disabled={!confirmed}
+                    onClick={(e) => {
+                      if (!confirmed) e.preventDefault();
+                    }}
+                  >
+                    {external
+                      ? '출처 사이트로 이동'
+                      : '학교 공식 신청 화면으로 이동'}{' '}
+                    <ArrowUpRight size={16} />
+                  </a>
+                ) : (
+                  <p className="advisor-no-link">등록된 신청 링크가 없어요.</p>
+                )}
+                <p className="meta">
+                  이 도우미는 신청서를 자동 제출하지 않으며, 링크를 연 것만으로
+                  접수 상태가 바뀌지 않아요.
+                </p>
+              </section>
+            </>
+          )}
+        </section>
+        <aside
+          className={`advisor-chat ${tab === 'chat' ? 'is-mobile-active' : ''}`}
+        >
+          <div className="advisor-pane-title">
+            <div>
+              <span>ASSISTANT</span>
+              <h2>AI 학사 상담</h2>
+            </div>
+            <Sparkles size={18} />
+          </div>
+          <fieldset className="advisor-mode">
+            <legend className="sr-only">답변 방식</legend>
+            <button
+              aria-pressed={useAi}
+              disabled={!signedIn || available !== true}
+              onClick={() => {
+                clear();
+                setMode('ai');
+              }}
+            >
+              AI 상담
+            </button>
+            <button
+              aria-pressed={!useAi}
+              onClick={() => {
+                clear();
+                setMode('guide');
+              }}
+            >
+              기본 안내
+            </button>
+          </fieldset>
+          <p className="advisor-ai-state">
+            {!signedIn
+              ? '학교 계정을 연결하면 AI 상담을 쓸 수 있어요.'
+              : available === null
+                ? 'AI 연결을 확인하고 있어요…'
+                : available === false
+                  ? 'AI를 쓸 수 없어 기본 안내로 도와드려요.'
+                  : '활동 준비와 일반 학사 질문을 물어보세요.'}
+          </p>
+          <label className="advisor-consent">
+            <input
+              type="checkbox"
+              checked={personal}
+              disabled={pending}
+              onChange={(e) => {
+                clear();
+                setPersonal(e.target.checked);
+              }}
+            />
+            내 학사 요약 참고
+          </label>
+          <p className="advisor-privacy">
+            AI 상담은 질문·최근 AI 대화와 선택 시 학과·이수·포인트 요약을
+            Cloudflare Workers AI에 보내요. 학교 인증 정보는 이 요약에 포함하지
+            않으며 대화는 서버에 저장하지 않아요. 질문에 학번·비밀번호를 직접
+            입력하지 마세요.
+          </p>
+          <div className="advisor-conversation" role="log" aria-live="polite">
+            {!turns.length && (
+              <p className="advisor-chat-welcome">
+                {activity
+                  ? `${activity.title}을(를) 준비하며 궁금한 것을 물어보세요.`
+                  : '졸업 요건, 학기 계획, 활동 탐색을 물어보세요.'}
+              </p>
+            )}
+            {turns.map((turn, i) => (
+              <article className="advisor-turn" key={i}>
+                <p className="advisor-question">{turn.question}</p>
+                <div className="answer">
+                  <b>{turn.reply.mode === 'ai' ? 'AI 답변' : '기본 안내'}</b>
+                  <p className="advisor-answer-text">{turn.reply.answer}</p>
+                  {activity && (
+                    <button
+                      className="link"
+                      onClick={() => {
+                        setDraft((d) => ({
+                          ...d,
+                          notes: turn.reply.answer.slice(0, 1500),
+                        }));
+                        setConfirmed(false);
+                        setTab('prepare');
+                      }}
+                    >
+                      확인할 사항에 가져오기
+                    </button>
+                  )}
+                  <ul className="advisor-sources">
+                    {turn.reply.sources.map((s) => (
+                      <li key={s.label + s.route}>
+                        <button className="link" onClick={() => go(s.route)}>
+                          {s.label} →
+                        </button>
+                        {s.asOf && <span>{date(s.asOf)} 기준</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
+            {pending && (
+              <p className="advisor-thinking">답변을 정리하고 있어요…</p>
+            )}
+          </div>
+          <div className="advisor-chips">
+            {quickQuestions.map((q) => (
+              <button
+                key={q}
+                disabled={pending}
+                onClick={() => {
+                  setQuestion(q);
+                  void ask(q);
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <form
+            className="advisor-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void ask(question);
+            }}
+          >
+            <textarea
+              ref={input}
+              aria-label="궁금한 점"
+              rows={3}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              maxLength={600}
+              disabled={pending}
+              placeholder="AI에게 질문해 보세요"
+            />
+            <div>
+              <span>{question.length}/600</span>
+              <button type="button" aria-label="대화 지우기" onClick={clear}>
+                <RotateCcw size={15} />
+              </button>
+              <button
+                className="primary"
+                aria-label="질문 보내기"
+                disabled={pending || !question.trim()}
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </form>
+          {error && (
+            <div className="advisor-error" role="alert">
+              <p>{error}</p>
+              <button className="secondary" onClick={() => void ask(question)}>
+                다시 시도
+              </button>
+              <button
+                className="link"
+                onClick={() => {
+                  clear();
+                  setMode('guide');
+                  input.current?.focus();
+                }}
+              >
+                기본 안내로 전환
+              </button>
+            </div>
+          )}
+        </aside>
       </div>
     </section>
   );

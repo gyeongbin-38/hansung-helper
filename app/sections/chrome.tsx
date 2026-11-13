@@ -259,6 +259,10 @@ const NAV_GROUP_OF: Record<string, string> = {
   advisor: '점검',
 };
 
+function academicWeek(nowTs: number) {
+  return Math.max(1, Math.floor((nowTs - currentSemesterStart(nowTs)) / 604800000) + 1);
+}
+
 export function PageHeading({
   section,
   label,
@@ -272,15 +276,13 @@ export function PageHeading({
   onSurvey?: () => void;
 }) {
   const now = new Date();
+  const nowTs = now.getTime();
   const month = now.getMonth() + 1;
   const academicYear = month < 3 ? now.getFullYear() - 1 : now.getFullYear();
   const semester = month >= 3 && month < 9 ? 1 : 2;
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const firstWeekday = firstDayOfMonth.getDay();
-  const calculatedWeek = (((now.getDate() + firstWeekday - 1) / 7) | 0) + 1;
-  const week = calculatedWeek > 5 ? 5 : calculatedWeek;
-  const weekNames = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
-  const homeEyebrow = `${academicYear}학년도 ${semester}학기 · ${month}월 ${weekNames[week - 1]} 주`;
+  const week = academicWeek(nowTs);
+  const weekLabel = week > 16 ? '방학' : week + '주차';
+  const homeEyebrow = academicYear + '학년도 ' + semester + '학기 · ' + weekLabel;
   return (
     <div
       className={'page-heading ' + (section === 'home' ? 'home-heading' : '')}
@@ -303,8 +305,8 @@ export function PageHeading({
             className="heading-owl"
             src="/illustrations/academic-owl.png"
             alt=""
-            width="320"
-            height="111"
+            width="329"
+            height="193"
           />
         ) : (
           <span className="date-label">

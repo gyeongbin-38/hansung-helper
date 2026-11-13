@@ -31,9 +31,11 @@ const modules = {
   'cloudflare:workers': { waitUntil() {} },
   '@/lib/server/account': account,
   '@/lib/server/school': { SchoolError: class extends Error {},
+    SchoolSession: class { hasCookies() { return false; } exportCookies() { return {}; } },
     connectSchool: async () => new Promise((resolve) => pending.push(resolve)) },
   '@/lib/data/info': { mergeInfoSnapshot() {} },
   '@/lib/server/lms-write': { writeCollectedLms() {} },
+  '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
 };
 const source = await readFile('app/api/account/lms-refresh/route.ts', 'utf8');

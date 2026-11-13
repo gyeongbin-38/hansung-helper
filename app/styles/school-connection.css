@@ -1,0 +1,15 @@
+.school-connection { padding: 18px; border: 1px solid var(--nt-hairline); border-radius: var(--nt-r-lg); background: var(--nt-canvas); }
+.school-connection-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.school-connection-heading > svg { color: var(--nt-primary); flex-shrink: 0; }
+.school-connection-heading h3 { margin: 0; font-size: 14px; }
+.school-connection-heading .badge { margin-left: auto; font-size: 10px; }
+.school-connection .meta { margin: 10px 0; font-size: 12px; line-height: 1.75; }
+.school-connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.school-connection-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; font-size: 12px; }
+.school-connection-form { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--nt-hairline); }
+.school-connection-form label { display: grid; gap: 6px; font-size: 12px; }
+.school-connection-form .field { min-width: 0; width: 100%; }
+.school-connection-form .meta { margin: 0; }
+.school-connection-notice { display: flex; align-items: flex-start; gap: 6px; color: var(--nt-green-deep); }
+.school-connection .form-error { font-size: 12px; line-height: 1.7; }
+.school-connection .form-error, .school-connection .meta { overflow-wrap: anywhere; }

@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCourses, connectSchool } from '../lib/server/school.ts';
+import {
+  parseCourses,
+  connectSchool,
+  resumeSchool,
+  SchoolError,
+  SchoolSession,
+} from '../lib/server/school.ts';
 
 test('course parser keeps only same-school read-only course links and deduplicates', () => {
   const html = `<a href="/course/view.php?id=42"><span>테스트 &amp; 실습</span></a><a href="/course/view.php?id=42">중복</a><a href="https://other.example/course/view.php?id=9">외부</a><a href="/course/view.php?id=evil">잘못된 링크</a>`;
@@ -264,5 +270,37 @@ test('a failed LMS login and failed session probe never resend the password', as
     assert.equal(snapshot.lms, 'unavailable');
     assert.equal(snapshot.lmsError, 'upstream');
     assert.equal(posts, 1);
+  } finally { globalThis.fetch = original; }
+});
+
+test('resumeSchool reports definite login pages as an expired school session', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response('login required');
+  try {
+    await assert.rejects(
+      resumeSchool(new SchoolSession({
+        'info.hansung.ac.kr': { JSESSIONID: 'expired' },
+        'learn.hansung.ac.kr': { MoodleSession: 'expired' },
+      }), ''),
+      error => error instanceof SchoolError && error.code === 'session',
+    );
+  } finally { globalThis.fetch = original; }
+});
+
+test('resumeSchool preserves the vault on transport failure instead of claiming expiry', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async input => {
+    const url = new URL(input);
+    if (url.hostname === 'info.hansung.ac.kr') throw new TypeError('network');
+    return new Response('login required');
+  };
+  try {
+    await assert.rejects(
+      resumeSchool(new SchoolSession({
+        'info.hansung.ac.kr': { JSESSIONID: 'possibly-valid' },
+        'learn.hansung.ac.kr': { MoodleSession: 'possibly-valid' },
+      }), ''),
+      error => error instanceof SchoolError && error.code === 'upstream',
+    );
   } finally { globalThis.fetch = original; }
 });

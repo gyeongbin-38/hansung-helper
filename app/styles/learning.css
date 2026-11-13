@@ -21,6 +21,11 @@
   flex: 0 1 300px;
   padding: 10px 14px;
 }
+.toolbar-side .activity-sort {
+  flex: 0 0 auto;
+  min-width: 132px;
+  padding: 10px 12px;
+}
 .toolbar-side .secondary {
   white-space: nowrap;
   padding: 9px 14px;
@@ -137,6 +142,9 @@
 .activity .card-foot .link {
   padding: 0;
   font-size: 13px;
+}
+.activity .icon.saved {
+  color: var(--nt-navy);
 }
 .activity .icon.saved:hover {
   background: var(--nt-tint-sky);
@@ -420,6 +428,9 @@
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+  .toolbar-side {
+    flex-wrap: wrap;
   }
   .toolbar-side .field,
   .toolbar .field {
@@ -1205,16 +1216,6 @@
 }
 .block-pop .actions {
   margin-top: 18px;
-}
-@media (max-width: 1399px) {
-  .builder-cols {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-  .builder-recs {
-    grid-column: 1 / -1;
-    position: static;
-    max-height: none;
-  }
 }
 @media (max-width: 767px) {
   .builder-cols {
@@ -2628,6 +2629,11 @@ input[aria-invalid='true'] {
   flex: 0 1 300px;
   padding: 10px 14px;
 }
+.toolbar-side .activity-sort {
+  flex: 0 0 auto;
+  min-width: 132px;
+  padding: 10px 12px;
+}
 .toolbar-side .secondary {
   white-space: nowrap;
   padding: 9px 14px;
@@ -2767,6 +2773,9 @@ input[aria-invalid='true'] {
 .activity .card-foot .link {
   padding: 0;
   font-size: 13px;
+}
+.activity .icon.saved {
+  color: var(--nt-navy);
 }
 .activity .icon.saved:hover {
   background: var(--nt-tint-sky);
@@ -3032,6 +3041,9 @@ input[aria-invalid='true'] {
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+  .toolbar-side {
+    flex-wrap: wrap;
   }
   .toolbar-side .field,
   .toolbar .field {
@@ -3593,6 +3605,36 @@ input[aria-invalid='true'] {
 @media (max-width: 767px) {
   .builder-head {
     flex-wrap: wrap;
+  }
+}
+
+/* Side panels follow the timetable height; their contents scroll independently. */
+@container (min-width: 850.01px) {
+  .builder-list {
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    contain: size;
+  }
+  .cat-rows {
+    flex: 1;
+    min-height: 0;
+  }
+}
+@container (min-width: 1250.01px) {
+  .builder-recs {
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    contain: size;
+    position: static;
+  }
+}
+@container (max-width: 850px) {
+  .builder-cols {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
