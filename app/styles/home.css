@@ -1087,6 +1087,82 @@ button.event-line.as-link > svg {
 .home-connection-link:hover {
   color: var(--nt-primary);
 }
+/* 다가오는 마감 위젯의 출처 상태 줄 — 수업·학사일정·비교과 수집 상태를
+ * 점(dot)으로 표시하고 실패한 출처는 카드에서 바로 다시 시도한다. */
+.deadline-sources {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 10px 0 14px;
+}
+.deadline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--nt-steel);
+}
+.deadline-sources .src-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--nt-hairline-strong);
+}
+.deadline-sources .src-dot.fresh {
+  background: var(--nt-green);
+}
+.deadline-sources .src-dot.stale {
+  background: var(--nt-warning);
+}
+.deadline-sources .src-dot.failed {
+  background: var(--nt-error);
+}
+.deadline-sources .src-dot.loading {
+  background: var(--nt-primary);
+  animation: src-dot-pulse 1.4s var(--nt-ease) infinite;
+}
+@keyframes src-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.deadline-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--nt-line);
+  border-radius: 999px;
+  background: var(--nt-surface);
+  font-size: 11px;
+}
+.deadline-source .src-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: var(--nt-slate);
+}
+.deadline-source .src-body:hover {
+  color: var(--nt-primary);
+}
+.deadline-source .src-name {
+  font-weight: 700;
+}
+.deadline-source .src-note {
+  color: var(--nt-steel);
+}
+.deadline-source .src-retry {
+  padding: 0 0 0 6px;
+  border-left: 1px solid var(--nt-line);
+  color: var(--nt-primary);
+  font-size: 11px;
+  font-weight: 500;
+}
+.deadline-source .src-retry:hover {
+  text-decoration: underline;
+}
 .home-inline-empty {
   display: flex;
   flex-direction: column;

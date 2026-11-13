@@ -5,6 +5,7 @@ import { Logo } from './logo';
 import {
   menus,
   empty,
+  PAIN_QUESTIONS,
   mergeProfile,
   type Data,
 } from './sections/data';
@@ -48,6 +49,7 @@ import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
 import { SettingsSection } from './sections/settings';
 import { SurveyPage } from './sections/survey';
+import { SurveyDialog } from './sections/survey-dialog';
 import { surveyEntryRoute } from '@/lib/data/survey';
 import { Mascot } from './mascot';
 import { useSlowLoading } from './use-slow-loading';
@@ -88,7 +90,11 @@ export default function App() {
     [drawer, setDrawer] = useState(false),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
-    [notifOpen, setNotifOpen] = useState(false);
+    [notifOpen, setNotifOpen] = useState(false),
+    [painSurvey, setPainSurvey] = useState(false),
+    [painStep, setPainStep] = useState(0),
+    [painDraft, setPainDraft] = useState<string[]>([]);
+  const painDialog = useRef<HTMLDialogElement>(null);
   const readyRef = useRef(ready);
   readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
@@ -311,6 +317,22 @@ export default function App() {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, [setToast]);
+  useEffect(() => {
+    if (!ready || painSurvey) return;
+    if (!account?.onboarded || data.painPrefs !== undefined) return;
+    if (route.split('/')[0] !== 'home') return;
+    try {
+      if (sessionStorage.getItem('hsu-pain-survey-offered')) return;
+      sessionStorage.setItem('hsu-pain-survey-offered', '1');
+    } catch {
+      return;
+    }
+    openPainSurvey();
+  }, [ready, painSurvey, account?.onboarded, data.painPrefs, route]);
+  useEffect(() => {
+    if (painSurvey) painDialog.current?.showModal();
+    else painDialog.current?.close();
+  }, [painSurvey]);
   const persistRef = useRef<typeof persist | null>(null);
   persistRef.current = persist;
   // 계정 프로필 쓰기를 직렬화 — 같은 탭의 연속 저장이 rev 충돌을
@@ -642,6 +664,11 @@ export default function App() {
       setToast('계정 삭제 결과를 확인하지 못했습니다. 로그인 상태를 확인해 주세요.');
     }
   }
+  function openPainSurvey() {
+    setPainStep(0);
+    setPainDraft(data.painPrefs ?? []);
+    setPainSurvey(true);
+  }
   function go(r: string) {
     location.hash = r;
     setRoute(r);
@@ -879,6 +906,7 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.painPrefs === undefined || Array.isArray(d.painPrefs)) &&
                   (d.actStatus === undefined ||
                     (d.actStatus &&
                       typeof d.actStatus === 'object' &&
@@ -982,6 +1010,7 @@ export default function App() {
               planSourceMismatch={sourceMismatch}
               planSourceSemester={storedPlan?.sourceSemester}
               persist={persist}
+              onPainSurvey={openPainSurvey}
             />
           ) : section === 'activities' ? (
             <Activities
@@ -1174,6 +1203,25 @@ export default function App() {
           onExit={() => go('home')}
         />
       )}
+      <SurveyDialog
+        dialogRef={painDialog}
+        label="학습 고민"
+        questions={PAIN_QUESTIONS}
+        step={painStep}
+        draft={painDraft}
+        setDraft={setPainDraft}
+        setStep={setPainStep}
+        mascotEnabled={data.mascotEnabled !== false}
+        onClose={() => setPainSurvey(false)}
+        onSubmit={(prefs) => {
+          void persist(
+            { ...dataRef.current, painPrefs: prefs },
+            '학습 고민을 저장했어요. 맞춤 안내에 반영할게요.',
+          ).then((ok) => {
+            if (ok) setPainSurvey(false);
+          });
+        }}
+      />
     </div>
   );
 }

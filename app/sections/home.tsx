@@ -109,6 +109,74 @@ function TodayStrip({
 }
 
 
+/** 마감 위젯 출처 칩 상태 — fresh 최신 / stale 오래됨 / failed 실패 /
+ *  loading 확인 중 / off 미연결 */
+type SrcState = 'fresh' | 'stale' | 'failed' | 'loading' | 'off';
+
+/** GPAI 위젯식 출처 상태 줄 — 다가오는 마감 카드 위에 각 데이터 소스의
+ *  수집 상태를 점(dot)으로 보여주고, 실패한 출처는 바로 다시 시도한다. */
+function DeadlineSources({
+  rows,
+  summary,
+  go,
+}: {
+  rows: {
+    key: string;
+    label: string;
+    state: SrcState;
+    note: string;
+    route: string;
+    retry?: () => void;
+  }[];
+  summary: string;
+  go: (route: string) => void;
+}) {
+  const labels: Record<SrcState, string> = {
+    fresh: '최신',
+    stale: '오래됨',
+    failed: '확인 실패',
+    loading: '확인 중',
+    off: '미연결',
+  };
+  return (
+    <div className="deadline-sources">
+      <p className="deadline-status" aria-live="polite">
+        <span
+          className={
+            'src-dot ' +
+            (rows.some((r) => r.state === 'loading')
+              ? 'loading'
+              : rows.some((r) => r.state === 'failed')
+                ? 'failed'
+                : 'fresh')
+          }
+          aria-hidden="true"
+        />
+        {summary}
+      </p>
+      {rows.map((r) => (
+        <span className="deadline-source" key={r.key}>
+          <button className="src-body" onClick={() => go(r.route)}>
+            <span
+              className={'src-dot ' + r.state}
+              aria-label={labels[r.state]}
+              title={labels[r.state]}
+            />
+            <span className="src-name">{r.label}</span>
+            <small className="src-note">{r.note}</small>
+          </button>
+          {r.retry && (
+            <button className="src-retry" onClick={r.retry}>
+              다시 시도
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+
 export function Home({
   data,
   account,
@@ -119,6 +187,7 @@ export function Home({
   planSourceMismatch,
   planSourceSemester,
   persist,
+  onPainSurvey,
 }: {
   data: Data;
   account: Account | null;
@@ -129,6 +198,7 @@ export function Home({
   planSourceMismatch: boolean;
   planSourceSemester?: string;
   persist: (next: Data, msg?: string, complete?: boolean) => Promise<boolean>;
+  onPainSurvey?: () => void;
 }) {
   const {
     snap: sched,
@@ -297,6 +367,27 @@ export function Home({
       '계획한 과목의 시간이 겹쳐요.',
       'timetable',
     ]);
+  if (!data.prefs.length)
+    tasks.push([
+      '05',
+      '수업 성향 설문하기',
+      '맞춤 추천에 선호가 반영돼요.',
+      'profile',
+    ]);
+  if (!(data.actPrefs ?? []).some((p) => p))
+    tasks.push([
+      '06',
+      '비교과 취향 설문하기',
+      '활동 목록에서 맞춤 추천을 받아보세요.',
+      'activities',
+    ]);
+  if (!(data.painPrefs ?? []).some(Boolean))
+    tasks.push([
+      '07',
+      '학습 고민 알려주기',
+      '맞춤 안내에 학습 고민이 반영돼요.',
+      'pain-survey',
+    ]);
   const plannedCredits = planned.reduce((n, s) => n + s.credits, 0);
   const conflictCount = planned.filter(
     (s) => conflicts(s, planned).length,
@@ -372,6 +463,79 @@ export function Home({
   const shortDate = (iso: string) => iso.slice(5).replace('-', '.');
   const deadlineLabel = (dd: number, overdue = false) =>
     dd < 0 ? `${Math.abs(dd)}일 지남` : overdue ? '마감 지남' : dd === 0 ? '오늘' : `D-${dd}`;
+  // 다가오는 마감 위젯의 출처 상태 — 수업(COSMOS)·학사일정·비교과별로
+  // 수집 상태를 한 줄로 보여주고, 실패한 출처는 카드에서 바로 다시 시도한다.
+  const lmsStale = lmsSnap ? staleLabel(lmsSnap.fetchedAt, now, 7) : '';
+  const sessionExpired =
+    !lmsSnap &&
+    account?.snapshot.lms === 'unavailable' &&
+    account.snapshot.lmsError === 'session';
+  const lmsUnavailable =
+    !lmsSnap && account?.snapshot.lms === 'unavailable' && !sessionExpired;
+  const srcRows = [
+    {
+      key: 'lms',
+      label: '수업',
+      state: (
+        lmsSnap
+          ? lmsStale
+            ? 'stale'
+            : 'fresh'
+          : sessionExpired || lmsUnavailable
+            ? 'failed'
+            : 'off'
+      ) as SrcState,
+      note: lmsSnap
+        ? lmsStale
+          ? `${lmsStale} · 다시 확인`
+          : '최신 수집'
+        : sessionExpired
+          ? '학교 로그인 만료 · 재연결'
+          : lmsUnavailable
+            ? '연결 확인 필요'
+            : '연결 전',
+      route: 'lms',
+    },
+    {
+      key: 'schedule',
+      label: '학사일정',
+      state: (sched ? 'fresh' : scheduleFailed ? 'failed' : 'loading') as SrcState,
+      note: sched
+        ? `최신 · ${sched.fetchedAt.slice(0, 10)}`
+        : scheduleFailed
+          ? '확인 실패'
+          : '확인 중…',
+      route: 'calendar',
+      retry: scheduleFailed ? retrySchedule : undefined,
+    },
+    {
+      key: 'activities',
+      label: '비교과',
+      state: (
+        acts
+          ? actsNeedVerification
+            ? 'stale'
+            : 'fresh'
+          : activitiesFailed
+            ? 'failed'
+            : 'loading'
+      ) as SrcState,
+      note: acts
+        ? actsNeedVerification
+          ? '확인 필요'
+          : `최신 · ${acts.fetchedAt.slice(0, 10)}`
+        : activitiesFailed
+          ? '확인 실패'
+          : '확인 중…',
+      route: 'activities',
+      retry: activitiesFailed ? retryActivities : undefined,
+    },
+  ];
+  const srcSummary = srcRows.some((r) => r.state === 'loading')
+    ? '마감 정보를 확인하고 있어요.'
+    : srcRows.some((r) => r.state === 'failed')
+      ? '일부 마감 정보를 확인하지 못했어요.'
+      : '마감 확인 완료 — 수집 시점 기준이에요.';
   return (
     <div className="home-dashboard">
       {setup.current < 3 && (
@@ -523,6 +687,7 @@ export function Home({
           <p className="home-card-description">
             놓치면 안 되는 수업과 일정을 모았어요.
           </p>
+          <DeadlineSources rows={srcRows} summary={srcSummary} go={go} />
           {week.length ? (
             <div className="home-deadline-list">
               {week.slice(0, 2).map((t, i) => (
@@ -549,11 +714,13 @@ export function Home({
               <CalendarDays size={25} />
               <b>7일 이내 마감 일정이 없어요</b>
               <small>
-                {lmsPending
-                  ? `완료할 수업 항목은 ${lmsPending}건 있어요.`
-                  : lmsSnap
-                    ? '새로운 일정이 생기면 여기에 모아드릴게요.'
-                    : '수업을 연결하면 과제와 강의 마감도 함께 볼 수 있어요.'}
+                {sessionExpired
+                  ? '학교 로그인이 만료되어 수업 마감을 확인할 수 없어요. 다시 연결해 주세요.'
+                  : lmsPending
+                    ? `완료할 수업 항목은 ${lmsPending}건 있어요.`
+                    : lmsSnap
+                      ? '새로운 일정이 생기면 여기에 모아드릴게요.'
+                      : '수업을 연결하면 과제와 강의 마감도 함께 볼 수 있어요.'}
               </small>
             </div>
           )}
@@ -561,7 +728,11 @@ export function Home({
             <Link2 size={14} />
             {lmsSnap
               ? `COSMOS 연동 정보${staleLabel(lmsSnap.fetchedAt, now, 7) ? ' · ' + staleLabel(lmsSnap.fetchedAt, now, 7) : ''}`
-              : 'COSMOS 수업 연결하기'}
+              : sessionExpired
+                ? '학교 로그인이 만료됐어요 · 다시 연결'
+                : lmsUnavailable
+                  ? 'COSMOS 연결 확인 필요'
+                  : 'COSMOS 수업 연결하기'}
             <ArrowRight size={12} />
           </button>
         </section>
@@ -658,7 +829,11 @@ export function Home({
                   <button
                     className="home-task-row"
                     key={n}
-                    onClick={() => go(route)}
+                    onClick={() =>
+                      route === 'pain-survey' && onPainSurvey
+                        ? onPainSurvey()
+                        : go(route)
+                    }
                   >
                     <span className="home-task-icon">
                       <FileText size={16} />

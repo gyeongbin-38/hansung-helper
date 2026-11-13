@@ -262,13 +262,13 @@ export function Mascot({
   enabled: boolean;
   guideSeen: boolean;
   isNewUser: boolean;
-  survey: false | 'course' | 'act';
+  survey: false | 'course' | 'act' | 'pain';
   route: string;
   hidden: boolean;
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
   go: (route: string) => void;
-  onOpenSurvey: (kind: 'course' | 'act') => void;
+  onOpenSurvey: (kind: 'course' | 'act' | 'pain') => void;
 }) {
   const [guideStep, setGuideStep] = useState(0);
   const [guideClosed, setGuideClosed] = useState(false);

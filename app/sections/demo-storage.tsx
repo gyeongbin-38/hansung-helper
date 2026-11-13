@@ -62,6 +62,7 @@ export function StoredDataView({ data, catalog, activities }: {
         <SavedList title="직접 등록한 활동" items={ext} />
         <SavedList title="개인 일정" items={events} />
         <SavedList title="수업 및 비교과 선호" items={[...values(d.prefs), ...values(d.actPrefs)]} />
+        <SavedList title="학습 고민" items={values(d.painPrefs)} />
         <SavedList title="졸업요건 개인 설정" items={ruleOverrides} />
         <SavedList title={`저장된 COSMOS 과목${text(lms.fetchedAt) ? ` · ${text(lms.fetchedAt).slice(0, 10)} 수집` : ''}`} items={lmsCourses} />
         <p className="meta">과목·활동 이름을 찾지 못한 항목은 저장된 식별자로 표시합니다. 상세 현황은 각 메뉴에서 확인할 수 있습니다.</p>
