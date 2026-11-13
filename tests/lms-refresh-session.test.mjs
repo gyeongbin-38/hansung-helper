@@ -65,7 +65,7 @@ const modules = {
     authenticated: async () => signedIn ? accountRow : null,
     database: () => db,
     validOrigin: () => true,
-    readTextLimited: async () => '', limited: async () => false,
+    readTextLimited: async () => '', limited: async () => false, PayloadTooLargeError: class extends Error {},
     accountView: row => row,
     json: (body, status = 200, headers = {}) => ({ body, status, headers: new Headers(headers) }),
   },

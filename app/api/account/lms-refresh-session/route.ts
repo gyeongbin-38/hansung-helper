@@ -6,6 +6,7 @@ import {
   json,
   limited,
   readTextLimited,
+  PayloadTooLargeError,
   validOrigin,
   type AccountRow,
 } from '@/lib/server/account';
@@ -305,7 +306,9 @@ export async function POST(request: Request) {
       .first<AccountRow>();
     queueOwner = null;
     return json(accountView(row!, account.session_hash));
-  } catch {
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError)
+      return json({ error: error.status === 408 ? '요청 전송이 늦어 중단했습니다.' : '요청을 다시 확인하고 잠시 후 시도해 주세요.' }, error.status ?? 413);
     if (queueOwner)
       try {
         await abandonCollectQueue(queueOwner);

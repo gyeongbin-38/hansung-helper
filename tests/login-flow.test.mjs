@@ -48,16 +48,18 @@ async function load(file, imports) {
       return imports[name];
     },
     crypto: webcrypto, TextEncoder, TextDecoder, Uint8Array, Response, URL, Date, Math,
-    JSON, Object, Array, Number, String, SyntaxError, console: testConsole,
+    JSON, Object, Array, Number, String, SyntaxError, console: testConsole, setTimeout, clearTimeout,
   }, { filename: file });
   return exports;
 }
 const account = await load('lib/server/account.ts', { 'cloudflare:workers': { env } });
+const capacity = await load('lib/server/work-capacity.ts', { './account': account });
 let schoolCalls = 0;
 let rejectCredentials = false;
 let rejectUpstream = false;
 class SchoolError extends Error { constructor(code) { super(code); this.code = code; } }
 const imports = {
+  '@/lib/server/work-capacity': capacity,
   '@/lib/server/account': account,
   '@/lib/server/session-vault': {
     cleanupExpiredSchoolSessions: async () => {},
@@ -122,6 +124,18 @@ assert.equal(account.accountAuthConfigured(), true);
 response = await health.GET();
 assert.equal(response.status, 200);
 assert.equal(response.headers.get('Cache-Control'), 'no-store');
+const occupied = await Promise.all(['busy-a', 'busy-b', 'busy-c'].map(owner => capacity.acquireWork('school-login', owner)));
+const budgetId = await account.studentAccountId(input.studentId);
+sql.prepare('INSERT INTO academic_login_limits VALUES (?, 3, ?)').run('work:breaker:advisor', Date.now() - 1);
+const originalRandom = Math.random;
+Math.random = () => 0; // Exercise expired-row cleanup while a circuit awaits its probe.
+try {
+  for (let i = 0; i < 4; i++) assert.equal((await login.POST(request('/api/account/login', 'POST', input))).status, 429);
+} finally { Math.random = originalRandom; }
+assert.equal(sql.prepare('SELECT attempts FROM academic_login_limits WHERE key=?').get(budgetId), undefined, 'busy retries do not consume credential attempts');
+assert.equal(sql.prepare('SELECT attempts FROM academic_login_limits WHERE key=?').get('work:breaker:advisor').attempts, 3, 'cleanup preserves half-open circuit state');
+for (const lease of occupied) await capacity.releaseWork(lease);
+sql.prepare('DELETE FROM academic_login_limits WHERE key=?').run('work:breaker:advisor');
 rejectUpstream = true;
 assert.equal((await login.POST(request('/api/account/login', 'POST', input))).status, 503);
 assert.deepEqual(diagnosticLogs.pop(), ['[login] failed', 'school', 'school-upstream']);

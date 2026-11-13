@@ -55,6 +55,9 @@ export function transientSchoolRead(error: unknown): boolean {
 // callers may export only the allowlisted school cookies into the encrypted vault.
 export class SchoolSession {
   private cookies = new Map<string, Map<string, string>>();
+  // One budget shared by login, redirects, retries and deferred collectors.
+  // Individual 15s request deadlines alone do not bound a long sequence.
+  private readonly deadline = AbortSignal.timeout(90000);
   constructor(initial?: SchoolCookieJar) {
     if (initial) {
       for (const [host, jar] of Object.entries(initial)) {
@@ -74,6 +77,7 @@ export class SchoolSession {
     return this.cookies.size > 0;
   }
   async request(url: string, init: RequestInit = {}) {
+    this.deadline.throwIfAborted();
     const target = new URL(url);
     if (
       ![
@@ -96,9 +100,9 @@ export class SchoolSession {
     const response = await fetch(target, {
       ...init,
       redirect: 'manual',
-      signal: init.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)])
-        : AbortSignal.timeout(15000),
+      signal: AbortSignal.any([
+        this.deadline, AbortSignal.timeout(15000), ...(init.signal ? [init.signal] : []),
+      ]),
       headers,
     });
     for (const cookie of response.headers.getSetCookie()) {

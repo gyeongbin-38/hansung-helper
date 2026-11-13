@@ -2,7 +2,7 @@
 // 재배포 없이 공개 스냅샷을 갱신한다 (API는 D1 우선, 번들 폴백).
 // D1 문장 크기 제한 때문에 페이로드를 part 청크로 나눠 저장한다.
 // 사용: node scripts/_publish_snapshots.mjs --local|--remote
-import { existsSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -129,7 +129,7 @@ for (const [kind, file] of Object.entries(KINDS)) {
     const chunk = chunkList[p];
     kindStmts.push(
       `INSERT INTO public_snapshots (kind, part, payload, fetched_at, updated_at)` +
-        ` VALUES ('${stagedKind}', ${p}, '${esc(chunk)}', '${fetchedAt}', ${now})` +
+        ` VALUES ('${stagedKind}', ${p}, '${esc(chunk)}', '${esc(fetchedAt)}', ${now})` +
         ` ON CONFLICT(kind, part) DO UPDATE SET payload = excluded.payload,` +
         ` fetched_at = excluded.fetched_at, updated_at = excluded.updated_at;`,
     );
@@ -156,59 +156,60 @@ for (const [kind, file] of Object.entries(KINDS)) {
   );
 }
 
-const sqlFiles = batches.map((b, i) => {
-  const f = join(tmpdir(), `hansung-snapshots-${i}.sql`);
-  writeFileSync(f, b.join('\n'));
-  return f;
-});
-const cleanup = () => {
-  for (const f of sqlFiles) try { unlinkSync(f); } catch {}
-};
-const wranglerJs = join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
-if (!local) {
-  const databaseId = process.env.HANSUNG_D1_DATABASE_ID ?? '';
-  if (!/^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(databaseId)) {
-    cleanup();
-    throw new Error('set HANSUNG_D1_DATABASE_ID before publishing remote snapshots');
-  }
-  const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-  const binding = config.d1_databases?.find(
-    (db) => db.database_name === 'site-creator-d1',
-  );
-  if (!binding) {
-    cleanup();
-    throw new Error('no site-creator-d1 binding in generated Wrangler config');
-  }
-  binding.database_id = databaseId;
-  writeFileSync(configPath, JSON.stringify(config));
-}
-if (sqlFiles.length > 1)
-  console.log(`${sqlFiles.length}개 배치 파일로 나눠 실행합니다`);
+// Private, unique directory per invocation prevents shared-name collisions and
+// pre-created links. Exclusive creation also refuses an existing batch file.
+const sqlDir = mkdtempSync(join(tmpdir(), 'hansung-snapshots-'));
 let status = 0;
-for (const sqlFile of sqlFiles) {
-  const r = spawnSync(
-    process.execPath,
-    [
-      wranglerJs,
-      'd1',
-      'execute',
-      'site-creator-d1',
-      local ? '--local' : '--remote',
-      '--config',
-      configPath,
-      '--file',
-      sqlFile,
-      '--json',
-    ],
-    { cwd: repo, encoding: 'utf-8' },
-  );
-  process.stdout.write(r.stdout ?? '');
-  process.stderr.write(r.stderr ?? '');
-  if (r.status !== 0) {
-    console.error(`배치 ${sqlFiles.indexOf(sqlFile) + 1}/${sqlFiles.length} 실패 — 이후 배치는 건너뜁니다`);
-    status = r.status ?? 1;
-    break;
+try {
+  const sqlFiles = batches.map((b, i) => {
+    const f = join(sqlDir, `batch-${i}.sql`);
+    writeFileSync(f, b.join('\n'), { flag: 'wx', mode: 0o600 });
+    return f;
+  });
+  const wranglerJs = join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
+  if (!local) {
+    const databaseId = process.env.HANSUNG_D1_DATABASE_ID ?? '';
+    if (!/^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(databaseId)) {
+      throw new Error('set HANSUNG_D1_DATABASE_ID before publishing remote snapshots');
+    }
+    const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+    const binding = config.d1_databases?.find(
+      (db) => db.database_name === 'site-creator-d1',
+    );
+    if (!binding) {
+      throw new Error('no site-creator-d1 binding in generated Wrangler config');
+    }
+    binding.database_id = databaseId;
+    writeFileSync(configPath, JSON.stringify(config));
   }
+  if (sqlFiles.length > 1)
+    console.log(`${sqlFiles.length}개 배치 파일로 나눠 실행합니다`);
+  for (const sqlFile of sqlFiles) {
+    const r = spawnSync(
+      process.execPath,
+      [
+        wranglerJs,
+        'd1',
+        'execute',
+        'site-creator-d1',
+        local ? '--local' : '--remote',
+        '--config',
+        configPath,
+        '--file',
+        sqlFile,
+        '--json',
+      ],
+      { cwd: repo, encoding: 'utf-8' },
+    );
+    process.stdout.write(r.stdout ?? '');
+    process.stderr.write(r.stderr ?? '');
+    if (r.status !== 0) {
+      console.error(`배치 ${sqlFiles.indexOf(sqlFile) + 1}/${sqlFiles.length} 실패 — 이후 배치는 건너뜁니다`);
+      status = r.status ?? 1;
+      break;
+    }
+  }
+} finally {
+  rmSync(sqlDir, { recursive: true, force: true });
 }
-cleanup();
 process.exit(status);

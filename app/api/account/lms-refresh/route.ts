@@ -270,7 +270,7 @@ export async function POST(request: Request) {
     return json(accountView(row!, account.session_hash));
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+      return json({ error: error.status === 408 ? '요청 전송이 늦어 중단했습니다. 다시 시도해 주세요.' : error.status === 429 ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.' : '입력 크기를 초과했습니다.' }, error.status ?? 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')

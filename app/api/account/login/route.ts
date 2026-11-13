@@ -24,10 +24,14 @@ import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
+import { acquireWork, releaseWork, type WorkLease } from '@/lib/server/work-capacity';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   const schoolSessionIssuedAt = Date.now();
   let stage: 'input' | 'account-setup' | 'school' | 'account-storage' = 'input';
+  let lease: WorkLease | null = null;
+  const pending: Promise<unknown>[] = [];
+  const background = (task: Promise<unknown>) => { pending.push(task); waitUntil(task); };
   try {
     const raw = await readTextLimited(request, 4096);
     const input = JSON.parse(raw);
@@ -62,7 +66,7 @@ export async function POST(request: Request) {
           .prepare('DELETE FROM academic_sessions WHERE expires_at < ?')
           .bind(Date.now()),
         database()
-          .prepare('DELETE FROM academic_login_limits WHERE expires_at < ?')
+          .prepare("DELETE FROM academic_login_limits WHERE expires_at < ? AND key NOT LIKE 'work:breaker:%'")
           .bind(Date.now()),
       ]);
       try {
@@ -74,11 +78,18 @@ export async function POST(request: Request) {
     }
     // IP 리밋은 공유망(캠퍼스 NAT) 기준으로 넉넉하게 — 계정별 리밋은
     // 무차별 대입 방어를 위해 엄격하게 유지한다.
-    if ((await limited(ip, 150)) || (await limited(id, 3)))
+    if (await limited(ip, 150))
       return json(
         { error: '로그인 시도가 많습니다. 15분 후 다시 시도해 주세요.' },
         429,
       );
+    lease = await acquireWork('school-login', id);
+    if (!lease)
+      return json({ error: '학교 연결 요청이 많습니다. 잠시 후 다시 시도해 주세요.' }, 429, { 'Retry-After': '10' });
+    // A busy service did not attempt school authentication. Only admitted work
+    // consumes the strict per-account credential-attempt budget.
+    if (await limited(id, 3))
+      return json({ error: '로그인 시도가 많습니다. 15분 후 다시 시도해 주세요.' }, 429);
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
     const session = new SchoolSession();
@@ -165,7 +176,7 @@ export async function POST(request: Request) {
     // lmsData만 병합. checkedAt 가드로 이전 로그인의 지연 쓰기가 새
     // 스냅샷을 덮지 않게 한다.
     if (deferredCollect)
-      waitUntil(
+      background(
         (async () => {
           try {
             await writeCollectedLms(database(), id, snapshot.checkedAt, tokenHash, await deferredCollect());
@@ -196,7 +207,7 @@ export async function POST(request: Request) {
     // 종합정보 수집 — 같은 waitUntil 패턴. infoPending 해제와 결과/실패
     // 마커를 이전 스냅샷 위에 병합한다 (checkedAt 가드로 순서 보장).
     if (deferredInfo)
-      waitUntil(
+      background(
         (async () => {
           try {
             const infoData = await deferredInfo();
@@ -256,7 +267,7 @@ export async function POST(request: Request) {
     return json(accountView(row!, tokenHash), 200, { 'Set-Cookie': sessionCookie(token) });
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
-      return json({ error: '입력 크기를 초과했습니다.' }, 413);
+      return json({ error: error.status === 408 ? '요청 전송이 늦어 중단했습니다. 다시 시도해 주세요.' : error.status === 429 ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.' : '입력 크기를 초과했습니다.' }, error.status ?? 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     if (error instanceof SchoolError && error.code === 'credentials')
@@ -276,5 +287,12 @@ export async function POST(request: Request) {
       },
       503,
     );
+  } finally {
+    if (lease) {
+      const admitted = lease;
+      if (pending.length)
+        waitUntil(Promise.allSettled(pending).then(() => releaseWork(admitted)).catch(() => {}));
+      else await releaseWork(admitted).catch(() => {});
+    }
   }
 }

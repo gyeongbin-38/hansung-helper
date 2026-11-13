@@ -1,5 +1,6 @@
 import { authenticated, database, json, limited, PayloadTooLargeError, readTextLimited, validOrigin } from '@/lib/server/account';
-import { advisorAvailable, generateAdvisorAnswer } from '@/lib/server/advisor';
+import { advisorAvailable, generateAdvisorAnswer, AdvisorTransportError, AdvisorTimeoutError, AdvisorCancelledError, AdvisorContextLimitError } from '@/lib/server/advisor';
+import { acquireWork, releaseWork, advisorTransportFailed, advisorTransportRecovered, type WorkLease } from '@/lib/server/work-capacity';
 import { advisorContext, SERVICE_GUIDES, type AdvisorMessage } from '@/lib/data/advisor';
 import type { Data } from '@/app/sections/data';
 import { validateInfo } from '@/lib/data/info';
@@ -16,6 +17,8 @@ import { ADVISOR_PRIVATE_INPUT_MESSAGE, ADVISOR_SCOPE_MESSAGE, advisorContainsCr
 
 /** 서비스 전체 일일 AI 호출 상한 — 사용자 증가 시 이 값만 조정한다. */
 const DAILY_LIMIT = 100;
+let quotaStatus: { key: string; at: number; exhausted: boolean } | undefined;
+let quotaRead: { key: string; promise: Promise<boolean> } | undefined;
 
 function dailyQuotaKey(now: number) {
   const day = new Date(now).toISOString().slice(0, 10);
@@ -28,21 +31,39 @@ function dailyQuotaKey(now: number) {
 /** GET도 일일 한도 소진 여부를 알린다 — 클라이언트가 전송 전에 입력을 막을 수 있게.
  *  카운트를 올리지 않는 읽기이며, 조회 실패 시 소진으로 간주하지 않는다. */
 export async function GET() {
+  const now = Date.now();
+  const { key } = dailyQuotaKey(now);
+  if (quotaStatus?.key === key && now - quotaStatus.at < 5000)
+    return json({ available: advisorAvailable(), dailyExhausted: quotaStatus.exhausted });
+  if (quotaRead?.key === key)
+    return json({ available: advisorAvailable(), dailyExhausted: await quotaRead.promise });
+  const promise = readQuotaStatus(key);
+  quotaRead = { key, promise };
+  try { return json({ available: advisorAvailable(), dailyExhausted: await promise }); }
+  finally { if (quotaRead?.promise === promise) quotaRead = undefined; }
+}
+
+async function readQuotaStatus(key: string) {
   let dailyExhausted = false;
   try {
     const row = await database()
       .prepare('SELECT attempts FROM academic_login_limits WHERE key = ?')
-      .bind(dailyQuotaKey(Date.now()).key)
+      .bind(key)
       .first<{ attempts: number }>();
     dailyExhausted = (row?.attempts ?? 0) >= DAILY_LIMIT;
   } catch {
     /* 가용성 진단이 상담 화면을 막지 않는다 */
   }
-  return json({ available: advisorAvailable(), dailyExhausted });
+  // A delayed GET must not undo a quota exhausted by an intervening POST.
+  dailyExhausted ||= quotaStatus?.key === key && quotaStatus.exhausted;
+  quotaStatus = { key, at: Date.now(), exhausted: dailyExhausted };
+  return dailyExhausted;
 }
 
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
+  let lease: WorkLease | null = null;
+  let retainLease = false;
   try {
     const row = await authenticated(request);
     if (!row) return json({ error: 'AI 상담은 학교 계정으로 로그인한 뒤 이용할 수 있어요. 기본 안내는 계속 사용할 수 있어요.' }, 401);
@@ -71,14 +92,9 @@ export async function POST(request: Request) {
     // Separate namespace from login throttling; no question or transcript is stored.
     if (await limited(`advisor:account:${row.id}`, 10))
       return json({ error: '상담 요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429, { 'Retry-After': '900' });
-    const now = Date.now();
-    const daily = dailyQuotaKey(now);
-    const quota = await database().prepare(
-      'INSERT INTO academic_login_limits (key, attempts, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts',
-    ).bind(daily.key, daily.expiresAt).first<{ attempts: number }>();
-    if (!quota || quota.attempts > DAILY_LIMIT)
-      return json({ error: '부기가 오늘 수다를 다 떨었어요. 관심 가져주셔서 감사해요 — 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429, {}, 'DAILY_QUOTA');
-
+    lease = await acquireWork('advisor', row.id);
+    if (!lease)
+      return json({ error: 'AI 요청이 몰리거나 연결을 복구하고 있어요. 잠시 후 다시 시도하거나 기본 안내를 이용해 주세요.' }, 429, { 'Retry-After': '30' });
     const [courseResponse, activityResponse, scheduleResponse] = await Promise.all([
       snapshotGet('courses', catalog, catalog.generatedAt, (p) => !!p && typeof p === 'object' && 'semester' in p && p.semester === catalog.semester),
       snapshotGet('activities', activities, activities.fetchedAt),
@@ -106,19 +122,38 @@ export async function POST(request: Request) {
       schedule: schedulePayload,
       selectedActivity,
     }, Date.now(), input.activityId);
+    // Invalid activity IDs and rejected capacity must not burn provider quota.
+    const daily = dailyQuotaKey(Date.now());
+    const quota = await database().prepare(
+      'INSERT INTO academic_login_limits (key, attempts, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts',
+    ).bind(daily.key, daily.expiresAt).first<{ attempts: number }>();
+    if (quota && quota.attempts >= DAILY_LIMIT)
+      quotaStatus = { key: daily.key, at: Date.now(), exhausted: true };
+    if (!quota || quota.attempts > DAILY_LIMIT)
+      return json({ error: '부기가 오늘 수다를 다 떨었어요. 관심 가져주셔서 감사해요 — 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429, {}, 'DAILY_QUOTA');
     const answer = await generateAdvisorAnswer(
       context,
       SERVICE_GUIDES.map(({ label, route, text }) => ({ label, route, text })),
       input.messages,
       purpose,
+      request.signal,
     );
+    await advisorTransportRecovered().catch(() => {});
     const current = await authenticated(request);
     if (!current || current.id !== row.id || current.session_hash !== row.session_hash)
       return json({ error: '로그인이 종료됐어요. 다시 로그인해 주세요.' }, 401);
     return json({ mode: 'ai', answer, sources: context.sources, personal: input.personal, purpose });
   } catch (error) {
-    if (error instanceof PayloadTooLargeError) return json({ error: '질문이 너무 길어요. 내용을 줄여 주세요.' }, 413);
+    retainLease = error instanceof AdvisorTimeoutError || (error instanceof AdvisorCancelledError && !error.providerSettled);
+    if (error instanceof AdvisorTransportError) await advisorTransportFailed().catch(() => {});
+    if (error instanceof AdvisorContextLimitError)
+      return json({ error: '상담에 참고할 자료가 많아요. 이전 대화를 비우거나 기본 안내를 이용해 주세요.' }, 413);
+    if (error instanceof PayloadTooLargeError) return json({ error: error.status === 408 ? '요청 전송이 늦어 중단했습니다. 다시 질문해 주세요.' : error.status === 429 ? '요청이 많아요. 잠시 후 다시 시도해 주세요.' : '질문이 너무 길어요. 내용을 줄여 주세요.' }, error.status ?? 413);
     // Never log prompts, school data or provider errors.
     return json({ error: 'AI 답변을 가져오지 못했어요. 다시 시도하거나 기본 안내를 이용해 주세요.' }, 503);
+  } finally {
+    // Retain uncertain/timed-out permits until expiry; promptly settled client
+    // cancellations release capacity instead of letting cancellations starve it.
+    if (lease && !retainLease) await releaseWork(lease).catch(() => {});
   }
 }

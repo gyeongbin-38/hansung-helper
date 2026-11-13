@@ -17,10 +17,20 @@ function normalizeQuestion(text: string) {
  * match or send the matched value back to the client. */
 export function advisorContainsCredentials(text: string): boolean {
   const normalized = normalizeQuestion(text);
+  const helpWords = new Set(['reset', 'change', 'help', 'where', 'forgot', 'forgotten', 'login', 'cosmos',
+    'incorrect', 'invalid', 'wrong', 'required', 'expired', 'working', 'missing']);
+  for (const match of normalized.matchAll(
+    /(?:비밀번호|패스워드|password|passwd|pwd)\s*(?:[:=]|는|은|이|가|\bis\b)\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"'?,]+))/gu,
+  )) {
+    if (match[1] || match[2]) return true;
+    const value = match[3].replace(/(?:입니다|이에요|예요|인데|이고|이야|야)[.!]*$/u, '').replace(/[.!]+$/u, '');
+    if (value.length >= 4 && !helpWords.has(value) &&
+        (/^[a-z0-9!@#$%^&*._+-]+$/u.test(value) ||
+         (/^[\p{L}\p{N}!@#$%^&*._+-]+$/u.test(value) && /[0-9!@#$%^&*._+-]/u.test(value))))
+      return true;
+  }
   return [
-    /(?:비밀번호|패스워드|password|passwd|pwd)\s*[:=]\s*["']?[^\s"']+/u,
-    /비밀번호(?:는|은)\s*(?:["'][^\s"']+["']|[a-z0-9!@#$%^&*._+-]{4,}(?=$|\s*(?:입니다|이에요|예요|이야|야|[.!?])))/u,
-    /(?:학번|student\s*id)\s*(?:[:=]|은|는)?\s*\d{6,10}\b/u,
+    /(?:학번|student\s*id)\s*(?:[:=]|은|는|이|가|is)?\s*\d{6,10}\b/u,
     /(?:__host-hansung_session\s*=\s*[a-f0-9]{64}|\b[a-f0-9]{64}\b)/u,
     /\b(?:sk-(?:proj-)?[a-z0-9_-]{20,}|gh[pousr]_[a-z0-9]{20,}|eyj[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,})\b/u,
   ].some(pattern => pattern.test(normalized));

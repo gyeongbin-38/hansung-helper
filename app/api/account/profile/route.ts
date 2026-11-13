@@ -353,7 +353,7 @@ export async function PUT(request: Request) {
     return json({ saved: true, rev: profile.rev });
   } catch (error) {
     if (error instanceof PayloadTooLargeError)
-      return json({ error: '저장할 내용이 너무 큽니다.' }, 413);
+      return json({ error: error.status === 408 ? '요청 전송이 늦어 중단했습니다. 입력 내용은 유지됩니다.' : error.status === 429 ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.' : '저장할 내용이 너무 큽니다.' }, error.status ?? 413);
     if (error instanceof SyntaxError)
       return json({ error: '입력 형식을 확인해 주세요.' }, 400);
     return json({ error: '저장하지 못했습니다. 입력 내용은 유지됩니다.' }, 503);
