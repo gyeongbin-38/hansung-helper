@@ -99,7 +99,7 @@ export async function PUT(request: Request) {
       value.every((item) => typeof item === 'string' && item.length <= maxLength);
     for (const [key, limit, maxLength] of [
       ['readIds', 500, 80], ['reqChecks', 200, 120], ['actPrefs', 20, 100],
-      ['painPrefs', 20, 100], ['notifiedIds', 200, 200],
+      ['painPrefs', 20, 100], ['actGoals', 10, 40], ['notifiedIds', 200, 200],
     ] as const) {
       if (input[key] !== undefined && !validStringArray(input[key], limit, maxLength))
         return json({ error: '저장 항목 형식을 확인해 주세요.' }, 400);
@@ -190,6 +190,8 @@ export async function PUT(request: Request) {
       )
         ? input.painPrefs
         : [];
+    const actGoals = input.actGoals ?? storedProfile?.actGoals;
+    if (validStringArray(actGoals, 10, 40)) profile.actGoals = actGoals;
     const actStatus: Record<string, string> = {};
     if (input.actStatus && typeof input.actStatus === 'object') {
       const entries = Object.entries(

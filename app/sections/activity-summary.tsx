@@ -46,9 +46,9 @@ export function ActivitySummary({ data, snapshot, now, go }: {
     {digest.stale && <p className="meta">비교과 목록의 최신 접수 여부를 학교 공고에서 확인해 주세요.{snapshot ? ` 수집일 ${snapshot.fetchedAt.slice(0, 10)}` : ' 목록을 불러오는 중이에요.'}</p>}
     <div className="activity-summary-picks">{digest.picks.map(a => <div key={a.id}>
       <button className="activity-summary-title" onClick={() => go(`activities/${a.id}`)}><b>{a.title}</b><small>{a.applyEnd ? `신청 마감 ${a.applyEnd.slice(0, 10)}` : '신청 기간 확인 필요'} · {a.points === null ? '포인트 확인 필요' : `${a.points}P`} · {data.saved.includes(a.id) ? '관심 활동' : '공개 목록에서 제안'}</small></button>
-      <button className="secondary" onClick={() => go(`activities/apply/${a.id}`)}><Sparkles size={14} />AI와 신청하기</button>
+      <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}><Sparkles size={14} />AI에게 추천받기</button>
     </div>)}</div>
-    <div className="actions"><button className="link" onClick={() => go('activities/apply')}>AI와 신청할 활동 고르기 <ArrowRight size={14} /></button><button className="link" onClick={() => go('activities')}>전체 활동 보기 <ArrowRight size={14} /></button></div>
+    <div className="actions"><button className="link" onClick={() => go('activities/recommend')}>AI에게 추천받기 <ArrowRight size={14} /></button><button className="link" onClick={() => go('activities')}>전체 활동 보기 <ArrowRight size={14} /></button></div>
     <p className="meta">마감 알림은 알림함에서 확인하며, 브라우저 알림을 켜면 앱이 열려 있을 때 알려드려요.</p>
     </div>
   </details>;

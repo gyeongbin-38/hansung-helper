@@ -202,13 +202,10 @@ export function GraduationWorkspace(props: Props) {
         </section>
       </>}
       {view === '' && <>
-        <section className="card graduation-summary-hero">
-          <div className="graduation-summary-hero-grid">
-            <GraduationMetricDetails className="graduation-summary-metric" icon={<GraduationCap size={19} />} title="총 이수학점" {...metric(total, 'graduation/completed')} />
-            <div className="graduation-summary-divider" aria-hidden="true" />
-            <GraduationMetricDetails className="graduation-summary-metric" icon={<Database size={18} />} title="비교과 포인트" {...metric(pointResult, 'profile')} />
-          </div>
-        </section>
+        <div className="graduation-hero-grid">
+          <GraduationMetricDetails className="card graduation-summary-metric" icon={<GraduationCap size={19} />} title="총 이수학점" {...metric(total, 'graduation/completed')} />
+          <GraduationMetricDetails className="card graduation-summary-metric" icon={<Database size={18} />} title="비교과 포인트" {...metric(pointResult, 'profile')} />
+        </div>
         <div className="graduation-area-grid">
           <GraduationMetricDetails className="card graduation-area-card" icon={<BookOpen size={19} />} title="교양" {...metric(general, 'graduation/gen')} />
           <GraduationMetricDetails className="card graduation-area-card" icon={<Layers size={19} />} title="전공" {...metric(major, 'graduation/major')} />

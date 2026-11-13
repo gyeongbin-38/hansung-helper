@@ -231,8 +231,7 @@
 .graduation-course-filters > fieldset { padding: 0; }
 
 /* Figma Page 3: 졸업 요약 — 합산 카드 + 교양/전공 분해 + 전공별 요건 */
-.graduation-summary-hero { padding: 0; overflow: hidden; border-radius: 22px; }
-.graduation-summary-hero-grid { display: grid; grid-template-columns: 1fr 1px 1fr; align-items: start; }
+.graduation-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-summary-metric { display: block; padding: 32px 38px; min-width: 0; }
 .graduation-summary-metric summary { min-height: 156px; }
 .graduation-summary-metric h3 { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--nt-slate); font-weight: 650; }
@@ -240,7 +239,6 @@
 .graduation-summary-metric summary > strong { display: block; margin-top: 13px; font-size: 38px; font-weight: 800; letter-spacing: -1.1px; color: var(--nt-ink); line-height: 1.1; }
 .graduation-summary-meta { display: flex; align-items: center; min-height: 22px; }
 .graduation-summary-meta small { font-size: 13px; color: var(--nt-slate); font-weight: 650; }
-.graduation-summary-divider { background: var(--nt-hairline); align-self: stretch; }
 .graduation-summary-metric .progress-track { margin-top: auto; }
 .graduation-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-area-card { display: block; padding: 28px; text-align: left; width: 100%; }
@@ -347,8 +345,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-major-requirements h2 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 750; letter-spacing: -.4px; margin: 0; }
 
 @media (max-width: 650px) {
-  .graduation-summary-hero-grid { grid-template-columns: 1fr; }
-  .graduation-summary-divider { width: auto; height: 1px; }
+  .graduation-hero-grid { grid-template-columns: 1fr; gap: 16px; }
   .graduation-summary-metric { padding: 24px 22px; }
   .graduation-summary-metric summary { min-height: 0; }
   .graduation-summary-metric summary > strong { font-size: 30px; }

@@ -14,7 +14,7 @@ import {
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
-import { matchEnrollment } from '@/lib/data/lms';
+import { courseDisplayName, matchEnrollment } from '@/lib/data/lms';
 import {
   deptRuleTargets,
   rulesetMatchesDept,
@@ -523,30 +523,7 @@ export function Graduation({
   return (
     <>
       <div className="card pad grad-intro">
-        {pendingSteps.length ? (
-          <span className="badge orange">계산 대기</span>
-        ) : (
-          <span className="badge">기준 및 개인 적용 조건 확인 필요</span>
-        )}
-        {deptTargets && admissionType === 'freshman' && (
-          <span className="badge">내 학과 규정표 참고</span>
-        )}
-        {info ? (
-          <span className={gradesUnverified ? 'badge orange' : 'badge green'}>
-            종합정보 {info.fetchedAt.slice(0, 10)} 조회
-            {infoStale ? ` · ${infoStale}` : ''}
-          </span>
-        ) : infoPending ? (
-          <span className="badge">학교에서 불러오는 중…</span>
-        ) : (
-          <span className="badge">사용자 입력 기반</span>
-        )}
-        {gradesUnverified && (
-          <p className="meta conn-warn">
-            최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 마지막 성적 확인 시각은 알 수 없으니 학교 종합정보에서 확인해 주세요.
-          </p>
-        )}
-        <h2>졸업 준비는 정확한 기준부터.</h2>
+        <div className="grad-intro-top">
           <ol className="grad-steps">
             {gradSteps.map((s, i) => (
               <li key={i} className={s.done ? 'done' : ''}>
@@ -568,34 +545,30 @@ export function Graduation({
               </li>
             ))}
           </ol>
-        <p>
-          입력한 이수 내역으로 충족률을 계산합니다. 공식 사정이 아닌 계획
-          참고용입니다.
-        </p>
-        <p className="meta">
-          {admissionType === 'unknown' || !data.year
-            ? '입학 구분과 연도에 적용되는 기준 확인 필요'
-            : admissionType === 'freshman' && deptTargets
-            ? `내 학과 규정표 ${deptTargets.columnLabel} 기준 적용`
-            : '입학유형과 연도에 따른 기본 기준 적용'}
-          {' · '}
-          <a href={GLOBAL_RULE_SOURCE.url} target="_blank" rel="noreferrer">
-            {GLOBAL_RULE_SOURCE.label}
-          </a>{' '}
-          · 확인일 {GLOBAL_RULE_SOURCE.asOf}
-          {!data.year && ' · 입학연도 미입력 — 참고값'}
-        </p>
-        <label>
-          입학 구분{' '}
-          <select value={admissionType} onChange={(event) => setAdmissionType(event.target.value as AdmissionType)}>
-            <option value="unknown">선택해 주세요 / 기타 유형</option>
-            <option value="freshman">신입학</option>
-            <option value="general-transfer">일반편입 (3학년)</option>
-            <option value="bachelor-transfer">학사편입 (3학년)</option>
-          </select>
-        </label>
-        <p className="meta">입학 구분은 이번 확인에만 사용됩니다. 외국인 편입·재입학·전과 등은 학교에 확인해 주세요. 편입 인정학점과 개인별 세부 조건도 확인이 필요합니다. <a href={TRANSFER_RULE_SOURCE.url} target="_blank" rel="noreferrer">{TRANSFER_RULE_SOURCE.label}</a></p>
-        {results.some((r) => r.uncertainCredits) && <p className="meta">동일 과목코드가 여러 번 있어 재수강·중복 이수 여부 확인이 필요합니다. 해당 학점은 합산에서 제외했습니다.</p>}
+          <div className="grad-intro-badges">
+            {pendingSteps.length ? (
+              <span className="badge orange">계산 대기</span>
+            ) : null}
+            {deptTargets && admissionType === 'freshman' && (
+              <span className="badge">내 학과 규정표</span>
+            )}
+            {info ? (
+              <span className={gradesUnverified ? 'badge orange' : 'badge green'}>
+                종합정보 {info.fetchedAt.slice(0, 10)}
+                {infoStale ? ` · ${infoStale}` : ''}
+              </span>
+            ) : infoPending ? (
+              <span className="badge">불러오는 중</span>
+            ) : (
+              <span className="badge">직접 입력</span>
+            )}
+          </div>
+        </div>
+        {gradesUnverified && (
+          <p className="meta conn-warn">
+            최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 마지막 성적 확인 시각은 알 수 없으니 학교 종합정보에서 확인해 주세요.
+          </p>
+        )}
         <progress
           className="progress-track"
           aria-label="전체 졸업요건 충족률"
@@ -620,18 +593,68 @@ export function Graduation({
                   : ` / ${total.required} 이수`
               }${pendingSteps.length ? ' · 참고값' : ''}`}
         </strong>
+        {total.planned > 0 && (
+          <p className="meta">+{total.planned}학점 계획 중</p>
+        )}
         {missingInput(total) && (
           <p className="meta">
             0학점이 아니라 미입력 상태입니다 — 이수 내역을 입력하면
             계산됩니다.
           </p>
         )}
-        {total.planned > 0 && (
-          <p className="meta">+{total.planned}학점 계획 중</p>
+        {results.some((r) => r.uncertainCredits) && (
+          <p className="meta conn-warn">
+            동일 과목코드 중복 — 재수강 여부 확인이 필요해 해당 학점은
+            합산에서 제외했습니다.
+          </p>
         )}
-        <button className="secondary" onClick={() => go('profile')}>
-          프로필에서 소속·입학연도 수정
-        </button>
+        <div className="grad-intro-actions">
+          <label>
+            입학 구분{' '}
+            <select value={admissionType} onChange={(event) => setAdmissionType(event.target.value as AdmissionType)}>
+              <option value="unknown">선택해 주세요 / 기타 유형</option>
+              <option value="freshman">신입학</option>
+              <option value="general-transfer">일반편입 (3학년)</option>
+              <option value="bachelor-transfer">학사편입 (3학년)</option>
+            </select>
+          </label>
+          <button className="link" onClick={() => go('profile')}>
+            소속·입학연도 수정
+          </button>
+          <a
+            className="link"
+            href={GLOBAL_RULE_SOURCE.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {GLOBAL_RULE_SOURCE.label}{' '}
+            <ArrowUpRight size={13} aria-hidden="true" />
+          </a>
+        </div>
+        <p className="meta grad-intro-note">
+          계획 참고용(공식 사정 아님) ·{' '}
+          {admissionType === 'unknown' || !data.year
+            ? '입학 구분·연도 확인 필요'
+            : admissionType === 'freshman' && deptTargets
+            ? `내 학과 규정표 ${deptTargets.columnLabel} 기준`
+            : '연도별 기본 기준'}
+          {' · 확인일 '}{GLOBAL_RULE_SOURCE.asOf}
+          {!data.year && ' · 입학연도 미입력'}
+          {(admissionType === 'general-transfer' ||
+            admissionType === 'bachelor-transfer') && (
+            <>
+              {' · '}
+              <a
+                href={TRANSFER_RULE_SOURCE.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {TRANSFER_RULE_SOURCE.label}
+              </a>
+            </>
+          )}
+          {' · 편입·전과 등 개별 조건은 학교 확인'}
+        </p>
       </div>
 
       {guide && (
@@ -656,17 +679,17 @@ export function Graduation({
           </strong>
           <p>
             {outlook.afterPlan === 0
-              ? '이번 학기 계획 과목을 모두 이수하면 학점 요건을 채웁니다.'
-              : `학기당 ${outlook.perSemester}학점 기준 약 ${outlook.semestersLeft}학기 더 필요` +
+              ? '계획 과목을 이수하면 학점 요건을 채웁니다.'
+              : `약 ${outlook.semestersLeft}학기 더 필요` +
                 (outlook.estLabel
-                  ? ` — ${outlook.estLabel}학기 이수 완료 전망`
+                  ? ` · ${outlook.estLabel}학기 완료 전망`
                   : '') +
                 (outlook.gradeYear
-                  ? ` (현재 ${outlook.gradeYear}학년 기준)`
+                  ? ` (현재 ${outlook.gradeYear}학년)`
                   : '')}
           </p>
           <label className="rule-target">
-            학기당 목표 학점
+            학기당 목표
             <input
               type="number"
               min={1}
@@ -676,11 +699,8 @@ export function Graduation({
               aria-label="학기당 목표 이수 학점"
               onChange={(e) => setPace(e.target.value)}
             />
+            학점
           </label>
-          <p className="meta">
-            계획 과목 전부 이수·학기당 균등 이수 가정 — 예상치이며 학교의
-            공식 졸업 사정이 아닙니다.
-          </p>
         </section>
       )}
 
@@ -688,44 +708,59 @@ export function Graduation({
         <section className="card pad">
           <div className="between">
             <h3>현재 수강 중</h3>
-            <span className="badge blue">COSMOS 수업 현황</span>
+            <span className="badge blue">
+              COSMOS {data.lms?.fetchedAt.slice(0, 10)}
+              {lmsStale ? ` · ${lmsStale}` : ''}
+            </span>
           </div>
-          <p className="meta">
-            COSMOS {data.lms?.fetchedAt.slice(0, 10)} 수집
-            {lmsStale && (
-              <>
-                {' '}
-                <span className="badge orange">{lmsStale}</span>
-              </>
-            )}{' '}
-            — 수강 중은 이수 완료가 아니라 졸업 계산에서 제외됩니다.
-            계획에 담으면 ‘계획 중’ 학점으로 반영됩니다.
-          </p>
           {(() => {
             const shown = enrolled.filter((m) => !m.ignored);
             const unmatched = shown.filter((m) => m.sections.length === 0);
             return (
               <>
-                {unmatched.length > 0 && (
-                  <p className="meta conn-warn">
-                    {shown.length}과목 중 {unmatched.length}과목은 이름이
-                    카탈로그와 달라 매칭되지 않았습니다. 매칭 안 된 과목은
-                    아래 계산에서 전부 제외됩니다.{' '}
-                    <button className="link" onClick={() => go('lms')}>
-                      수업 현황에서 매칭 보정
-                    </button>
-                  </p>
-                )}
-                <ul className="rule-lines">
-                  {shown.map((m) => (
-                    <li key={m.course.id}>
-                      {m.course.title}
-                      {m.sections.length
-                        ? ` · ${m.manual ? '직접 연결' : '카탈로그 매칭'}: ${[...new Set(m.sections.map((s) => s.name))].join(', ')}`
-                        : ' · 카탈로그 매칭 없음'}
-                    </li>
-                  ))}
+                <ul className="grad-enrolled-list">
+                  {shown.map((m) => {
+                    const d = courseDisplayName(m.course);
+                    return (
+                      <li key={m.course.id}>
+                        <div className="grad-enrolled-name">
+                          <b>{d.title}</b>
+                          <small>
+                            {[d.section ? `[${d.section}]` : '', d.prof]
+                              .filter(Boolean)
+                              .join(' ')}
+                          </small>
+                        </div>
+                        <span
+                          className={`grad-match${m.sections.length ? ' ok' : ''}`}
+                          title={
+                            m.sections.length
+                              ? [...new Set(m.sections.map((s) => s.name))].join(', ')
+                              : '이수 계산에서 제외'
+                          }
+                        >
+                          {m.sections.length
+                            ? m.manual
+                              ? '직접 연결'
+                              : '매칭됨'
+                            : '매칭 없음'}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
+                <p className="meta">
+                  수강 중은 이수 완료가 아닙니다 — 계획에 담으면 ‘계획 중’으로
+                  반영됩니다.
+                  {unmatched.length > 0 && (
+                    <>
+                      {' '}매칭 안 된 {unmatched.length}과목은 계산 제외 —{' '}
+                      <button className="link" onClick={() => go('lms')}>
+                        수업 현황에서 보정
+                      </button>
+                    </>
+                  )}
+                </p>
               </>
             );
           })()}

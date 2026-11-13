@@ -387,7 +387,7 @@ export function Activities({
             </p>
           )}
           <div className="actions">
-            <button className="secondary" onClick={() => go(`activities/apply/${a.id}`)}><Sparkles size={16} />AI와 신청하기</button>
+            <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}><Sparkles size={16} />AI에게 추천받기</button>
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
                 <Bookmark
@@ -538,9 +538,9 @@ export function Activities({
           />
           <button
             className="primary"
-            onClick={() => go('activities/apply')}
+            onClick={() => go('activities/recommend')}
           >
-            <Sparkles size={15} /> AI와 신청하기
+            <Sparkles size={15} /> AI에게 추천받기
           </button>
           <button
             className="secondary"
@@ -734,8 +734,8 @@ function ActivityCards({
             <small>신청 {period(a.applyStart, a.applyEnd)}</small>
             {(data.saved.includes(a.id) || isExt(a)) && <ActivityStageProgress title={a.title} stage={stage} />}
             <div className="card-foot">
-              <button className="link" onClick={() => go(`activities/apply/${a.id}`)}>
-                <Sparkles size={16} /> AI와 신청하기
+              <button className="link" onClick={() => go(`activities/recommend/${a.id}`)}>
+                <Sparkles size={16} /> AI에게 추천받기
               </button>
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />
