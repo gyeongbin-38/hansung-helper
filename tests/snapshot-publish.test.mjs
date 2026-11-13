@@ -13,7 +13,7 @@ test('snapshot pointer changes only after all chunks are staged', () => {
     copyFileSync('scripts/_publish_snapshots.mjs', join(dir, 'scripts/_publish_snapshots.mjs'));
     writeFileSync(join(dir, 'node_modules/wrangler/bin/wrangler.js'), "const fs=require('node:fs');fs.copyFileSync(process.argv[process.argv.indexOf('--file')+1], 'capture.sql');");
     const now = '2026-01-01T00:00:00Z';
-    for (const [name, data] of Object.entries({ 'catalog-2026-2.json': { semester: '2026-2', sections: [], generatedAt: now }, 'activities.json': { fetchedAt: now, items: [{ body: 'x'.repeat(130000) }] }, 'schedule.json': { fetchedAt: now, items: [{}] }, 'dept-rules.json': { fetchedAt: now, items: [] } })) writeFileSync(join(dir, 'lib/data', name), JSON.stringify(data));
+    for (const [name, data] of Object.entries({ 'catalog-2026-2.json': { semester: '2026-2', sections: [], generatedAt: now }, 'activities.json': { fetchedAt: now, items: [{ body: 'x'.repeat(130000) }] }, 'schedule.json': { fetchedAt: now, items: [{}] }, 'dept-rules.json': { fetchedAt: now, items: [{}] } })) writeFileSync(join(dir, 'lib/data', name), JSON.stringify(data));
     const run = spawnSync(process.execPath, [join(dir, 'scripts/_publish_snapshots.mjs'), '--local'], { cwd: dir, encoding: 'utf8' });
     assert.equal(run.status, 0, run.stderr);
     const sql = readFileSync(join(dir, 'capture.sql'), 'utf8');
@@ -33,6 +33,15 @@ test('snapshot pointer changes only after all chunks are staged', () => {
     assert.equal(manifest.parts, 3);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM public_snapshots WHERE kind=?').get(manifest.kind).n, 3);
     db.close();
+    const only = spawnSync(process.execPath, [join(dir, 'scripts/_publish_snapshots.mjs'), '--local', '--only=dept-rules'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(only.status, 0, only.stderr);
+    const filtered = readFileSync(join(dir, 'capture.sql'), 'utf8');
+    assert.match(filtered, /dept-rules@active/);
+    assert.doesNotMatch(filtered, /activities@active|schedule@active|courses@active/);
+    const excluded = spawnSync(process.execPath, [join(dir, 'scripts/_publish_snapshots.mjs'), '--local', '--exclude=dept-rules'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(excluded.status, 0, excluded.stderr);
+    assert.doesNotMatch(readFileSync(join(dir, 'capture.sql'), 'utf8'), /dept-rules@active/);
+    assert.notEqual(spawnSync(process.execPath, [join(dir, 'scripts/_publish_snapshots.mjs'), '--local', '--only=invalid'], { cwd: dir, encoding: 'utf8' }).status, 0);
   } finally {
     if (resolve(dir).startsWith(resolve(tmpdir()) + sep)) rmSync(dir, { recursive: true, force: true });
   }

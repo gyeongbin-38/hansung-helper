@@ -28,6 +28,14 @@ const KINDS = {
   schedule: 'schedule.json',
   'dept-rules': 'dept-rules.json',
 };
+const onlyArg = process.argv.find((arg) => arg.startsWith('--only='));
+const excludeArg = process.argv.find((arg) => arg.startsWith('--exclude='));
+const onlyKind = onlyArg?.slice('--only='.length);
+const excludedKind = excludeArg?.slice('--exclude='.length);
+if ((onlyArg && (!onlyKind || !(onlyKind in KINDS))) ||
+    (excludeArg && (!excludedKind || !(excludedKind in KINDS))) ||
+    (onlyKind && onlyKind === excludedKind))
+  throw new Error('unknown or conflicting snapshot kind filter');
 // kind별 최소 형식 가드 — 형식이 다른 파일이 올라가지 않게 차단
 const SHAPE = {
   courses: (j) => Array.isArray(j.sections) && typeof j.semester === 'string',
@@ -51,6 +59,7 @@ const stmts = [
 const now = Date.now();
 const generation = randomUUID();
 for (const [kind, file] of Object.entries(KINDS)) {
+  if ((onlyKind && kind !== onlyKind) || kind === excludedKind) continue;
   const raw = readFileSync(join(repo, 'lib/data', file), 'utf-8');
   const json = JSON.parse(raw); // 파싱 실패 시 즉시 중단 — 깨진 파일 게시 방지
   const shape = kind.startsWith('courses:') ? SHAPE.courses : SHAPE[kind];
@@ -60,7 +69,7 @@ for (const [kind, file] of Object.entries(KINDS)) {
   const fetchedAt = json.fetchedAt ?? json.generatedAt ?? '';
   if (!fetchedAt || Number.isNaN(Date.parse(fetchedAt)))
     throw new Error(`${file}: fetchedAt/generatedAt이 없거나 올바르지 않습니다`);
-  if ((kind === 'activities' || kind === 'schedule') && json.items.length === 0)
+  if ((kind === 'activities' || kind === 'schedule' || kind === 'dept-rules') && json.items.length === 0)
     throw new Error(`${file}: 비어 있는 스냅샷은 게시하지 않습니다`);
   const parts = Math.ceil(raw.length / CHUNK);
   const stagedKind = `${kind}@${generation}`;

@@ -37,7 +37,7 @@ jobs:
       - name: Build generated Wrangler config
         run: npm run build
       - name: Publish snapshots to D1
-        run: node scripts/_publish_snapshots.mjs --remote
+        run: node scripts/_publish_snapshots.mjs --remote --exclude=dept-rules
       - name: Verify production APIs and freshness
         run: python scripts/_verify_snapshots.py
       - name: Open or update the alert issue
