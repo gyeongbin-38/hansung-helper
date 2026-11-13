@@ -1,20 +1,20 @@
 'use client';
-import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import {
-  ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, ClipboardCheck, Clock3,
+  ArrowRight, ArrowUpRight, BookOpen, Check, ClipboardCheck, Clock3,
   Database, GraduationCap, Info, Layers, Plus, Search, X,
 } from 'lucide-react';
 import { Graduation } from './graduation';
 import { deptPoolOf, useDeptRules } from './catalog';
+import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
-import { evaluate, evaluateGpa, generalEducationReference, graduationOutlook, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
-import { mergeCompleted, resolveEarnedCredits, type MergedCourse } from '@/lib/data/info';
+import { evaluate, evaluateGpa, generalEducationReference, graduationOutlook, requirementQuantityName, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
+import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
-import { targetProgress } from '@/lib/data/visual-progress';
 
 type Props = ComponentProps<typeof Graduation>;
 const VIEWS = [
@@ -26,68 +26,6 @@ const MODES = [
   { id: 'fusion2', label: '융합전공 II', area: '전공융합 II' },
   { id: 'advanced', label: '심화전공', area: '심화전공' },
 ] as const;
-
-function Ratio({ result, known = true }: { result: RuleResult; known?: boolean }) {
-  if (result.uncertainTrack) return <div className="visual-progress-pending">각 트랙의 인정 학점 확인 필요</div>;
-  if (result.uncertainAllocation) return <div className="visual-progress-pending">일반선택 배분과 교양 영역 확인 필요</div>;
-  const progress = targetProgress(known ? result.earned : null, result.required);
-  if (!progress) return <div className="visual-progress-pending"><span aria-hidden="true" />{known ? '기준 확인 후 진행률 표시' : '이수 정보 확인 후 진행률 표시'}</div>;
-  const percent = progress.percent;
-  return <progress className="progress-track" max={100} value={percent}
-    aria-label={`${result.rule.label} 충족률`}
-    aria-valuetext={!known ? '미입력' : result.required === null ? '기준 미확정' : `${percent}%`} />;
-}
-
-function ResultBadge({ result, known }: { result: RuleResult; known: boolean }) {
-  const text = !known ? '입력 필요' : result.status === 'met' ? '충족' : result.status === 'unknown' ? '기준 확인 필요' : '진행 중';
-  return <span className={`badge ${!known || result.status === 'unknown' ? 'orange' : result.status === 'met' ? 'green' : 'purple'}`}>{text}</span>;
-}
-
-function GraduationMetricDetails({ className, icon, title, result, known, value, courses, plannedCourses,
-  sourceDate, pointsSource, route, go }: {
-  className: string; icon: ReactNode; title: string; result: RuleResult; known: boolean; value: string;
-  courses: MergedCourse[]; plannedCourses: CourseSection[]; sourceDate?: string; pointsSource?: 'school' | 'manual';
-  route: string; go: (route: string) => void;
-}) {
-  const remaining = known && result.required !== null ? Math.max(0, result.required - result.earned) : null;
-  const schoolCount = courses.filter(course => course.src === 'info').length;
-  const manualCount = courses.filter(course => course.src === 'manual').length;
-  const requiredSource = result.requiredSource === 'override' ? '사용자 조정'
-    : result.requiredSource === 'dept' ? '학과·학번 기준' : result.requiredSource === 'global' ? '학교 공통 기준' : '기준 미확정';
-  const unit = result.rule.source === 'points' ? 'P' : '학점';
-  return <details className={className}>
-    <summary>
-      <div className="graduation-metric-heading"><h3>{icon}{title}</h3><ResultBadge result={result} known={known} /></div>
-      <strong>{value}</strong>
-      <div className="graduation-summary-meta">
-        {known && targetProgress(result.earned, result.required)
-          ? <small>{targetProgress(result.earned, result.required)!.percent}% {result.rule.source === 'points' ? '적립' : '이수'}</small>
-          : <small>{known ? '적용 기준을 확인해 주세요' : '이수 정보가 필요해요'}</small>}
-      </div>
-      <Ratio result={result} known={known} />
-      <span className="graduation-metric-toggle"><span>상세 보기</span><ChevronDown size={16} /></span>
-    </summary>
-    <div className="graduation-metric-breakdown">
-      <dl>
-        <div><dt>적용 기준</dt><dd>{result.required === null ? '미확정' : `${result.required}${unit}`}</dd><small>{requiredSource}</small></div>
-        <div><dt>확정 취득</dt><dd>{known ? `${result.earned}${unit}` : '미입력'}</dd></div>
-        <div><dt>남은 수치</dt><dd>{remaining === null ? '계산 대기' : `${remaining}${unit}`}</dd></div>
-        <div><dt>계획 중</dt><dd>{result.rule.source === 'points' ? '해당 없음' : `${result.planned}학점`}</dd></div>
-      </dl>
-      {result.uncertainCredits && <p className="graduation-metric-warning"><Info size={14} />재수강·중복 과목 여부를 확인하기 전이라 학점이 달라질 수 있어요.</p>}
-      {result.rule.source === 'points' ? <div className="graduation-metric-source">
-        <b>포인트 출처</b><span>{!known ? '확인된 포인트 없음' : pointsSource === 'school' ? `종합정보 수집${sourceDate ? ` · ${sourceDate}` : ''}` : '내 정보에서 직접 입력'}</span>
-      </div> : <>
-        <div className="graduation-metric-source"><b>이수 근거</b><span>학교 수집 {schoolCount}과목 · 직접 입력 {manualCount}과목{sourceDate ? ` · ${sourceDate} 기준` : ''}</span></div>
-        {courses.length > 0 && <ul className="graduation-metric-courses">{courses.slice(0, 6).map(course => <li key={`${course.src}:${course.code}:${course.name}`}><span><b>{course.name}</b><small>{course.category} · {course.src === 'info' ? '학교 수집' : '직접 입력'}{course.semester ? ` · ${course.semester}` : ''}</small></span><strong>{course.credits}학점</strong></li>)}</ul>}
-        {courses.length > 6 && <p className="meta">외 {courses.length - 6}과목은 세부 현황에서 확인할 수 있어요.</p>}
-        {plannedCourses.length > 0 && <p className="graduation-metric-planned">계획: {plannedCourses.map(course => course.name).join(', ')}</p>}
-        {!known && <p className="graduation-metric-empty">학교 이수 내역을 연결하거나 직접 입력하면 근거 과목이 표시됩니다.</p>}
-      </>}
-      <button className="link graduation-metric-route" onClick={() => go(route)}>세부 현황에서 확인 <ArrowRight size={14} /></button>
-    </div>
-  </details>;
-}
 
 export function GraduationWorkspace(props: Props) {
   const { data, go, planned, catalog, persist, detail, infoPending, infoFailed } = props;
@@ -150,6 +88,16 @@ export function GraduationWorkspace(props: Props) {
   const checks = new Set(data.reqChecks ?? []);
   const sourceDate = data.info?.fetchedAt.slice(0, 10);
   const gradesUnverified = data.info?.diag?.pages.some(p => p.slot === 'grades' && !p.ok) ?? false;
+  const pointsSource = data.info?.points !== undefined ? 'school' as const : 'manual' as const;
+  const metric = (r: RuleResult, route: string) => ({
+    result: r, known: known(r), value: value(r), courses: r.rule.source === 'points' ? [] : coursesFor(r),
+    plannedCourses: r.rule.source === 'points' ? [] : plannedFor(r), sourceDate, pointsSource, route, go,
+    admission, onAdmission: (next: AdmissionType) => void setAdmission(next), busy, yearKnown: year !== undefined,
+  });
+  const requirementCard = (r: RuleResult) => <GraduationMetricDetails key={r.rule.id} className="card graduation-requirement-card"
+    icon={<BookOpen size={20} />} title={r.rule.label} {...metric(r, r.rule.source === 'points' ? 'profile' : `graduation/${r.rule.id}`)}
+    value={r.required === null && known(r) ? `${value(r)} ${r.rule.source === 'points' ? '적립' : '이수'}` : value(r)}
+    foot={<div className="graduation-requirement-foot"><span>필요 {requirementQuantityName(r.rule)} <b>{r.required === null ? '미확정' : `${r.required}${r.rule.unit ?? '학점'}`}</b></span>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>} />;
   const suggestions = query.trim().length < 2 ? [] : (catalog?.sections ?? []).filter(s =>
     !completed.some(c => c.code === s.code || c.name.replace(/\s/g, '') === s.name.replace(/\s/g, '')) &&
     (s.name + s.code).toLowerCase().includes(query.toLowerCase())).filter((s, i, all) => all.findIndex(c => c.code === s.code) === i).slice(0, 5);
@@ -214,6 +162,8 @@ export function GraduationWorkspace(props: Props) {
           <option value="general-transfer">일반편입</option><option value="bachelor-transfer">학사편입</option>
         </select></label>
       </div>}
+      {(view === '' || view === 'requirements') && admission === 'unknown' && year !== undefined &&
+        <AdmissionQuickPick value={admission} busy={busy} onPick={next => void setAdmission(next)} />}
       {gradesUnverified && <p className="meta conn-warn">최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 학교 종합정보에서 확인해 주세요.</p>}
       {(view === '' || view === 'requirements') && <section className="card pad">
         <h3>학교 기준과 확인 사항</h3>
@@ -247,32 +197,18 @@ export function GraduationWorkspace(props: Props) {
       {view === '' && <>
         <section className="card graduation-summary-hero">
           <div className="graduation-summary-hero-grid">
-            <GraduationMetricDetails className="graduation-summary-metric" icon={<GraduationCap size={19} />} title="총 이수학점"
-              result={total} known={known(total)} value={value(total)} courses={coursesFor(total)} plannedCourses={plannedFor(total)}
-              sourceDate={sourceDate} route="graduation/completed" go={go} />
+            <GraduationMetricDetails className="graduation-summary-metric" icon={<GraduationCap size={19} />} title="총 이수학점" {...metric(total, 'graduation/completed')} />
             <div className="graduation-summary-divider" aria-hidden="true" />
-            <GraduationMetricDetails className="graduation-summary-metric" icon={<Database size={18} />} title="비교과 포인트"
-              result={pointResult} known={known(pointResult)} value={value(pointResult)} courses={[]} plannedCourses={[]}
-              sourceDate={sourceDate} pointsSource={data.info?.points !== undefined ? 'school' : 'manual'} route="profile" go={go} />
+            <GraduationMetricDetails className="graduation-summary-metric" icon={<Database size={18} />} title="비교과 포인트" {...metric(pointResult, 'profile')} />
           </div>
         </section>
         <div className="graduation-area-grid">
-          <GraduationMetricDetails className="card graduation-area-card" icon={<BookOpen size={19} />} title="교양"
-            result={general} known={known(general)} value={value(general)} courses={coursesFor(general)} plannedCourses={plannedFor(general)}
-            sourceDate={sourceDate} route="graduation/gen" go={go} />
-          <GraduationMetricDetails className="card graduation-area-card" icon={<Layers size={19} />} title="전공"
-            result={major} known={known(major)} value={value(major)} courses={coursesFor(major)} plannedCourses={plannedFor(major)}
-            sourceDate={sourceDate} route="graduation/major" go={go} />
+          <GraduationMetricDetails className="card graduation-area-card" icon={<BookOpen size={19} />} title="교양" {...metric(general, 'graduation/gen')} />
+          <GraduationMetricDetails className="card graduation-area-card" icon={<Layers size={19} />} title="전공" {...metric(major, 'graduation/major')} />
         </div>
         <section className="graduation-major-requirements">
           <div className="graduation-section-heading"><h2>전공별 졸업요건</h2><button className="secondary" onClick={() => go('graduation/requirements')}>전체 요건 확인 <ArrowRight size={15} /></button></div>
-          <div className="graduation-requirement-grid">
-            {results.map(r => <section className="card graduation-requirement-card" key={r.rule.id}>
-              <div className="graduation-section-heading"><h3><BookOpen size={20} /><button className="link title-link" onClick={() => go(`graduation/${r.rule.id}`)}>{r.rule.label}</button></h3><ResultBadge result={r} known={known(r)} /></div>
-              <strong>{r.required === null && known(r) ? `계산 대기 · ${value(r)} ${r.rule.source === 'points' ? '적립함' : '이수함'}` : value(r)}</strong><Ratio result={r} known={known(r)} />
-              <div className="graduation-requirement-foot"><span>필요 {r.rule.unit === 'P' ? '포인트' : '학점'}</span><button className="secondary" onClick={() => go(`graduation/${r.rule.id}`)}>{r.required ?? '미확정'} <ArrowRight size={12} /></button>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>
-            </section>)}
-          </div>
+          <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
         </section>
         <div className="graduation-overview-bottom">
           <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3><small>계산 결과와 확인 메모를 함께 확인하세요.</small></div>
@@ -301,11 +237,7 @@ export function GraduationWorkspace(props: Props) {
         </section>
       </>}
       {view === 'requirements' && <>
-        <div className="graduation-requirement-grid">{results.map(r => <section className="card graduation-requirement-card" key={r.rule.id}>
-          <div className="graduation-section-heading"><h3><BookOpen size={20} /><button className="link title-link" onClick={() => go(`graduation/${r.rule.id}`)}>{r.rule.label}</button></h3><ResultBadge result={r} known={known(r)} /></div>
-          <strong>{r.required === null && known(r) ? `계산 대기 · ${value(r)} ${r.rule.source === 'points' ? '적립함' : '이수함'}` : value(r)}</strong><Ratio result={r} known={known(r)} />
-          <div className="graduation-requirement-foot"><span>필요 {r.rule.unit === 'P' ? '포인트' : '학점'}</span><button className="secondary" onClick={() => go(`graduation/${r.rule.id}`)}>{r.required ?? '미확정'} <ArrowRight size={12} /></button>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>
-        </section>)}</div>
+        <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
         <section className="card graduation-general-guide"><h3><Info size={20} />교양 세부 요건</h3><p>교양 이수 기준과 세부 학점을 확인하세요.</p><button className="secondary" onClick={() => go('graduation/gen')}>교양 요건 자세히 보기 <ArrowRight size={15} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문 확인 <ArrowUpRight size={14} /></a></section>
       </>}
       {view === 'completed' && <>

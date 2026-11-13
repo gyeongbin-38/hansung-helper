@@ -53,6 +53,7 @@ import { SurveyDialog } from './sections/survey-dialog';
 import { surveyEntryRoute } from '@/lib/data/survey';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
+import { shouldAutoRefreshSchool } from '@/lib/data/freshness';
 
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
@@ -306,6 +307,45 @@ export default function App() {
     (account?.snapshot.portal === 'connected' &&
       !account.snapshot.infoData &&
       !account.snapshot.infoPending);
+  // 학교 세션이 볼트에 남아 있으면 앱을 열거나 탭으로 돌아올 때 오래된 학사·수업 정보를
+  // 비밀번호 없이 조용히 다시 수집한다. 실패·만료는 화면 흐름을 막지 않고 수동 재연결로 남긴다.
+  const sessionContext = account?.sessionContext;
+  useEffect(() => {
+    if (!ready || demo || !sessionContext) return;
+    const generation = accountGeneration.current;
+    const key = `hsu-school-auto-refresh:${sessionContext}`;
+    let running = false;
+    const run = async () => {
+      const current = accountRef.current;
+      if (running || document.visibilityState !== 'visible' || !current || generation !== accountGeneration.current) return;
+      let lastAttempt: number | null = null;
+      try { lastAttempt = Number(sessionStorage.getItem(key)) || null; } catch { return; }
+      if (!shouldAutoRefreshSchool({ checkedAt: current.snapshot.checkedAt, now: Date.now(), lastAttempt,
+        pending: current.snapshot.lmsPending === true || current.snapshot.infoPending === true })) return;
+      running = true;
+      try {
+        sessionStorage.setItem(key, String(Date.now()));
+        const status = await apiData<{ available: boolean; expiresAt: number | null }>(
+          await apiFetch('/api/account/lms-refresh-session', { cache: 'no-store' }));
+        if (!status.available || !status.expiresAt || status.expiresAt <= Date.now()) return;
+        const response = await apiFetch('/api/account/lms-refresh-session', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        }, 75000);
+        if (!response.ok) return;
+        const result = await apiData<Account>(response);
+        if (generation !== accountGeneration.current || !accountRef.current) return;
+        setAccount(result);
+        setToast('저장된 학교 세션으로 최신 학사·수업 정보를 자동으로 확인하고 있어요.');
+      } catch {
+        /* 자동 재수집 실패는 조용히 넘긴다 — 수동 새로고침 경로가 남아 있다 */
+      } finally {
+        running = false;
+      }
+    };
+    void run();
+    document.addEventListener('visibilitychange', run);
+    return () => document.removeEventListener('visibilitychange', run);
+  }, [ready, demo, sessionContext, setToast]);
   // 브라우저 마감 알림 — opt-in + 권한 부여된 경우에만, 앱이 열려 있는 동안
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);

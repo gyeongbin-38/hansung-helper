@@ -21,6 +21,9 @@
 - `node --experimental-strip-types tests/calendar.test.mjs` (캘린더 그리드·ICS)
 - `python scripts/_run_tests.py` (전체 매트릭스)
 - 실계정 COSMOS 검증: `node --experimental-transform-types scripts/cosmos-live.mts`
+  - **종합정보는 로그인 10회 실패 시 비밀번호를 초기화한다** — 실계정 로그인 반복 시도 금지. 거부 시 `?pwrechk=N` 없이 `/`로만 302되는 경우도 있다(자격 거부로 간주하고 재시도하지 않는다)
+  - 에이전트 셸은 Windows cmd — 환경변수는 `set "COSMOS_ID=..." && node ...` 형식, `;` 체이닝 불가
+- 화면 QA: `npx vite dev --host 127.0.0.1 --port 4339 --strictPort`(vinext dev의 `--hostname`은 미지원) + puppeteer-core는 gitignore된 `work/` 아래에 따로 설치해 사용
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)

@@ -22,6 +22,20 @@ export function isStale(
   return d !== null && d >= warnAfter;
 }
 
+/** 저장된 학교 세션으로 조용히 재수집할지 판단한다. 수집 중이거나, 마지막 학교 확인이
+ *  minAgeMs 이내이거나, 같은 탭에서 cooldownMs 안에 이미 자동 시도했으면 건너뛴다.
+ *  확인 시각을 읽을 수 없으면 오래된 것으로 보고 한 번 시도한다. */
+export function shouldAutoRefreshSchool(
+  input: { checkedAt?: string | null; pending: boolean; lastAttempt?: number | null; now: number },
+  minAgeMs = 30 * 60e3,
+  cooldownMs = 30 * 60e3,
+): boolean {
+  if (input.pending) return false;
+  if (input.lastAttempt != null && Number.isFinite(input.lastAttempt) && input.now - input.lastAttempt < cooldownMs) return false;
+  const checked = input.checkedAt ? Date.parse(input.checkedAt) : NaN;
+  return Number.isNaN(checked) || input.now - checked >= minAgeMs;
+}
+
 /** 배지 문구 — 'N일 전 수집' 또는 '오래된 데이터'. 신선하면 null */
 export function staleLabel(
   iso: string | null | undefined,

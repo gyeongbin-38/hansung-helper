@@ -81,7 +81,6 @@
 .graduation-row-index { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--nt-hairline); border-radius: 7px; color: var(--nt-slate); font-size: 12px; }
 .graduation-requirement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .graduation-requirement-card .title-link { color: inherit; font-size: 16px; font-weight: 700; }
-.graduation-requirement-card > strong { display: block; font-size: 24px; letter-spacing: -.6px; margin: 26px 0 18px; }
 .graduation-requirement-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; font-size: 12px; color: var(--nt-slate); }
 .graduation-requirement-foot small { margin-left: auto; }
 .graduation-workspace .graduation-general-guide { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: #f5f8fd; }
@@ -170,30 +169,105 @@
 .graduation-area-card .progress-track { width: 100%; }
 .graduation-metric-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .graduation-metric-heading h3 { margin: 0; }
-.graduation-summary-metric > summary, .graduation-area-card > summary { display: block; cursor: pointer; list-style: none; }
-.graduation-summary-metric > summary::-webkit-details-marker, .graduation-area-card > summary::-webkit-details-marker { display: none; }
-.graduation-summary-metric > summary:focus-visible, .graduation-area-card > summary:focus-visible { outline: 3px solid #bfd5ff; outline-offset: 6px; border-radius: 6px; }
+.gm-details > summary { display: block; cursor: pointer; list-style: none; }
+.gm-details > summary::-webkit-details-marker { display: none; }
+.gm-details > summary:focus-visible { outline: 3px solid #bfd5ff; outline-offset: 6px; border-radius: 6px; }
+.gm-details > summary:hover .graduation-metric-toggle { text-decoration: underline; }
+.gm-toggle-open, details[open] > summary .gm-toggle-closed { display: none; }
+details[open] > summary .gm-toggle-open { display: inline; }
+.graduation-requirement-card.gm-details { display: block; }
+.graduation-requirement-card summary > strong { display: block; font-size: 24px; letter-spacing: -.6px; margin: 22px 0 16px; color: var(--nt-ink); }
+.graduation-requirement-card .graduation-summary-meta { display: none; }
+.graduation-requirement-foot b { color: var(--nt-ink); margin-left: 4px; }
 .graduation-summary-meta { margin: 10px 0 9px; }
 .graduation-metric-toggle { display: flex; justify-content: flex-end; align-items: center; gap: 5px; margin-top: 12px; color: var(--nt-primary); font-size: 11px; font-weight: 700; }
 .graduation-metric-toggle svg { transition: transform .2s ease; }
 details[open] > summary .graduation-metric-toggle svg { transform: rotate(180deg); }
-.graduation-metric-breakdown { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--nt-hairline); }
-.graduation-metric-breakdown dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
-.graduation-metric-breakdown dl > div { padding: 11px; border-radius: 9px; background: var(--nt-surface); }
-.graduation-metric-breakdown dt { color: var(--nt-steel); font-size: 10px; }
-.graduation-metric-breakdown dd { margin: 4px 0 0; color: var(--nt-ink); font-size: 14px; font-weight: 750; }
-.graduation-metric-breakdown dl small { display: block; margin-top: 3px; font-size: 9px; }
+.graduation-metric-breakdown { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--nt-hairline); animation: gm-reveal .22s ease; }
+@keyframes gm-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .graduation-metric-breakdown { animation: none; } }
+
+/* 시각적 상세 — 링 게이지 · 누적 막대 · 이수구분 막대 · 학기 컬럼 */
+.gm-segment-bar { position: relative; display: flex; width: 100%; height: 9px; border-radius: 10px; overflow: hidden; background: #e6edf7; }
+.gm-segment-bar > span { display: block; height: 100%; transition: width .4s ease; }
+.gm-segment-done { background: var(--gm-tone, var(--nt-primary)); }
+.gm-segment-plan { background: repeating-linear-gradient(135deg, #8fb6ff 0 4px, #c6dbff 4px 8px); }
+.gm-visual { display: flex; align-items: center; gap: 22px; }
+.gm-ring { position: relative; width: 112px; height: 112px; flex-shrink: 0; }
+.gm-ring svg { width: 100%; height: 100%; }
+.gm-ring circle { fill: none; stroke-width: 11; stroke-linecap: round; }
+.gm-ring .gm-ring-base { stroke: #e6edf7; stroke-linecap: butt; }
+.gm-ring .gm-ring-done { stroke: var(--gm-tone); transition: stroke-dasharray .5s ease; }
+.gm-ring .gm-ring-plan { stroke: var(--gm-tone); opacity: .35; stroke-linecap: butt; }
+.gm-ring-major, .gm-tone-major { --gm-tone: var(--nt-primary); }
+.gm-ring-general, .gm-tone-general { --gm-tone: var(--nt-teal-deep); }
+.gm-ring-free, .gm-tone-free, .gm-ring-points, .gm-tone-points { --gm-tone: var(--nt-purple); }
+.gm-tone-other { --gm-tone: #a6b6ca; }
+.gm-ring-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.gm-ring-center b { font-size: 24px; font-weight: 800; letter-spacing: -.6px; color: var(--nt-ink); line-height: 1.1; }
+.gm-ring-center b small { font-size: 12px; font-weight: 700; color: var(--nt-slate); margin-left: 1px; }
+.gm-ring-center span { font-size: 10px; color: var(--nt-slate); margin-top: 2px; }
+.gm-legend { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.gm-legend li { display: grid; grid-template-columns: 9px 1fr; column-gap: 7px; align-items: center; padding: 10px 11px; border-radius: 10px; background: var(--nt-surface); }
+.gm-legend span { font-size: 10px; color: var(--nt-steel); }
+.gm-legend b { grid-column: 2; font-size: 15px; font-weight: 800; color: var(--nt-ink); margin-top: 2px; }
+.gm-legend small { grid-column: 2; font-size: 9px; }
+.gm-dot { width: 9px; height: 9px; border-radius: 3px; background: var(--gm-tone, var(--nt-primary)); }
+.gm-dot-plan { background: repeating-linear-gradient(135deg, #8fb6ff 0 2px, #c6dbff 2px 4px); }
+.gm-dot-rest { background: #e6edf7; border: 1px solid #d3deec; }
+.gm-dot-target { background: white; border: 2px solid var(--nt-ink); }
+.gm-over { margin-top: 12px !important; font-size: 11px; color: var(--nt-teal-deep); font-weight: 700; }
+.gm-inline-action { margin-top: 14px; font-size: 12px; }
+.gm-charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 18px; }
+.gm-charts:has(> :only-child) { grid-template-columns: 1fr; }
+.gm-chart { margin: 0; padding: 14px; border: 1px solid var(--nt-hairline-soft); border-radius: 12px; min-width: 0; }
+.gm-chart figcaption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 11px; font-weight: 750; color: var(--nt-charcoal); margin-bottom: 12px; }
+.gm-chart figcaption small { font-weight: 500; font-size: 9px; }
+.gm-category-bars { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.gm-category-bars li { display: grid; grid-template-columns: 74px 1fr auto; gap: 9px; align-items: center; }
+.gm-category-name { font-size: 10px; color: var(--nt-slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-category-track { height: 9px; border-radius: 9px; background: #eef2f8; overflow: hidden; }
+.gm-category-track i { display: block; height: 100%; border-radius: 9px; background: var(--gm-tone); }
+.gm-category-bars b { font-size: 12px; color: var(--nt-ink); white-space: nowrap; }
+.gm-category-bars b small { font-size: 9px; font-weight: 500; margin-left: 2px; }
+.gm-semester-columns { display: flex; align-items: flex-end; gap: 6px; height: 118px; margin: 0; padding: 0; list-style: none; }
+.gm-semester-columns li { flex: 1; min-width: 0; height: 100%; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; }
+.gm-semester-columns b { font-size: 10px; color: var(--nt-ink); }
+.gm-semester-bar { width: 100%; max-width: 26px; display: flex; align-items: flex-end; }
+.gm-semester-bar i { display: block; width: 100%; border-radius: 6px 6px 3px 3px; background: var(--gm-tone, var(--nt-primary)); opacity: .9; }
+.gm-semester-columns small { font-size: 9px; white-space: nowrap; }
+.gm-course-chips { margin-top: 16px; }
+.gm-chips-title { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 11px; font-weight: 750; color: var(--nt-charcoal); }
+.gm-chips-title small { font-weight: 500; font-size: 9px; }
+.gm-course-chips ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.gm-course-chips li { min-width: 0; padding: 9px 11px; border-radius: 10px; background: var(--nt-surface); border-left: 3px solid var(--gm-tone, var(--nt-primary)); }
+.gm-tone-border-major { --gm-tone: var(--nt-primary); }
+.gm-tone-border-general { --gm-tone: var(--nt-teal-deep); }
+.gm-tone-border-free { --gm-tone: var(--nt-purple); }
+.gm-tone-border-other { --gm-tone: #a6b6ca; }
+.gm-course-chips b, .gm-course-chips li small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-course-chips b { font-size: 11px; color: var(--nt-ink); }
+.gm-course-chips li small { font-size: 9px; margin-top: 2px; }
+.gm-more { display: block; margin-top: 8px; font-size: 10px; }
+
+/* 입학 구분 원클릭 선택 */
+.graduation-workspace .admission-pick { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; padding: 20px 24px; border-radius: 16px; background: linear-gradient(115deg, #eaf2ff, #f7faff 80%); border: 1px solid #d5e6ff; }
+.admission-pick-copy { flex: 1; min-width: 200px; display: grid; gap: 4px; }
+.admission-pick-copy b { font-size: 15px; color: var(--nt-ink); }
+.admission-pick-copy small { font-size: 12px; }
+.admission-pick-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.admission-pick-options button { display: grid; gap: 2px; min-width: 104px; padding: 10px 14px; border-radius: 11px; border: 1px solid #cfdcef; background: white; text-align: left; transition: border-color .15s ease, box-shadow .15s ease; }
+.admission-pick-options button:hover:not(:disabled) { border-color: var(--nt-primary); box-shadow: 0 2px 8px #1d5be81a; }
+.admission-pick-options button[aria-pressed='true'] { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
+.admission-pick-options b { font-size: 13px; color: var(--nt-ink); }
+.admission-pick-options small { font-size: 10px; }
+.graduation-workspace .admission-pick.compact { margin-top: 16px; padding: 14px; gap: 10px; border-radius: 12px; }
+.admission-pick.compact .admission-pick-copy b { font-size: 12px; }
+.admission-pick.compact .admission-pick-options button { min-width: 0; flex: 1; padding: 8px 10px; }
 .graduation-metric-warning { display: flex; gap: 7px; margin-top: 12px !important; padding: 10px; border-radius: 8px; background: var(--nt-tint-yellow); color: var(--nt-brown); font-size: 10px; line-height: 1.6; }
 .graduation-metric-warning svg { flex-shrink: 0; }
 .graduation-metric-source { display: grid; gap: 4px; margin-top: 13px; color: var(--nt-slate); font-size: 10px; line-height: 1.5; }
 .graduation-metric-source b { color: var(--nt-charcoal); font-size: 11px; }
-.graduation-metric-courses { margin: 12px 0 0; padding: 0; list-style: none; }
-.graduation-metric-courses li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid var(--nt-hairline-soft); }
-.graduation-metric-courses li > span { min-width: 0; }
-.graduation-metric-courses b, .graduation-metric-courses small { display: block; overflow-wrap: anywhere; }
-.graduation-metric-courses b { font-size: 11px; }
-.graduation-metric-courses small { margin-top: 3px; font-size: 9px; }
-.graduation-metric-courses strong { flex-shrink: 0; font-size: 11px; }
 .graduation-metric-planned, .graduation-metric-empty { margin-top: 10px !important; color: var(--nt-slate); font-size: 10px; line-height: 1.6; }
 .graduation-metric-route { margin-top: 14px; font-size: 11px; }
 .graduation-major-requirements { padding: 6px 2px 0; }
@@ -208,5 +282,10 @@ details[open] > summary .graduation-metric-toggle svg { transform: rotate(180deg
   .graduation-summary-metric summary > strong { font-size: 30px; }
   .graduation-area-grid { grid-template-columns: 1fr; gap: 16px; }
   .graduation-area-card summary > strong { font-size: 26px; }
-  .graduation-metric-breakdown dl { grid-template-columns: 1fr 1fr; }
+  .gm-visual { flex-direction: column; align-items: stretch; }
+  .gm-ring { margin: 0 auto; }
+  .gm-charts { grid-template-columns: 1fr; }
+  .graduation-workspace .admission-pick { padding: 18px; }
+  .admission-pick-options { width: 100%; }
+  .admission-pick-options button { flex: 1; min-width: 0; }
 }

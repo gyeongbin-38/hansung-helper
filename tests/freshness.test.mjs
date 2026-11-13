@@ -4,7 +4,20 @@ import {
   ageDays,
   isStale,
   staleLabel,
+  shouldAutoRefreshSchool,
 } from '../lib/data/freshness.ts';
+
+test('shouldAutoRefreshSchool: 오래된 학교 확인만 자동 재수집하고 진행 중·쿨다운은 건너뛴다', () => {
+  const now = Date.parse('2026-11-13T12:00:00+09:00');
+  const at = (minutes) => new Date(now - minutes * 60e3).toISOString();
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: at(10), pending: false, now }), false);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: at(31), pending: false, now }), true);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: at(90), pending: true, now }), false);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: at(90), pending: false, lastAttempt: now - 5 * 60e3, now }), false);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: at(90), pending: false, lastAttempt: now - 40 * 60e3, now }), true);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: 'bad', pending: false, now }), true);
+  assert.equal(shouldAutoRefreshSchool({ checkedAt: undefined, pending: false, lastAttempt: NaN, now }), true);
+});
 
 const NOW = Date.parse('2026-10-09T12:00:00+09:00');
 
