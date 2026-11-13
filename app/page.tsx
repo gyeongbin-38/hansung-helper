@@ -1255,6 +1255,18 @@ export default function App() {
               onResetDemo={resetDemoData}
               catalog={catalog}
               activities={actsSnap}
+              notify={setToast}
+              ext={ext}
+              serverCollecting={lmsPending && !collectStale(lmsPending) && !pollDelayed}
+              collectFailed={lmsFailed}
+              lmsUnavailable={account?.snapshot.lms === 'unavailable'}
+              lmsError={account?.snapshot.lmsError}
+              studentMask={account?.studentMask}
+              onAccount={(result) => {
+                if (renderedGeneration === accountGeneration.current && accountRef.current)
+                  setAccount(result);
+              }}
+              onExtRefresh={() => requestLmsRefresh(true)}
             />
           ) : (
             <section className="card pad">
