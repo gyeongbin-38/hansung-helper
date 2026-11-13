@@ -2827,6 +2827,24 @@ input[aria-invalid='true'] {
   display: block;
   margin-top: auto;
 }
+.course-facts {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  font-size: 13px;
+}
+.course-facts div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 8px;
+}
+.course-facts dt {
+  color: var(--nt-slate);
+}
+.course-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .course .full {
   margin-top: 16px;
 }
@@ -3829,6 +3847,7 @@ input[aria-invalid='true'] {
   animation: band-pulse 1.6s var(--nt-ease) infinite;
 }
 .band-login .band-dot,
+.band-delayed .band-dot,
 .band-stale .band-dot {
   background: var(--nt-yellow);
 }
@@ -4232,6 +4251,13 @@ input[aria-invalid='true'] {
   margin: 8px 0 4px;
   padding-left: 10px;
   border-left: 2px solid var(--nt-hairline);
+}
+.matchfix-cands label {
+  display: grid;
+  gap: 4px;
+}
+.matchfix-cands input {
+  width: 100%;
 }
 .matchfix-cand {
   display: flex;

@@ -89,7 +89,6 @@ const profile = {
   ruleOverrides: {},
   events: [],
   consent: false,
-  mascotGuideSeen: true,
   lms: snapshot,
 };
 const browser = await puppeteer.launch({

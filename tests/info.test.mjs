@@ -6,6 +6,7 @@ import {
   parseGrades,
   parsePoints,
   parseAudit,
+  parseRequirementTables,
   parseIdentity,
   parseSemesterGrades,
   parseAcademic,
@@ -104,6 +105,8 @@ t('grades: 확정 과목과 빈 성적이 섞여 있어도 빈 성적은 제외'
 const failedOnly = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>미이수 과목</td><td>3</td><td>F</td></tr></table>');
 t('grades: 확정 F만 있는 표는 미확정이 아닌 정상 빈 이수 목록',
   !failedOnly.hasUnconfirmed && failedOnly.recognized && failedOnly.completed.length === 0);
+const failedVariants = parseGrades('<table><tr><th>과목명</th><th>학점</th><th>성적</th></tr><tr><td>과목1</td><td>3</td><td>F0</td></tr><tr><td>과목2</td><td>3</td><td>F(재수강)</td></tr></table>');
+t('grades: F 변형 표기도 미이수 이력으로 분리', failedVariants.completed.length === 0 && failedVariants.failedCourses.length === 2);
 
 // 새 성적 화면 — 헤더 없이 th에 과목명이 오는 형태
 const NEW_STYLE_GRADES = `<div class="panel-heading"><h3>2026 학년도 1 학기</h3></div>
@@ -171,13 +174,17 @@ t('real menu: 외부 hsportal 링크 제외', !realMenu.some((m) => m.path.inclu
 const realTargets = pickTargets(realMenu);
 t('real targets: 누적 우선(현학기 아님)', realTargets.grades === 'jsp_21/student/grade/total_grade.jsp');
 t('real targets: 사정', realTargets.audit === 'jsp_21/student/graduation/joluprequire_track.jsp');
+t('real targets: 별도 졸업요건', realTargets.requirements === 'jsp_21/student/graduation/graduation_requirement.jsp');
 t('real targets: 포인트 외부 링크라 미검출', realTargets.points === undefined);
 
 const rg = parseGrades(REAL_GRADES);
 t('real grades: 5과목(F·미확정 제외)', rg.completed.length === 5);
 t('real grades: 학기 라벨(학년도 공백 형태)', rg.completed[0].semester === '2026-1' && rg.completed[4].semester === '2025-2');
 t('real grades: 요약 테이블 오염 없음', !rg.completed.some((c) => c.name.includes('요약') || c.name.includes('계')));
-t('real grades: 코드/카테고리', rg.completed[0].code === 'GEN1015' && rg.completed[0].category === '일교' && rg.completed[3].category === '교필');
+t('real grades: 코드/카테고리', rg.completed[0].code === 'GEN1015' && rg.completed[0].category === '일교' && rg.completed[3].category === '선필교');
+t('real grades: 선필교 영역 보존', rg.completed[3].area === '융합교양 분야');
+t('real grades: F 별도 보존', rg.failedCourses.some((c) => c.name === 'C프로그래밍' && c.grade === 'F'));
+t('F 학점은 이수 목록에 합산되지 않음', !rg.completed.some((c) => c.grade === 'F'));
 t('real grades: A0 유지·F 제외', rg.completed.some((c) => c.grade === 'A0') && !rg.completed.some((c) => c.name === 'C프로그래밍'));
 t('real grades: 미확정 성적 제외', !rg.completed.some((c) => c.name === 'Python for AI'));
 t('real grades: 총 취득학점/평점', rg.credits === 50 && rg.gpa === 2.87);
@@ -217,6 +224,16 @@ t('id: 이름', id.name === '홍길동');
 t('id: 소속', id.dept === '컴퓨터공학과');
 t('id: 학번→입학연도', id.admitYear === 2024);
 t('id: 없으면 빈 객체', Object.keys(parseIdentity('<p>none</p>')).length === 0);
+const dualIdentity = parseIdentity('<table><tr><th>학과</th><td>AI응용학과</td></tr><tr><th>제1트랙</th><td>AI응용학과</td></tr><tr><th>제2트랙</th><td>빅데이터트랙</td></tr></table>');
+t('id: 학과와 두 트랙 분리', dualIdentity.dept === 'AI응용학과' && dualIdentity.track === '빅데이터트랙' && dualIdentity.tracks?.length === 2);
+const reqTables = parseRequirementTables('<h3>트랙별 졸업요건</h3><table><tr><th rowspan="2">구분</th><th colspan="2">전공</th></tr><tr><th>기준</th><th>이수</th></tr><tr><td>빅데이터</td><td>39</td><td>30</td></tr></table>');
+t('requirements: 병합 셀과 두 트랙 표 구조 보존', reqTables.length === 1 && reqTables[0].rows[0][0].rowspan === 2 && reqTables[0].rows[0][1].colspan === 2 && reqTables[0].rows[2][0].text === '빅데이터');
+t('선필교 구분 보존', infoCategory('선택필수교양') === '선필교');
+const oldInfo = { source: 'info-hansung', fetchedAt: '2026-11-01T00:00:00Z', dept: 'AI응용학과', track: '빅데이터트랙', completed: [], failedCourses: grades.failedCourses, requirements: reqTables };
+const failedRefresh = { source: 'info-hansung', fetchedAt: '2026-11-02T00:00:00Z', completed: [], diag: { menu: [], pages: [{ slot: 'grades', path: '-', ok: false }, { slot: 'requirements', path: '-', ok: false }] } };
+const retainedInfo = mergeInfoSnapshot(oldInfo, failedRefresh);
+t('부분 실패 시 학과·트랙·F·졸업요건 표 보존', retainedInfo.dept === oldInfo.dept && retainedInfo.track === oldInfo.track && retainedInfo.failedCourses?.length === 1 && retainedInfo.requirements?.length === 1);
+t('수집 스냅샷 검증 후 병합 셀 보존', validateInfo(oldInfo)?.requirements?.[0]?.rows[0][1].colspan === 2);
 
 // ── 학기별 성적/학적 ─────────────────────────────────────
 const SEMESTER_GRADES_HTML = `<html><body>
@@ -329,6 +346,17 @@ const snap = await collectInfo(fakeSession({
   'seongjeok_new': SEMESTER_GRADES_HTML,
   'collage_register': HAKJUK_HTML,
 }), { menuHtml: MENU_HTML, mainHtml: ID_HTML });
+const requirementPage = '<h3>졸업요건</h3><table><tr><th>트랙</th><th>이수학점</th></tr><tr><td>AI응용</td><td>39</td></tr><tr><td>빅데이터</td><td>39</td></tr></table>';
+const requirementsSnap = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': GRADES_HTML, 's_etc.point_view': POINTS_HTML,
+  'dae_grad_check': AUDIT_HTML, 'graduation_requirement.jsp': requirementPage,
+}), { menuHtml: MENU_HTML + '<a href="jsp/student/graduation_requirement.jsp">졸업요건</a>', mainHtml: ID_HTML });
+t('collect: 졸업요건 슬롯에서 두 트랙 표 수집', requirementsSnap.diag?.pages.some((p) => p.slot === 'requirements' && p.ok) && requirementsSnap.requirements?.[0]?.rows[2]?.[0]?.text === '빅데이터');
+const brokenRequirements = await collectInfo(fakeSession({
+  's_sung.s_sung_grade': GRADES_HTML, 's_etc.point_view': POINTS_HTML,
+  'dae_grad_check': AUDIT_HTML, 'graduation_requirement.jsp': '<div>일시 장애</div>',
+}), { menuHtml: MENU_HTML + '<a href="jsp/student/graduation_requirement.jsp">졸업요건</a>', mainHtml: ID_HTML });
+t('collect: 잘못된 졸업요건 페이지는 이전 표 보존', brokenRequirements.diag?.pages.some((p) => p.slot === 'requirements' && p.reason === 'structure') && mergeInfoSnapshot(requirementsSnap, brokenRequirements).requirements?.[0]?.rows[2]?.[0]?.text === '빅데이터');
 t('collect: 스냅샷 조립', snap.source === 'info-hansung');
 t('collect: 과목 수', snap.completed.length === 4);
 t('collect: 포인트', snap.points === 780);

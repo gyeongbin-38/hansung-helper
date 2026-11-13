@@ -15,7 +15,13 @@ export type InfoCourse = {
   semester?: string;
   /** 성적 등급 원문 (A+ 등) — 참고용 */
   grade?: string;
+  /** 학교 성적표에 영역이 명시된 경우에만 보존 */
+  area?: string;
 };
+
+/** 졸업요건 표 — 제목과 셀 병합 정보까지 원형 보존 */
+export type InfoRequirementCell = { text: string; colspan: number; rowspan: number; header: boolean };
+export type InfoRequirementTable = { heading: string; rows: InfoRequirementCell[][] };
 
 /** 졸업가사정표 행 — 구분/기준/취득/판정 원문 (숫자 강제 변환 없음) */
 export type InfoAuditRow = {
@@ -70,8 +76,17 @@ export type InfoSnapshot = {
   points?: number;
   /** 누적 평점 (있으면) */
   gpa?: number;
+  /** 성적 페이지에서 평점을 확인한 시각 라벨 */
+  gpaVerifiedAt?: string;
+  /** 학적 트랙 — 단일 값 또는 복수 트랙 */
+  track?: string;
+  tracks?: string[];
   /** 이수 완료 과목 (누적 성적 조회 페이지) */
   completed: InfoCourse[];
+  /** 미이수(F 등) 과목 — 이수 목록과 분리 보존 */
+  failedCourses?: InfoCourse[];
+  /** 졸업요건 표 — 학교 기준 원형 */
+  requirements?: InfoRequirementTable[];
   /** 학적 요약 — 학년·재학상태·트랙·입학일 */
   academic?: InfoAcademic;
   /** 학기별 성적 요약 + 과목 (성적조회 학기별 페이지) */
@@ -100,7 +115,8 @@ export function infoCategory(raw: string): string {
   if (/전공?필수|전필|계필/.test(s)) return '전필';
   if (/전공?선택|전선|MD전선/.test(s)) return '전선';
   if (/전공?기초|전기/.test(s)) return '전기';
-  if (/선필교|교양?필수|필수교양|교필/.test(s)) return '교필';
+  if (/선필교|선택필수교양|교양선택필수/.test(s)) return '선필교';
+  if (/교양?필수|필수교양|교필/.test(s)) return '교필';
   if (/교양?선택|교선|일반?교양|일교/.test(s)) return '일교';
   if (/일반?선택|자유?선택|일선|자선/.test(s)) return '일선';
   // 모르는 구분은 원문 유지 — gradGroup이 '기타'로 보내고 화면엔 원문이 보인다
@@ -142,6 +158,7 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
     credits: c.credits,
     semester: str(c.semester, 10),
     grade: str(c.grade, 10),
+    area: str(c.area, 80),
   });
   const semesters = Array.isArray(s.semesters)
     ? s.semesters
@@ -199,9 +216,43 @@ export function validateInfo(v: unknown): InfoSnapshot | null {
     credits: num(s.credits, 300),
     points: num(s.points, 10000),
     gpa: num(s.gpa, 10),
+    gpaVerifiedAt: str(s.gpaVerifiedAt, 40),
+    track: str(s.track, 80),
+    tracks: Array.isArray(s.tracks)
+      ? s.tracks
+          .filter((v): v is string => typeof v === 'string' && !!v.trim() && v.length <= 80)
+          .slice(0, 3)
+      : undefined,
     completed: Array.isArray(s.completed)
       ? s.completed.filter(isCourse).slice(0, 300).map(course)
       : [],
+    failedCourses: Array.isArray(s.failedCourses)
+      ? s.failedCourses.filter(isCourse).slice(0, 300).map(course)
+      : undefined,
+    requirements: Array.isArray(s.requirements)
+      ? s.requirements
+          .flatMap((t): InfoRequirementTable[] => {
+            if (!t || typeof t !== 'object' || typeof (t as InfoRequirementTable).heading !== 'string' || !Array.isArray((t as InfoRequirementTable).rows)) return [];
+            const rows = (t as InfoRequirementTable).rows
+              .filter(Array.isArray)
+              .slice(0, 80)
+              .map((row) =>
+                row.slice(0, 20).flatMap((c): InfoRequirementCell[] => {
+                  if (!c || typeof c !== 'object' || typeof (c as InfoRequirementCell).text !== 'string') return [];
+                  const span = (v: unknown) =>
+                    typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 20 ? v : 1;
+                  return [{
+                    text: (c as InfoRequirementCell).text.slice(0, 200),
+                    colspan: span((c as InfoRequirementCell).colspan),
+                    rowspan: span((c as InfoRequirementCell).rowspan),
+                    header: (c as InfoRequirementCell).header === true,
+                  }];
+                }),
+              );
+            return [{ heading: (t as InfoRequirementTable).heading.slice(0, 120), rows }];
+          })
+          .slice(0, 12)
+      : undefined,
     academic,
     semesters,
     creditCategories,
@@ -270,6 +321,7 @@ export type MergedCourse = {
   semester?: string;
   /** 성적 등급 원문 — 수집본에만 있을 수 있다 */
   grade?: string;
+  area?: string;
 };
 
 /** 부분 수집 병합 — diag.pages에서 fetch가 확인된(ok) 슬롯만 새 값을 믿고,
@@ -288,6 +340,21 @@ export function mergeInfoSnapshot(
   const semesterOk = ok('semesterGrades');
   const academicOk = ok('academic');
   const semesterCompleted = next.semesters?.flatMap((s) => s.courses) ?? [];
+  const gradesUnconfirmed =
+    next.diag?.pages.some((p) => p.slot === 'grades' && p.reason === 'unconfirmed') ?? false;
+  const failedCourses = gradesOk
+    ? next.failedCourses
+    : gradesUnconfirmed
+      ? [...(prev.failedCourses ?? []), ...(next.failedCourses ?? [])].filter(
+          (course, index, all) =>
+            all.findIndex(
+              (candidate) =>
+                candidate.code === course.code &&
+                candidate.name === course.name &&
+                candidate.semester === course.semester,
+            ) === index,
+        )
+      : prev.failedCourses;
   return {
     ...next,
     name: next.name ?? prev.name,
@@ -295,11 +362,16 @@ export function mergeInfoSnapshot(
     admitYear: next.admitYear ?? prev.admitYear,
     credits: gradesOk ? (next.credits ?? prev.credits) : prev.credits,
     gpa: gradesOk ? (next.gpa ?? prev.gpa) : prev.gpa,
+    gpaVerifiedAt: gradesOk && next.gpa !== undefined ? next.gpaVerifiedAt : prev.gpaVerifiedAt,
+    track: next.track ?? prev.track,
+    tracks: next.tracks?.length ? next.tracks : prev.tracks,
     completed: gradesOk
       ? next.completed
       : prev.completed.length
         ? prev.completed
         : semesterCompleted,
+    failedCourses,
+    requirements: ok('requirements') ? (next.requirements ?? prev.requirements) : prev.requirements,
     academic: academicOk ? (next.academic ?? prev.academic) : prev.academic,
     semesters:
       semesterOk && (next.semesters?.length ?? 0) > 0

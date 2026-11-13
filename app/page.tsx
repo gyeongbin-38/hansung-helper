@@ -51,7 +51,6 @@ import { SettingsSection } from './sections/settings';
 import { SurveyPage } from './sections/survey';
 import { SurveyDialog } from './sections/survey-dialog';
 import { surveyEntryRoute } from '@/lib/data/survey';
-import { Mascot } from './mascot';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
@@ -641,7 +640,7 @@ export default function App() {
   async function deleteAccount() {
     if (
       !window.confirm(
-        '학사 도우미에 저장한 내 계정 자료를 모두 삭제할까요? 학교 원본 정보는 변경되지 않습니다.',
+        '학사 도우미 계정의 프로필·계획·학교 수집 정보와 모든 로그인 세션을 삭제할까요? 복구할 수 없습니다. 학교 원본과 이 브라우저의 별도 체험 데이터는 유지됩니다.',
       )
     )
       return;
@@ -1175,18 +1174,6 @@ export default function App() {
         go={go}
       />
       <ToastStack toasts={toasts} onClose={dismissToast} />
-      <Mascot
-        enabled={data.mascotEnabled !== false}
-        guideSeen={!!data.mascotGuideSeen}
-        isNewUser={!account || !account.onboarded}
-        survey={surveyOpen ? 'course' : false}
-        route={section}
-        hidden={drawer || notifOpen || (!account && !data.consent)}
-        data={data}
-        persist={persist}
-        go={go}
-        onOpenSurvey={() => go('survey')}
-      />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}
@@ -1211,7 +1198,6 @@ export default function App() {
         draft={painDraft}
         setDraft={setPainDraft}
         setStep={setPainStep}
-        mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setPainSurvey(false)}
         onSubmit={(prefs) => {
           void persist(

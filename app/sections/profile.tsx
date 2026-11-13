@@ -26,7 +26,7 @@ export function ProfileSection({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const focusField =
-    focus === 'dept' || focus === 'year' ? focus : null;
+    focus === 'dept' || focus === 'year' || focus === 'points' ? focus : null;
   useEffect(() => {
     if (!focusField) return;
     const input = formRef.current?.querySelector<HTMLInputElement>(
@@ -56,6 +56,7 @@ export function ProfileSection({
           ? '프로필과 계획은 내 계정에 저장됩니다. 직접 입력한 학점·포인트는 학교 검증 자료와 구분됩니다.'
           : '체험 정보는 이 브라우저에만 저장됩니다.'}
       </p>
+      {data.info?.track && <p className="meta">학교 수집 트랙·전공: {data.info.tracks?.join(' · ') || data.info.track} · 소속 학과와 별도로 표시합니다.</p>}
       {gradMissing.length > 0 && (
         <p className="meta profile-hint">
           졸업요건 계산에 필요: {gradMissing.join('·')}
