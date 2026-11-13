@@ -1266,7 +1266,7 @@ export default function App() {
           )}
           <footer>
             <span>한성 학사 도우미</span>
-            <span>나만의 속도로, 다음 학기를 향해.</span>
+            <span>세계로 뻗어나가는 한성, 한성으로 모여드는 세계</span>
             <span>한성대학교 비공식 서비스</span>
           </footer>
         </main>
