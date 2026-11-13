@@ -23,7 +23,15 @@ export function collectionStatus(
   const previous = input.hasData
     ? ' 기존에 가져온 정보는 계속 볼 수 있어요.'
     : '';
-  if (input.failed)
+  // 이미 가져온 정보가 신선도 기준 안쪽이면 실패 배지로 가리지 않는다 —
+  // 마지막 시도만 실패한 것이지 화면의 데이터가 오래된 것은 아니다.
+  const fetched = Date.parse(input.fetchedAt ?? '');
+  const freshData =
+    input.hasData &&
+    Number.isFinite(fetched) &&
+    fetched <= now &&
+    now - fetched < (input.staleAfterDays ?? 1) * 86400000;
+  if (input.failed && !freshData)
     return {
       label: '최근 수집 실패',
       detail: `마지막 요청에서 정보를 확인하지 못했어요.${previous}`,
@@ -60,7 +68,6 @@ export function collectionStatus(
         '확인하지 못한 항목이나 이전 결과가 포함돼 있어요. 항목별 상태를 확인해 주세요.',
       warning: true,
     };
-  const fetched = Date.parse(input.fetchedAt ?? '');
   if (!Number.isFinite(fetched) || fetched > now)
     return {
       label: '수집 시각 확인 필요',

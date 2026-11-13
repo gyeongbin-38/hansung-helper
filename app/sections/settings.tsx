@@ -9,9 +9,23 @@ import {
   collectionStatus,
   type CollectionStatus,
 } from '@/lib/data/collection-status';
-import { formatLmsTime } from '@/lib/data/lms';
+import {
+  formatLmsTime,
+  matchEnrollment,
+} from '@/lib/data/lms';
+import type { InfoPageFailure } from '@/lib/data/info';
+import { ConnCard, lmsConnLastError, type ExtSync } from './lms';
 import { useActivities, useNow, useSchedule } from './catalog';
 import { DemoStorage, StoredDataView } from './demo-storage';
+
+/** 종합정보 수집 실패 사유 → 화면 표시명 */
+const INFO_FAIL_LABELS: Record<InfoPageFailure, string> = {
+  'session-expired': '학교 세션 만료',
+  upstream: '학교 응답 없음',
+  structure: '페이지 형식이 바뀜',
+  missing: '메뉴에서 찾지 못함',
+  unconfirmed: '확인되지 않음',
+};
 
 function SourceCard({
   title,
@@ -62,6 +76,15 @@ export function SettingsSection({
   onResetDemo,
   catalog,
   activities,
+  notify,
+  ext,
+  serverCollecting,
+  collectFailed,
+  lmsUnavailable,
+  lmsError,
+  studentMask,
+  onAccount,
+  onExtRefresh,
 }: {
   account: Account | null;
   data: Data;
@@ -72,6 +95,16 @@ export function SettingsSection({
   onResetDemo: () => boolean;
   catalog: Catalog | null;
   activities: ActivitySnapshot | null;
+  notify?: (msg: string) => void;
+  /** 확장 프로그램 브리지 상태 — 수업 현황의 연결 관리와 같은 값 */
+  ext?: ExtSync;
+  serverCollecting?: boolean;
+  collectFailed?: boolean;
+  lmsUnavailable?: boolean;
+  lmsError?: string;
+  studentMask?: string;
+  onAccount?: (account: Account) => void;
+  onExtRefresh?: () => void;
 }) {
   const now = useNow();
   const activityState = useActivities();
@@ -135,6 +168,7 @@ export function SettingsSection({
         !!snapshot?.lmsError ||
         (!!account && snapshot?.lms === 'unavailable' && !snapshot.lmsPending),
       partial: lmsIssues.length > 0,
+      staleAfterDays: 0.5, // 수업 현황 카드의 12시간 신선도 기준과 동일하다.
     },
     now,
   );
@@ -160,6 +194,30 @@ export function SettingsSection({
     },
     now,
   );
+  // 연결 관리 — 수업 현황 화면과 같은 판정·같은 카드를 설정에서도 연다.
+  const extStatus: ExtSync = ext ?? { installed: false, status: 'idle' };
+  const connSyncing = !!serverCollecting || extStatus.status === 'syncing';
+  const connLastError = lmsConnLastError({
+    extStatus,
+    lmsUnavailable,
+    lmsError,
+    collectFailed,
+  });
+  const lmsMatches =
+    data.lms && catalog
+      ? matchEnrollment(data.lms, catalog, data.lmsMatch)
+      : [];
+  // 슬롯별 수집 진단 — 같은 슬롯의 페이지 중 하나라도 성공하면 확인된 것으로 본다
+  const infoDiagRows = [
+    ...infoPages
+      .reduce((map, p) => {
+        const prev = map.get(p.slot);
+        if (!prev || (!prev.ok && p.ok))
+          map.set(p.slot, { ok: p.ok, reason: p.reason });
+        return map;
+      }, new Map<string, { ok: boolean; reason?: InfoPageFailure }>())
+      .entries(),
+  ];
   async function runAction(kind: 'logout' | 'delete') {
     if (actionPending.current) return;
     actionPending.current = true;
@@ -237,6 +295,51 @@ export function SettingsSection({
             </a>
           </SourceCard>
         </div>
+        {(infoDiagRows.length > 0 || data.lms) && (
+          <details
+            className="study-management settings-conn"
+            open={!!connLastError || infoIssues.length > 0}
+          >
+            <summary>연결 관리 · 수집 진단</summary>
+            {infoDiagRows.length > 0 && (
+              <>
+                <p className="meta settings-conn-head">종합정보시스템</p>
+                <dl className="conn-rows">
+                  {infoDiagRows.map(([slot, row]) => (
+                    <div key={slot}>
+                      <dt>{infoLabels[slot] ?? slot}</dt>
+                      <dd className={row.ok ? undefined : 'conn-err'}>
+                        {row.ok
+                          ? '확인됨'
+                          : INFO_FAIL_LABELS[row.reason ?? 'unconfirmed']}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
+            {data.lms && (
+              <>
+                <p className="meta settings-conn-head">COSMOS / e-Class</p>
+                <ConnCard
+                  snap={data.lms}
+                  now={now}
+                  ext={extStatus}
+                  syncing={connSyncing}
+                  lastError={connLastError}
+                  matches={lmsMatches}
+                  catalogReady={!!catalog}
+                  canRefresh={!!onAccount && !!studentMask}
+                  studentMask={studentMask}
+                  onAccount={onAccount}
+                  notify={notify}
+                  busy={serverCollecting}
+                  onExtRefresh={onExtRefresh}
+                />
+              </>
+            )}
+          </details>
+        )}
         <p className="meta">
           종합정보는 학교 계정으로 로그인할 때 조회해요. 수업 현황에서는 서버
           재수집과 가져오기 안내를 확인할 수 있어요. 학교 비밀번호는 저장하지

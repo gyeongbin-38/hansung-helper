@@ -45,6 +45,8 @@ import {
 
 const LMS_BASE = 'https://learn.hansung.ac.kr';
 const DAY = 86400000;
+/** 이 시간 안에 수집된 스냅샷이면 경로 오류가 있어도 '업데이트 필요'로 울리지 않는다 */
+const LMS_FRESH_MS = 12 * 3600e3;
 
 /** 수집 오류 코드 → 화면 표시명 */
 const ERROR_LABELS: Record<string, string> = {
@@ -450,7 +452,6 @@ export function LmsSection({
   const [view, setView] = useState<'courses' | 'binge'>('courses');
   const tasksView = detail === 'tasks';
   const snap = data.lms;
-  const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
   const extStatus: ExtSync = ext ?? { installed: false, status: 'idle' };
   const syncing = !!serverCollecting || extStatus.status === 'syncing';
@@ -460,35 +461,35 @@ export function LmsSection({
     currentSemesterStart(now);
   const pendCount = snap ? pendingTasks(snap, before).length : 0;
 
+  // 수집본이 12시간 안쪽이면 신선 — 경로별 오류는 연결 관리에만 남기고
+  // 상태 배지를 '업데이트 필요'로 울리지 않는다.
+  const fetchedMs = snap ? Date.parse(snap.fetchedAt) : NaN;
+  const freshEnough = Number.isFinite(fetchedMs) && now - fetchedMs < LMS_FRESH_MS;
   // 단일 동기화 상태 — 밴드와 연결 관리가 같은 판정을 본다
   const band: 'syncing' | 'login' | 'failed' | 'delayed' | 'setup' | 'stale' | 'fresh' =
     syncing
       ? 'syncing'
       : extStatus.status === 'login-required'
-        ? 'login'
+        ? freshEnough
+          ? 'fresh'
+          : 'login'
         : extStatus.status === 'failed' || collectFailed || lmsUnavailable
-          ? 'failed'
+          ? freshEnough
+            ? 'fresh'
+            : 'failed'
           : collectDelayed
             ? 'delayed'
           : !snap
             ? 'setup'
-            : stale !== null && stale >= 1
-              ? 'stale'
-              : 'fresh';
-  const lastError =
-    extStatus.status === 'failed'
-      ? extStatus.error
-      : lmsUnavailable
-        ? lmsError === 'auth'
-          ? 'COSMOS 로그인 거부 — 학교 포털과 다른 비밀번호이거나 COSMOS 계정이 아직 없을 수 있습니다'
-          : lmsError === 'landing'
-            ? 'COSMOS 로그인 후 안내 페이지에서 멈췄습니다 — 직접 로그인해 안내를 완료해 주세요'
-            : lmsError === 'session'
-              ? '저장된 학교 세션이 만료되었습니다. 비밀번호로 다시 연결해 주세요.'
-              : 'COSMOS 접속 실패'
-        : collectFailed
-          ? '서버 수집 미완료'
-          : undefined;
+            : freshEnough
+              ? 'fresh'
+              : 'stale';
+  const lastError = lmsConnLastError({
+    extStatus,
+    lmsUnavailable,
+    lmsError,
+    collectFailed,
+  });
 
   // 카탈로그 매칭 진단 — 이름이 다른 과목은 조용히 넘기지 않고 집계한다.
   // data.lmsMatch의 사용자 보정(직접 연결·제외)을 자동 매칭 위에 적용한다.
@@ -1118,8 +1119,36 @@ function SetupGuide({
   );
 }
 
-/** 연결 관리 — 동기화 상태·수집 경로·진단·수동 수단을 한 카드에 모은다 */
-function ConnCard({
+/** 수집 경로별 마지막 오류 문구 — LMS 연결 카드와 설정 화면이 같은 판정을 본다 */
+export function lmsConnLastError({
+  extStatus,
+  lmsUnavailable,
+  lmsError,
+  collectFailed,
+}: {
+  extStatus: ExtSync;
+  lmsUnavailable?: boolean;
+  lmsError?: string;
+  collectFailed?: boolean;
+}): string | undefined {
+  return extStatus.status === 'failed'
+    ? extStatus.error
+    : lmsUnavailable
+      ? lmsError === 'auth'
+        ? 'COSMOS 로그인 거부 — 학교 포털과 다른 비밀번호이거나 COSMOS 계정이 아직 없을 수 있습니다'
+        : lmsError === 'landing'
+          ? 'COSMOS 로그인 후 안내 페이지에서 멈췄습니다 — 직접 로그인해 안내를 완료해 주세요'
+          : lmsError === 'session'
+            ? '저장된 학교 세션이 만료되었습니다. 비밀번호로 다시 연결해 주세요.'
+            : 'COSMOS 접속 실패'
+      : collectFailed
+        ? '서버 수집 미완료'
+        : undefined;
+}
+
+/** 연결 관리 — 동기화 상태·수집 경로·진단·수동 수단을 한 카드에 모은다.
+ *  수업 현황과 설정 화면 양쪽에서 같은 카드를 쓴다. */
+export function ConnCard({
   snap,
   now,
   ext,
@@ -1150,9 +1179,9 @@ function ConnCard({
   notify?: (msg: string) => void;
   busy?: boolean;
   onExtRefresh?: () => void;
-  onImport: () => void;
-  onDelete: () => Promise<boolean>;
-  err: string;
+  onImport?: () => void;
+  onDelete?: () => Promise<boolean>;
+  err?: string;
 }) {
   const d = snap.diag;
   return (
@@ -1270,14 +1299,20 @@ function ConnCard({
             busy={busy}
           />
         )}
-        <div className="lms-script-actions">
-          <button className="secondary" onClick={onImport}>
-            <Upload size={14} /> 파일로 가져오기
-          </button>
-          <button className="secondary" onClick={() => void onDelete()}>
-            <Trash2 size={14} /> 데이터 삭제
-          </button>
-        </div>
+        {(onImport || onDelete) && (
+          <div className="lms-script-actions">
+            {onImport && (
+              <button className="secondary" onClick={onImport}>
+                <Upload size={14} /> 파일로 가져오기
+              </button>
+            )}
+            {onDelete && (
+              <button className="secondary" onClick={() => void onDelete()}>
+                <Trash2 size={14} /> 데이터 삭제
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {err && <p className="lms-error">{err}</p>}
     </section>

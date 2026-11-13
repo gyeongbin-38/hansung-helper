@@ -41,14 +41,33 @@ test('수집 중에도 이전 자료 유무를 구분하고 지연·시각 미�
   }
 });
 
-test('실패 표시가 남은 pending과 이전 자료를 수집 성공으로 오해하지 않게 한다', () => {
-  const status = collectionStatus(
-    { ...fresh, failed: true, pending: true },
+test('실패 표시는 자료가 오래됐을 때만 경고하고 신선한 수집본은 그대로 둔다', () => {
+  const stale = {
+    hasData: true,
+    fetchedAt: new Date(now - 2 * 86400000).toISOString(),
+  };
+  const failedStale = collectionStatus(
+    { ...stale, failed: true, pending: true },
     now,
   );
-  assert.equal(status.label, '최근 수집 실패');
-  assert.equal(status.warning, true);
-  assert.match(status.detail, /기존에 가져온 정보/);
+  assert.equal(failedStale.label, '최근 수집 실패');
+  assert.equal(failedStale.warning, true);
+  assert.match(failedStale.detail, /기존에 가져온 정보/);
+  // 방금 가져온 자료가 있으면 마지막 시도 실패만으로 경고를 띄우지 않는다
+  const failedFresh = collectionStatus({ ...fresh, failed: true }, now);
+  assert.equal(failedFresh.label, '수집본 있음');
+  assert.equal(failedFresh.warning, false);
+  // 수집이 진행 중이면 실패 플래그보다 진행 상태를 우선 안내한다
+  const pendingFresh = collectionStatus(
+    {
+      ...fresh,
+      failed: true,
+      pending: true,
+      startedAt: new Date(now - 30000).toISOString(),
+    },
+    now,
+  );
+  assert.equal(pendingFresh.label, '수집 중');
 });
 
 test('방금 받은 데이터라도 부분 실패는 별도로 안내한다', () => {
