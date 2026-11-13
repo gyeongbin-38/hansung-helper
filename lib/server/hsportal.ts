@@ -25,9 +25,6 @@ export type PortalPageDiag = {
   reason?: InfoPageFailure;
 };
 
-const fail = (reason: InfoPageFailure, path = 'hsportal:mypage/point') =>
-  ({ ok: false as const, reason, path });
-
 /** 로그인 벽·비로그인 마커 — 빈 목록이 아니라 인증 부재로 분류한다. */
 const isPortalLoginWall = (html: string) =>
   /회원\s*로그인이\s*필요|data-logged=["']?0|로그인\s*후\s*이용/.test(html);
@@ -114,9 +111,12 @@ function pickField(json: Record<string, unknown>, kind: 'url' | 'token') {
   return undefined;
 }
 
+type BridgeResult = { html: string | null; sawWall: boolean };
+
 /** LMS 세션으로 포털 로그인을 연동하고 포인트 페이지를 가져온다.
- *  성공 시 해당 HTML, 실패 시 null을 반환한다(진단은 호출자가 기록). */
-async function bridgeAndFetch(session: PortalSession): Promise<string | null> {
+ *  성공 시 해당 HTML, 실패 시 null을 반환한다(진단은 호출자가 기록).
+ *  sawWall은 마지막으로 확인한 상태가 로그인 벽이었는지를 뜻한다. */
+async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
   let budget = BUDGET;
   const get = async (url: string): Promise<string | null> => {
     if (budget-- <= 0) return null;
@@ -134,7 +134,8 @@ async function bridgeAndFetch(session: PortalSession): Promise<string | null> {
 
   // ① 이미 포털 로그인이 살아 있으면 브리지 불필요
   const direct = await get(PORTAL + POINT_PATH);
-  if (direct && !isPortalLoginWall(direct)) return direct;
+  const sawWall = !!direct && isPortalLoginWall(direct);
+  if (direct && !sawWall) return { html: direct, sawWall };
 
   // ② 연동 토큰 획득 — getCoursemosUrl(type=session) 또는
   //    syncCoursemosLms가 LMS 동기화 URL을 돌려준다.
@@ -161,11 +162,12 @@ async function bridgeAndFetch(session: PortalSession): Promise<string | null> {
       }
     }
   }
-  if (!token) return null;
+  if (!token) return { html: null, sawWall };
   // ④ 토큰으로 포털 세션 수립 후 포인트 페이지를 다시 가져온다.
   const login = await post(`${PROCESS}/syncCoursemosLmsLogin`, { token });
-  if (!login || login.success !== true) return null;
-  return get(PORTAL + POINT_PATH);
+  if (!login || login.success !== true) return { html: null, sawWall };
+  const html = await get(PORTAL + POINT_PATH);
+  return { html, sawWall: sawWall || (!!html && isPortalLoginWall(html)) };
 }
 
 /** 종합정보 스냅샷에 포털 포인트를 병합한다.
@@ -179,18 +181,20 @@ export async function fillPortalPoints(
   if (snap.points !== undefined) return false;
   snap.diag ??= { menu: [], pages: [] };
   snap.diag.pages ??= [];
-  let html: string | null;
+  let result: BridgeResult;
   try {
-    html = await bridgeAndFetch(session);
+    result = await bridgeAndFetch(session);
   } catch {
-    html = null;
+    result = { html: null, sawWall: false };
   }
+  const html = result.html;
   if (!html) {
     snap.diag.pages.push({
       slot: 'points',
       path: 'hsportal:mypage/point',
       ok: false,
-      reason: 'missing',
+      // 로그인 벽까지 확인된 실패는 세션 문제, 그 외는 통신 실패로 분류
+      reason: result.sawWall ? 'session-expired' : 'upstream',
     });
     return true;
   }
