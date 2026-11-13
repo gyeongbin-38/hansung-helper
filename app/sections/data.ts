@@ -8,6 +8,7 @@ import {
   Layers,
   BookOpen,
   MonitorPlay,
+  ClipboardList,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -23,6 +24,7 @@ export const menus = [
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
   ['advisor', 'AI 학사 도우미', Sparkles],
+  ['survey', '설문조사', ClipboardList],
 ] as const;
 export type Completed = {
   code: string;
@@ -52,6 +54,8 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 첫 설문 안내와 중단·완료 상태. 기존 답변 배열과 별도로 보관한다. */
+  surveyStatus?: 'in-progress' | 'completed' | 'skipped';
   /** 온보딩에서 저장한 학기 계획과 진행 상태 */
   semester?: string;
   graduationTarget?: string;
@@ -123,7 +127,7 @@ export const questions = [
   ['어떤 학기 구성을 원하나요?', '공강일 확보', '고른 배치', '상관없음'],
 ];
 
-/** 비교과·대외활동 취향 설문 — activities 섹션 전용 */
+/** 비교과·대외활동 취향 설문 — 독립 설문 페이지에서 수업 설문과 함께 사용 */
 export const ACT_QUESTIONS = [
   [
     '비교과 활동의 목표는 무엇인가요?',

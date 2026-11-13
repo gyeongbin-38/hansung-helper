@@ -56,6 +56,24 @@ test('admission type follows local edits and preserves unrelated remote selectio
 });
 const d = (over) => ({ ...base, ...over });
 
+test('설문은 반복 선택지와 빈 답변의 문항 위치를 보존한다', () => {
+  const initial = d({ prefs: [], actPrefs: [] });
+  const prefs = ['전공 심화', '상관없음', '', '상관없음', '상관없음', '상관없음'];
+  const actPrefs = ['', '상관없음', '상관없음', '상관없음', ''];
+  const merged = mergeProfile(initial, { ...initial, prefs, actPrefs, surveyStatus: 'in-progress' }, initial);
+  assert.deepEqual(merged.prefs, prefs);
+  assert.deepEqual(merged.actPrefs, actPrefs);
+  assert.equal(merged.surveyStatus, 'in-progress');
+});
+
+test('설문 문항 수정은 해당 위치만 바꾸고 다른 탭의 답변과 상태를 보존한다', () => {
+  const initial = d({ prefs: ['전공 심화', '오전', '없음'], surveyStatus: 'in-progress' });
+  const remote = { ...initial, prefs: ['전공 심화', '오전', '금요일'], surveyStatus: 'completed' };
+  const merged = mergeProfile(initial, { ...initial, prefs: ['전공 심화', '오후', '없음'] }, remote);
+  assert.deepEqual(merged.prefs, ['전공 심화', '오후', '금요일']);
+  assert.equal(merged.surveyStatus, 'completed');
+});
+
 test('양쪽 추가분은 모두 살아난다 — 집합 병합', () => {
   const merged = mergeProfile(
     d(),
