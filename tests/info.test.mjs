@@ -6,6 +6,7 @@ import {
   parseGrades,
   parsePoints,
   parseAudit,
+  parseGradeAudit,
   parseRequirementTables,
   parseIdentity,
   parseSemesterGrades,
@@ -227,6 +228,41 @@ const audit = parseAudit(AUDIT_HTML);
 t('audit: 3행', audit?.length === 3);
 t('audit: 필드', audit?.[0].area === '총 취득학점' && audit?.[0].required === '130' && audit?.[0].verdict === '진행중');
 t('audit: 표 없으면 undefined', parseAudit('<div>none</div>') === undefined);
+
+// ── 누적성적 요약표 → 사정표 합성 (사정표 '자료 없음' 학생용) ──
+// 실제 total_grade.jsp 캡처 구조: 영역별 '이수 / (기준)' 요약 + 이수구분(트랙) + 공식 기준
+const GRADE_SUMMARY_HTML = `<html><body>
+<table><thead><tr><th>구분</th><th>교과목</th><th>학점</th><th>교과목</th><th>학점</th></tr></thead>
+<tbody><tr><td colspan="5">필수교양(기초)</td></tr>
+<tr><td>사고와 표현</td><td>3 / (3)</td><td></td><td></td></tr>
+<tr><td class="warning">소 계</td><td colspan="4">13 / (13)</td></tr></tbody></table>
+<table><thead><tr><th>구분</th><th>교과목</th><th>학점</th><th>교과목</th><th>학점</th></tr></thead>
+<tbody><tr><td colspan="5">선택필수교양</td></tr>
+<tr><td>사회과학 과목 (사회과학적 상상력)</td><td>3</td><td>자연과학 및 공학 과목 (과학기술 상상력)</td><td>0</td></tr>
+<tr><td class="warning">소 계</td><td>이수 학점 6 / (15)</td><td>이수 분야 2 / (4)</td></tr></tbody></table>
+<table><thead><tr><th>이수구분</th><th>전공기초</th><th>전공지정 (전공필수)</th><th>전공소계 (기초,지정,선택)</th><th>총합계</th></tr></thead>
+<tbody>
+<tr><td>제1트랙</td><td>3 / ( 3 )</td><td>3 / ( 15 )</td><td>9 / ( 39 )</td><td>18 / ( 78)</td></tr>
+<tr><td>제2트랙</td><td>3 / ( 3 )</td><td>0 / ( 15 )</td><td>9 / ( 39 )</td></tr>
+<tr><td>부전공</td><td>0 / (0(0))</td><td>0 / (0)</td><td>0 / (0)</td></tr>
+</tbody></table>
+<table><thead><tr><th>졸업에 필요한 학점</th><th>130학점</th><th>졸업에 필요한 비교과포인트</th><th>800pt</th></tr></thead>
+<tbody><tr><td>*안내 문구*</td></tr></tbody></table>
+<table><thead><tr><th>구분</th><th>교과명</th><th>교과코드</th><th>학점</th><th>성적</th></tr></thead>
+<tbody><tr><td>전필</td><td>인공지능 수학</td><td>Y030004</td><td>3</td><td>C+</td></tr></tbody></table>
+</body></html>`;
+const ga = parseGradeAudit(GRADE_SUMMARY_HTML);
+const gaFind = (area) => ga?.find((r) => r.area === area);
+t('grade-audit: 행 존재', !!ga?.length);
+t('grade-audit: 전공 총합계', gaFind('전공(총합계)')?.earned === '18' && gaFind('전공(총합계)')?.required === '78');
+t('grade-audit: 전공필수 양트랙 합산', gaFind('전공필수')?.earned === '3' && gaFind('전공필수')?.required === '30');
+t('grade-audit: 부전공 제외', !ga?.some((r) => r.area.includes('부전공')));
+t('grade-audit: 필수교양', gaFind('필수교양(기초)')?.earned === '13' && gaFind('필수교양(기초)')?.required === '13');
+t('grade-audit: 선택필수교양 학점 우선(분야 아님)', gaFind('선택필수교양')?.earned === '6' && gaFind('선택필수교양')?.required === '15');
+t('grade-audit: 총 학점·포인트 기준', gaFind('졸업 이수학점')?.required === '130' && gaFind('비교과포인트')?.required === '800');
+t('grade-audit: 트랙별 세부', gaFind('전공필수(제1트랙)')?.earned === '3' && gaFind('전공필수(제2트랙)')?.earned === '0');
+t('grade-audit: 결합 행이 세부보다 앞', (ga?.findIndex((r) => r.area === '전공(총합계)') ?? 9) < (ga?.findIndex((r) => r.area === '전공필수(제1트랙)') ?? 0));
+t('grade-audit: 사정 페이지 자료없음 문구는 undefined', parseGradeAudit('<table><tr><td>졸업(가)사정 자료가 존재하지 않습니다.</td></tr></table>') === undefined);
 
 // ── 학적 요약 ─────────────────────────────────────────────
 const ID_HTML = `<table><tr><th>성명</th><td>홍길동</td></tr>
@@ -471,8 +507,8 @@ t(
   snap3.diag?.pages.some((p) => p.slot === 'menu' && p.ok) === true,
 );
 t(
-  'real collect: 사정표 대상 fetch',
-  snap3.diag?.pages.find((p) => p.slot === 'audit')?.ok === true,
+  'real collect: 사정표 자료없음 → structure 표시',
+  snap3.diag?.pages.find((p) => p.slot === 'audit')?.reason === 'structure',
 );
 t(
   'real collect: 포인트 미검출 표시',

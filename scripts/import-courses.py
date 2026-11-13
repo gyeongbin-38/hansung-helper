@@ -53,8 +53,8 @@ def main():
     parser.add_argument('--semester', default='2026-2')
     parser.add_argument('--source', default=SRC)
     args = parser.parse_args()
-    if not re.fullmatch(r'20\d{2}-[12]', args.semester):
-        parser.error('semester must be YYYY-1 or YYYY-2')
+    if not re.fullmatch(r'20\d{2}-[1-4]', args.semester):
+        parser.error('semester must be YYYY-N (1,2=정규 3,4=계절)')
     if args.semester != '2026-2' and args.source == SRC:
         parser.error('provide the matching source file with --source')
     import openpyxl

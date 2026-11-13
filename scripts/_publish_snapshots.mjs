@@ -37,17 +37,17 @@ function* chunksOf(raw) {
   if (buf) yield buf;
 }
 
-const courseFiles = readdirSync(join(repo, 'lib/data')).filter((name) => /^catalog-20\d{2}-[12]\.json$/.test(name)).sort();
+const courseFiles = readdirSync(join(repo, 'lib/data')).filter((name) => /^catalog-20\d{2}-[1-4]\.json$/.test(name)).sort();
 if (!courseFiles.length) throw new Error('no course catalog found');
 // 과거 학기 카탈로그·교육과정은 번들에 넣지 않고 D1으로만 게시 (번들 크기 한도)
 // 디렉터리가 없으면(신규 체크아웃) 이력 kind 없이 진행한다
 const historyDir = join(repo, 'lib/data/history');
 const historyFiles = existsSync(historyDir) ? readdirSync(historyDir) : [];
 const historyCatalogs = historyFiles
-  .filter((name) => /^catalog-20\d{2}-[12]\.json$/.test(name))
+  .filter((name) => /^catalog-20\d{2}-[1-4]\.json$/.test(name))
   .sort();
 const curriculumFiles = historyFiles
-  .filter((name) => /^curriculum-20\d{2}-[12]\.json$/.test(name))
+  .filter((name) => /^curriculum-20\d{2}-[1-4]\.json$/.test(name))
   .sort();
 const KINDS = {
   courses: courseFiles.at(-1),

@@ -7,11 +7,11 @@ const modules = import.meta.glob<Catalog>('../../../lib/data/catalog-*.json', {
   eager: true,
   import: 'default',
 });
-const catalogs = Object.values(modules).filter((c) => /^20\d{2}-[12]$/.test(c.semester));
+const catalogs = Object.values(modules).filter((c) => /^20\d{2}-[1-4]$/.test(c.semester));
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get('semester');
-  if (requested && !/^20\d{2}-[12]$/.test(requested))
+  if (requested && !/^20\d{2}-[1-4]$/.test(requested))
     return Response.json({ ok: false, error: { code: 'INVALID_REQUEST', message: '학기 형식을 확인해 주세요.' } }, { status: 400 });
   const semester = requested ?? catalogs.map((c) => c.semester).sort().at(-1);
   const catalog = catalogs.find((c) => c.semester === semester);
