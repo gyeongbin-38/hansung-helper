@@ -350,3 +350,25 @@ test('resumeSchool preserves the vault on transport failure instead of claiming 
     );
   } finally { globalThis.fetch = original; }
 });
+
+test('school requests share one overall deadline across separate reads', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = AbortSignal.timeout;
+  const deadline = new AbortController();
+  let calls = 0;
+  let activeSignal;
+  AbortSignal.timeout = milliseconds => milliseconds === 90000 ? deadline.signal : originalTimeout(milliseconds);
+  globalThis.fetch = async (_url, init) => { calls++; activeSignal = init.signal; return new Response('ok'); };
+  try {
+    const session = new SchoolSession();
+    await session.request('https://learn.hansung.ac.kr/');
+    assert.equal(calls, 1);
+    deadline.abort();
+    assert(activeSignal.aborted, 'the overall signal reaches fetch, including body consumption');
+    await assert.rejects(session.request('https://info.hansung.ac.kr/'));
+    assert.equal(calls, 1, 'a new subrequest cannot reset an exhausted overall budget');
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+    globalThis.fetch = originalFetch;
+  }
+});

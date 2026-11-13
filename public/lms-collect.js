@@ -9,7 +9,7 @@
  */
 (async () => {
   const BASE = 'https://learn.hansung.ac.kr';
-  if (!location.href.startsWith(BASE)) {
+  if (location.origin !== BASE) {
     console.error('learn.hansung.ac.kr 페이지에서 실행해야 합니다.');
     return;
   }

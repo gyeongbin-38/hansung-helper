@@ -12,39 +12,57 @@ export async function hash(value: string) {
     .map((x) => x.toString(16).padStart(2, '0'))
     .join('');
 }
-export class PayloadTooLargeError extends Error {}
+export class PayloadTooLargeError extends Error { status = 413; }
+export class PayloadReadError extends PayloadTooLargeError {
+  constructor(status: 408 | 429) { super('request body unavailable'); this.status = status; }
+}
+let bodyReads = 0;
+const MAX_BODY_READS = 32;
 
-export async function readTextLimited(request: Request, maxBytes: number) {
+export async function readTextLimited(request: Request, maxBytes: number, timeoutMs = 15000) {
   const declaredLength = Number(request.headers.get('content-length'));
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes)
     throw new PayloadTooLargeError();
 
   if (!request.body) return '';
+  if (bodyReads >= MAX_BODY_READS) throw new PayloadReadError(429);
   const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
+  bodyReads++;
+  // One bounded buffer avoids retaining thousands of tiny/empty chunk objects.
+  const bytes = new Uint8Array(maxBytes);
   let total = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let abort = () => {};
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (total + value.byteLength > maxBytes) {
-        await reader.cancel().catch(() => {});
-        throw new PayloadTooLargeError();
+    const stopped = new Promise<never>((_, reject) => {
+      abort = () => {
+        reject(new PayloadReadError(408));
+        void reader.cancel().catch(() => {});
+      };
+      timer = setTimeout(abort, timeoutMs);
+      request.signal.addEventListener('abort', abort, { once: true });
+      if (request.signal.aborted) abort();
+    });
+    const consume = async () => {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        if (total + value.byteLength > maxBytes) {
+          void reader.cancel().catch(() => {});
+          throw new PayloadTooLargeError();
+        }
+        bytes.set(value, total);
+        total += value.byteLength;
       }
-      chunks.push(value);
-      total += value.byteLength;
-    }
+    };
+    await Promise.race([consume(), stopped]);
   } finally {
+    clearTimeout(timer);
+    request.signal.removeEventListener('abort', abort);
     reader.releaseLock();
+    bodyReads--;
   }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder().decode(bytes.subarray(0, total));
 }
 
 function accountIndexKeyBytes() {
@@ -230,6 +248,7 @@ export function json(
     400: 'INVALID_REQUEST',
     401: 'AUTH_REQUIRED',
     403: 'FORBIDDEN',
+    408: 'REQUEST_TIMEOUT',
     413: 'PAYLOAD_TOO_LARGE',
     429: 'RATE_LIMITED',
     503: 'SERVICE_UNAVAILABLE',

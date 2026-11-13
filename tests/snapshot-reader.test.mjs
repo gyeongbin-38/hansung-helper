@@ -24,3 +24,43 @@ test('snapshot reader serves complete generations and falls back when chunks are
   assert.deepEqual((await (await exports.snapshotGet('courses', { sections: [0] })).json()).data.sections, []);
   assert.deepEqual((await (await exports.snapshotGet('courses', { sections: [0] }, '', (data) => data.semester === '2026-2')).json()).data.sections, [0]);
 });
+
+test('snapshot cache bounds memory, coalesces requests and backs off failures', async () => {
+  const source = await readFile('lib/server/snapshots.ts', 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const calls = new Map();
+  let fail = false;
+  let block;
+  const db = { prepare: () => ({ bind: (kind) => ({ all: async () => {
+    calls.set(kind, (calls.get(kind) ?? 0) + 1);
+    if (block) await block;
+    if (fail) throw new Error('db unavailable');
+    return { results: kind.endsWith('@active') ? [] : [{ part: 0, payload: JSON.stringify({ kind, text: 'x'.repeat(kind === 'oversized' ? 3000000 : 1500000) }), fetched_at: '2026-11-13', updated_at: 1 }] };
+  } }) }) };
+  const exports = {};
+  vm.runInNewContext(js, { exports, require: () => ({ env: { DB: db } }), Date, Map, JSON, Number, Response });
+  const results = await Promise.all(Array.from({ length: 30 }, () => exports.snapshotGet('same', {})));
+  assert(results.every(response => response.status === 200));
+  assert.equal(calls.get('same@active'), 1, 'concurrent cache misses share one lookup');
+  for (let i = 0; i < 5; i++) await exports.snapshotGet(`large-${i}`, {});
+  await exports.snapshotGet('same', {});
+  assert.equal(calls.get('same@active'), 2, 'byte budget evicts old payloads instead of retaining every semester');
+  fail = true;
+  assert.equal((await exports.snapshotGetOnly('db-outage')).status, 503);
+  assert.equal((await exports.snapshotGetOnly('db-outage')).status, 503);
+  assert.equal(calls.get('db-outage@active'), 1, 'D1-only outage is unavailable throughout backoff, not missing');
+  await exports.snapshotGet('failure', {});
+  await exports.snapshotGet('failure', {});
+  assert.equal(calls.get('failure@active'), 1, 'DB failures have a short backoff');
+  fail = false;
+  assert.equal((await exports.snapshotGetOnly('oversized')).status, 503);
+  assert.equal((await exports.snapshotGetOnly('oversized')).status, 503, 'oversized history remains unavailable rather than falsely missing during backoff');
+  let unblock;
+  block = new Promise(resolve => { unblock = resolve; });
+  const running = Array.from({ length: 4 }, (_, i) => exports.snapshotGetOnly(`pending-${i}`));
+  const busy = await exports.snapshotGetOnly('overflow');
+  assert.equal(busy.status, 503, 'capacity exhaustion is not reported as missing history');
+  assert.equal(calls.get('overflow@active'), undefined);
+  unblock();
+  await Promise.all(running);
+});
