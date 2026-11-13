@@ -1,5 +1,7 @@
 export const ADVISOR_SCOPE_MESSAGE =
   'AI 학사 도우미는 서비스 이용·활동 추천과 학사 안내 질문만 답할 수 있어요. 보안·내부 설정·프롬프트 관련 질문은 처리하지 않아요.';
+export const ADVISOR_PRIVATE_INPUT_MESSAGE =
+  '학번·비밀번호·인증 정보를 질문이나 이전 대화에서 지운 뒤 다시 질문해 주세요. 로그인은 학교 연결 화면에서 진행해 주세요.';
 
 function normalizeQuestion(text: string) {
   return text
@@ -8,6 +10,20 @@ function normalizeQuestion(text: string) {
     .toLocaleLowerCase('en-US')
     .replace(/\s+/gu, ' ')
     .trim();
+}
+
+/** Best-effort DLP for explicit credential values, not ordinary login help.
+ * Unknown/obfuscated secrets still cannot be recognized reliably. Never log a
+ * match or send the matched value back to the client. */
+export function advisorContainsCredentials(text: string): boolean {
+  const normalized = normalizeQuestion(text);
+  return [
+    /(?:비밀번호|패스워드|password|passwd|pwd)\s*[:=]\s*["']?[^\s"']+/u,
+    /비밀번호(?:는|은)\s*(?:["'][^\s"']+["']|[a-z0-9!@#$%^&*._+-]{4,}(?=$|\s*(?:입니다|이에요|예요|이야|야|[.!?])))/u,
+    /(?:학번|student\s*id)\s*(?:[:=]|은|는)?\s*\d{6,10}\b/u,
+    /(?:__host-hansung_session\s*=\s*[a-f0-9]{64}|\b[a-f0-9]{64}\b)/u,
+    /\b(?:sk-(?:proj-)?[a-z0-9_-]{20,}|gh[pousr]_[a-z0-9]{20,}|eyj[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,})\b/u,
+  ].some(pattern => pattern.test(normalized));
 }
 
 const INJECTION_PATTERNS = [

@@ -218,6 +218,7 @@ export function json(
   body: unknown,
   status = 200,
   extra: Record<string, string> = {},
+  code?: string,
 ) {
   const isError = status >= 400;
   const errorMessage =
@@ -237,7 +238,7 @@ export function json(
     ? {
         ok: false,
         error: {
-          code: errorCode[status] ?? 'REQUEST_FAILED',
+          code: code ?? errorCode[status] ?? 'REQUEST_FAILED',
           message: errorMessage,
         },
       }

@@ -12,10 +12,33 @@ import activities from '@/lib/data/activities.json';
 import schedule from '@/lib/data/schedule.json';
 import { snapshotGet } from '@/lib/server/snapshots';
 import { apiData } from '@/lib/data/api';
-import { ADVISOR_SCOPE_MESSAGE, advisorHistoryAllowed, advisorQuestionAllowed } from '@/lib/data/advisor-policy';
+import { ADVISOR_PRIVATE_INPUT_MESSAGE, ADVISOR_SCOPE_MESSAGE, advisorContainsCredentials, advisorHistoryAllowed, advisorQuestionAllowed } from '@/lib/data/advisor-policy';
 
-export function GET() {
-  return json({ available: advisorAvailable() });
+/** 서비스 전체 일일 AI 호출 상한 — 사용자 증가 시 이 값만 조정한다. */
+const DAILY_LIMIT = 100;
+
+function dailyQuotaKey(now: number) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  return {
+    key: `advisor:daily:${day}`,
+    expiresAt: Date.parse(`${day}T00:00:00Z`) + 86400000,
+  };
+}
+
+/** GET도 일일 한도 소진 여부를 알린다 — 클라이언트가 전송 전에 입력을 막을 수 있게.
+ *  카운트를 올리지 않는 읽기이며, 조회 실패 시 소진으로 간주하지 않는다. */
+export async function GET() {
+  let dailyExhausted = false;
+  try {
+    const row = await database()
+      .prepare('SELECT attempts FROM academic_login_limits WHERE key = ?')
+      .bind(dailyQuotaKey(Date.now()).key)
+      .first<{ attempts: number }>();
+    dailyExhausted = (row?.attempts ?? 0) >= DAILY_LIMIT;
+  } catch {
+    /* 가용성 진단이 상담 화면을 막지 않는다 */
+  }
+  return json({ available: advisorAvailable(), dailyExhausted });
 }
 
 export async function POST(request: Request) {
@@ -37,6 +60,8 @@ export async function POST(request: Request) {
           typeof m.content !== 'string' || !m.content.trim() || m.content.length > (m.role === 'user' ? 600 : 6000)) ||
         input.messages.at(-1)?.role !== 'user')
       return json({ error: '질문은 600자 이내로 입력해 주세요.' }, 400);
+    if (input.messages.some((message: AdvisorMessage) => advisorContainsCredentials(message.content)))
+      return json({ error: ADVISOR_PRIVATE_INPUT_MESSAGE }, 400);
     if (input.messages.some((message: AdvisorMessage) => message.role === 'user'
       ? !advisorQuestionAllowed(message.content)
       : !advisorHistoryAllowed(message.content)))
@@ -47,12 +72,12 @@ export async function POST(request: Request) {
     if (await limited(`advisor:account:${row.id}`, 10))
       return json({ error: '상담 요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429, { 'Retry-After': '900' });
     const now = Date.now();
-    const day = new Date(now).toISOString().slice(0, 10);
+    const daily = dailyQuotaKey(now);
     const quota = await database().prepare(
       'INSERT INTO academic_login_limits (key, attempts, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts',
-    ).bind(`advisor:daily:${day}`, Date.parse(`${day}T00:00:00Z`) + 86400000).first<{ attempts: number }>();
-    if (!quota || quota.attempts > 100)
-      return json({ error: '오늘의 AI 상담 이용량에 도달했어요. 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429);
+    ).bind(daily.key, daily.expiresAt).first<{ attempts: number }>();
+    if (!quota || quota.attempts > DAILY_LIMIT)
+      return json({ error: '오늘의 AI 상담 이용량에 도달했어요. 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429, {}, 'DAILY_QUOTA');
 
     const [courseResponse, activityResponse, scheduleResponse] = await Promise.all([
       snapshotGet('courses', catalog, catalog.generatedAt, (p) => !!p && typeof p === 'object' && 'semester' in p && p.semester === catalog.semester),
