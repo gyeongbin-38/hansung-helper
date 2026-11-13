@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       'INSERT INTO academic_login_limits (key, attempts, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts',
     ).bind(daily.key, daily.expiresAt).first<{ attempts: number }>();
     if (!quota || quota.attempts > DAILY_LIMIT)
-      return json({ error: '오늘의 AI 상담 이용량에 도달했어요. 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429, {}, 'DAILY_QUOTA');
+      return json({ error: '부기가 오늘 수다를 다 떨었어요. 관심 가져주셔서 감사해요 — 기본 안내를 이용하거나 내일 다시 시도해 주세요.' }, 429, {}, 'DAILY_QUOTA');
 
     const [courseResponse, activityResponse, scheduleResponse] = await Promise.all([
       snapshotGet('courses', catalog, catalog.generatedAt, (p) => !!p && typeof p === 'object' && 'semester' in p && p.semester === catalog.semester),

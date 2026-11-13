@@ -569,7 +569,7 @@ export function Advisor({
               : available === null
                 ? 'AI 연결을 확인하고 있어요…'
                 : mode === 'ai' && dailyOut
-                  ? '오늘의 AI 상담 이용량이 모두 찼어요. 내일 다시 이용할 수 있어요.'
+                  ? '부기가 오늘 수다를 다 떨었어요. 관심 가져주셔서 감사해요 — 내일 다시 만나요.'
                 : available === false
                   ? 'AI를 쓸 수 없어 기본 안내로 도와드려요.'
                   : application ? '추천 이유와 선택한 활동의 공고 요약을 물어보세요.' : '학사부기 기능과 사용 방법을 물어보세요.'}
@@ -625,7 +625,7 @@ export function Advisor({
           </div>
           {aiBlocked && (
             <div className="advisor-error" role="alert">
-              <p>오늘의 AI 상담 이용량이 모두 찼어요. 내일 다시 이용하거나 지금은 기본 안내를 써 주세요.</p>
+              <p>부기가 오늘 수다를 다 떨었어요. 관심 가져주셔서 감사해요! 내일 다시 만나거나 지금은 기본 안내가 도와드릴게요.</p>
               <button
                 className="link"
                 onClick={() => {
@@ -669,7 +669,7 @@ export function Advisor({
               disabled={pending || aiBlocked}
               placeholder={
                 aiBlocked
-                  ? '오늘의 AI 상담 이용량이 모두 찼어요'
+                  ? '부기가 오늘 수다를 다 떨었어요'
                   : 'AI에게 질문해 보세요'
               }
             />
