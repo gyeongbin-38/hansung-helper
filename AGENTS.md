@@ -4,6 +4,7 @@
 - 팀 공통 `npm run dev:backend` → 빌드, 로컬 전용 키 준비, 세 D1 마이그레이션 후 8787 실행. 기존 `.dev.vars` 키는 교체하지 않는다.
 - `npm run dev` → vinext dev (보통 :3000/:3001). **D1 미바인딩 — 로그인·저장 불가, 체험 모드만 동작**
 - `npm run build && npm run start` → wrangler dev on **http://127.0.0.1:8787** (D1 바인딩, 전체 기능 동작)
+- **경로에 공백이 있으면 wrangler dev가 정적 에셋(`/_next/*`)을 404로 내고 서버 설정 해석에 실패한다** (Windows workerd 제약, 한글은 무관) — `C:\Temp`처럼 공백 없는 위치로 복사하거나 `mklink /J C:\hs-link "<워크스페이스>"` junction을 만들어 그쪽에서 실행
 
 ## 로컬 D1 주의
 - 로컬 D1 state는 `dist/server/.wrangler/state/` 안에 생성됨 → **`dist` 삭제/재빌드 시 DB 초기화됨**
@@ -25,6 +26,7 @@
   - 에이전트 셸은 Windows cmd — 환경변수는 `set "COSMOS_ID=..." && node ...` 형식, `;` 체이닝 불가
 - 화면 QA: `npx vite dev --host 127.0.0.1 --port 4339 --strictPort`(vinext dev의 `--hostname`은 미지원) + puppeteer-core는 gitignore된 `work/` 아래에 따로 설치해 사용
 - `python tests/account-db.py`, `python tests/http-check.py` (8787 서버 필요)
+- 브라우저 E2E: `npm run test:e2e` (Playwright, `tests/e2e/`). 선행 조건: `npm run build && node scripts/setup-local.mjs && npm run d1:migrate:local` — 재빌드하면 `dist/server/.dev.vars`와 로컬 D1이 지워지므로 순서를 지킨다. CI는 `e2e.yml`이 같은 단계를 자동 수행
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
 - 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002_school_session_vault.sql`). 세 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
