@@ -16,7 +16,7 @@ import { useActivities, useSchedule, useNow } from './catalog';
 import { SchoolConnection } from './school-connection';
 import type { Account } from '../account-flow';
 import type { Catalog } from '@/lib/data/catalog';
-import { apiData, apiFetch } from '@/lib/data/api';
+import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import {
   guideReply,
   SERVICE_GUIDES,
@@ -93,6 +93,7 @@ export function Advisor({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<ActivityWorkspaceFilter>('available');
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [dailyOut, setDailyOut] = useState(false);
   const [mode, setMode] = useState<'ai' | 'guide'>(signedIn ? 'ai' : 'guide');
   const [personal, setPersonal] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -105,6 +106,8 @@ export function Advisor({
   const generation = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
   const useAi = mode === 'ai' && signedIn && available === true;
+  // 전체 일일 한도 소진 시 AI 입력을 막는다 — 기본 안내 모드는 막지 않는다.
+  const aiBlocked = useAi && dailyOut;
   const digest = activityDigest(data, activities, now);
   const goals = data.actGoals ?? [];
   const recs = useMemo(
@@ -135,9 +138,14 @@ export function Advisor({
   useEffect(() => {
     const controller = new AbortController();
     apiFetch('/api/advisor', { signal: controller.signal })
-      .then((r) => apiData<{ available: boolean }>(r))
+      .then((r) =>
+        apiData<{ available: boolean; dailyExhausted?: boolean }>(r),
+      )
       .then((r) => {
-        if (!controller.signal.aborted) setAvailable(r.available === true);
+        if (!controller.signal.aborted) {
+          setAvailable(r.available === true);
+          setDailyOut(r.dailyExhausted === true);
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) setAvailable(false);
@@ -158,7 +166,7 @@ export function Advisor({
   }
   async function ask(raw: string) {
     const q = raw.trim();
-    if (!q || q.length > 600 || request.current) return;
+    if (!q || q.length > 600 || request.current || aiBlocked) return;
     setError('');
     if (!advisorQuestionAllowed(q)) {
       setError(ADVISOR_SCOPE_MESSAGE);
@@ -212,12 +220,18 @@ export function Advisor({
       setTurns((prev) => [...prev.slice(-9), { question: q, reply }]);
       setQuestion('');
     } catch (caught) {
-      if (id === generation.current && !controller.signal.aborted)
+      if (id === generation.current && !controller.signal.aborted) {
+        if (
+          caught instanceof ApiRequestError &&
+          caught.code === 'DAILY_QUOTA'
+        )
+          setDailyOut(true);
         setError(
           caught instanceof Error
             ? caught.message
             : '답변을 가져오지 못했어요.',
         );
+      }
     } finally {
       if (id === generation.current) {
         request.current = null;
@@ -554,6 +568,8 @@ export function Advisor({
               ? '학교 계정을 연결하면 AI 상담을 쓸 수 있어요.'
               : available === null
                 ? 'AI 연결을 확인하고 있어요…'
+                : mode === 'ai' && dailyOut
+                  ? '오늘의 AI 상담 이용량이 모두 찼어요. 내일 다시 이용할 수 있어요.'
                 : available === false
                   ? 'AI를 쓸 수 없어 기본 안내로 도와드려요.'
                   : application ? '추천 이유와 선택한 활동의 공고 요약을 물어보세요.' : '학사부기 기능과 사용 방법을 물어보세요.'}
@@ -571,7 +587,7 @@ export function Advisor({
             내 학사 요약 참고
           </label>
           <p className="advisor-privacy">
-            AI 상담은 질문·최근 AI 대화{application ? '·선택한 활동 정보' : ''}와 동의 시 학과·이수·포인트 요약을
+            AI 상담은 질문·최근 AI 대화{application ? '·선택한 활동 정보' : ''}와 동의 시 학과·입학연도·이수·포인트 요약·계획 과목명·과제와 강의 마감 정보를
             Cloudflare Workers AI에 보내요. 학교 인증 정보는 이 요약에 포함하지
             않으며 대화는 서버에 저장하지 않아요. 질문에 학번·비밀번호를 직접
             입력하지 마세요.
@@ -607,11 +623,26 @@ export function Advisor({
               <p className="advisor-thinking">답변을 정리하고 있어요…</p>
             )}
           </div>
+          {aiBlocked && (
+            <div className="advisor-error" role="alert">
+              <p>오늘의 AI 상담 이용량이 모두 찼어요. 내일 다시 이용하거나 지금은 기본 안내를 써 주세요.</p>
+              <button
+                className="link"
+                onClick={() => {
+                  clear();
+                  setMode('guide');
+                  input.current?.focus();
+                }}
+              >
+                기본 안내로 전환
+              </button>
+            </div>
+          )}
           <div className="advisor-chips">
             {quickQuestions.map((q) => (
               <button
                 key={q}
-                disabled={pending}
+                disabled={pending || aiBlocked}
                 onClick={() => {
                   setQuestion(q);
                   void ask(q);
@@ -635,8 +666,12 @@ export function Advisor({
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               maxLength={600}
-              disabled={pending}
-              placeholder="AI에게 질문해 보세요"
+              disabled={pending || aiBlocked}
+              placeholder={
+                aiBlocked
+                  ? '오늘의 AI 상담 이용량이 모두 찼어요'
+                  : 'AI에게 질문해 보세요'
+              }
             />
             <div>
               <span>{question.length}/600</span>
@@ -646,7 +681,7 @@ export function Advisor({
               <button
                 className="primary"
                 aria-label="질문 보내기"
-                disabled={pending || !question.trim()}
+                disabled={pending || aiBlocked || !question.trim()}
               >
                 <Send size={16} />
               </button>
