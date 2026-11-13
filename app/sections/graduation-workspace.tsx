@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, type ComponentProps } from 'react';
 import {
-  ArrowRight, ArrowUpRight, BookOpen, Briefcase, Check, CircleAlert, ClipboardCheck, Clock3,
+  ArrowRight, ArrowUpRight, BookOpen, Check, CircleAlert, ClipboardCheck, Clock3,
   Database, GraduationCap, Info, Layers, Plus, Search, X,
 } from 'lucide-react';
 import { Graduation } from './graduation';
@@ -9,24 +9,16 @@ import { deptPoolOf, useDeptRules } from './catalog';
 import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { SchoolRequirementTables } from './graduation-school-requirements';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
-import { evaluate, evaluateGpa, generalEducationReference, graduationOutlook, requirementQuantityName, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
+import { evaluate, evaluateGpa, generalEducationReference, requirementQuantityName, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
-import { matchEnrollment } from '@/lib/data/lms';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
-import {
-  CAREER_JOB_URL,
-  CAREER_MAJOR_URL,
-  careerInfoFor,
-  careerKeyword,
-  jobSearchUrl,
-} from '@/lib/data/careers';
 import reference from '@/lib/data/graduation-reference.json';
 
 type Props = ComponentProps<typeof Graduation>;
 const VIEWS = [
-  ['', '졸업 요약'], ['outlook', '졸업 전망'], ['requirements', '요건별 충족 현황'],
+  ['', '졸업 요약'], ['requirements', '요건별 충족 현황'],
   ['completed', '이수한 과목'], ['department', '학과 요건·계산 기준'],
 ] as const;
 const MODES = [
@@ -43,7 +35,6 @@ export function GraduationWorkspace(props: Props) {
   const gpaVerified = gradeChecks.some((p) => p.ok) && !!data.info?.gpaVerifiedAt &&
     data.info.gpaVerifiedAt === data.info.fetchedAt;
   const gpa = evaluateGpa(data.info?.gpa, gpaVerified);
-  const [pace, setPace] = useState('18');
   const [query, setQuery] = useState('');
   const [source, setSource] = useState('all');
   const [category, setCategory] = useState('all');
@@ -79,7 +70,7 @@ export function GraduationWorkspace(props: Props) {
   const pointResult = results.find(r => r.rule.id === 'points')!;
   const general = results.find(r => r.rule.id === 'gen')!;
   const major = results.find(r => r.rule.id === 'major')!;
-  const view = VIEWS.some(([id]) => id === (detail ?? '')) ? detail ?? '' : 'legacy';
+  const view = detail === 'outlook' ? '' : VIEWS.some(([id]) => id === (detail ?? '')) ? detail ?? '' : 'legacy';
   const selectedMode = MODES.find(m => m.id === mode)!;
   const modeReference = reference.sections.common.find(r => r.area === selectedMode.area);
   const ruleLink = graduationRuleLink({ department: data.dept, pool, rule: myRules ?? null,
@@ -88,15 +79,6 @@ export function GraduationWorkspace(props: Props) {
   const value = (r: RuleResult) => !known(r) ? '미입력' : `${r.earned}${r.required === null ? (r.rule.source === 'points' ? 'P' : '학점') : ` / ${r.required}${r.rule.unit ?? '학점'}`}`;
   const coursesFor = (result: RuleResult) => completed.filter(course => result.rule.groups.includes(gradGroup(course.category)));
   const plannedFor = (result: RuleResult) => planned.filter(course => result.rule.groups.includes(gradGroup(course.category)));
-  const paceValid = Number.isInteger(Number(pace)) && Number(pace) >= 1 && Number(pace) <= 25;
-  const outlook = graduationOutlook({ earned: earned ?? 0, required: total.required, planned: total.planned,
-    perSemester: Number(pace) >= 1 && Number(pace) <= 25 ? Number(pace) : undefined, semester: catalog?.semester, admitYear: year });
-  const enrolled = data.lms && catalog ? matchEnrollment(data.lms, catalog, data.lmsMatch).filter(m => !m.ignored) : [];
-  const unmatched = enrolled.filter(m => !m.sections.length).length;
-  const careerDept = data.info?.dept || data.dept || undefined;
-  const careerTracks = data.info?.tracks ?? (data.info?.track ? [data.info.track] : undefined);
-  const career = careerInfoFor(careerDept, careerTracks);
-  const careerKey = careerKeyword(careerDept, careerTracks);
   const checks = new Set(data.reqChecks ?? []);
   const sourceDate = data.info?.fetchedAt.slice(0, 10);
   const gradesUnverified = data.info?.diag?.pages.some(p => p.slot === 'grades' && !p.ok) ?? false;
@@ -235,42 +217,6 @@ export function GraduationWorkspace(props: Props) {
           </section>
           <section className="card graduation-department-card"><h3><Layers size={21} />개인 전공/트랙 요건</h3><p>학과(전공) 또는 트랙별 졸업 요건은 별도 섹션에서 자세히 확인할 수 있습니다.</p><button className="secondary" onClick={() => go('graduation/department')}>전공/트랙 요건 자세히 보기 <ArrowRight size={16} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">{ruleLink.departmentSpecific ? '학과 공식 졸업 요건' : '학교 공식 졸업 안내'} <ArrowUpRight size={14} /></a></section>
         </div>
-      </>}
-      {view === 'outlook' && <>
-        <p className="graduation-view-description">남은 교과 학점과 계획 과목을 바탕으로 졸업 시점을 예측하고, 필요한 점검 항목을 확인할 수 있습니다.</p>
-        <div className="graduation-outlook-grid"><section className="card graduation-outlook-card"><h3><Layers size={21} />졸업 예상</h3>
-          <h2>{outlook.ok && earned !== null && paceValid ? <>남은 교과 학점 <em>{outlook.remaining}학점</em></> : '이수 내역과 졸업 기준을 확인해 주세요.'}</h2>
-          <p>{outlook.ok && earned !== null && paceValid ? `학기당 ${outlook.perSemester}학점 기준 약 ${outlook.semestersLeft}학기 더 필요${outlook.estLabel ? ` · ${outlook.estLabel}학기 이수 완료 전망` : ''}` : '입학 구분을 선택하고 필요한 학점 기준을 확인하면 전망을 볼 수 있습니다.'}</p>
-          <label>학기당 목표 학점 <input className="field" type="number" min={1} max={25} step={1} value={pace} aria-label="학기당 목표 이수 학점" onChange={e => setPace(e.target.value)} /></label>
-          {(!Number.isInteger(Number(pace)) || Number(pace) < 1 || Number(pace) > 25) && <p className="form-error">1~25 사이의 정수를 입력해 주세요.</p>}
-          <p className="meta"><Info size={14} />계획 과목 전부 이수·학기당 균등 이수 가정에 따른 예상치이며, 학교의 공식 졸업 사정이 아닙니다.</p>
-        </section><section className="card graduation-checkpoints"><h3><ClipboardCheck size={20} />졸업까지 남은 체크 포인트</h3>
-          {[['비교과 포인트 확인', points === undefined ? '누적 비교과 포인트를 입력해 주세요.' : `${points}P 적립 · 인정 기준과 부족 포인트를 확인하세요.`, 'profile'], ['교양 영역 확인', '선택필수교양과 이수 영역을 확인합니다.', 'graduation/requirements'], ['전공/트랙 기준 확인', '본인 전공의 졸업 요건과 개인 적용 조건을 확인해 주세요.', 'graduation/department']].map(([title, note, route]) => <button key={title} onClick={() => go(route)}><span className="graduation-round-icon"><BookOpen size={20} /></span><span><b>{title}</b><small>{note}</small></span><ArrowRight size={15} /></button>)}
-        </section></div>
-        <section className="card graduation-career" aria-labelledby="graduation-career-title">
-          <div className="graduation-section-heading"><h3 id="graduation-career-title"><Briefcase size={21} />내 학과 진로</h3>{career?.fetchedAt && <span className="badge">커리어넷 {career.fetchedAt.slice(0, 10)} 수집</span>}</div>
-          <div className="graduation-career-dept"><b>{careerDept || '소속 학과 확인 필요'}</b>{!!careerTracks?.length && <span>{careerTracks.join(' · ')}</span>}</div>
-          {career ? <>
-            {career.summary && <p className="graduation-career-summary">{career.summary}</p>}
-            {(career.employment || career.salary) && <div className="graduation-career-stats">
-              {career.employment && <span>취업률 <b>{career.employment}</b></span>}
-              {career.salary && <span>졸업 후 임금 <b>{career.salary}</b></span>}
-            </div>}
-            {!!career.jobs?.length && <div className="graduation-career-jobs">
-              {career.jobs.slice(0, 8).map((j) => <a key={j} href={jobSearchUrl(j)} target="_blank" rel="noreferrer">{j}</a>)}
-            </div>}
-          </> : <p className="meta">관련 직업과 학과 정보는 커리어넷 학과사전·직업백과에서 확인할 수 있습니다.</p>}
-          <div className="graduation-career-links">
-            <a className="secondary" href={CAREER_MAJOR_URL} target="_blank" rel="noreferrer">커리어넷 학과사전 <ArrowUpRight size={14} /></a>
-            <a className="secondary" href={CAREER_JOB_URL} target="_blank" rel="noreferrer">직업백과 <ArrowUpRight size={14} /></a>
-            {careerKey && <a className="link" href={jobSearchUrl(careerKey)} target="_blank" rel="noreferrer">잡코리아 ‘{careerKey}’ 채용 검색 <ArrowUpRight size={14} /></a>}
-          </div>
-        </section>
-        <section className="card graduation-enrolled"><div className="graduation-section-heading"><h3><GraduationCap size={22} />현재 수강 중 {data.lms && <span className="badge">COSMOS {data.lms.fetchedAt.slice(0, 10)} 수집</span>}</h3><button className="secondary" onClick={() => go('lms')}>{unmatched ? `${enrolled.length}과목 중 ${unmatched}과목 매칭 필요` : '수업 현황 확인'} <ArrowUpRight size={14} /></button></div>
-          <p className="meta">수강 중인 과목은 이수 완료에 포함되지 않습니다. 계획에 담은 과목은 전망 계산에만 반영합니다.</p>
-          {enrolled.map((m, i) => <button className="graduation-enrolled-row" key={m.course.id} onClick={() => go('lms')}><span className="graduation-row-index">{i + 1}</span><b>{m.course.title}</b><span className={`badge ${m.sections.length ? 'green' : ''}`}>{m.sections.length ? `매칭: ${m.sections[0].name}` : '카탈로그 매칭 없음'}</span><ArrowRight size={14} /></button>)}
-          {!enrolled.length && <div className="empty-small">확인된 수강 과목이 없습니다. 수업 현황에서 학교 연결 상태를 확인해 주세요.</div>}
-        </section>
       </>}
       {view === 'requirements' && <>
         <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
