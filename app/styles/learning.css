@@ -4233,6 +4233,13 @@ input[aria-invalid='true'] {
   padding-left: 10px;
   border-left: 2px solid var(--nt-hairline);
 }
+.matchfix-cands label {
+  display: grid;
+  gap: 4px;
+}
+.matchfix-cands input {
+  width: 100%;
+}
 .matchfix-cand {
   display: flex;
   align-items: center;
