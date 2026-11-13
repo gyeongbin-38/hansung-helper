@@ -43,8 +43,12 @@ export function SurveyDialog({
           <X />
         </button>
       </div>
-      <h2 id="survey-question">{questions[step][0]}</h2>
-      <p>선택하지 않고 건너뛰어도 사이트를 이용할 수 있어요.</p>
+      <div className="survey-intro">
+        <div className="survey-intro-copy">
+          <h2 id="survey-question">{questions[step][0]}</h2>
+          <p>선택하지 않고 건너뛰어도 사이트를 이용할 수 있어요.</p>
+        </div>
+      </div>
       <div className="survey-options">
         {questions[step].slice(1).map((v) => (
           <button
