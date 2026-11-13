@@ -6,15 +6,15 @@ import {
 } from 'lucide-react';
 import { Graduation } from './graduation';
 import { deptPoolOf, useDeptRules } from './catalog';
+import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
-import { evaluate, evaluateGpa, generalEducationReference, graduationOutlook, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
+import { evaluate, evaluateGpa, generalEducationReference, graduationOutlook, requirementQuantityName, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { matchEnrollment } from '@/lib/data/lms';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
-import { targetProgress } from '@/lib/data/visual-progress';
 
 type Props = ComponentProps<typeof Graduation>;
 const VIEWS = [
@@ -26,22 +26,6 @@ const MODES = [
   { id: 'fusion2', label: '융합전공 II', area: '전공융합 II' },
   { id: 'advanced', label: '심화전공', area: '심화전공' },
 ] as const;
-
-function Ratio({ result, known = true }: { result: RuleResult; known?: boolean }) {
-  if (result.uncertainTrack) return <div className="visual-progress-pending">각 트랙의 인정 학점 확인 필요</div>;
-  if (result.uncertainAllocation) return <div className="visual-progress-pending">일반선택 배분과 교양 영역 확인 필요</div>;
-  const progress = targetProgress(known ? result.earned : null, result.required);
-  if (!progress) return <div className="visual-progress-pending"><span aria-hidden="true" />{known ? '기준 확인 후 진행률 표시' : '이수 정보 확인 후 진행률 표시'}</div>;
-  const percent = progress.percent;
-  return <progress className="progress-track" max={100} value={percent}
-    aria-label={`${result.rule.label} 충족률`}
-    aria-valuetext={!known ? '미입력' : result.required === null ? '기준 미확정' : `${percent}%`} />;
-}
-
-function ResultBadge({ result, known }: { result: RuleResult; known: boolean }) {
-  const text = !known ? '입력 필요' : result.status === 'met' ? '충족' : result.status === 'unknown' ? '기준 확인 필요' : '진행 중';
-  return <span className={`badge ${!known || result.status === 'unknown' ? 'orange' : result.status === 'met' ? 'green' : 'purple'}`}>{text}</span>;
-}
 
 export function GraduationWorkspace(props: Props) {
   const { data, go, planned, catalog, persist, detail, infoPending, infoFailed } = props;
@@ -94,6 +78,8 @@ export function GraduationWorkspace(props: Props) {
     guide: verifiedDeptGuide(data.dept, year), admissionType: admission });
   const known = (r: RuleResult) => r.rule.id === 'total' ? earned !== null : r.rule.source === 'points' ? points !== undefined : completed.length > 0;
   const value = (r: RuleResult) => !known(r) ? '미입력' : `${r.earned}${r.required === null ? (r.rule.source === 'points' ? 'P' : '학점') : ` / ${r.required}${r.rule.unit ?? '학점'}`}`;
+  const coursesFor = (result: RuleResult) => completed.filter(course => result.rule.groups.includes(gradGroup(course.category)));
+  const plannedFor = (result: RuleResult) => planned.filter(course => result.rule.groups.includes(gradGroup(course.category)));
   const paceValid = Number.isInteger(Number(pace)) && Number(pace) >= 1 && Number(pace) <= 25;
   const outlook = graduationOutlook({ earned: earned ?? 0, required: total.required, planned: total.planned,
     perSemester: Number(pace) >= 1 && Number(pace) <= 25 ? Number(pace) : undefined, semester: catalog?.semester, admitYear: year });
@@ -102,6 +88,16 @@ export function GraduationWorkspace(props: Props) {
   const checks = new Set(data.reqChecks ?? []);
   const sourceDate = data.info?.fetchedAt.slice(0, 10);
   const gradesUnverified = data.info?.diag?.pages.some(p => p.slot === 'grades' && !p.ok) ?? false;
+  const pointsSource = data.info?.points !== undefined ? 'school' as const : 'manual' as const;
+  const metric = (r: RuleResult, route: string) => ({
+    result: r, known: known(r), value: value(r), courses: r.rule.source === 'points' ? [] : coursesFor(r),
+    plannedCourses: r.rule.source === 'points' ? [] : plannedFor(r), sourceDate, pointsSource, route, go,
+    admission, onAdmission: (next: AdmissionType) => void setAdmission(next), busy, yearKnown: year !== undefined,
+  });
+  const requirementCard = (r: RuleResult) => <GraduationMetricDetails key={r.rule.id} className="card graduation-requirement-card"
+    icon={<BookOpen size={20} />} title={r.rule.label} {...metric(r, r.rule.source === 'points' ? 'profile' : `graduation/${r.rule.id}`)}
+    value={r.required === null && known(r) ? `${value(r)} ${r.rule.source === 'points' ? '적립' : '이수'}` : value(r)}
+    foot={<div className="graduation-requirement-foot"><span>필요 {requirementQuantityName(r.rule)} <b>{r.required === null ? '미확정' : `${r.required}${r.rule.unit ?? '학점'}`}</b></span>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>} />;
   const suggestions = query.trim().length < 2 ? [] : (catalog?.sections ?? []).filter(s =>
     !completed.some(c => c.code === s.code || c.name.replace(/\s/g, '') === s.name.replace(/\s/g, '')) &&
     (s.name + s.code).toLowerCase().includes(query.toLowerCase())).filter((s, i, all) => all.findIndex(c => c.code === s.code) === i).slice(0, 5);
@@ -166,6 +162,8 @@ export function GraduationWorkspace(props: Props) {
           <option value="general-transfer">일반편입</option><option value="bachelor-transfer">학사편입</option>
         </select></label>
       </div>}
+      {(view === '' || view === 'requirements') && admission === 'unknown' && year !== undefined &&
+        <AdmissionQuickPick value={admission} busy={busy} onPick={next => void setAdmission(next)} />}
       {gradesUnverified && <p className="meta conn-warn">최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 학교 종합정보에서 확인해 주세요.</p>}
       {(view === '' || view === 'requirements') && <section className="card pad">
         <h3>학교 기준과 확인 사항</h3>
@@ -199,50 +197,18 @@ export function GraduationWorkspace(props: Props) {
       {view === '' && <>
         <section className="card graduation-summary-hero">
           <div className="graduation-summary-hero-grid">
-            <div className="graduation-summary-metric">
-              <h3><GraduationCap size={19} />총 이수학점</h3>
-              <strong>{value(total)}</strong>
-              <div className="graduation-summary-meta">
-                {known(total) && targetProgress(total.earned, total.required)
-                  ? <small>{targetProgress(total.earned, total.required)!.percent}% 이수</small>
-                  : <ResultBadge result={total} known={known(total)} />}
-              </div>
-              <Ratio result={total} known={known(total)} />
-            </div>
+            <GraduationMetricDetails className="graduation-summary-metric" icon={<GraduationCap size={19} />} title="총 이수학점" {...metric(total, 'graduation/completed')} />
             <div className="graduation-summary-divider" aria-hidden="true" />
-            <div className="graduation-summary-metric">
-              <h3><Database size={18} />비교과 포인트</h3>
-              <strong>{value(pointResult)}</strong>
-              <div className="graduation-summary-meta">
-                {known(pointResult) && targetProgress(pointResult.earned, pointResult.required)
-                  ? <small>{targetProgress(pointResult.earned, pointResult.required)!.percent}% 적립</small>
-                  : <ResultBadge result={pointResult} known={known(pointResult)} />}
-              </div>
-              <Ratio result={pointResult} known={known(pointResult)} />
-            </div>
+            <GraduationMetricDetails className="graduation-summary-metric" icon={<Database size={18} />} title="비교과 포인트" {...metric(pointResult, 'profile')} />
           </div>
         </section>
         <div className="graduation-area-grid">
-          <button className="card graduation-area-card" onClick={() => go('graduation/gen')}>
-            <div className="graduation-section-heading"><h3><BookOpen size={19} />교양</h3><ResultBadge result={general} known={known(general)} /></div>
-            <strong>{value(general)}</strong><Ratio result={general} known={known(general)} />
-            <small>교양 이수 기준과 세부 학점 확인</small>
-          </button>
-          <button className="card graduation-area-card" onClick={() => go('graduation/major')}>
-            <div className="graduation-section-heading"><h3><Layers size={19} />전공</h3><ResultBadge result={major} known={known(major)} /></div>
-            <strong>{value(major)}</strong><Ratio result={major} known={known(major)} />
-            <small>전공·트랙 이수 기준 확인</small>
-          </button>
+          <GraduationMetricDetails className="card graduation-area-card" icon={<BookOpen size={19} />} title="교양" {...metric(general, 'graduation/gen')} />
+          <GraduationMetricDetails className="card graduation-area-card" icon={<Layers size={19} />} title="전공" {...metric(major, 'graduation/major')} />
         </div>
         <section className="graduation-major-requirements">
           <div className="graduation-section-heading"><h2>전공별 졸업요건</h2><button className="secondary" onClick={() => go('graduation/requirements')}>전체 요건 확인 <ArrowRight size={15} /></button></div>
-          <div className="graduation-requirement-grid">
-            {results.map(r => <section className="card graduation-requirement-card" key={r.rule.id}>
-              <div className="graduation-section-heading"><h3><BookOpen size={20} /><button className="link title-link" onClick={() => go(`graduation/${r.rule.id}`)}>{r.rule.label}</button></h3><ResultBadge result={r} known={known(r)} /></div>
-              <strong>{r.required === null && known(r) ? `계산 대기 · ${value(r)} ${r.rule.source === 'points' ? '적립함' : '이수함'}` : value(r)}</strong><Ratio result={r} known={known(r)} />
-              <div className="graduation-requirement-foot"><span>필요 {r.rule.unit === 'P' ? '포인트' : '학점'}</span><button className="secondary" onClick={() => go(`graduation/${r.rule.id}`)}>{r.required ?? '미확정'} <ArrowRight size={12} /></button>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>
-            </section>)}
-          </div>
+          <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
         </section>
         <div className="graduation-overview-bottom">
           <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3><small>계산 결과와 확인 메모를 함께 확인하세요.</small></div>
@@ -271,11 +237,7 @@ export function GraduationWorkspace(props: Props) {
         </section>
       </>}
       {view === 'requirements' && <>
-        <div className="graduation-requirement-grid">{results.map(r => <section className="card graduation-requirement-card" key={r.rule.id}>
-          <div className="graduation-section-heading"><h3><BookOpen size={20} /><button className="link title-link" onClick={() => go(`graduation/${r.rule.id}`)}>{r.rule.label}</button></h3><ResultBadge result={r} known={known(r)} /></div>
-          <strong>{r.required === null && known(r) ? `계산 대기 · ${value(r)} ${r.rule.source === 'points' ? '적립함' : '이수함'}` : value(r)}</strong><Ratio result={r} known={known(r)} />
-          <div className="graduation-requirement-foot"><span>필요 {r.rule.unit === 'P' ? '포인트' : '학점'}</span><button className="secondary" onClick={() => go(`graduation/${r.rule.id}`)}>{r.required ?? '미확정'} <ArrowRight size={12} /></button>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>
-        </section>)}</div>
+        <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
         <section className="card graduation-general-guide"><h3><Info size={20} />교양 세부 요건</h3><p>교양 이수 기준과 세부 학점을 확인하세요.</p><button className="secondary" onClick={() => go('graduation/gen')}>교양 요건 자세히 보기 <ArrowRight size={15} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문 확인 <ArrowUpRight size={14} /></a></section>
       </>}
       {view === 'completed' && <>

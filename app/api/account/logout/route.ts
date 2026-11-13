@@ -22,7 +22,7 @@ export async function POST(request: Request) {
         .run();
       if (account)
         try {
-          await deleteSchoolSession(account.id);
+          await deleteSchoolSession(account.id, account.session_hash);
         } catch {
           /* 볼트 삭제 실패는 로그아웃을 막지 않는다 */
         }

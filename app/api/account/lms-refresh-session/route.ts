@@ -11,15 +11,45 @@ import {
 } from '@/lib/server/account';
 import { resumeSchool, SchoolError, SchoolSession } from '@/lib/server/school';
 import {
-  deleteSchoolSession,
+  deleteSchoolSessionRevision,
   loadSchoolSession,
-  saveSchoolSession,
+  schoolSessionStatus,
+  sessionVaultConfigured,
 } from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
+
+export async function GET(request: Request) {
+  try {
+    const account = await authenticated(request);
+    if (!account)
+      return json({ error: '로그인이 필요합니다.' }, 401, {
+        'X-Hansung-Session-Invalid': '1',
+      });
+    const status = await schoolSessionStatus(account.id);
+    // 상태 조회 중 로그아웃/계정 전환이 끝났다면 지연 응답을 새 화면에
+    // 전달하지 않는다.
+    const stillActive = await authenticated(request);
+    if (
+      !stillActive ||
+      stillActive.id !== account.id ||
+      stillActive.session_hash !== account.session_hash
+    )
+      return json({ error: '다시 로그인해 주세요.' }, 401, {
+        'X-Hansung-Session-Invalid': '1',
+      });
+    return json(status);
+  } catch {
+    return json(
+      { error: '학교 연결 상태를 확인하지 못했습니다.' },
+      503,
+      { 'X-Hansung-School-Session': 'unavailable' },
+    );
+  }
+}
 
 // 저장된 학교 세션 쿠키로 비밀번호 없이 COSMOS·종합정보를 재수집한다.
 // 비밀번호는 요청하지 않으며 볼트의 쿠키만 사용한다. 볼트가 없거나 만료면
@@ -33,17 +63,29 @@ export async function POST(request: Request) {
     if (await limited('session-refresh:' + account.id, 12))
       return json({ error: '새로고침 시도가 많습니다. 잠시 후 다시 시도해 주세요.' }, 429);
 
-    const cookies = await loadSchoolSession(account.id);
-    if (!cookies)
+    if (!sessionVaultConfigured())
+      return json(
+        { error: '학교 세션 보관 기능이 설정되지 않았습니다.' },
+        503,
+        { 'X-Hansung-School-Session': 'unavailable' },
+      );
+    const loaded = await loadSchoolSession(account.id, account.session_hash);
+    if (!loaded) {
+      const stillActive = await authenticated(request);
+      if (!stillActive || stillActive.id !== account.id)
+        return json({ error: '다시 로그인해 주세요.' }, 401, {
+          'X-Hansung-Session-Invalid': '1',
+        });
       return json(
         { error: '저장된 학교 세션이 없거나 만료되었습니다. 비밀번호로 다시 연결해 주세요.' },
         401,
         { 'X-Hansung-School-Session': 'expired' },
       );
+    }
 
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
-    const session = new SchoolSession(cookies);
+    const session = new SchoolSession(loaded.cookies);
     let snapshot;
     try {
       snapshot = await resumeSchool(session, '', {
@@ -57,7 +99,11 @@ export async function POST(request: Request) {
     } catch (error) {
       if (error instanceof SchoolError && error.code === 'session') {
         try {
-          await deleteSchoolSession(account.id);
+          await deleteSchoolSessionRevision(
+            account.id,
+            loaded.revision,
+            account.session_hash,
+          );
         } catch {
           /* 볼트 삭제 실패는 무시 */
         }
@@ -70,13 +116,8 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    if (session.hasCookies()) {
-      try {
-        await saveSchoolSession(account.id, session.exportCookies());
-      } catch {
-        console.log('[vault] save failed');
-      }
-    }
+    // 재사용은 last_used_at만 갱신한다. 새 쿠키를 다시 저장해 고정 2시간
+    // 만료 시각을 연장하지 않는다.
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
 
@@ -205,6 +246,7 @@ export async function POST(request: Request) {
     return json(
       { error: '학교 연결 또는 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.' },
       503,
+      { 'X-Hansung-School-Session': 'unavailable' },
     );
   }
 }

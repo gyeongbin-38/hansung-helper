@@ -50,7 +50,8 @@ export function transientSchoolRead(error: unknown): boolean {
     (error instanceof SchoolError && [502, 503, 504].includes(error.status ?? 0));
 }
 
-// Each login gets its own cookie jar. Neither credentials nor school cookies persist.
+// Each school operation gets its own cookie jar. Credentials are never retained;
+// callers may export only the allowlisted school cookies into the encrypted vault.
 export class SchoolSession {
   private cookies = new Map<string, Map<string, string>>();
   constructor(initial?: SchoolCookieJar) {
@@ -372,16 +373,21 @@ export async function resumeSchool(
   };
   let infoOk = false;
   let lmsOk = false;
+  let infoProbeError: unknown;
+  let lmsProbeError: unknown;
+  // 프로브는 멱등 GET이므로 연결 오류만 재시도한다. 로그인 POST는 없다.
+  const readPage = (url: string) =>
+    retrySchoolRead(() => session.request(url), transientSchoolRead);
 
   // 종합정보 세션 확인 — 세션 만료면 로그인 프레임셋이 돌아와 판정에 실패한다.
   try {
     const main = await session.follow(
-      await session.request('https://info.hansung.ac.kr/h_dae/dae_main.html'),
+      await readPage('https://info.hansung.ac.kr/h_dae/dae_main.html'),
       'https://info.hansung.ac.kr/h_dae/dae_main.html',
     );
     const mainHtml = new TextDecoder('euc-kr').decode(await main.arrayBuffer());
     if (mainHtml.includes('infohaksamain_portal.jsp')) {
-      const protectedMenu = await session.request(
+      const protectedMenu = await readPage(
         'https://info.hansung.ac.kr/servlet/s_dae.dae_top_menu',
       );
       const menuHtml = new TextDecoder('euc-kr').decode(
@@ -400,15 +406,17 @@ export async function resumeSchool(
           }
       }
     }
-  } catch {
-    /* info 세션 만료 — 아래에서 실패 시각으로 표시 */
+  } catch (error) {
+    // 예외는 세션 만료의 증거가 아니다. 네트워크/학교 서버 오류를 별도로
+    // 보존해 호출자가 유효한 볼트 쿠키를 지우지 않게 한다.
+    infoProbeError = error;
   }
   if (!infoOk) snapshot.infoFailedAt = new Date().toISOString();
 
   // COSMOS 세션 확인 — 대시보드에 로그아웃 링크가 보이면 세션이 유효하다.
   try {
     const home = await session.follow(
-      await session.request('https://learn.hansung.ac.kr/'),
+      await readPage('https://learn.hansung.ac.kr/'),
       'https://learn.hansung.ac.kr/',
     );
     const html = await home.text();
@@ -425,11 +433,17 @@ export async function resumeSchool(
           snapshot.lmsFailedAt = new Date().toISOString();
         }
     }
-  } catch {
-    /* lms 세션 만료 */
+  } catch (error) {
+    lmsProbeError = error;
   }
-  if (!lmsOk) snapshot.lmsError = 'session';
+  if (!lmsOk) snapshot.lmsError = lmsProbeError ? 'upstream' : 'session';
 
-  if (!infoOk && !lmsOk) throw new SchoolError('session');
+  if (!infoOk && !lmsOk) {
+    const upstream = infoProbeError ?? lmsProbeError;
+    if (upstream instanceof SchoolError && upstream.code === 'upstream')
+      throw upstream;
+    if (upstream) throw new SchoolError('upstream');
+    throw new SchoolError('session');
+  }
   return snapshot;
 }

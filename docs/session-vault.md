@@ -12,6 +12,10 @@
 - `POST /api/account/lms-refresh-session`이 볼트 쿠키로 `resumeSchool`을 실행:
   종합정보·COSMOS를 각각 프로브해 유효한 쪽만 수집하고, 양쪽 모두 무효면
   401(`X-Hansung-School-Session: expired`)을 돌려준다.
+- `GET /api/account/lms-refresh-session`은 앱 로그인 사용자에게
+  `{ configured, available, expiresAt }`만 반환한다. 쿠키·암호문은 응답하지
+  않는다. 볼트 설정/저장소 장애는 POST에서 503과
+  `X-Hansung-School-Session: unavailable`로 구분한다.
 - 로그아웃·계정 삭제 시 즉시 삭제. 만료 행은 로그인 5% 확률 정리와 별도
   `expires_at` 인덱스로 정리된다.
 
@@ -21,6 +25,13 @@
   복호화 불가, 호스트·쿠키명·값 크기 제한(최대 8KB), 키 버전 고정(1).
 - TTL 2시간 고정. 재사용해도 `expires_at`은 늘리지 않고 `last_used_at`만
   갱신한다(세션 무한 연장 방지).
+- 볼트 쓰기는 연결된 앱 세션이 D1에 저장된 뒤 `EXISTS` 가드로 수행한다.
+  요청 시작 시각이 더 오래된 지연 응답은 최신 쿠키를 덮지 못한다. 로그아웃과
+  만료 삭제도 자신이 읽거나 만든 볼트 세대만 지워 새 로그인과의 경쟁을 막는다.
+- 운영에 먼저 적용된 `0002` 행에는 앱 세션 소유자 정보가 없다. `0003`은
+  nullable 소유자 컬럼을 추가하며, 이런 기존 행은 활성 연결로 표시하거나
+  재사용하지 않는다. 다음 비밀번호 인증이 새 소유자 행으로 교체하고,
+  로그아웃·계정 삭제·TTL 정리는 기존 행도 제거한다.
 - 비밀 키 `SCHOOL_SESSION_KEY`는 32바이트 이상 무작위 값. 로컬은
   `scripts/setup-local.mjs`가 없을 때만 생성(기존 키 미교체). 프로덕션은
   `ACCOUNT_INDEX_HMAC_KEY`처럼 Worker secret으로 설정해야 하며 배포 스크립트가
@@ -31,4 +42,7 @@
 
 - 학교가 세션을 IP/UA에 묶으면 Worker egress 변경 시 무효화될 수 있다.
 - 세션이 만료되면 비밀번호 재인증으로 돌아간다(수동 폴백 유지).
+- 학교 서버의 네트워크·HTTP 오류는 만료로 판정하거나 볼트 행을 삭제하지
+  않는다. 앱 세션 만료는 `X-Hansung-Session-Invalid: 1`, 학교 세션 만료는
+  `X-Hansung-School-Session: expired`로 구분한다.
 - 볼트는 "연결 유지"용이며 성적·학적 원본을 별도로 더 저장하지 않는다.

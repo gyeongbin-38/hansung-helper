@@ -2,6 +2,23 @@ import type { Data } from '../../app/sections/data';
 import { activityNeedsVerification, actScore, liveStatus, type Activity, type ActivitySnapshot } from './activities.ts';
 import { evaluate } from './graduation.ts';
 
+export type ActivityWorkspaceFilter = 'available' | 'saved' | 'all';
+
+/** Client-side finder over the data already loaded by the app. No live school request is implied. */
+export function activityWorkspaceItems(
+  items: Activity[],
+  options: { query?: string; filter?: ActivityWorkspaceFilter; saved?: Set<string>; now?: number } = {},
+) {
+  const query = (options.query ?? '').trim().toLocaleLowerCase('ko-KR');
+  const filter = options.filter ?? 'available';
+  const saved = options.saved ?? new Set<string>();
+  const now = options.now ?? Date.now();
+  return items
+    .filter((item) => !query || `${item.title} ${item.dept}`.toLocaleLowerCase('ko-KR').includes(query))
+    .filter((item) => filter === 'all' || filter === 'saved' ? filter !== 'saved' || saved.has(item.id) : ['open', 'closing', 'upcoming'].includes(liveStatus(item, now).status))
+    .sort((a, b) => Number(saved.has(b.id)) - Number(saved.has(a.id)) || (a.applyEnd ?? '9999').localeCompare(b.applyEnd ?? '9999') || a.title.localeCompare(b.title, 'ko'));
+}
+
 /** Public-list facts only: membership, eligibility and acceptance are not exposed by this feed. */
 export function activityBrief(activity: Activity, fetchedAt: string | undefined, now = Date.now()) {
   return {

@@ -15,7 +15,10 @@ import {
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError, SchoolSession } from '@/lib/server/school';
-import { saveSchoolSession } from '@/lib/server/session-vault';
+import {
+  cleanupExpiredSchoolSessions,
+  saveSchoolSession,
+} from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -23,6 +26,7 @@ import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
+  const schoolSessionIssuedAt = Date.now();
   let stage: 'input' | 'account-setup' | 'school' | 'account-storage' = 'input';
   try {
     const raw = await readTextLimited(request, 4096);
@@ -52,7 +56,7 @@ export async function POST(request: Request) {
     );
     // 만료 행 정리는 핫패스에서 매번 돌리지 않는다 — 로그인의 ~5%만
     // 담당해 쓰기 부담을 줄이고, 인덱스가 있어 오래된 행 조회 비용도 작다.
-    if (Math.random() < 0.05)
+    if (Math.random() < 0.05) {
       await database().batch([
         database()
           .prepare('DELETE FROM academic_sessions WHERE expires_at < ?')
@@ -60,10 +64,14 @@ export async function POST(request: Request) {
         database()
           .prepare('DELETE FROM academic_login_limits WHERE expires_at < ?')
           .bind(Date.now()),
-        database()
-          .prepare('DELETE FROM school_session_vault WHERE expires_at < ?')
-          .bind(Date.now()),
       ]);
+      try {
+        await cleanupExpiredSchoolSessions();
+      } catch {
+        // 볼트 테이블/키가 아직 준비되지 않아도 일반 로그인을 유지한다.
+        console.log('[vault] cleanup failed');
+      }
+    }
     // IP 리밋은 공유망(캠퍼스 NAT) 기준으로 넉넉하게 — 계정별 리밋은
     // 무차별 대입 방어를 위해 엄격하게 유지한다.
     if ((await limited(ip, 150)) || (await limited(id, 3)))
@@ -87,13 +95,6 @@ export async function POST(request: Request) {
     stage = 'account-storage';
     input.password = '';
     await migrateLegacyStudentAccount(id, legacyId);
-    if (session.hasCookies()) {
-      try {
-        await saveSchoolSession(id, session.exportCookies());
-      } catch {
-        console.log('[vault] save failed');
-      }
-    }
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
@@ -145,6 +146,17 @@ export async function POST(request: Request) {
       )
       .bind(tokenHash, id, Date.now() + 86400000)
       .run();
+    if (session.hasCookies()) {
+      try {
+        await saveSchoolSession(id, session.exportCookies(), {
+          sessionHash: tokenHash,
+          issuedAt: schoolSessionIssuedAt,
+        });
+      } catch {
+        // 볼트 설정/마이그레이션 문제로 일반 로그인을 실패시키지 않는다.
+        console.log('[vault] save failed');
+      }
+    }
     const row = await database()
       .prepare('SELECT * FROM academic_accounts WHERE id = ?')
       .bind(id)

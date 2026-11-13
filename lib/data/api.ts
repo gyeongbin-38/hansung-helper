@@ -51,7 +51,8 @@ export async function apiFetch(
     // signal to endpoints whose 401 means the app session is no longer valid.
     const sessionRejected = response.status === 401 &&
       (path === '/api/account' || path === '/api/account/profile' || path === '/api/advisor' ||
-        (path === '/api/account/lms-refresh' && response.headers.get('X-Hansung-Session-Invalid') === '1'));
+        ((path === '/api/account/lms-refresh' || path === '/api/account/lms-refresh-session') &&
+          response.headers.get('X-Hansung-Session-Invalid') === '1'));
     const logoutMismatch = response.status === 409 && path === '/api/account/logout';
     if (context && context === accountContext && (sessionRejected || logoutMismatch) && typeof window !== 'undefined')
       window.dispatchEvent(new Event('hansung-session-invalid'));

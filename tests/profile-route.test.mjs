@@ -71,6 +71,6 @@ assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 7 }) }))
 assert.equal(profile.surveyStatus, 'skipped', 'older client preserves the dismissed survey introduction');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 8, surveyStatus: 'completed' }) })).status, 200);
 assert.equal(profile.surveyStatus, 'completed');
-assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 12, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 9, name: 'revoked fixture' }), revoke: true })).status, 401);
 assert.equal(profile.name, '처음');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');
