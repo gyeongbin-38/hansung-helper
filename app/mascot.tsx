@@ -11,7 +11,7 @@ import type { Data } from './sections/data';
 
 type Pose = 'idle' | 'wave' | 'walk';
 
-/** 3D툰 스타일 HSU 거북이 — 화면 하단 마스코트와 설문 다이얼로그가 함께 쓴다. */
+/** 3D툰 스타일 HSU 거북이 — 어깨·엉덩이·목 관절로 손발을 움직이는 2D 리깅 캐릭터. */
 export function MascotFigure({
   pose = 'idle',
   className = '',
@@ -97,7 +97,7 @@ export function MascotFigure({
             opacity="0.5"
           />
         </g>
-        <g className="mascot-leg mascot-leg-a">
+        <g className="rig-leg rig-leg-l">
           <rect
             x="84"
             y="204"
@@ -108,7 +108,7 @@ export function MascotFigure({
           />
           <ellipse cx="101" cy="235" rx="15" ry="7" fill="#C9D8EE" opacity="0.35" />
         </g>
-        <g className="mascot-leg mascot-leg-b">
+        <g className="rig-leg rig-leg-r">
           <rect
             x="124"
             y="204"
@@ -141,7 +141,7 @@ export function MascotFigure({
         >
           HSU
         </text>
-        <g className="mascot-head">
+        <g className="rig-head">
           <circle cx="120" cy="100" r="70" fill={paint('hood')} />
           <path
             d="M63 88 C70 54 98 37 126 39"
@@ -209,11 +209,11 @@ export function MascotFigure({
           <circle cx="120" cy="157" r="8" fill="#FFFFFF" />
           <circle cx="117.5" cy="154" r="2.4" fill="#E3EBF8" />
         </g>
-        <g className="mascot-arm mascot-arm-left">
+        <g className="rig-arm rig-arm-l">
           <ellipse cx="60" cy="187" rx="20" ry="24" fill={paint('mitten')} />
           <ellipse cx="54" cy="179" rx="7" ry="9" fill="#FFFFFF" opacity="0.16" />
         </g>
-        <g className="mascot-arm mascot-arm-wave">
+        <g className="rig-arm rig-arm-r">
           <ellipse cx="180" cy="187" rx="20" ry="24" fill={paint('mitten')} />
           <ellipse cx="174" cy="179" rx="7" ry="9" fill="#FFFFFF" opacity="0.16" />
         </g>

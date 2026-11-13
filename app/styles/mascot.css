@@ -64,87 +64,195 @@
   height: auto;
   overflow: visible;
 }
+/* 2D 리깅 — 어깨·엉덩이·목 관절을 기준으로 손발과 고개를 회전시킨다. */
 .mascot-figure .mascot-character {
   transform-origin: 50% 100%;
 }
-.mascot-figure .mascot-leg {
+.mascot-figure .rig-leg {
   transform-box: fill-box;
-  transform-origin: 50% 16%;
+  transform-origin: 50% 0%;
 }
-.mascot-figure .mascot-arm {
+.mascot-figure .rig-arm-l {
   transform-box: fill-box;
-  transform-origin: 50% 12%;
+  transform-origin: 85% 15%;
 }
-.mascot-figure.pose-wave .mascot-arm-wave {
-  animation: mascot-wave 0.75s ease-in-out infinite;
+.mascot-figure .rig-arm-r {
+  transform-box: fill-box;
+  transform-origin: 15% 15%;
 }
+.mascot-figure .rig-head {
+  transform-box: fill-box;
+  transform-origin: 50% 86%;
+}
+.mascot-figure .mascot-shell {
+  transform-box: fill-box;
+  transform-origin: 60% 40%;
+}
+
+/* 대기 — 숨쉬기 + 팔 흔들 + 고개 끄덕 */
 .mascot-figure.pose-idle .mascot-character {
-  animation: mascot-breathe 3.6s ease-in-out infinite;
+  animation: mascot-breathe 3.8s ease-in-out infinite;
 }
+.mascot-figure.pose-idle .rig-arm-l {
+  animation: mascot-idle-arm-l 4.4s ease-in-out infinite;
+}
+.mascot-figure.pose-idle .rig-arm-r {
+  animation: mascot-idle-arm-r 4.4s ease-in-out infinite;
+}
+.mascot-figure.pose-idle .rig-head {
+  animation: mascot-idle-head 4.4s ease-in-out infinite;
+}
+
+/* 인사 — 오른손을 들어 흔들고 고개를 살짝 기울인다 */
+.mascot-figure.pose-wave .mascot-character {
+  animation: mascot-breathe 2.2s ease-in-out infinite;
+}
+.mascot-figure.pose-wave .rig-arm-r {
+  animation: mascot-wave 0.62s ease-in-out infinite;
+}
+.mascot-figure.pose-wave .rig-arm-l {
+  animation: mascot-wave-other 2.2s ease-in-out infinite;
+}
+.mascot-figure.pose-wave .rig-head {
+  animation: mascot-head-tilt 2.2s ease-in-out infinite;
+}
+
+/* 걷기 — 다리 교차 · 팔 스윙 · 몸통 바운스 · 등껍질 흔들림 */
 .mascot-figure.pose-walk .mascot-character {
-  animation: mascot-bob 0.42s ease-in-out infinite alternate;
+  animation: mascot-walk-bob 0.44s ease-in-out infinite alternate;
 }
-.mascot-figure.pose-walk .mascot-leg-a {
-  animation: mascot-step-a 0.42s ease-in-out infinite alternate;
+.mascot-figure.pose-walk .rig-leg-l {
+  animation: mascot-step-l 0.44s ease-in-out infinite alternate;
 }
-.mascot-figure.pose-walk .mascot-leg-b {
-  animation: mascot-step-b 0.42s ease-in-out infinite alternate;
+.mascot-figure.pose-walk .rig-leg-r {
+  animation: mascot-step-r 0.44s ease-in-out infinite alternate;
 }
-.mascot-figure.pose-walk .mascot-arm-left {
-  animation: mascot-swing-a 0.42s ease-in-out infinite alternate;
+.mascot-figure.pose-walk .rig-arm-l {
+  animation: mascot-swing-l 0.44s ease-in-out infinite alternate;
 }
-.mascot-figure.pose-walk .mascot-arm-wave {
-  animation: mascot-swing-b 0.42s ease-in-out infinite alternate;
+.mascot-figure.pose-walk .rig-arm-r {
+  animation: mascot-swing-r 0.44s ease-in-out infinite alternate;
+}
+.mascot-figure.pose-walk .rig-head {
+  animation: mascot-walk-head 0.44s ease-in-out infinite alternate;
+}
+.mascot-figure.pose-walk .mascot-shell {
+  animation: mascot-shell-sway 0.44s ease-in-out infinite alternate;
+}
+
+@keyframes mascot-breathe {
+  50% {
+    transform: translateY(-2px) scaleY(1.012);
+  }
+}
+@keyframes mascot-idle-arm-l {
+  0%,
+  100% {
+    transform: rotate(3deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes mascot-idle-arm-r {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes mascot-idle-head {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(-1.6deg);
+  }
 }
 @keyframes mascot-wave {
   0%,
   100% {
-    transform: rotate(-155deg);
+    transform: rotate(-100deg);
   }
   50% {
-    transform: rotate(-195deg);
+    transform: rotate(-150deg);
   }
 }
-@keyframes mascot-breathe {
+@keyframes mascot-wave-other {
+  0%,
+  100% {
+    transform: rotate(5deg);
+  }
   50% {
-    transform: translateY(-2px);
+    transform: rotate(1deg);
   }
 }
-@keyframes mascot-bob {
+@keyframes mascot-head-tilt {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(-6deg);
+  }
+}
+@keyframes mascot-walk-bob {
+  from {
+    transform: translateY(0);
+  }
   to {
     transform: translateY(-4px);
   }
 }
-@keyframes mascot-step-a {
+@keyframes mascot-step-l {
   from {
-    transform: rotate(10deg);
+    transform: rotate(16deg);
   }
   to {
-    transform: rotate(-12deg);
+    transform: rotate(-16deg);
   }
 }
-@keyframes mascot-step-b {
+@keyframes mascot-step-r {
   from {
-    transform: rotate(-12deg);
+    transform: rotate(-16deg);
   }
   to {
-    transform: rotate(10deg);
+    transform: rotate(16deg);
   }
 }
-@keyframes mascot-swing-a {
+@keyframes mascot-swing-l {
   from {
-    transform: rotate(6deg);
+    transform: rotate(-14deg);
   }
   to {
-    transform: rotate(-8deg);
+    transform: rotate(14deg);
   }
 }
-@keyframes mascot-swing-b {
+@keyframes mascot-swing-r {
   from {
-    transform: rotate(-8deg);
+    transform: rotate(14deg);
   }
   to {
-    transform: rotate(6deg);
+    transform: rotate(-14deg);
+  }
+}
+@keyframes mascot-walk-head {
+  from {
+    transform: rotate(-1.2deg);
+  }
+  to {
+    transform: rotate(1.2deg);
+  }
+}
+@keyframes mascot-shell-sway {
+  from {
+    transform: rotate(-2deg);
+  }
+  to {
+    transform: rotate(2deg);
   }
 }
 
