@@ -215,7 +215,7 @@
 }
 .study-course-toggle {
   display: grid;
-  grid-template-columns: 30px minmax(100px, 1fr) minmax(100px, 0.7fr) minmax(
+  grid-template-columns: max-content minmax(100px, 1fr) minmax(100px, 0.7fr) minmax(
       125px,
       1.15fr
     ) 16px;
@@ -232,12 +232,15 @@
 .study-section {
   display: grid;
   place-items: center;
-  width: 30px;
+  min-width: 30px;
   height: 34px;
+  padding-inline: 6px;
   border-radius: 9px;
   color: var(--nt-primary);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
   background: var(--nt-tint-sky);
 }
 .study-course-name,
@@ -594,7 +597,7 @@
 }
 @media (max-width: 1350px) {
   .study-course-toggle {
-    grid-template-columns: 28px minmax(0, 1fr) 105px 14px;
+    grid-template-columns: max-content minmax(0, 1fr) 105px 14px;
     gap: 10px;
   }
   .study-course-preview {
@@ -663,7 +666,7 @@
     padding: 14px;
   }
   .study-course-toggle {
-    grid-template-columns: 26px minmax(0, 1fr) 14px;
+    grid-template-columns: max-content minmax(0, 1fr) 14px;
   }
   .study-course-progress {
     grid-column: 2;
@@ -709,6 +712,17 @@
   font-size: 12px;
   font-weight: 650;
   line-height: 1.5;
+}
+.study-due-stale {
+  margin: 0 0 10px;
+  color: var(--nt-steel);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.study-dday.is-check {
+  border: 1px dashed var(--nt-hairline-strong);
+  background: var(--nt-canvas);
+  color: var(--nt-steel);
 }
 .study-due-row.is-overdue,
 .study-due-row.is-today {
