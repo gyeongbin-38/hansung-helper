@@ -175,8 +175,45 @@ t('match: 모든 과목 반환', em.length === 8);
 t('match: 카테고리·분반·교수 장식 제거', em[4].sections.length === 2 && em[4].sections[0].id === 'c1');
 t('match: 부분명칭 혼동 없음(최장 접두어)', em[5].sections.length === 1 && em[5].sections[0].id === 'd1');
 t('match: 커뮤니티 과목 미매칭', em[7].sections.length === 0);
+t('match: 커뮤니티 플래그는 수업 아님으로 분류', em[3].notCourse === true);
 const oldSemesterCourse = { ...lmsMatch, courses: [{ ...lmsMatch.courses[0], title: '[2025-1학기] 운영체제' }] };
 t('match: 과목 학기가 다르면 같은 이름이나 수동 보정도 연결하지 않음', matchEnrollment(oldSemesterCourse, catalog2, { '1': 'a1' })[0].sections.length === 0);
+
+const catalogLongName = {
+  ...catalog,
+  sections: [
+    ...catalog.sections,
+    mkSection('long1', '데이터통신 및 컴퓨터네트워크', { section: 'A', professor: '오종택' }),
+  ],
+};
+const emLongName = matchEnrollment({
+  source: 'cosmos-lms', fetchedAt: 'x',
+  courses: [{ id: '9', title: '교과(오프라인) 학부 데이터통신[A,B,N,7] 황호영', vods: [], assigns: [], quizzes: [] }],
+}, catalogLongName);
+t('match: prof 필드가 없어도 긴 공식 과목명으로 연결', emLongName[0].sections.length === 1 && emLongName[0].sections[0].id === 'long1');
+const emCommunityTitle = matchEnrollment({
+  source: 'cosmos-lms', fetchedAt: 'x',
+  courses: [{ id: '10', title: '커뮤니티 HSU AI 활용 윤리 지침 신상희', vods: [], assigns: [], quizzes: [] }],
+}, catalog2);
+t('match: community 플래그가 없어도 커뮤니티 제목은 수업 아님', emCommunityTitle[0].notCourse === true && emCommunityTitle[0].sections.length === 0);
+const catalogSuffix = {
+  ...catalog,
+  sections: [mkSection('suffix1', '자료구조 및 알고리즘', { professor: '이지은' })],
+};
+const emSuffix = matchEnrollment({
+  source: 'cosmos-lms', fetchedAt: 'x',
+  courses: [{ id: '11', title: '교과(오프라인) 학부 알고리즘[A] 이지은', vods: [], assigns: [], quizzes: [] }],
+}, catalogSuffix);
+t('match: 이름이 뒤에 붙은 공식 명칭도 교수 일치로 연결', emSuffix[0].sections.length === 1 && emSuffix[0].sections[0].id === 'suffix1');
+const catalogSuffixOther = {
+  ...catalog,
+  sections: [mkSection('suffix2', '자료구조 및 알고리즘', { professor: '김문희' })],
+};
+const emSuffixOther = matchEnrollment({
+  source: 'cosmos-lms', fetchedAt: 'x',
+  courses: [{ id: '12', title: '교과(오프라인) 학부 알고리즘[A] 이지은', vods: [], assigns: [], quizzes: [] }],
+}, catalogSuffixOther);
+t('match: 교수가 다르면 부분 이름만으로 연결하지 않음', emSuffixOther[0].sections.length === 0);
 
 // ── matchEnrollment overrides (수동 보정) ──────────────────
 const emOv = matchEnrollment(lmsMatch, catalog2, {
