@@ -123,6 +123,34 @@ const baseSnap = () => ({
 }
 
 {
+  // 실제 LMS sync 엔드포인트는 JSONP(cb({...}))로 응답한다 — 래핑을 벗겨 토큰 추출
+  let loggedIn = false;
+  const snap = baseSnap();
+  await fillPortalPoints(
+    fakeSession({
+      '/ko/mypage/point': () => (loggedIn ? POINTS_HTML : WALL_HTML),
+      // syncCoursemosLmsLogin 키가 먼저 와야 login 요청이 lms 라우트에 잡히지 않는다
+      syncCoursemosLmsLogin: () => {
+        loggedIn = true;
+        return { success: true };
+      },
+      syncCoursemosLms: {
+        success: true,
+        url: 'https://learn.hansung.ac.kr/local/imodule/lmsSync.php',
+      },
+      'lmsSync.php': 'hssync({"success":true,"token":"tok-jsonp"});',
+    }),
+    snap,
+  );
+  t(
+    'fill: JSONP 래핑 토큰 추출',
+    loggedIn === true &&
+      snap.points === 85 &&
+      snap.diag.pages.some((p) => p.ok && p.path === 'hsportal:mypage/point'),
+  );
+}
+
+{
   // LMS 쪽이 INVAILED_TOKEN을 돌려주면 session-expired로 분류
   const snap = baseSnap();
   await fillPortalPoints(

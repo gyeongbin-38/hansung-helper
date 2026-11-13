@@ -10,8 +10,8 @@ const PORTAL = 'https://hsportal.hansung.ac.kr';
 const POINT_PATH = '/ko/mypage/point';
 const PROCESS = `${PORTAL}/ko/process/coursemos`;
 
-/** 외부 호출 상한 — 브리지(3) + 포인트 페이지(최대 2) + 여유. */
-const BUDGET = 6;
+/** 외부 호출 상한 — 브리지(최대 6: direct+sync+token+login) + 포인트 페이지(최대 2) + 여유. */
+const BUDGET = 8;
 
 export interface PortalSession {
   request(url: string, init?: RequestInit): Promise<Response>;
@@ -75,7 +75,11 @@ async function postForm(
       ? {}
       : {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            // iModule $.send가 붙이는 헤더 — 없으면 process가 HTML/리다이렉트를 돌려줄 수 있다
+            'X-Requested-With': 'XMLHttpRequest',
+          },
           body: new URLSearchParams(body).toString(),
         };
     const sep = useGet ? (url.includes('?') ? '&' : '?') : '';
@@ -105,10 +109,25 @@ function pickField(json: Record<string, unknown>, kind: 'url' | 'token') {
   for (const [k, v] of Object.entries(json)) {
     const s = str(v);
     if (!s) continue;
-    if (kind === 'url' && /^https?:\/\//.test(s)) return s;
+    if (kind === 'url' && /^(https?:)?\/\//.test(s)) return s;
     if (kind === 'token' && /token/i.test(k) && s.length > 3) return s;
   }
   return undefined;
+}
+
+/** JSONP(`cb({...})`) 또는 순수 JSON 응답을 파싱한다 — 코스모스 LMS 쪽
+ *  동기화 엔드포인트는 JSONP로만 응답한다(공식 script.js의 dataType:"jsonp"). */
+function parseJsonp(text: string): Record<string, unknown> | null {
+  const m =
+    text.match(/[\w$.]+\s*\(\s*(\{[\s\S]*\})\s*\)\s*;?\s*$/) ??
+    text.match(/(\{[\s\S]*\})/);
+  if (!m) return null;
+  try {
+    const json = JSON.parse(m[1]);
+    return json && typeof json === 'object' ? (json as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }
 
 type BridgeResult = {
@@ -142,29 +161,30 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
   const sawWall = !!direct && isPortalLoginWall(direct);
   if (direct && !sawWall) return { html: direct, sawWall, stage: 'direct' };
 
-  // ② 연동 토큰 획득 — getCoursemosUrl(type=session) 또는
-  //    syncCoursemosLms가 LMS 동기화 URL을 돌려준다.
-  let syncUrl: string | undefined;
+  // ② LMS→포털 방향의 공식 플로우(script.js syncSessionLms):
+  //    syncCoursemosLms {type:session} → {url} →
+  //    GET url?lmsSync=true&callback=… (JSONP) → {token} →
+  //    syncCoursemosLmsLogin {token} → 포털 세션 수립.
+  //    getCoursemosUrl는 portal→LMS 방향이라 보조로만 쓴다.
   let token: string | undefined;
-  for (const action of ['getCoursemosUrl', 'syncCoursemosLms']) {
+  let syncUrl: string | undefined;
+  for (const action of ['syncCoursemosLms', 'getCoursemosUrl']) {
     const json = await post(`${PROCESS}/${action}`, { type: 'session' });
     if (!json || json.success !== true) continue;
-    token = pickField(json, 'token');
     syncUrl = pickField(json, 'url');
+    // getCoursemosUrl의 token은 portal→LMS 방향용이므로 syncCoursemosLmsLogin에
+    // 쓰지 않는다 — url만 받아 lmsSync JSONP로 토큰을 다시 요청한다.
+    if (action === 'syncCoursemosLms') token = pickField(json, 'token');
     if (token || syncUrl) break;
   }
-  // ③ LMS 쪽 동기화 URL에 세션 토큰을 요청한다 — LMS 쿠키가 붙어 있어야
-  //    유효 토큰이 나온다(비로그인 시 INVAILED_TOKEN).
+  // ③ LMS 쪽 동기화 URL — JSONP(callback 파라미터 필수)로 요청해야
+  //    토큰이 온다. LMS 쿠키가 붙어 있어야 유효 토큰(비로그인 시 거부).
   if (!token && syncUrl) {
     const sep = syncUrl.includes('?') ? '&' : '?';
-    const res = await get(`${syncUrl}${sep}lmsSync=true`);
+    const res = await get(`${syncUrl}${sep}lmsSync=true&callback=hssync`);
     if (res) {
-      try {
-        const json = JSON.parse(res) as Record<string, unknown>;
-        if (json.success === true) token = pickField(json, 'token') ?? str(json.token);
-      } catch {
-        /* JSON이 아니면 토큰 없음 */
-      }
+      const json = parseJsonp(res);
+      if (json?.success === true) token = pickField(json, 'token') ?? str(json.token);
     }
   }
   if (!token) return { html: null, sawWall, stage: 'token' };
