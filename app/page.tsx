@@ -51,7 +51,6 @@ import { SettingsSection } from './sections/settings';
 import { SurveyPage } from './sections/survey';
 import { SurveyDialog } from './sections/survey-dialog';
 import { surveyEntryRoute } from '@/lib/data/survey';
-import { Mascot } from './mascot';
 import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 
@@ -1175,18 +1174,6 @@ export default function App() {
         go={go}
       />
       <ToastStack toasts={toasts} onClose={dismissToast} />
-      <Mascot
-        enabled={data.mascotEnabled !== false}
-        guideSeen={!!data.mascotGuideSeen}
-        isNewUser={!account || !account.onboarded}
-        survey={surveyOpen ? 'course' : false}
-        route={section}
-        hidden={drawer || notifOpen || (!account && !data.consent)}
-        data={data}
-        persist={persist}
-        go={go}
-        onOpenSurvey={() => go('survey')}
-      />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}
@@ -1211,7 +1198,6 @@ export default function App() {
         draft={painDraft}
         setDraft={setPainDraft}
         setStep={setPainStep}
-        mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setPainSurvey(false)}
         onSubmit={(prefs) => {
           void persist(

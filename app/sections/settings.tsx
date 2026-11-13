@@ -287,51 +287,6 @@ export function SettingsSection({
         </p>
       </section>
       <section
-        aria-labelledby="mascot-settings-title"
-        className="settings-mascot"
-      >
-        <h3 id="mascot-settings-title">마스코트</h3>
-        <div className="mascot-setting">
-          <div>
-            <b>화면 아래 마스코트</b>
-            <p className="meta">
-              한성이가 화면 아래를 걸으며 설문을 응원하고, 처음 이용하는
-              분께 필요한 안내를 보여줘요.
-            </p>
-          </div>
-          <label className="mascot-switch">
-            <input
-              type="checkbox"
-              checked={data.mascotEnabled !== false}
-              onChange={(e) =>
-                void persist(
-                  { ...data, mascotEnabled: e.target.checked },
-                  e.target.checked
-                    ? '마스코트를 표시합니다.'
-                    : '마스코트를 잠시 숨겼습니다.',
-                )
-              }
-            />
-            <span className="mascot-switch-track" aria-hidden="true" />
-            <span className="sr-only">화면 아래 마스코트 표시</span>
-          </label>
-        </div>
-        {data.mascotEnabled !== false && (
-          <button
-            className="secondary"
-            onClick={() =>
-              window.dispatchEvent(new Event('hsu-mascot-guide'))
-            }
-          >
-            신규 이용 가이드 다시 보기
-          </button>
-        )}
-        <p className="meta">
-          마스코트는 이 브라우저 설정과 계정에 함께 저장돼요. 꺼 두어도
-          모든 기능은 그대로 이용할 수 있어요.
-        </p>
-      </section>
-      <section
         aria-labelledby="storage-location-title"
         className="settings-storage"
       >
