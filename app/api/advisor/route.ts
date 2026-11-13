@@ -5,13 +5,14 @@ import type { Data } from '@/app/sections/data';
 import { validateInfo } from '@/lib/data/info';
 import { validateLms } from '@/lib/data/lms';
 import type { Catalog } from '@/lib/data/catalog';
-import type { ActivitySnapshot } from '@/lib/data/activities';
+import { extToActivity, type ActivitySnapshot, type ExtActivity } from '@/lib/data/activities';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import catalog from '@/lib/data/catalog-2026-2.json';
 import activities from '@/lib/data/activities.json';
 import schedule from '@/lib/data/schedule.json';
 import { snapshotGet } from '@/lib/server/snapshots';
 import { apiData } from '@/lib/data/api';
+import { ADVISOR_SCOPE_MESSAGE, advisorHistoryAllowed, advisorQuestionAllowed } from '@/lib/data/advisor-policy';
 
 export function GET() {
   return json({ available: advisorAvailable() });
@@ -26,7 +27,9 @@ export async function POST(request: Request) {
     let input;
     try { input = JSON.parse(raw); } catch { return json({ error: '질문 형식을 확인해 주세요.' }, 400); }
     if (!input || typeof input !== 'object' || Array.isArray(input) ||
-        (input.activityId !== undefined && (typeof input.activityId !== 'string' || !/^hs-\d{1,20}$/.test(input.activityId))) ||
+        (input.purpose !== undefined && input.purpose !== 'service' && input.purpose !== 'activity') ||
+        (input.activityId !== undefined && (typeof input.activityId !== 'string' ||
+          !/^(?:hs-\d{1,20}|ext-[a-z0-9-]{1,80})$/.test(input.activityId))) ||
         typeof input.personal !== 'boolean' || !Array.isArray(input.messages) ||
         input.messages.length < 1 || input.messages.length > 5 ||
         input.messages.some((m: AdvisorMessage, i: number) => !m ||
@@ -34,6 +37,11 @@ export async function POST(request: Request) {
           typeof m.content !== 'string' || !m.content.trim() || m.content.length > (m.role === 'user' ? 600 : 6000)) ||
         input.messages.at(-1)?.role !== 'user')
       return json({ error: '질문은 600자 이내로 입력해 주세요.' }, 400);
+    if (input.messages.some((message: AdvisorMessage) => message.role === 'user'
+      ? !advisorQuestionAllowed(message.content)
+      : !advisorHistoryAllowed(message.content)))
+      return json({ error: ADVISOR_SCOPE_MESSAGE }, 400);
+    const purpose: 'service' | 'activity' = input.purpose ?? (input.activityId ? 'activity' : 'service');
     if (!advisorAvailable()) return json({ error: 'AI 상담을 준비 중이에요. 기본 안내를 이용해 주세요.' }, 503);
     // Separate namespace from login throttling; no question or transcript is stored.
     if (await limited(`advisor:account:${row.id}`, 10))
@@ -54,11 +62,15 @@ export async function POST(request: Request) {
     const [coursePayload, activityPayload, schedulePayload] = await Promise.all([
       apiData<Catalog>(courseResponse), apiData<ActivitySnapshot>(activityResponse), apiData<ScheduleSnapshot>(scheduleResponse),
     ]);
-    if (input.activityId && !activityPayload.items.some(a => a.id === input.activityId))
-      return json({ error: '선택한 활동을 공개 목록에서 찾지 못했어요. 비교과 목록에서 다시 선택해 주세요.' }, 400);
+    const profile = JSON.parse(row.profile) as Partial<Data>;
+    const selectedExternal = input.activityId?.startsWith('ext-') && Array.isArray(profile.extActivities)
+      ? profile.extActivities.find((activity): activity is ExtActivity => activity?.id === input.activityId)
+      : undefined;
+    const selectedActivity = selectedExternal ? { ...extToActivity(selectedExternal), url: '' } : undefined;
+    if (input.activityId && !activityPayload.items.some(a => a.id === input.activityId) && !selectedActivity)
+      return json({ error: '선택한 활동을 내 활동 또는 공개 목록에서 찾지 못했어요. 비교과·대외활동에서 다시 선택해 주세요.' }, 400);
     let personal: Partial<Data> | null = null;
     if (input.personal) {
-      const profile = JSON.parse(row.profile);
       const snapshot = JSON.parse(row.snapshot);
       personal = { ...profile, info: validateInfo(snapshot.infoData) ?? undefined,
         lms: validateLms(snapshot.lmsData) ?? validateLms(profile.lms) ?? undefined };
@@ -67,12 +79,18 @@ export async function POST(request: Request) {
       catalog: coursePayload,
       activities: activityPayload,
       schedule: schedulePayload,
+      selectedActivity,
     }, Date.now(), input.activityId);
-    const answer = await generateAdvisorAnswer(context, SERVICE_GUIDES.map(({ label, route, text }) => ({ label, route, text })), input.messages);
+    const answer = await generateAdvisorAnswer(
+      context,
+      SERVICE_GUIDES.map(({ label, route, text }) => ({ label, route, text })),
+      input.messages,
+      purpose,
+    );
     const current = await authenticated(request);
     if (!current || current.id !== row.id || current.session_hash !== row.session_hash)
       return json({ error: '로그인이 종료됐어요. 다시 로그인해 주세요.' }, 401);
-    return json({ mode: 'ai', answer, sources: context.sources, personal: input.personal });
+    return json({ mode: 'ai', answer, sources: context.sources, personal: input.personal, purpose });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) return json({ error: '질문이 너무 길어요. 내용을 줄여 주세요.' }, 413);
     // Never log prompts, school data or provider errors.

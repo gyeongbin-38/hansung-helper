@@ -57,6 +57,21 @@ test('selected program is grounded with no inferred eligibility or identity leak
   assert.ok(reply.sources.some(s => s.route === 'activities/hs-1'));
 });
 
+test('explicitly selected external activity is labelled as user data without a school collection date', () => {
+  const external = program('ext-qa', 3, { title: '직접 등록한 활동', url: 'https://example.com/activity' });
+  const publicData = { catalog: null, activities: snapshot, schedule: null, selectedActivity: external };
+  const context = advisorContext(null, publicData, now, external.id);
+  assert.equal(context.personalFacts, null);
+  assert.equal(context.publicFacts.selectedActivity.origin, 'user-entered');
+  assert.equal(context.publicFacts.selectedActivity.asOf, null);
+  assert.match(context.publicFacts.selectedActivity.eligibility, /주최 기관/);
+  const source = context.sources.find(s => s.route === 'activities/ext-qa');
+  assert.match(source.label, /직접 등록한 대외활동/);
+  assert.equal(source.asOf, undefined);
+  assert.match(guideReply('신청 준비', null, publicData, now, external.id).answer, /직접 등록한 정보/);
+  assert.equal(advisorContext(null, publicData, now, 'ext-other').publicFacts.selectedActivity, null);
+});
+
 test('workspace finder searches, filters and orders only loaded activity facts', () => {
   const saved = new Set(['hs-2']);
   assert.deepEqual(activityWorkspaceItems(items, { filter: 'saved', saved, now }).map(a => a.id), ['hs-2']);

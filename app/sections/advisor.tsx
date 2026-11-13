@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
+  ArrowRight,
   Check,
   ClipboardCheck,
   Copy,
@@ -20,9 +21,11 @@ import type { Catalog } from '@/lib/data/catalog';
 import { apiData, apiFetch } from '@/lib/data/api';
 import {
   guideReply,
+  SERVICE_GUIDES,
   type AdvisorMessage,
   type AdvisorReply,
 } from '@/lib/data/advisor';
+import { advisorQuestionAllowed, ADVISOR_SCOPE_MESSAGE } from '@/lib/data/advisor-policy';
 import {
   extToActivity,
   liveStatus,
@@ -44,10 +47,10 @@ type Prep = {
 };
 const EMPTY: Prep = { purpose: '', experience: '', schedule: '', notes: '' };
 const QUESTIONS = [
-  '이번 주에는 무엇부터 해야 해?',
-  '다음 학기 계획을 점검해 줘',
-  '졸업 준비는 어디서 시작해?',
-  '나에게 맞는 비교과 활동을 찾아 줘',
+  '시간표에 과목을 어떻게 담나요?',
+  '과제와 마감은 어디서 확인하나요?',
+  '졸업요건 화면은 어떻게 보나요?',
+  '비교과 AI와 신청하기는 어떻게 사용하나요?',
 ];
 const date = (value: string | null | undefined) =>
   value ? value.slice(0, 10).replaceAll('-', '.') : '확인 필요';
@@ -68,6 +71,7 @@ export function Advisor({
   go,
   signedIn,
   activityId,
+  purpose = 'service',
   onSchoolAccount,
   onSignIn,
 }: {
@@ -76,6 +80,7 @@ export function Advisor({
   go: (route: string) => void;
   signedIn: boolean;
   activityId?: string;
+  purpose?: 'service' | 'activity';
   onSchoolAccount?: (account: Account) => void;
   onSignIn?: () => void;
 }) {
@@ -89,12 +94,13 @@ export function Advisor({
     ],
     [activities?.items, data.extActivities],
   );
-  const activity = all.find((item) => item.id === activityId);
+  const application = purpose === 'activity';
+  const activity = application ? all.find((item) => item.id === activityId) : undefined;
   const external = activity?.id.startsWith('ext-') ?? false;
   const brief = activity
     ? activityBrief(activity, external ? undefined : activities?.fetchedAt, now)
     : null;
-  const [tab, setTab] = useState<Tab>(activity ? 'prepare' : 'find');
+  const [tab, setTab] = useState<Tab>(activityId ? 'prepare' : 'find');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<ActivityWorkspaceFilter>('available');
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -116,7 +122,7 @@ export function Advisor({
   const started = Object.values(draft).some((value) => value.trim());
   const quickQuestions = activity
     ? ['이 활동의 신청 기간과 준비할 것을 요약해 줘', '참여 목적을 준비하려면 어떤 정보를 정리해야 해?']
-    : QUESTIONS;
+    : application ? ['활동을 고를 때 무엇을 확인하나요?', '신청 준비는 어떤 순서로 하나요?'] : QUESTIONS;
   const visible = activityWorkspaceItems(all, {
     query,
     filter,
@@ -152,13 +158,17 @@ export function Advisor({
     const q = raw.trim();
     if (!q || q.length > 600 || request.current) return;
     setError('');
+    if (!advisorQuestionAllowed(q)) {
+      setError(ADVISOR_SCOPE_MESSAGE);
+      return;
+    }
     if (!useAi) {
       const reply = guideReply(
         q,
         personal ? data : null,
-        { catalog, activities, schedule },
+        { catalog, activities, schedule, ...(activity && external ? { selectedActivity: activity } : {}) },
         now,
-        activity && !external ? activity.id : undefined,
+        activity?.id,
       );
       setTurns((prev) => [...prev.slice(-9), { question: q, reply }]);
       setQuestion('');
@@ -189,7 +199,8 @@ export function Advisor({
           body: JSON.stringify({
             messages,
             personal,
-            ...(activity && !external ? { activityId: activity.id } : {}),
+            purpose,
+            ...(activity ? { activityId: activity.id } : {}),
           }),
         },
         35000,
@@ -251,24 +262,25 @@ export function Advisor({
   );
 
   return (
-    <section className="advisor-workspace" aria-labelledby="advisor-title">
+    <section className={`advisor-workspace${application ? '' : ' advisor-service'}`} aria-labelledby="advisor-title">
       <header className="advisor-workspace-header">
         <div>
+          {application && <button className="link advisor-back" onClick={() => go('activities')}>비교과·대외활동으로 돌아가기</button>}
           <span className="eyebrow">
-            <Sparkles size={15} /> AI 활동 워크스페이스
+            <Sparkles size={15} /> {application ? 'AI와 신청하기' : '서비스 이용 안내'}
           </span>
-          <h1 id="advisor-title">활동을 찾고, 신청 전까지 함께 준비해요</h1>
+          <h1 id="advisor-title">{application ? '활동을 찾고, 신청 전까지 함께 준비해요' : '학사부기, 이렇게 사용해 보세요'}</h1>
           <p>
-            공개 정보를 정리하고 최종 접수는 학교 공식 화면에서 본인이 확인해요.
+            {application ? '공개 정보를 정리하고 최종 접수는 공식 신청 화면에서 본인이 확인해요.' : '기능을 찾고 사용하는 방법이 궁금할 때, 이용 도우미에게 물어보세요.'}
           </p>
         </div>
-        <SchoolConnection
+        {application ? <SchoolConnection
           signedIn={signedIn}
           onAccount={onSchoolAccount}
           onSignIn={onSignIn}
-        />
+        /> : <button className="secondary" onClick={() => go('settings')}>내 연결 상태 확인 <ArrowRight size={15} /></button>}
       </header>
-      <nav className="advisor-mobile-tabs" aria-label="AI 작업 화면">
+      {application && <nav className="advisor-mobile-tabs" aria-label="AI 작업 화면">
         {(
           [
             ['find', '활동 찾기', Search],
@@ -285,9 +297,14 @@ export function Advisor({
             {label}
           </button>
         ))}
-      </nav>
+      </nav>}
       <div className="advisor-workspace-grid">
-        <aside
+        {!application && <section className="advisor-service-guides" aria-labelledby="advisor-guide-title">
+          <div className="advisor-service-guide-heading"><span className="eyebrow">서비스 가이드</span><h2 id="advisor-guide-title">어떤 기능이 궁금하세요?</h2><p>궁금한 기능을 고르면 사용 방법을 안내해 드려요.</p></div>
+          <div className="advisor-service-topics">{SERVICE_GUIDES.map((guide, i) => <button key={guide.route + guide.label} onClick={() => { const q = `${guide.label} 기능은 어떻게 사용하나요?`; setQuestion(q); void ask(q); }} disabled={pending}><span className="advisor-topic-index">{String(i + 1).padStart(2, '0')}</span><span><b>{guide.label}</b><small>사용 방법 알아보기</small></span><ArrowRight size={16} aria-hidden="true" /></button>)}</div>
+          <div className="advisor-service-application"><Sparkles size={19} aria-hidden="true" /><div><h3>활동 신청을 준비하고 있나요?</h3><p>비교과·대외활동에서 공고를 고르고 준비 메모를 작성해 보세요.</p><button className="link" onClick={() => go('activities/apply')}>AI와 신청하기 <ArrowRight size={14} /></button></div></div>
+        </section>}
+        {application && <><aside
           className={`advisor-finder ${tab === 'find' ? 'is-mobile-active' : ''}`}
         >
           <div className="advisor-pane-title">
@@ -333,7 +350,7 @@ export function Advisor({
                   aria-label={`${item.title} 선택`}
                   className="advisor-activity-item"
                   aria-current={activity?.id === item.id ? 'true' : undefined}
-                  onClick={() => go(`advisor/${item.id}`)}
+                  onClick={() => go(`activities/apply/${item.id}`)}
                 >
                   <span className={`advisor-status-dot is-${status.status}`} />
                   <span>
@@ -509,14 +526,14 @@ export function Advisor({
               </section>
             </>
           )}
-        </section>
+        </section></>}
         <aside
-          className={`advisor-chat ${tab === 'chat' ? 'is-mobile-active' : ''}`}
+          className={`advisor-chat ${!application || tab === 'chat' ? 'is-mobile-active' : ''}`}
         >
           <div className="advisor-pane-title">
             <div>
               <span>ASSISTANT</span>
-              <h2>AI 학사 상담</h2>
+              <h2>{application ? 'AI 신청 도우미' : '서비스 이용 도우미'}</h2>
             </div>
             <Sparkles size={18} />
           </div>
@@ -549,7 +566,7 @@ export function Advisor({
                 ? 'AI 연결을 확인하고 있어요…'
                 : available === false
                   ? 'AI를 쓸 수 없어 기본 안내로 도와드려요.'
-                  : '활동 준비와 일반 학사 질문을 물어보세요.'}
+                  : application ? '선택한 활동의 공고와 신청 준비를 물어보세요.' : '학사부기 기능과 사용 방법을 물어보세요.'}
           </p>
           <label className="advisor-consent">
             <input
@@ -564,7 +581,7 @@ export function Advisor({
             내 학사 요약 참고
           </label>
           <p className="advisor-privacy">
-            AI 상담은 질문·최근 AI 대화와 선택 시 학과·이수·포인트 요약을
+            AI 상담은 질문·최근 AI 대화{application ? '·선택한 활동 정보' : ''}와 동의 시 학과·이수·포인트 요약을
             Cloudflare Workers AI에 보내요. 학교 인증 정보는 이 요약에 포함하지
             않으며 대화는 서버에 저장하지 않아요. 질문에 학번·비밀번호를 직접
             입력하지 마세요.
@@ -574,7 +591,7 @@ export function Advisor({
               <p className="advisor-chat-welcome">
                 {activity
                   ? `${activity.title}을(를) 준비하며 궁금한 것을 물어보세요.`
-                  : '졸업 요건, 학기 계획, 활동 탐색을 물어보세요.'}
+                  : application ? '활동을 고르고 공고 확인부터 신청 준비까지 함께 정리해요.' : '시간표 담기, 과제 확인, 졸업요건 화면 이용 등 궁금한 사용 방법을 물어보세요.'}
               </p>
             )}
             {turns.map((turn, i) => (
@@ -663,7 +680,7 @@ export function Advisor({
           {error && (
             <div className="advisor-error" role="alert">
               <p>{error}</p>
-              <button className="secondary" onClick={() => void ask(question)}>
+              {error !== ADVISOR_SCOPE_MESSAGE && <><button className="secondary" onClick={() => void ask(question)}>
                 다시 시도
               </button>
               <button
@@ -675,7 +692,7 @@ export function Advisor({
                 }}
               >
                 기본 안내로 전환
-              </button>
+              </button></>}
             </div>
           )}
         </aside>
