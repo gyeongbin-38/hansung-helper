@@ -57,7 +57,10 @@ export function Courses({
     () => (myDept ? resolveDept(myDept, depts) : {}),
     [myDept, depts],
   );
-  const effectiveDept = dept === '' && !myDeptRes.dept ? '전체' : dept;
+  const effectiveDept =
+    dept === '' && !myDeptRes.dept && !myDeptRes.candidates?.length
+      ? '전체'
+      : dept;
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept

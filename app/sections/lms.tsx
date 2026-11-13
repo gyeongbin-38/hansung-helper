@@ -1,6 +1,7 @@
 'use client';
 import {
   ArrowUpRight,
+  CircleAlert,
   Copy,
   Download,
   MonitorPlay,
@@ -10,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSlowLoading } from '../use-slow-loading';
+import { LmsConnectionSummary, LmsOverview } from './lms-overview';
+import { LmsTasks } from './lms-tasks';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
@@ -17,11 +20,11 @@ import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { useNow } from './catalog';
 import {
   bingeQueue,
+  courseDisplayName,
   courseIsPast,
   courseProgress,
   formatLmsTime,
   currentSemesterStart,
-  dueSoon,
   isPast,
   kstDateNumber,
   lectureRangeStatus,
@@ -32,7 +35,6 @@ import {
   relTime,
   searchMatchCandidates,
   staleDays,
-  submissionItems,
   suggestMatchCandidates,
   validateLms,
   weekProgress,
@@ -40,7 +42,6 @@ import {
   type EnrolledMatch,
   type LmsCourse,
   type LmsSnapshot,
-  type SubmissionItem,
 } from '@/lib/data/lms';
 
 const LMS_BASE = 'https://learn.hansung.ac.kr';
@@ -66,21 +67,7 @@ const shortRange = (r?: string) => {
 };
 
 /** LMS 원문 과목명 → 표시용 정제. '[A]' 분반을 배지로 분리하고
- *  '교과(온라인) 학부 … 김교수' 같은 장식 토큰을 벗긴다.
- *  매칭용 키(lmsKey)와 별개로 표시만 다듬는다. */
-const DISPLAY_DECOR =
-  /(교과|비교과|커뮤니티|학부|대학원|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g;
-const courseDisplay = (c: LmsCourse) => {
-  const m = c.title.match(/\[([^\]]{1,8})\]/);
-  const section = m?.[1]?.trim();
-  let t = c.title
-    .replace(/\[[^\]]*\]/g, ' ')
-    .replace(DISPLAY_DECOR, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (c.prof && t.endsWith(c.prof)) t = t.slice(0, -c.prof.length).trim();
-  return { title: t || c.title, section };
-};
+ *  '교과(온라인) 학부 … 김교수' 같은 장식 토큰을 벗긴다. */
 
 function TaskRow({
   kind,
@@ -199,7 +186,7 @@ function CourseCard({
         past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];
-  const disp = courseDisplay(c);
+  const disp = courseDisplayName(c);
   return (
     <details
       id={`lms-c-${c.id}`}
@@ -399,91 +386,6 @@ function BingeView({
   );
 }
 
-/** 과제·퀴즈 한 줄 — 제출·응시 상태 배지 포함 */
-function SubmissionRow({ s, now }: { s: SubmissionItem; now: number }) {
-  const dd = s.dueTs !== null ? kstDateNumber(s.dueTs) - kstDateNumber(now) : null;
-  return (
-    <div className={`lms-task ${s.kind === '과제' ? 't-assign' : 't-quiz'}`}>
-      <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
-        {s.kind}
-      </span>
-      <div>
-        {s.url ? (
-          <a className="link" href={s.url} target="_blank" rel="noreferrer">
-            {s.title} <ArrowUpRight size={13} />
-          </a>
-        ) : (
-          <b>{s.title}</b>
-        )}
-        <small>
-          {s.course}
-          {s.due
-            ? ` · 마감 ${s.due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
-            : ' · 마감 미기재'}
-        </small>
-      </div>
-      <span
-        className={
-          'badge ' +
-          (s.uncertain ? 'purple' : s.submitted ? 'green' : 'orange')
-        }
-      >
-        {s.uncertain
-          ? `${s.kind} 상태 확인 실패`
-          : s.submitted
-          ? s.kind === '퀴즈'
-            ? '응시 완료'
-            : '제출 완료'
-          : s.kind === '퀴즈'
-              ? '미응시'
-              : '미제출'}
-      </span>
-    </div>
-  );
-}
-
-/** 전체 과제·퀴즈 — 제출·응시 완료 항목 포함 통합 현황 */
-function SubmissionsView({
-  snap,
-  now,
-  before,
-}: {
-  snap: LmsSnapshot;
-  now: number;
-  /** 학기 경계 — 이전 마감 항목은 보관 영역으로 분리 */
-  before?: number | null;
-}) {
-  const items = submissionItems(snap, before);
-  if (!items.length)
-    return <p className="meta">수집된 과제·퀴즈가 없습니다.</p>;
-  const cur = items.filter((i) => !i.past);
-  const past = items.filter((i) => i.past);
-  const done = cur.filter((i) => i.submitted).length;
-  return (
-    <>
-      <p className="meta">
-        과제·퀴즈 {cur.length}건 · 완료 {done} · 남은 것{' '}
-        {cur.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
-      </p>
-      <div className="lms-tasks">
-        {cur.map((s, i) => (
-          <SubmissionRow key={i} s={s} now={now} />
-        ))}
-      </div>
-      {past.length > 0 && (
-        <details className="lms-past">
-          <summary>지난 학기 과제·퀴즈 {past.length}건</summary>
-          <div className="lms-tasks">
-            {past.map((s, i) => (
-              <SubmissionRow key={i} s={s} now={now} />
-            ))}
-          </div>
-        </details>
-      )}
-    </>
-  );
-}
-
 /** 확장 프로그램 동기화 상태 — page.tsx의 브리지 이벤트로 갱신된다 */
 export type ExtSync = {
   installed: boolean;
@@ -546,7 +448,8 @@ export function LmsSection({
   const [err, setErr] = useState('');
   const [copying, setCopying] = useState(false);
   const now = useNow(30000);
-  const [view, setView] = useState<'courses' | 'binge' | 'submit'>('courses');
+  const [view, setView] = useState<'courses' | 'binge'>('courses');
+  const tasksView = detail === 'tasks';
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
@@ -581,7 +484,9 @@ export function LmsSection({
           ? 'COSMOS 로그인 거부 — 학교 포털과 다른 비밀번호이거나 COSMOS 계정이 아직 없을 수 있습니다'
           : lmsError === 'landing'
             ? 'COSMOS 로그인 후 안내 페이지에서 멈췄습니다 — 직접 로그인해 안내를 완료해 주세요'
-            : 'COSMOS 접속 실패'
+            : lmsError === 'session'
+              ? '저장된 학교 세션이 만료되었습니다. 비밀번호로 다시 연결해 주세요.'
+              : 'COSMOS 접속 실패'
         : collectFailed
           ? '서버 수집 미완료'
           : undefined;
@@ -591,10 +496,20 @@ export function LmsSection({
   const matches =
     snap && catalog ? matchEnrollment(snap, catalog, data.lmsMatch) : [];
   const matchPending = matches.filter(
-    (m) => !m.sections.length && !m.ignored,
+    (m) => !m.sections.length && !m.ignored && !m.notCourse,
   );
   const matchManual = matches.filter((m) => m.manual);
   const matchIgnored = matches.filter((m) => m.ignored);
+  const matchTotal = matches.filter((m) => !m.notCourse).length;
+  const coursesNeedingCheck = snap?.courses.filter(c =>
+    !!c.errors?.length || c.vods.some(v => v.uncertain || lectureRangeStatus(c, v).rangeUncertain) ||
+    [...c.assigns, ...c.quizzes].some(t => t.uncertain),
+  ) ?? [];
+  const collectionIssues = coursesNeedingCheck.length;
+  const issueCount = new Set([
+    ...matchPending.map(m => m.course.id),
+    ...coursesNeedingCheck.map(c => c.id),
+  ]).size;
 
   // 딥링크가 바뀌면 과목별 뷰로 돌아간다 — 대상 카드는 그 뷰에만 있다
   // (렌더 중 상태 조정 패턴 — effect 내 setState 대신)
@@ -638,9 +553,34 @@ export function LmsSection({
     setCopying(false);
   };
 
+  const connection = snap ? <LmsConnectionSummary
+    snap={snap} now={now} status={band} issueCount={issueCount}
+    extInstalled={extStatus.installed} notifications={!!data.notifEnabled}
+    matched={catalog ? matches.filter(m => m.sections.length > 0 && !m.ignored).length : null} total={matchTotal}
+  >
+    <ConnCard snap={snap} now={now} ext={extStatus} syncing={syncing}
+      lastError={lastError} matches={matches} catalogReady={!!catalog}
+      canRefresh={canRefresh} studentMask={studentMask} onAccount={onAccount}
+      notify={notify} busy={serverCollecting} onExtRefresh={onExtRefresh}
+      onImport={() => fileRef.current?.click()}
+      onDelete={async () => await persist({ ...data, lms: undefined }, '수업 현황을 삭제했습니다.')}
+      err={err} />
+  </LmsConnectionSummary> : null;
+  const attention = snap && (issueCount > 0 || band !== 'fresh' || matchManual.length > 0 || matchIgnored.length > 0) ? <details className="study-attention" key={band} open={band === 'failed' || band === 'login'}>
+    <summary><CircleAlert size={17} /> 확인 필요 <span>{issueCount ? `${issueCount}과목` : '수집 상태'}</span></summary>
+    {collectionIssues > 0 && <p>{collectionIssues}과목의 일부 항목을 확인하지 못했어요. 이전 수집값이 포함될 수 있어요.</p>}
+    {band !== 'fresh' && <p>{band === 'syncing' ? '수집 중이에요. 완료되면 자동으로 반영돼요.' : band === 'login' ? 'COSMOS에 직접 로그인한 뒤 다시 수집해 주세요.' : band === 'failed' ? '수집에 실패해 이전 결과를 표시해요.' : band === 'delayed' ? '수집이 지연되고 있어요. 이전 결과를 표시해요.' : '수집값이 오래됐어요. 연결 관리에서 새로고침해 주세요.'}{lastError ? ` ${lastError}` : ''}</p>}
+    {catalog && (matchPending.length > 0 || matchManual.length > 0 || matchIgnored.length > 0) && <MatchFixer catalog={catalog} data={data} persist={persist} pending={matchPending} manual={matchManual} ignored={matchIgnored} />}
+  </details> : null;
+
   return (
     <>
-      <SyncBand
+      <nav className="study-view-nav" aria-label="수업·과제 화면">
+        <a href="#lms" aria-current={!tasksView && view === 'courses' ? 'page' : undefined} onClick={() => setView('courses')}>수업 현황</a>
+        <a href="#lms/tasks" aria-current={tasksView ? 'page' : undefined} onClick={() => setView('courses')}>과제 모아보기</a>
+        <button type="button" aria-current={!tasksView && view === 'binge' ? 'page' : undefined} onClick={() => { window.location.hash = 'lms'; setView('binge'); }}>몰아듣기</button>
+      </nav>
+      {!snap && <SyncBand
         band={band}
         snap={snap}
         now={now}
@@ -650,25 +590,9 @@ export function LmsSection({
         serverCollecting={serverCollecting}
         onExtRefresh={onExtRefresh}
         matchPending={matchPending.length}
-        matchTotal={snap?.courses.length ?? 0}
+        matchTotal={matchTotal}
         serverLoginFailed={lmsUnavailable}
-      />
-
-      {snap &&
-        catalog &&
-        (matchPending.length > 0 ||
-          matchManual.length > 0 ||
-          matchIgnored.length > 0) && (
-          <MatchFixer
-            snap={snap}
-            catalog={catalog}
-            data={data}
-            persist={persist}
-            pending={matchPending}
-            manual={matchManual}
-            ignored={matchIgnored}
-          />
-        )}
+      />}
 
       {!snap ? (
         <SetupGuide
@@ -684,90 +608,12 @@ export function LmsSection({
           busy={serverCollecting}
         />
       ) : (
-        <div className="lms-grid">
-          <section className="card pad lms-main">
-            <div className="between">
-              <div className="lms-tabs" role="tablist" aria-label="수업 현황 보기">
-                <button
-                  role="tab"
-                  aria-selected={view === 'courses'}
-                  className={'badge' + (view === 'courses' ? ' sel' : '')}
-                  onClick={() => setView('courses')}
-                >
-                  과목별
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={view === 'binge'}
-                  className={'badge' + (view === 'binge' ? ' sel' : '')}
-                  onClick={() => setView('binge')}
-                >
-                  몰아듣기
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={view === 'submit'}
-                  className={'badge' + (view === 'submit' ? ' sel' : '')}
-                  onClick={() => setView('submit')}
-                >
-                  제출·응시
-                </button>
-              </div>
-              <small className="meta">
-                남은 항목 {pendCount}건
-              </small>
-            </div>
-            {view === 'courses' && (
-              <div className="lms-courses">
-                {snap.courses.map((c) => (
-                  <CourseCard
-                    key={c.id}
-                    c={c}
-                    now={now}
-                    before={before}
-                    forceOpen={detail === c.id}
-                  />
-                ))}
-              </div>
-            )}
-            {view === 'binge' && (
-              <BingeView snap={snap} now={now} before={before} />
-            )}
-            {view === 'submit' && (
-              <SubmissionsView snap={snap} now={now} before={before} />
-            )}
-          </section>
-
-          <aside className="lms-side">
-            <section className="card pad">
-              <h3>마감 임박</h3>
-              <DueSoonList snap={snap} now={now} before={before} />
-            </section>
-            <ConnCard
-              snap={snap}
-              now={now}
-              ext={extStatus}
-              syncing={syncing}
-              lastError={lastError}
-              matches={matches}
-              catalogReady={!!catalog}
-              canRefresh={canRefresh}
-              studentMask={studentMask}
-              onAccount={onAccount}
-              notify={notify}
-              busy={serverCollecting}
-              onExtRefresh={onExtRefresh}
-              onImport={() => fileRef.current?.click()}
-              onDelete={async () =>
-                await persist(
-                  { ...data, lms: undefined },
-                  '수업 현황 데이터를 삭제했습니다.',
-                )
-              }
-              err={err}
-            />
-          </aside>
-        </div>
+        tasksView ? <LmsTasks snap={snap} now={now} before={before} sidebar={<>{connection}{attention}</>} /> :
+        view === 'binge' ? <div className="study-layout"><section className="card study-binge"><h2>강의 몰아듣기</h2><BingeView snap={snap} now={now} before={before} /></section><aside className="study-side">{connection}{attention}</aside></div> :
+        <LmsOverview key={detail ?? 'overview'} snap={snap} now={now} before={before} status={band}
+          issueCount={issueCount} detail={detail} connection={connection} attention={attention}
+          onRefresh={onExtRefresh} canRefresh={extStatus.installed}
+          renderCourse={c => <CourseCard c={c} now={now} before={before} forceOpen />} />
       )}
 
       <input
@@ -789,7 +635,6 @@ export function LmsSection({
  *  제외한다. 보정은 data.lmsMatch에 저장되고 졸업요건·시간표의 수강
  *  추정에도 반영된다. 자동 확정은 하지 않고 후보만 제안한다. */
 function MatchFixer({
-  snap,
   catalog,
   data,
   persist,
@@ -797,7 +642,6 @@ function MatchFixer({
   manual,
   ignored,
 }: {
-  snap: LmsSnapshot;
   catalog: Catalog;
   data: Data;
   persist: (next: Data, msg?: string) => Promise<boolean>;
@@ -820,27 +664,38 @@ function MatchFixer({
     );
     setOpen(null);
   };
+  const hasPending = pending.length > 0;
   return (
-    <section
+    <details
       className={
-        'card pad lms-match-warn' + (pending.length > 0 ? ' needs' : '')
+        'card pad lms-match-info' + (hasPending ? ' has-pending' : '')
       }
-      role="note"
+      open={!hasPending && (manual.length > 0 || ignored.length > 0)}
     >
-      {pending.length > 0 ? (
-        <b>
-          {snap.courses.length}과목 중 {pending.length}과목이 개설강의
-          카탈로그에서 자동으로 연결되지 않았습니다.
-        </b>
-      ) : (
-        <b>모든 수업 과목이 개설강의 카탈로그와 연결되었습니다.</b>
-      )}
+      <summary>
+        <span className="lms-match-summary">
+          <b>
+            {hasPending
+              ? `개설강의 카탈로그에 없는 과목 ${pending.length}개`
+              : '모든 수업 과목이 개설강의와 연결되었습니다'}
+          </b>
+          <small>
+            {hasPending
+              ? 'COSMOS 연결은 정상입니다. 졸업요건 계산에 넣을 과목만 직접 연결하세요.'
+              : '직접 연결하거나 제외한 내역을 확인할 수 있습니다.'}
+          </small>
+        </span>
+        <span className="lms-match-toggle">
+          {hasPending ? '과목 확인' : '내역 보기'}
+        </span>
+      </summary>
       <p className="meta">
-        {pending.length > 0
-          ? '개설 학기가 다르거나 카탈로그에 과목이 없을 수 있습니다. 같은 과목을 검색해 직접 연결하거나, 수업이 아닌 항목은 제외할 수 있습니다. 연결되지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
+        {hasPending
+          ? '개설 학기가 다르거나 카탈로그에 없는 과목일 수 있습니다. 같은 과목을 검색해 직접 연결하거나, 수업이 아닌 항목은 제외할 수 있습니다. 연결하지 않은 과목은 수강 중 배지·졸업요건 계산에서 빠집니다.'
           : '이름으로 자동 연결되지 않은 과목을 직접 연결하거나 제외한 내역입니다.'}
       </p>
-      <div className="matchfix-list">
+      {hasPending && (
+        <div className="matchfix-list">
         {pending.map((m) => (
           <MatchFixRow
             key={m.course.id}
@@ -854,7 +709,8 @@ function MatchFixer({
             onIgnore={() => void setOverride(m.course.id, 'ignore')}
           />
         ))}
-      </div>
+        </div>
+      )}
       {(manual.length > 0 || ignored.length > 0) && (
         <details className="matchfix-done">
           <summary>
@@ -863,7 +719,7 @@ function MatchFixer({
           {manual.map((m) => (
             <div className="matchfix-row" key={m.course.id}>
               <div>
-                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <b title={m.course.title}>{courseDisplayName(m.course).title}</b>
                 <small>
                   →{' '}
                   {[...new Set(m.sections.map((s) => s.name))].join(', ')}
@@ -880,7 +736,7 @@ function MatchFixer({
           {ignored.map((m) => (
             <div className="matchfix-row" key={m.course.id}>
               <div>
-                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <b title={m.course.title}>{courseDisplayName(m.course).title}</b>
                 <small>매칭 제외됨 — 수업이 아닌 항목</small>
               </div>
               <button
@@ -893,7 +749,7 @@ function MatchFixer({
           ))}
         </details>
       )}
-    </section>
+    </details>
   );
 }
 
@@ -913,7 +769,7 @@ function MatchFixRow({
   onPick: (sectionId: string) => void;
   onIgnore: () => void;
 }) {
-  const disp = courseDisplay(m.course);
+  const disp = courseDisplayName(m.course);
   const [query, setQuery] = useState('');
   const candidates = !open ? [] : query.trim()
     ? searchMatchCandidates(catalog, query)
@@ -1069,8 +925,8 @@ function SyncBand({
   let info = head[band];
   if (band === 'fresh' && matchPending > 0)
     info = {
-      t: `수집 완료 · 과목 매칭 ${matchTotal - matchPending}/${matchTotal}`,
-      d: `${matchPending}개 과목이 개설강의와 이름이 달라 매칭되지 않았습니다 — 아래 매칭 보정에서 직접 연결하거나 제외할 수 있습니다.`,
+      t: `수집 완료 · 카탈로그 확인 ${matchTotal - matchPending}/${matchTotal}`,
+      d: `${matchPending}개 과목은 개설강의 목록에서 이름을 찾지 못했습니다. COSMOS 연결과는 무관하며, 아래에서 직접 연결하거나 제외할 수 있습니다.`,
     };
   return (
     <section className={`lms-band band-${band}`} aria-live="polite">
@@ -1103,8 +959,8 @@ function SyncBand({
           </div>
           {matchPending > 0 && (
             <div>
-              <dt>매칭 확인</dt>
-              <dd>{matchPending}과목 필요</dd>
+              <dt>카탈로그 확인</dt>
+              <dd>{matchPending}과목</dd>
             </div>
           )}
           <div>
@@ -1356,16 +1212,16 @@ function ConnCard({
         {catalogReady &&
           (() => {
             const pending = matches.filter(
-              (m) => !m.sections.length && !m.ignored,
+              (m) => !m.sections.length && !m.ignored && !m.notCourse,
             );
             const manual = matches.filter((m) => m.manual).length;
             const ignored = matches.filter((m) => m.ignored).length;
+            const total = matches.filter((m) => !m.notCourse).length;
             return (
               <div>
                 <dt>카탈로그 매칭</dt>
                 <dd>
-                  {snap.courses.length - pending.length - ignored}/
-                  {snap.courses.length} 과목
+                  {total - pending.length - ignored}/{total} 과목
                   {manual > 0 && ` · 직접 연결 ${manual}`}
                   {ignored > 0 && ` · 제외 ${ignored}`}
                   {pending.length > 0 && (
@@ -1373,7 +1229,7 @@ function ConnCard({
                       확인 필요:{' '}
                       {pending
                         .slice(0, 3)
-                        .map((m) => m.course.title)
+                        .map((m) => courseDisplayName(m.course).title)
                         .join(', ')}
                       {pending.length > 3 ? ` 외 ${pending.length - 3}` : ''}{' '}
                       (위 카드에서 직접 연결하거나 제외할 수 있습니다)
@@ -1412,6 +1268,13 @@ function ConnCard({
             busy={busy}
           />
         )}
+        {canRefresh && (
+          <SessionRefreshButton
+            onAccount={onAccount!}
+            notify={notify}
+            busy={busy}
+          />
+        )}
         <div className="lms-script-actions">
           <button className="secondary" onClick={onImport}>
             <Upload size={14} /> 파일로 가져오기
@@ -1423,6 +1286,59 @@ function ConnCard({
       </div>
       {err && <p className="lms-error">{err}</p>}
     </section>
+  );
+}
+
+/** 저장된 학교 세션 쿠키로 비밀번호 없이 재수집을 실행한다.
+ *  볼트가 없거나 만료면 서버가 안내 메시지를 돌려준다. */
+function SessionRefreshButton({
+  onAccount,
+  notify,
+  busy,
+}: {
+  onAccount: (account: Account) => void;
+  notify?: (msg: string) => void;
+  busy?: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const run = async () => {
+    if (loading) return;
+    setErr('');
+    setLoading(true);
+    try {
+      const res = await apiFetch(
+        '/api/account/lms-refresh-session',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        },
+        75000,
+      );
+      const body = await apiData<Account>(res);
+      onAccount(body);
+      notify?.(
+        '저장된 학교 세션으로 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.',
+      );
+    } catch (error) {
+      setErr(
+        error instanceof ApiRequestError
+          ? error.message
+          : '요청에 실패했습니다. 네트워크를 확인해 주세요.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <p className="lms-script-actions">
+      <button className="secondary" onClick={run} disabled={busy || loading}>
+        <RefreshCw size={14} />{' '}
+        {loading ? '확인 중…' : '비밀번호 없이 새로고침'}
+      </button>
+      {err && <span className="lms-error">{err}</span>}
+    </p>
   );
 }
 
@@ -1530,50 +1446,5 @@ function RefreshForm({
       {slowRefresh && <p className="meta" aria-live="polite">학교 응답이 평소보다 오래 걸리고 있어요. 연결을 확인 중이니 잠시만 기다려 주세요.</p>}
       {err && <p className="lms-error" role="alert">{err}</p>}
     </form>
-  );
-}
-
-function DueSoonList({
-  snap,
-  now,
-  before,
-}: {
-  snap: LmsSnapshot;
-  now: number;
-  before?: number | null;
-}) {
-  const soon = dueSoon(snap, now, 7, 7, before);
-  if (!soon.length)
-    return <p className="meta">7일 이내 마감되는 미완료 항목이 없습니다.</p>;
-  return (
-    <div className="lms-tasks">
-      {soon.slice(0, 10).map((t, i) => (
-        <div
-          className={`lms-task ${t.kind === '과제' ? 't-assign' : t.kind === '퀴즈' ? 't-quiz' : 't-vod'}`}
-          key={i}
-        >
-          <span className={`badge ${t.kind === '과제' ? 'orange' : t.kind === '퀴즈' ? 'purple' : 'blue'}`}>
-            {t.kind}
-          </span>
-          <div>
-            {t.url ? (
-              <a className="link" href={t.url} target="_blank" rel="noreferrer">
-                {t.title} <ArrowUpRight size={13} />
-              </a>
-            ) : (
-              <b>{t.title}</b>
-            )}
-            <small>
-              {t.course} ·{' '}
-              {t.dueTs < now
-                ? '마감 지남'
-                : `D-${kstDateNumber(t.dueTs) - kstDateNumber(now)}`}
-              {t.uncertain ? ' · 상태 확인 실패' : ''}
-              {t.rangeUncertain ? ' · 기간 재확인 필요' : ''}
-            </small>
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }

@@ -13,7 +13,8 @@ import {
   studentAccountId,
   type AccountRow,
 } from '@/lib/server/account';
-import { connectSchool, SchoolError } from '@/lib/server/school';
+import { connectSchool, SchoolError, SchoolSession } from '@/lib/server/school';
+import { saveSchoolSession } from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -51,7 +52,9 @@ export async function POST(request: Request) {
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
+    const session = new SchoolSession();
     const snapshot = await connectSchool(input.studentId, input.password, {
+      session,
       deferLms: (collect) => {
         deferredCollect = collect;
       },
@@ -61,6 +64,13 @@ export async function POST(request: Request) {
     });
     input.password = '';
     await migrateLegacyStudentAccount(id, legacyId, { hash: account.session_hash, accountId: account.id });
+    if (session.hasCookies()) {
+      try {
+        await saveSchoolSession(id, session.exportCookies());
+      } catch {
+        console.log('[vault] save failed');
+      }
+    }
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다.
