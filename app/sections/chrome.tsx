@@ -324,15 +324,13 @@ export function AccountBar({
   onConnect: () => void;
 }) {
   if (account) {
+    // 실패 문구는 띄우지 않는다 — 수집본이 있으면 '완료', 없으면 '수집 전'.
+    // 경로별 실패 진단은 연결 관리(설정)에서 확인한다.
     const lms = account.snapshot.lmsPending
       ? '수집 중…'
-      : account.snapshot.lms !== 'connected'
-        ? '실패'
-        : account.snapshot.lmsFailedAt
-          ? '수집 실패'
-          : account.snapshot.lmsData
-            ? '완료'
-            : '수집 실패';
+      : account.snapshot.lmsData
+        ? '완료'
+        : '수집 전';
     const d = new Date(account.snapshot.checkedAt);
     return (
       <button
