@@ -653,6 +653,59 @@
   font-weight: 600;
   color: var(--nt-stone);
 }
+.plan-semester {
+  margin-bottom: 20px;
+}
+.plan-semester-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.plan-semester-head b {
+  font-size: 15px;
+}
+.plan-semester-src {
+  font-size: 12px;
+  color: var(--nt-steel);
+}
+.plan-semester-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.plan-semester-rows + .plan-semester-rows {
+  margin-top: 8px;
+}
+.plan-semester-chip {
+  padding: 8px 13px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  color: var(--nt-slate);
+}
+.plan-semester-chip:hover:not(:disabled) {
+  border-color: var(--nt-primary);
+  color: var(--nt-primary);
+}
+.plan-semester-chip[aria-pressed='true'] {
+  background: var(--nt-tint-sky);
+  border-color: #bdd6ff;
+  color: var(--nt-primary);
+  font-weight: 700;
+}
+.plan-semester-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.plan-semester-chip.is-legacy {
+  border-style: dashed;
+}
+.plan-semester > .meta {
+  margin: 14px 0 0;
+}
 .connection-card {
   min-width: 0;
   border: 1px solid var(--nt-hairline);

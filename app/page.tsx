@@ -93,6 +93,14 @@ function accountData(result: Account): Data {
   return info ? applyInfo(merged, info) : merged;
 }
 
+/** 학기 코드 칩 라벨 — 1·2 정규, 3·4 계절 */
+const SEMESTER_TERM_LABEL: Record<string, string> = {
+  '1': '1학기',
+  '2': '2학기',
+  '3': '여름학기',
+  '4': '겨울학기',
+};
+
 export default function App() {
   const [data, setData] = useState<Data>(empty),
     [ready, setReady] = useState(false),
@@ -771,6 +779,12 @@ export default function App() {
     ...Object.keys(data.semesterPlans ?? {}),
     ...(selectedSemester === 'legacy' ? [] : [selectedSemester]),
   ])].sort();
+  // 학년도·학기 칩 선택기 — YYYY-N 형식만 분해한다 (legacy는 별도 칩)
+  const semesterParts = semesterOptions.filter((s) => /^\d{4}-[1-4]$/.test(s));
+  const semesterYears = [...new Set(semesterParts.map((s) => s.slice(0, 4)))];
+  const semesterTerms = [...new Set(semesterParts.map((s) => s.slice(5)))];
+  const planSelYear = selectedSemester === 'legacy' ? null : selectedSemester.slice(0, 4);
+  const planSelTerm = selectedSemester === 'legacy' ? null : selectedSemester.slice(5);
   function updatePlan(ids: string[], scenarios = selectedScenarios) {
     if (selectedSemester === 'legacy') return { ...data, planSemester: selectedSemester, planned: ids, plans: scenarios };
     if (!catalog || sourceMismatch) return null;
@@ -1054,16 +1068,52 @@ export default function App() {
             <AccountBar account={account} go={go} onConnect={exitDemo} />
           )}
           {['courses', 'timetable', 'semester-plan'].includes(section) && (
-            <div className="card pad" style={{ marginBottom: 20 }}>
-              <label>계획 학기{' '}
-                <select className="field" aria-label="계획 학기" value={selectedSemester}
-                  onChange={(e) => { const semester = e.target.value; void runPlanEdit(() => persist({ ...data, planSemester: semester }, '계획 학기를 변경했습니다.')); }}>
-                  {(hasLegacyPlan || selectedSemester === 'legacy') && <option value="legacy">기존 계획 (학기 미지정)</option>}
-                  {semesterOptions.map((semester) => <option key={semester} value={semester}>{semester}</option>)}
-                </select>
-              </label>
+            <div className="card pad plan-semester">
+              <div className="plan-semester-head">
+                <b>계획 학기</b>
+                <span className="plan-semester-src">
+                  {catalog ? `${catalog.semester} 자료 기준` : '강의 자료를 불러오는 중'}
+                </span>
+              </div>
+              <div className="plan-semester-rows" role="radiogroup" aria-label="계획 학기">
+                {(hasLegacyPlan || selectedSemester === 'legacy') && (
+                  <button
+                    type="button"
+                    className="plan-semester-chip is-legacy"
+                    aria-pressed={selectedSemester === 'legacy'}
+                    onClick={() => void runPlanEdit(() => persist({ ...data, planSemester: 'legacy' }, '계획 학기를 변경했습니다.'))}
+                  >
+                    기존 계획
+                  </button>
+                )}
+                {semesterYears.map((y) => (
+                  <button
+                    type="button"
+                    key={y}
+                    className="plan-semester-chip"
+                    aria-pressed={y === planSelYear}
+                    onClick={() => void runPlanEdit(() => persist({ ...data, planSemester: `${y}-${planSelTerm ?? catalog?.semester.slice(5) ?? '1'}` }, '계획 학기를 변경했습니다.'))}
+                  >
+                    {y}학년도
+                  </button>
+                ))}
+              </div>
+              <div className="plan-semester-rows" role="radiogroup" aria-label="학기">
+                {semesterTerms.map((t) => (
+                  <button
+                    type="button"
+                    key={t}
+                    className="plan-semester-chip"
+                    aria-pressed={t === planSelTerm}
+                    disabled={!planSelYear}
+                    onClick={() => void runPlanEdit(() => persist({ ...data, planSemester: `${planSelYear}-${t}` }, '계획 학기를 변경했습니다.'))}
+                  >
+                    {SEMESTER_TERM_LABEL[t] ?? `${t}학기`}
+                  </button>
+                ))}
+              </div>
               <p className="meta">
-                {catalog ? `${catalog.semester} 자료로 계획 연습 중 · 선택한 학기의 실제 개설 여부와 시간표는 학교 공지에서 확인하세요.` : '강의 자료를 불러오는 중입니다.'}
+                선택한 학기의 실제 개설 여부와 시간표는 학교 공지에서 확인하세요.
               </p>
               {sourceMismatch && <p className="form-error">이 계획은 {storedPlan?.sourceSemester} 자료로 저장되어 현재 자료로는 표시하거나 수정할 수 없습니다. 저장된 계획은 보존됩니다.</p>}
               {selectedSemester === 'legacy' && hasLegacyPlan && <p className="meta">기존 계획의 학기와 기준 자료는 확인할 수 없어 미지정으로 보존했습니다.</p>}
