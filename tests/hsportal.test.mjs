@@ -35,6 +35,24 @@ const AMBIGUOUS_HTML = `<div data-module="mileage" data-logged="1">
 
 const NO_MODULE_HTML = `<html><body><p>그냥 페이지</p></body></html>`;
 
+// 2026-11 실제 /ko/mypage/point 마크업 — 숫자가 라벨보다 앞에 오는 <li> 쌍
+const REAL_LIST_HTML = `<html><body>
+<div data-role="context" data-type="module" data-module="mileage"
+  data-base-url="/ko/mypage/point" data-context="point">
+<form id="ModuleMileagePointForm"><div class="mileage">
+  <li><p class="point"><i class="icon"></i><span>10</span>점</p><span>이번학기 취득<br>비교과 포인트</span></li>
+  <li><p class="point"><i class="icon"></i><span>0</span>점</p><span>지난 학기 이월<br>비교과 포인트</span></li>
+  <li><p class="point"><i class="icon"></i><span>0</span>점</p><span>다음 학기 이월<br>비교과 포인트</span></li>
+  <li><p class="point"><i class="icon"></i><span>0</span>점</p><span>소멸 포인트</span></li>
+  <li><p class="point"><i class="icon"></i><span>260</span>점</p><span>전체 누적 포인트</span></li>
+  <li><p class="point"><i class="icon"></i><span>260</span>점</p><span>졸업 인정<br>비교과 포인트</span></li>
+</div></form></div></body></html>`;
+
+const REAL_LIST_NO_GRAD_HTML = `<div data-module="mileage" data-context="point">
+  <li><p class="point"><i></i><span>180</span>점</p><span>전체 누적 포인트</span></li>
+  <li><p class="point"><i></i><span>7</span>점</p><span>이번학기 취득</span></li>
+</div>`;
+
 // ── parsePortalPoints ─────────────────────────────────────
 t('parse: 로그인 벽 감지', parsePortalPoints(WALL_HTML) === 'wall');
 t('parse: 합계 라벨 총점', parsePortalPoints(POINTS_HTML) === 85);
@@ -44,6 +62,14 @@ t('parse: 마일리지 섹션 없음', parsePortalPoints(NO_MODULE_HTML) === nul
 t(
   'parse: 섹션 밖 숫자는 무시',
   parsePortalPoints(`<p>9999 포인트</p>` + NO_MODULE_HTML) === null,
+);
+t(
+  'parse: 실제 페이지 구조 — 졸업 인정 우선',
+  parsePortalPoints(REAL_LIST_HTML) === 260,
+);
+t(
+  'parse: 졸업 인정 없으면 누적 계열 폴백',
+  parsePortalPoints(REAL_LIST_NO_GRAD_HTML) === 180,
 );
 
 // ── fake 세션 ─────────────────────────────────────────────

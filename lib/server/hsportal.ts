@@ -45,6 +45,27 @@ export function parsePortalPoints(html: string): number | 'wall' | null {
   if (isPortalLoginWall(html)) return 'wall';
   const section = mileageSection(html);
   if (!section) return null;
+  // 실제 마크업(2026-11 확인):
+  //   <li><p class="point"><i/><span>260</span>점</p><span>졸업 인정<br>비교과 포인트</span></li>
+  // 숫자가 라벨보다 앞에 오는 <li> 쌍 — 라벨과 값을 함께 뽑는다.
+  const pairs: Array<[string, number]> = [];
+  for (const m of section.matchAll(
+    /<li\b[^>]*>[\s\S]*?<span[^>]*>\s*(\d[\d,]*)\s*<\/span>\s*점[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/li>/gi,
+  )) {
+    const label = m[2]
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    pairs.push([label, Number(m[1].replace(/,/g, ''))]);
+  }
+  if (pairs.length) {
+    // 졸업 인정이 졸업요건 대응 공식값 — 없으면 전체 누적·합계 계열.
+    const grad = pairs.find(([l]) => /졸업\s*인정/.test(l));
+    if (grad) return grad[1];
+    const total = pairs.find(([l]) => /누적|합계|총/.test(l));
+    if (total) return total[1];
+  }
   const text = section
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
