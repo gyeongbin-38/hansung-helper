@@ -103,6 +103,12 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
       remote.actPrefs ?? [],
       (x) => x,
     ),
+    painPrefs: setMerge(
+      base.painPrefs ?? [],
+      local.painPrefs ?? [],
+      remote.painPrefs ?? [],
+      (x) => x,
+    ),
     actStatus: recMerge(base.actStatus, local.actStatus, remote.actStatus),
     extActivities: setMerge(
       base.extActivities ?? [],

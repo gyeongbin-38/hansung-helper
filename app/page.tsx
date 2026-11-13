@@ -7,6 +7,7 @@ import {
   empty,
   questions,
   ACT_QUESTIONS,
+  PAIN_QUESTIONS,
   mergeProfile,
   type Data,
 } from './sections/data';
@@ -89,12 +90,13 @@ export default function App() {
     [drawer, setDrawer] = useState(false),
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
-    // 어떤 설문이 열려 있는지 — 'course'(수업 선호) | 'act'(비교과 취향)
-    [survey, setSurvey] = useState<false | 'course' | 'act'>(false),
+    // 어떤 설문이 열려 있는지 — 'course'(수업 선호) | 'act'(비교과 취향) | 'pain'(학습 고민)
+    [survey, setSurvey] = useState<false | 'course' | 'act' | 'pain'>(false),
     [notifOpen, setNotifOpen] = useState(false),
     [step, setStep] = useState(0),
     [draft, setDraft] = useState<string[]>([]),
-    [actDraft, setActDraft] = useState<string[]>([]);
+    [actDraft, setActDraft] = useState<string[]>([]),
+    [painDraft, setPainDraft] = useState<string[]>([]);
   const readyRef = useRef(ready);
   readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
@@ -129,6 +131,7 @@ export default function App() {
       setData(empty);
       setDraft([]);
       setActDraft([]);
+      setPainDraft([]);
       setRoute('home');
       location.hash = 'home';
       setAccountError('계정이 변경되었거나 로그인이 만료되었습니다. 새로고침해 현재 계정을 확인해 주세요.');
@@ -167,6 +170,7 @@ export default function App() {
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
             setActDraft(result.profile.actPrefs || []);
+            setPainDraft(result.profile.painPrefs || []);
           }
         } else if (response.status !== 401 && active)
           setAccountError(
@@ -305,6 +309,20 @@ export default function App() {
     if (survey) dialog.current?.showModal();
     else dialog.current?.close();
   }, [survey]);
+  // 학습 고민 설문 자동 제안 — 온보딩을 마친 계정에 세션당 한 번, 홈에서만.
+  // 답했거나 '나중에 하기'로 닫으면 이 세션에서 다시 띄우지 않는다.
+  useEffect(() => {
+    if (!ready || survey) return;
+    if (!account?.onboarded || data.painPrefs !== undefined) return;
+    if (route.split('/')[0] !== 'home') return;
+    try {
+      if (sessionStorage.getItem('hsu-pain-survey-offered')) return;
+      sessionStorage.setItem('hsu-pain-survey-offered', '1');
+    } catch {
+      return; /* 저장 공간을 못 쓰는 환경에서는 자동 제안을 건너뛴다 */
+    }
+    openSurvey('pain');
+  }, [ready, survey, account?.onboarded, data.painPrefs, route]);
   // 브라우저 마감 알림 — opt-in + 권한 부여된 경우에만, 앱이 열려 있는 동안
   // 예약된다(푸시 아님). 발송분은 notifiedIds에 기록해 중복 발송을 막는다.
   const dataRef = useRef(data);
@@ -666,7 +684,7 @@ export default function App() {
     scrollTo(0, 0);
   }
   // 설문을 처음 문항부터 연다 — 이전에 보던 step이 남지 않게 리셋
-  function openSurvey(kind: 'course' | 'act') {
+  function openSurvey(kind: 'course' | 'act' | 'pain') {
     setStep(0);
     setSurvey(kind);
   }
@@ -880,6 +898,7 @@ export default function App() {
             setData(accountData(result));
             setDraft(result.profile.prefs || []);
             setActDraft(result.profile.actPrefs || []);
+            setPainDraft(result.profile.painPrefs || []);
             go('home');
           }}
           onDemo={() => {
@@ -902,6 +921,7 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.painPrefs === undefined || Array.isArray(d.painPrefs)) &&
                   (d.actStatus === undefined ||
                     (d.actStatus &&
                       typeof d.actStatus === 'object' &&
@@ -1007,6 +1027,7 @@ export default function App() {
               planSourceMismatch={sourceMismatch}
               planSourceSemester={storedPlan?.sourceSemester}
               persist={persist}
+              onPainSurvey={() => openSurvey('pain')}
             />
           ) : section === 'activities' ? (
             <Activities
@@ -1194,20 +1215,30 @@ export default function App() {
       )}
       <SurveyDialog
         dialogRef={dialog}
-        label={survey === 'act' ? '비교과 선호' : '수업 선호'}
-        questions={survey === 'act' ? ACT_QUESTIONS : questions}
+        label={
+          survey === 'act' ? '비교과 선호' : survey === 'pain' ? '학습 고민' : '수업 선호'
+        }
+        questions={
+          survey === 'act' ? ACT_QUESTIONS : survey === 'pain' ? PAIN_QUESTIONS : questions
+        }
         step={step}
-        draft={survey === 'act' ? actDraft : draft}
-        setDraft={survey === 'act' ? setActDraft : setDraft}
+        draft={survey === 'act' ? actDraft : survey === 'pain' ? painDraft : draft}
+        setDraft={survey === 'act' ? setActDraft : survey === 'pain' ? setPainDraft : setDraft}
         setStep={setStep}
         mascotEnabled={data.mascotEnabled !== false}
         onClose={() => setSurvey(false)}
         onSubmit={(prefs) => {
           void persist(
-            survey === 'act' ? { ...data, actPrefs: prefs } : { ...data, prefs },
+            survey === 'act'
+              ? { ...data, actPrefs: prefs }
+              : survey === 'pain'
+                ? { ...data, painPrefs: prefs }
+                : { ...data, prefs },
             survey === 'act'
               ? '비교과 취향을 저장했습니다.'
-              : '수업 선호를 저장했습니다.',
+              : survey === 'pain'
+                ? '학습 고민을 저장했습니다. 홈 안내에 반영할게요.'
+                : '수업 선호를 저장했습니다.',
           ).then((ok) => {
             if (ok) setSurvey(false);
           });
