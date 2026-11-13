@@ -10,6 +10,7 @@ import ts from 'typescript';
 const sql = new DatabaseSync(':memory:');
 sql.exec('PRAGMA foreign_keys=ON');
 sql.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));
+sql.exec(await readFile('drizzle/0002_school_session_vault.sql', 'utf8'));
 const d1 = {
   prepare(query) {
     let args = [];
@@ -55,12 +56,22 @@ let schoolCalls = 0;
 let rejectCredentials = false;
 let rejectUpstream = false;
 class SchoolError extends Error { constructor(code) { super(code); this.code = code; } }
-const imports = { '@/lib/server/account': account };
+const imports = {
+  '@/lib/server/account': account,
+  '@/lib/server/session-vault': {
+    saveSchoolSession: async () => true,
+    deleteSchoolSession: async () => {},
+  },
+};
 const login = await load('app/api/account/login/route.ts', {
   ...imports,
   'cloudflare:workers': { waitUntil() { throw new Error('unexpected background collection'); } },
   '@/lib/server/school': {
     SchoolError,
+    SchoolSession: class {
+      hasCookies() { return false; }
+      exportCookies() { return {}; }
+    },
     async connectSchool() {
       schoolCalls += 1;
       if (rejectCredentials) throw new SchoolError('credentials');

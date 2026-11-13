@@ -1,6 +1,6 @@
 'use client';
-import { useRef, useState } from 'react';
-import { ArrowRight, Check, ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Check, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Logo } from './logo';
 import type { SchoolSnapshot } from '@/lib/server/school';
 import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
@@ -76,8 +76,8 @@ function AuthIntro({ compactOnMobile = false }: { compactOnMobile?: boolean }) {
         className="auth-owl"
         src="/illustrations/academic-owl.png"
         alt=""
-        width="685"
-        height="237"
+        width="329"
+        height="193"
       />
     </aside>
   );
@@ -99,15 +99,6 @@ export function SignIn({
     [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [showPassword, setShowPassword] = useState(false);
   const slowLogin = useSlowLoading(busy);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  function returnToStart() {
-    if (busy) return;
-    formRef.current?.reset();
-    setError('');
-    setShowPassword(false);
-    setMode('signup');
-  }
 
   function toggleMode() {
     setError('');
@@ -120,15 +111,6 @@ export function SignIn({
       <div className="auth-shell">
         <AuthIntro />
         <section className="auth-panel auth-signin-panel">
-      <button
-        type="button"
-        className="link auth-reset"
-        aria-label="처음 로그인 화면으로 돌아가기"
-        onClick={returnToStart}
-        disabled={busy}
-      >
-        <Logo /> 한성 학사 도우미
-      </button>
         {mode === 'login' && <span className="auth-step-label">다시 만나 반가워요</span>}
         <h1>
           학교 계정으로
@@ -147,7 +129,6 @@ export function SignIn({
           </div>
         )}
         <form
-          ref={formRef}
           className="auth-form"
           onSubmit={async (e) => {
             e.preventDefault();
@@ -226,7 +207,11 @@ export function SignIn({
                 onClick={() => setShowPassword((visible) => !visible)}
                 disabled={busy}
               >
-                {showPassword ? '숨기기' : '보기'}
+                {showPassword ? (
+                  <EyeOff size={19} aria-hidden="true" />
+                ) : (
+                  <Eye size={19} aria-hidden="true" />
+                )}
               </button>
             </div>
           </div>
@@ -237,15 +222,18 @@ export function SignIn({
               종합정보시스템의 이수 과목·비교과 포인트·소속·입학연도·조회 시각을
               가져옵니다. 이 정보와 입력한 프로필·선호·계획을 계정에 보관합니다.
               비밀번호는 학교 인증 요청에만 사용하고 저장하지 않습니다. 학교
-              세션도 조회 후 보관하지 않습니다. 가입한 계정은 다음 로그인에도
-              이어지며, 설정에서 연결 정보와 계정 자료를 삭제할 수 있습니다.
+              세션 쿠키는 비밀번호 재입력 없이 다시 조회할 수 있도록 암호화해
+              최대 2시간만 보관하고, 로그아웃하거나 계정을 삭제하면 즉시
+              지웁니다. 가입한 계정은 다음 로그인에도 이어지며, 설정에서 연결
+              정보와 계정 자료를 삭제할 수 있습니다.
             </p>
           </details>
           <label>
             <input name="agreement" type="checkbox" required disabled={busy} />
             <span>
-              학교 인증 및 강의·학사 정보 조회·계정 보관에 동의해요. 동의하지
-              않으면 연결 없이 체험할 수 있어요.
+              학교 인증 및 강의·학사 정보 조회·계정 보관(암호화된 학교 세션
+              최대 2시간 포함)에 동의해요. 동의하지 않으면 연결 없이 체험할 수
+              있어요.
             </span>
           </label>
           {error && (
