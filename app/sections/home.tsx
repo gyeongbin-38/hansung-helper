@@ -466,12 +466,8 @@ export function Home({
   // 다가오는 마감 위젯의 출처 상태 — 수업(COSMOS)·학사일정·비교과별로
   // 수집 상태를 한 줄로 보여주고, 실패한 출처는 카드에서 바로 다시 시도한다.
   const lmsStale = lmsSnap ? staleLabel(lmsSnap.fetchedAt, now, 7) : '';
-  const sessionExpired =
-    !lmsSnap &&
-    account?.snapshot.lms === 'unavailable' &&
-    account.snapshot.lmsError === 'session';
   const lmsUnavailable =
-    !lmsSnap && account?.snapshot.lms === 'unavailable' && !sessionExpired;
+    !lmsSnap && account?.snapshot.lms === 'unavailable';
   const srcRows = [
     {
       key: 'lms',
@@ -481,7 +477,7 @@ export function Home({
           ? lmsStale
             ? 'stale'
             : 'fresh'
-          : sessionExpired || lmsUnavailable
+          : lmsUnavailable
             ? 'failed'
             : 'off'
       ) as SrcState,
@@ -489,11 +485,9 @@ export function Home({
         ? lmsStale
           ? `${lmsStale} · 다시 확인`
           : '최신 수집'
-        : sessionExpired
-          ? '학교 로그인 만료 · 재연결'
-          : lmsUnavailable
-            ? '연결 확인 필요'
-            : '연결 전',
+        : lmsUnavailable
+          ? '연결 확인 필요'
+          : '연결 전',
       route: 'lms',
     },
     {
@@ -714,13 +708,11 @@ export function Home({
               <CalendarDays size={25} />
               <b>7일 이내 마감 일정이 없어요</b>
               <small>
-                {sessionExpired
-                  ? '학교 로그인이 만료되어 수업 마감을 확인할 수 없어요. 다시 연결해 주세요.'
-                  : lmsPending
-                    ? `완료할 수업 항목은 ${lmsPending}건 있어요.`
-                    : lmsSnap
-                      ? '새로운 일정이 생기면 여기에 모아드릴게요.'
-                      : '수업을 연결하면 과제와 강의 마감도 함께 볼 수 있어요.'}
+                {lmsPending
+                  ? `완료할 수업 항목은 ${lmsPending}건 있어요.`
+                  : lmsSnap
+                    ? '새로운 일정이 생기면 여기에 모아드릴게요.'
+                    : '수업을 연결하면 과제와 강의 마감도 함께 볼 수 있어요.'}
               </small>
             </div>
           )}
@@ -728,11 +720,9 @@ export function Home({
             <Link2 size={14} />
             {lmsSnap
               ? `COSMOS 연동 정보${staleLabel(lmsSnap.fetchedAt, now, 7) ? ' · ' + staleLabel(lmsSnap.fetchedAt, now, 7) : ''}`
-              : sessionExpired
-                ? '학교 로그인이 만료됐어요 · 다시 연결'
-                : lmsUnavailable
-                  ? 'COSMOS 연결 확인 필요'
-                  : 'COSMOS 수업 연결하기'}
+              : lmsUnavailable
+                ? 'COSMOS 연결 확인 필요'
+                : 'COSMOS 수업 연결하기'}
             <ArrowRight size={12} />
           </button>
         </section>

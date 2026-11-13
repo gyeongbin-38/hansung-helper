@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { SignIn, type Account } from './account-flow';
 import { Logo } from './logo';
 import {
@@ -95,6 +95,11 @@ export default function App() {
     [painStep, setPainStep] = useState(0),
     [painDraft, setPainDraft] = useState<string[]>([]);
   const painDialog = useRef<HTMLDialogElement>(null);
+  const openPainSurvey = useCallback(() => {
+    setPainStep(0);
+    setPainDraft(data.painPrefs ?? []);
+    setPainSurvey(true);
+  }, [data.painPrefs]);
   const readyRef = useRef(ready);
   readyRef.current = ready;
   const { items: toasts, push: setToast, dismiss: dismissToast } =
@@ -328,7 +333,7 @@ export default function App() {
       return;
     }
     openPainSurvey();
-  }, [ready, painSurvey, account?.onboarded, data.painPrefs, route]);
+  }, [ready, painSurvey, account?.onboarded, data.painPrefs, route, openPainSurvey]);
   useEffect(() => {
     if (painSurvey) painDialog.current?.showModal();
     else painDialog.current?.close();
@@ -663,11 +668,6 @@ export default function App() {
       allowExtensionImport.current = true;
       setToast('계정 삭제 결과를 확인하지 못했습니다. 로그인 상태를 확인해 주세요.');
     }
-  }
-  function openPainSurvey() {
-    setPainStep(0);
-    setPainDraft(data.painPrefs ?? []);
-    setPainSurvey(true);
   }
   function go(r: string) {
     location.hash = r;
