@@ -18,6 +18,7 @@ let resumeOutcome = 'success';
 let deleted = 0;
 let statusRevokesSession = false;
 let vaultReadFails = false;
+let ticket = { state: 'admitted' };
 const accountRow = {
   id: 'account', snapshot: JSON.stringify({ checkedAt: 'old' }), session_hash: 'token',
 };
@@ -81,6 +82,13 @@ const modules = {
   '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
   '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
   '@/lib/data/notifs': { infoChanges: () => [] },
+  '@/lib/server/collect-queue': {
+    enterCollectQueue: async () => ticket,
+    queuePosition: async () => null,
+    heartbeatCollectQueue: async () => {},
+    leaveCollectQueue: async () => {},
+    abandonCollectQueue: async () => {},
+  },
 };
 const route = {};
 vm.runInNewContext(js, {
@@ -145,4 +153,24 @@ resumeOutcome = 'success';
 response = await route.POST({});
 assert.equal(response.status, 200);
 assert.equal(deleted, 1);
-console.log('lms-refresh-session.test: status, app/session expiry and transient upstream handling passed');
+
+// 대기열이 승인하지 않으면 수집 없이 위치만 돌려준다
+ticket = { state: 'queued', position: 3 };
+response = await route.POST({});
+assert.equal(response.body.queued, true);
+assert.equal(response.body.running, false);
+assert.equal(response.body.position, 3);
+
+// 같은 계정의 수집이 다른 요청에서 진행 중이면 running으로 알린다
+ticket = { state: 'running' };
+response = await route.POST({});
+assert.equal(response.body.queued, true);
+assert.equal(response.body.running, true);
+
+// cooldown이면 새 수집 없이 직전 계정 뷰를 돌려준다
+ticket = { state: 'cooldown', retryAfterMs: 1000 };
+response = await route.POST({});
+assert.equal(response.status, 200);
+assert.equal(response.body.collectCooldown, true);
+ticket = { state: 'admitted' };
+console.log('lms-refresh-session.test: status, app/session expiry, queue and transient upstream handling passed');

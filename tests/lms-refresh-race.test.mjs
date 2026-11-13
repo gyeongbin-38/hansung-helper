@@ -37,6 +37,13 @@ const modules = {
   '@/lib/server/lms-write': { writeCollectedLms() {} },
   '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
+  '@/lib/server/collect-queue': {
+    enterCollectQueue: async () => ({ state: 'admitted' }),
+    queuePosition: async () => null,
+    heartbeatCollectQueue: async () => {},
+    leaveCollectQueue: async () => {},
+    abandonCollectQueue: async () => {},
+  },
 };
 const source = await readFile('app/api/account/lms-refresh/route.ts', 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

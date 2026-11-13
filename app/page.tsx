@@ -44,6 +44,7 @@ import {
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
 import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
+import { isQueuedResponse, waitForCollectTurn } from '@/lib/data/collect-queue';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
@@ -328,11 +329,24 @@ export default function App() {
         const status = await apiData<{ available: boolean; expiresAt: number | null }>(
           await apiFetch('/api/account/lms-refresh-session', { cache: 'no-store' }));
         if (!status.available || !status.expiresAt || status.expiresAt <= Date.now()) return;
-        const response = await apiFetch('/api/account/lms-refresh-session', {
+        const post = () => apiFetch('/api/account/lms-refresh-session', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
         }, 75000);
+        const response = await post();
         if (!response.ok) return;
-        const result = await apiData<Account>(response);
+        let result: Account | { queued: true; running: boolean; position: number } = await apiData(response);
+        // 수집 대기열에 들어가면(queued/running) 순번·진행 중 수집이 끝날 때까지
+        // 조용히 기다렸다가 한 번 더 요청한다. running은 다른 요청의 같은 계정
+        // 수집이므로 끝나면 cooldown 응답으로 결과를 받는다.
+        if (isQueuedResponse(result)) {
+          const turn = await waitForCollectTurn({ timeoutMs: 300_000 }).catch(() => null);
+          if (generation !== accountGeneration.current) return;
+          if (turn === null || turn.status === 'ready') {
+            const retry = await post();
+            if (retry.ok) result = await apiData(retry);
+          }
+        }
+        if (isQueuedResponse(result)) return;
         if (generation !== accountGeneration.current || !accountRef.current) return;
         setAccount(result);
         setToast('저장된 학교 세션으로 최신 학사·수업 정보를 자동으로 확인하고 있어요.');

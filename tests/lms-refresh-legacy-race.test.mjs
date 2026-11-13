@@ -52,6 +52,13 @@ const route = await load('app/api/account/lms-refresh/route.ts', {
   '@/lib/server/lms-write': { writeCollectedLms() {} },
   '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
+  '@/lib/server/collect-queue': {
+    enterCollectQueue: async () => ({ state: 'admitted' }),
+    queuePosition: async () => null,
+    heartbeatCollectQueue: async () => {},
+    leaveCollectQueue: async () => {},
+    abandonCollectQueue: async () => {},
+  },
 });
 const pending = route.POST({});
 while (!finishSchool) await new Promise(resolve => setImmediate(resolve));
