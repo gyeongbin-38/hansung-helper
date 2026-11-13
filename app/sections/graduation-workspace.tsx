@@ -170,18 +170,53 @@ export function GraduationWorkspace(props: Props) {
         </section>
       </>}
       {view === '' && <>
-        <section className="card graduation-hero">
-          <div className="graduation-hero-heading"><div><h2>졸업 준비는 <em>한눈에</em> 확인하세요.</h2><p>총 이수학점과 비교과 포인트 등 졸업에 필요한 주요 요건의 진행 상황을 확인할 수 있습니다.</p></div><span className="badge"><Info size={13} /> 선택한 유형 · {selectedMode.label}</span></div>
-          <div className="graduation-hero-metrics">
-            {[total, pointResult].map(r => <div key={r.rule.id}><h3>{r.rule.source === 'points' ? <Database size={18} /> : <GraduationCap size={19} />}{r.rule.source === 'points' ? '비교과 포인트' : '총 이수학점'}</h3>
-              <div className="graduation-value"><strong>{value(r)}</strong>{known(r) && targetProgress(r.earned, r.required) ? <small>{targetProgress(r.earned, r.required)!.percent}% {r.rule.source === 'points' ? '적립' : '이수'}</small> : <ResultBadge result={r} known={known(r)} />}</div>
-              <Ratio result={r} known={known(r)} /></div>)}
+        <section className="card graduation-summary-hero">
+          <div className="graduation-summary-hero-grid">
+            <div className="graduation-summary-metric">
+              <h3><GraduationCap size={19} />총 이수학점</h3>
+              <strong>{value(total)}</strong>
+              <div className="graduation-summary-meta">
+                {known(total) && targetProgress(total.earned, total.required)
+                  ? <small>{targetProgress(total.earned, total.required)!.percent}% 이수</small>
+                  : <ResultBadge result={total} known={known(total)} />}
+              </div>
+              <Ratio result={total} known={known(total)} />
+            </div>
+            <div className="graduation-summary-divider" aria-hidden="true" />
+            <div className="graduation-summary-metric">
+              <h3><Database size={18} />비교과 포인트</h3>
+              <strong>{value(pointResult)}</strong>
+              <div className="graduation-summary-meta">
+                {known(pointResult) && targetProgress(pointResult.earned, pointResult.required)
+                  ? <small>{targetProgress(pointResult.earned, pointResult.required)!.percent}% 적립</small>
+                  : <ResultBadge result={pointResult} known={known(pointResult)} />}
+              </div>
+              <Ratio result={pointResult} known={known(pointResult)} />
+            </div>
           </div>
         </section>
-        <div className="graduation-summary-grid">
-          {[total, pointResult, general].map(r => <button className="card graduation-summary-card" key={r.rule.id} onClick={() => go(`graduation/${r.rule.id}`)}><span>{r.rule.source === 'points' ? <Database size={17} /> : <BookOpen size={17} />}{r.rule.source === 'points' ? '비교과 포인트' : r.rule.id === 'total' ? '총 이수학점' : '교양 요건'}</span><strong>{value(r)}</strong><Ratio result={r} known={known(r)} /></button>)}
-          <button className="card graduation-summary-card" onClick={() => go('graduation/department')}><span><Layers size={17} />학과·트랙별 요건</span><ResultBadge result={major} known={completed.length > 0} /><small>학과 공식 원문과 개인 적용 조건 확인</small></button>
+        <div className="graduation-area-grid">
+          <button className="card graduation-area-card" onClick={() => go('graduation/gen')}>
+            <div className="graduation-section-heading"><h3><BookOpen size={19} />교양</h3><ResultBadge result={general} known={known(general)} /></div>
+            <strong>{value(general)}</strong><Ratio result={general} known={known(general)} />
+            <small>교양 이수 기준과 세부 학점 확인</small>
+          </button>
+          <button className="card graduation-area-card" onClick={() => go('graduation/major')}>
+            <div className="graduation-section-heading"><h3><Layers size={19} />전공</h3><ResultBadge result={major} known={known(major)} /></div>
+            <strong>{value(major)}</strong><Ratio result={major} known={known(major)} />
+            <small>전공·트랙 이수 기준 확인</small>
+          </button>
         </div>
+        <section className="graduation-major-requirements">
+          <div className="graduation-section-heading"><h2>전공별 졸업요건</h2><button className="secondary" onClick={() => go('graduation/requirements')}>전체 요건 확인 <ArrowRight size={15} /></button></div>
+          <div className="graduation-requirement-grid">
+            {results.map(r => <section className="card graduation-requirement-card" key={r.rule.id}>
+              <div className="graduation-section-heading"><h3><BookOpen size={20} /><button className="link title-link" onClick={() => go(`graduation/${r.rule.id}`)}>{r.rule.label}</button></h3><ResultBadge result={r} known={known(r)} /></div>
+              <strong>{r.required === null && known(r) ? `계산 대기 · ${value(r)} ${r.rule.source === 'points' ? '적립함' : '이수함'}` : value(r)}</strong><Ratio result={r} known={known(r)} />
+              <div className="graduation-requirement-foot"><span>필요 {r.rule.unit === 'P' ? '포인트' : '학점'}</span><button className="secondary" onClick={() => go(`graduation/${r.rule.id}`)}>{r.required ?? '미확정'} <ArrowRight size={12} /></button>{r.planned > 0 && <small>+{r.planned}학점 계획 중</small>}</div>
+            </section>)}
+          </div>
+        </section>
         <div className="graduation-overview-bottom">
           <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3><small>계산 결과와 확인 메모를 함께 확인하세요.</small></div>
             {[total, pointResult, general].map(r => <div className="graduation-check-row" key={r.rule.id}><label><input type="checkbox" checked={checks.has(r.rule.label)} disabled={busy} onChange={() => void toggleCheck(r.rule.label)} />{r.rule.label}</label><small>{value(r)}</small><ResultBadge result={r} known={known(r)} /></div>)}
