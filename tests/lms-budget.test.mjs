@@ -16,7 +16,7 @@ let calls = 0;
 const start = Date.now();
 const slowHeaders = await collectLms({ request: async (_url, init) => { calls++; assert.ok(init.signal); return waitForAbort(init.signal); } }, [
   { id: '1', name: 'fixture' }, { id: '2', name: 'fixture' },
-], { budgetMs: 200 });
+], { budgetMs: 200, rotateSeed: 0 });
 assert.ok(Date.now() - start < 1500, 'header timeout must bound collection');
 assert.equal(calls, 1, 'no new network request starts after deadline');
 assert.ok(slowHeaders.courses[0].errors.includes('timeout-partial'));
@@ -67,7 +67,7 @@ const bounded = await collectLms({ request: async (url) => {
   requests++;
   if (url.includes('user_progress')) return auth(emptyProgress);
   return auth('<table class="generaltable"><tbody></tbody></table>');
-} }, manyCourses);
+} }, manyCourses, { rotateSeed: 0 });
 assert.ok(requests <= 40, 'request budget must limit actual school calls');
 assert.ok(bounded.courses.some((course) => course.errors.includes('budget')), 'unstarted courses must report budget exhaustion');
 
@@ -106,7 +106,7 @@ const retryLimited = await collectLms({ request: async (url) => {
     return auth(assignment);
   }
   return auth('<table class="generaltable"><tbody></tbody></table>');
-} }, Array.from({ length: 5 }, (_, i) => ({ id: String(i + 1), name: 'fixture' })));
+} }, Array.from({ length: 5 }, (_, i) => ({ id: String(i + 1), name: 'fixture' })), { rotateSeed: 0 });
 assert.deepEqual([...callsByCourse.values()], [2, 2, 2, 1, 1], 'collection has at most three additional retries');
 assert.ok(totalRetriesTestCalls <= 40);
 assert.ok(retryLimited.courses[3].errors.includes('assign'));

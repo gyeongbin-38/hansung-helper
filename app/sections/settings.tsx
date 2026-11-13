@@ -83,8 +83,11 @@ export function SettingsSection({
   const infoPages = data.info?.diag?.pages ?? [];
   const infoLabels: Record<string, string> = {
     grades: '이수 내역·평점',
+    semesterGrades: '학기별 성적',
     points: '비교과 포인트',
     audit: '졸업가사정표',
+    requirements: '졸업요건',
+    academic: '학적 정보',
     menu: '학교 메뉴',
   };
   const infoIssues = [
@@ -238,7 +241,8 @@ export function SettingsSection({
           종합정보는 학교 계정으로 로그인할 때 조회해요. 수업 현황에서는 서버
           재수집과 가져오기 안내를 확인할 수 있어요. 학교 비밀번호는 저장하지
           않아요. 학교 세션 쿠키는 비밀번호 없이 재수집할 수 있도록 암호화해
-          최대 2시간만 보관하고, 로그아웃하면 즉시 삭제해요.
+          보관해요(기본 2시간, 자동 연결 선택 시 최대 3일). 로그아웃하면 즉시
+          삭제해요.
         </p>
       </section>
       <section aria-labelledby="public-connections-title">

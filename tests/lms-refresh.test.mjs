@@ -68,6 +68,13 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
     '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
     '@/lib/server/session-vault': { saveSchoolSession: async () => true },
     '@/lib/data/notifs': { infoChanges: () => [] },
+    '@/lib/server/collect-queue': {
+      enterCollectQueue: async () => ({ state: 'admitted' }),
+      queuePosition: async () => null,
+      heartbeatCollectQueue: async () => {},
+      leaveCollectQueue: async () => {},
+      abandonCollectQueue: async () => {},
+    },
   };
   const exports = {};
   vm.runInNewContext(js, { exports, require: (name) => modules[name], console, Date });

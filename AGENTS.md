@@ -52,7 +52,7 @@
 - Cloudflare 계정·데이터베이스 식별자와 비밀값은 저장소에 기록하지 않고 소유자 대시보드에서 확인한다.
 - 계정·로그인 IP 인덱스는 `ACCOUNT_INDEX_HMAC_KEY`로 HMAC 처리한다. 로컬 `.dev.vars` 또는 Worker 비밀값으로 32바이트 이상의 무작위 키를 설정하고, 계정 ID 마이그레이션 없이 키를 교체하지 않는다.
 - 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
-- **학교 세션 볼트**: 로그인 성공 시 학교 세션 쿠키만 `SCHOOL_SESSION_KEY`(32바이트 이상, `ACCOUNT_INDEX_HMAC_KEY`와 별도)로 AES-GCM 암호화해 `school_session_vault`에 2시간 TTL로 보관. 비밀번호는 저장하지 않는다. `POST /api/account/lms-refresh-session`이 비밀번호 없이 재수집하고, 로그아웃·계정 삭제·만료 시 삭제. 상세: `docs/session-vault.md`
+- **학교 세션 볼트**: 로그인 성공 시 학교 세션 쿠키만 `SCHOOL_SESSION_KEY`(32바이트 이상, `ACCOUNT_INDEX_HMAC_KEY`와 별도)로 AES-GCM 암호화해 `school_session_vault`에 보관(기본 2시간, '자동 연결 유지' 선택 시 최대 3일, 서버 상한 `VAULT_MAX_TTL_MS`). 비밀번호는 저장하지 않는다. `POST /api/account/lms-refresh-session`이 비밀번호 없이 재수집하고, 로그아웃·계정 삭제·만료 시 삭제. 상세: `docs/session-vault.md`
 - **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
   (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)

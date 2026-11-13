@@ -55,6 +55,19 @@ t('targets: 누적성적 우선', targets.grades === 's_sung.s_sung_grade');
 t('targets: 포인트', targets.points === 's_etc.point_view');
 t('targets: 사정표', targets.audit === 'h_dae/dae_grad_check.html');
 t('targets: 매칭 없으면 없음', Object.keys(pickTargets([])).length === 0);
+// 라벨이 예상과 어긋나도 파일명(point/mile/bigyo/extra)으로 포인트 페이지를 찾는다
+t(
+  'targets: 경로 폴백으로 포인트 검출',
+  pickTargets([{ path: 'jsp_21/student/mileage_status.jsp', label: '활동 신청 현황' }]).points ===
+    'jsp_21/student/mileage_status.jsp',
+);
+t(
+  'targets: 라벨 매칭이 경로 폴백보다 우선',
+  pickTargets([
+    { path: 'jsp_21/etc/point_guide.jsp', label: '안내' },
+    { path: 's_etc.real_points', label: '비교과 포인트 조회' },
+  ]).points === 's_etc.real_points',
+);
 
 // ── 누적성적 테이블 ───────────────────────────────────────
 const GRADES_HTML = `<html><body>
