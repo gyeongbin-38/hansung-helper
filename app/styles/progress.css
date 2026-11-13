@@ -19,7 +19,7 @@
 }
 .grad-intro .progress-track {
   max-width: 520px;
-  margin: 28px 0 30px;
+  margin: 18px 0 10px;
 }
 .requirement-list {
   display: grid;
@@ -72,10 +72,99 @@
 }
 .grad-intro > strong {
   display: block;
-  margin: -18px 0 18px;
+  margin: 0 0 4px;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+/* 졸업 인트로 — 최소 텍스트 레이아웃 */
+.grad-intro-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+}
+.grad-intro-top .grad-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0;
+  padding-left: 20px;
+}
+.grad-intro-top .grad-steps li {
+  margin: 0;
+}
+.grad-intro-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.grad-intro-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-top: 18px;
+}
+.grad-intro-actions > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--nt-stone);
+}
+.pad.grad-intro > p.grad-intro-note {
+  color: var(--nt-stone);
+  margin-top: 14px;
+  font-size: 12px;
+}
+/* 현재 수강 중 — 컴팩트 목록 + 매칭 캡슐 */
+.grad-enrolled-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.grad-enrolled-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--nt-hairline);
+}
+.grad-enrolled-list li:last-child {
+  border-bottom: 0;
+}
+.grad-enrolled-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.grad-enrolled-name b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.grad-enrolled-name small {
+  color: var(--nt-stone);
+  font-size: 11px;
+}
+.grad-match {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--nt-r-pill);
+  color: var(--nt-stone);
+  background: var(--nt-canvas);
+  border: 1px solid var(--nt-hairline);
+}
+.grad-match.ok {
+  color: var(--nt-green-deep);
+  background: var(--nt-tint-mint);
+  border-color: transparent;
 }
 .check-line {
   display: inline-flex;

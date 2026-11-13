@@ -54,6 +54,8 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** AI 추천에서 키우고 싶은 역량 선택 (COMPETENCY_GOALS id 배열) */
+  actGoals?: string[];
   /** 첫 설문 안내와 중단·완료 상태. 기존 답변 배열과 별도로 보관한다. */
   surveyStatus?: 'in-progress' | 'completed' | 'skipped';
   /** 학습 고민(페인포인트) 설문 답변 (PAIN_QUESTIONS 순서) — 홈에서 한 번 제안한다 */

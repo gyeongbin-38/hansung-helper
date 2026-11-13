@@ -79,7 +79,7 @@
 .graduation-enrolled-row { width: 100%; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid #edf1f5; padding: 20px 0; text-align: left; }
 .graduation-enrolled-row b { flex: 1; font-size: 13px; }
 .graduation-row-index { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--nt-hairline); border-radius: 7px; color: var(--nt-slate); font-size: 12px; }
-.graduation-requirement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.graduation-requirement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-requirement-card .title-link { color: inherit; font-size: 16px; font-weight: 700; }
 .graduation-requirement-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; font-size: 12px; color: var(--nt-slate); }
 .graduation-requirement-foot small { margin-left: auto; }
@@ -112,6 +112,85 @@
 .graduation-workspace .graduation-footnote { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 5px; font-size: 11px; line-height: 1.9; color: var(--nt-slate); }
 .graduation-footnote > svg { flex-shrink: 0; margin-top: 3px; }
 .graduation-footnote a { color: var(--nt-primary); }
+
+/* School references: separate personal context, source text and follow-up actions. */
+.school-section-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; }
+.school-section-heading > div { min-width: 0; flex: 1; }
+.school-section-heading > .badge { margin-top: 4px; flex-shrink: 0; font-size: 11px; }
+.school-section-icon { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: var(--nt-tint-sky); color: var(--nt-primary); }
+.school-section-heading h3 { line-height: 1.5; }
+.school-section-heading p { margin-top: 4px; color: var(--nt-slate); font-size: 12px; line-height: 1.7; }
+.school-criteria-summary { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 24px; align-items: stretch; margin-bottom: 20px; }
+.school-affiliation { display: grid; align-content: center; gap: 16px; margin: 0; padding: 4px 0; }
+.school-affiliation > div { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.school-affiliation dt { font-size: 12px; color: var(--nt-slate); }
+.school-affiliation dd { margin: 0; color: var(--nt-ink); font-size: 14px; font-weight: 650; line-height: 1.7; overflow-wrap: anywhere; }
+.school-gpa { padding: 16px 20px; border-radius: 12px; background: var(--nt-paper); }
+.school-gpa > span, .school-gpa small { color: var(--nt-slate); font-size: 11px; }
+.school-gpa > div { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0; }
+.school-gpa strong { font-size: 29px; line-height: 1.2; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.school-gpa .badge { font-size: 11px; }
+.school-criteria-guidance { display: flex; align-items: flex-start; gap: 10px; padding: 15px 17px; border: 1px solid var(--nt-hairline-soft); border-radius: 10px; background: var(--nt-surface-soft); }
+.school-criteria-guidance > svg { flex-shrink: 0; margin-top: 3px; color: var(--nt-slate); }
+.school-criteria-guidance p { color: var(--nt-slate); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.school-criteria-guidance p + p { margin-top: 5px; }
+.school-criteria-guidance b { color: var(--nt-ink); font-weight: 650; }
+.school-criteria-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
+.school-criteria-actions .secondary { padding: 8px 12px; min-height: 36px; font-size: 12px; }
+.school-criteria-actions .link { min-height: 36px; font-size: 12px; }
+.school-points-action { margin-left: auto; }
+.school-requirement-tables { display: grid; gap: 24px; min-width: 0; }
+.school-requirement-table { min-width: 0; }
+.school-requirement-group-title { margin: 0 0 10px; color: var(--nt-slate); font-size: 12px; font-weight: 600; }
+.school-track-list { display: grid; gap: 14px; }
+.school-track { min-width: 0; border: 1px solid var(--nt-hairline); border-radius: 12px; overflow: hidden; }
+.school-track-heading { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--nt-paper); border-bottom: 1px solid var(--nt-hairline-soft); }
+.school-track-index { display: grid; place-items: center; flex-shrink: 0; min-width: 25px; height: 25px; padding: 0 5px; border: 1px solid var(--nt-hairline); border-radius: 7px; background: var(--nt-canvas); font-size: 11px; font-weight: 650; color: var(--nt-slate); }
+.school-track-heading h4 { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.6; overflow-wrap: anywhere; }
+.school-track-source { margin-left: auto; flex-shrink: 0; color: var(--nt-slate); font-size: 10px; }
+.school-track-content { display: grid; gap: 20px; padding: 20px; }
+.school-track-content.has-note { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.school-track-content h5 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--nt-slate); font-size: 11px; font-weight: 650; }
+.school-track-content h5 svg { flex-shrink: 0; }
+.school-track-note { padding-left: 20px; border-left: 1px solid var(--nt-hairline); }
+.school-requirement-text { display: grid; gap: 8px; }
+.school-requirement-text p { color: var(--nt-ink); font-size: 13px; line-height: 1.85; overflow-wrap: anywhere; white-space: pre-wrap; }
+.school-track-note .school-requirement-text p { color: var(--nt-slate); font-size: 12px; }
+.school-table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--nt-hairline); border-radius: 10px; }
+.school-original-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; line-height: 1.8; text-align: left; }
+.school-original-table caption { padding: 13px 16px; color: var(--nt-ink); font-weight: 650; text-align: left; background: var(--nt-paper); }
+.school-original-table th, .school-original-table td { padding: 12px 16px; vertical-align: top; border: 1px solid var(--nt-hairline); overflow-wrap: anywhere; white-space: pre-wrap; }
+.school-original-table th { background: var(--nt-paper); font-weight: 650; }
+.school-failed .school-section-icon { background: var(--nt-tint-peach); color: var(--nt-orange-deep); }
+.school-failed .school-section-heading { margin-bottom: 16px; }
+.school-failed h3 .badge { font-size: 11px; }
+.school-failed-courses { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--nt-hairline); }
+.school-failed-courses li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 0; border-bottom: 1px solid var(--nt-hairline-soft); }
+.school-failed-courses li:last-child { padding-bottom: 0; border-bottom: 0; }
+.school-failed-courses li > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; min-width: 0; }
+.school-failed-courses b { color: var(--nt-ink); font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.school-failed-courses li > div > span { color: var(--nt-slate); font-size: 12px; }
+.school-failed-courses .badge { flex-shrink: 0; font-size: 12px; }
+@media (max-width: 900px) {
+  .school-criteria-summary { grid-template-columns: minmax(0, 1fr) 200px; gap: 16px; }
+  .school-track-content.has-note { grid-template-columns: 1fr; gap: 18px; }
+  .school-track-note { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--nt-hairline); }
+}
+@media (max-width: 650px) {
+  .school-section-heading { gap: 10px; margin-bottom: 18px; }
+  .school-section-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .school-section-heading > .badge { display: none; }
+  .school-section-heading h3 { font-size: 15px; }
+  .school-criteria-summary { grid-template-columns: 1fr; gap: 18px; }
+  .school-affiliation > div { grid-template-columns: 65px minmax(0, 1fr); gap: 10px; }
+  .school-gpa { padding: 15px 17px; }
+  .school-criteria-guidance { padding: 12px; }
+  .school-criteria-actions { gap: 5px 16px; }
+  .school-points-action { margin-left: 0; }
+  .school-track-heading { padding: 12px; flex-wrap: wrap; gap: 8px; }
+  .school-track-source { display: none; }
+  .school-track-content { padding: 15px; }
+}
 @media (max-width: 1200px) {
   .graduation-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .graduation-hero-heading { flex-wrap: wrap; }
@@ -152,8 +231,7 @@
 .graduation-course-filters > fieldset { padding: 0; }
 
 /* Figma Page 3: 졸업 요약 — 합산 카드 + 교양/전공 분해 + 전공별 요건 */
-.graduation-summary-hero { padding: 0; overflow: hidden; border-radius: 22px; }
-.graduation-summary-hero-grid { display: grid; grid-template-columns: 1fr 1px 1fr; }
+.graduation-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-summary-metric { display: block; padding: 32px 38px; min-width: 0; }
 .graduation-summary-metric summary { min-height: 156px; }
 .graduation-summary-metric h3 { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--nt-slate); font-weight: 650; }
@@ -161,9 +239,8 @@
 .graduation-summary-metric summary > strong { display: block; margin-top: 13px; font-size: 38px; font-weight: 800; letter-spacing: -1.1px; color: var(--nt-ink); line-height: 1.1; }
 .graduation-summary-meta { display: flex; align-items: center; min-height: 22px; }
 .graduation-summary-meta small { font-size: 13px; color: var(--nt-slate); font-weight: 650; }
-.graduation-summary-divider { background: var(--nt-hairline); }
 .graduation-summary-metric .progress-track { margin-top: auto; }
-.graduation-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.graduation-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-area-card { display: block; padding: 28px; text-align: left; width: 100%; }
 .graduation-area-card summary > strong { display: block; font-size: 30px; font-weight: 800; letter-spacing: -.8px; color: var(--nt-ink); margin: 13px 0 10px; }
 .graduation-area-card .progress-track { width: 100%; }
@@ -172,17 +249,14 @@
 .gm-details > summary { display: block; cursor: pointer; list-style: none; }
 .gm-details > summary::-webkit-details-marker { display: none; }
 .gm-details > summary:focus-visible { outline: 3px solid #bfd5ff; outline-offset: 6px; border-radius: 6px; }
-.gm-details > summary:hover .graduation-metric-toggle { text-decoration: underline; }
-.gm-toggle-open, details[open] > summary .gm-toggle-closed { display: none; }
-details[open] > summary .gm-toggle-open { display: inline; }
+.gm-details > summary:hover .gm-toggle { border-color: var(--nt-primary); }
 .graduation-requirement-card.gm-details { display: block; }
 .graduation-requirement-card summary > strong { display: block; font-size: 24px; letter-spacing: -.6px; margin: 22px 0 16px; color: var(--nt-ink); }
 .graduation-requirement-card .graduation-summary-meta { display: none; }
 .graduation-requirement-foot b { color: var(--nt-ink); margin-left: 4px; }
 .graduation-summary-meta { margin: 10px 0 9px; }
-.graduation-metric-toggle { display: flex; justify-content: flex-end; align-items: center; gap: 5px; margin-top: 12px; color: var(--nt-primary); font-size: 11px; font-weight: 700; }
-.graduation-metric-toggle svg { transition: transform .2s ease; }
-details[open] > summary .graduation-metric-toggle svg { transform: rotate(180deg); }
+.gm-toggle { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--nt-hairline); background: var(--nt-surface); color: var(--nt-primary); transition: transform .2s ease, border-color .15s ease; }
+details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-metric-breakdown { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--nt-hairline); animation: gm-reveal .22s ease; }
 @keyframes gm-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .graduation-metric-breakdown { animation: none; } }
@@ -240,11 +314,7 @@ details[open] > summary .graduation-metric-toggle svg { transform: rotate(180deg
 .gm-chips-title { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 11px; font-weight: 750; color: var(--nt-charcoal); }
 .gm-chips-title small { font-weight: 500; font-size: 9px; }
 .gm-course-chips ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
-.gm-course-chips li { min-width: 0; padding: 9px 11px; border-radius: 10px; background: var(--nt-surface); border-left: 3px solid var(--gm-tone, var(--nt-primary)); }
-.gm-tone-border-major { --gm-tone: var(--nt-primary); }
-.gm-tone-border-general { --gm-tone: var(--nt-teal-deep); }
-.gm-tone-border-free { --gm-tone: var(--nt-purple); }
-.gm-tone-border-other { --gm-tone: #a6b6ca; }
+.gm-course-chips li { min-width: 0; padding: 9px 12px; border-radius: 999px; border: 1px solid var(--nt-hairline-soft); background: var(--nt-surface); }
 .gm-course-chips b, .gm-course-chips li small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gm-course-chips b { font-size: 11px; color: var(--nt-ink); }
 .gm-course-chips li small { font-size: 9px; margin-top: 2px; }
@@ -270,13 +340,26 @@ details[open] > summary .graduation-metric-toggle svg { transform: rotate(180deg
 .graduation-metric-source b { color: var(--nt-charcoal); font-size: 11px; }
 .graduation-metric-planned, .graduation-metric-empty { margin-top: 10px !important; color: var(--nt-slate); font-size: 10px; line-height: 1.6; }
 .graduation-metric-route { margin-top: 14px; font-size: 11px; }
-.graduation-major-requirements { padding: 6px 2px 0; }
-.graduation-major-requirements > .graduation-section-heading { margin-bottom: 18px; }
-.graduation-major-requirements h2 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 750; letter-spacing: -.4px; margin: 0; }
+
+/* 진로 카드 — 전망 탭 */
+.graduation-career { padding: 18px; }
+.graduation-career .graduation-section-heading h3 { align-items: center; }
+.graduation-career-dept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.graduation-career-dept b { font-size: 14px; font-weight: 750; color: var(--nt-ink); }
+.graduation-career-dept span { font-size: 10px; color: var(--nt-slate); }
+.graduation-career-summary { margin: 10px 0 0; font-size: 11px; line-height: 1.6; color: var(--nt-charcoal); }
+.graduation-career-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.graduation-career-stats span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--nt-tint-sky); font-size: 10px; color: var(--nt-slate); }
+.graduation-career-stats b { font-size: 15px; font-weight: 750; color: var(--nt-primary); }
+.graduation-career-jobs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.graduation-career-jobs a { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--nt-line); font-size: 10px; color: var(--nt-charcoal); text-decoration: none; transition: border-color .12s, background .12s; }
+.graduation-career-jobs a:hover { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
+.graduation-career-links { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; }
+.graduation-career-links a { display: inline-flex; align-items: center; gap: 4px; }
+.graduation-career .meta { margin: 10px 0 0; }
 
 @media (max-width: 650px) {
-  .graduation-summary-hero-grid { grid-template-columns: 1fr; }
-  .graduation-summary-divider { width: auto; height: 1px; }
+  .graduation-hero-grid { grid-template-columns: 1fr; gap: 16px; }
   .graduation-summary-metric { padding: 24px 22px; }
   .graduation-summary-metric summary { min-height: 0; }
   .graduation-summary-metric summary > strong { font-size: 30px; }

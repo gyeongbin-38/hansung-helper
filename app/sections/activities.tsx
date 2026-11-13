@@ -387,7 +387,7 @@ export function Activities({
             </p>
           )}
           <div className="actions">
-            {!isExt(a) && <button className="secondary" onClick={() => go(`advisor/${a.id}`)}><Sparkles size={16} />AI와 요약·신청 준비</button>}
+            <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}><Sparkles size={16} />AI에게 추천받기</button>
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
                 <Bookmark
@@ -536,6 +536,12 @@ export function Activities({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <button
+            className="primary"
+            onClick={() => go('activities/recommend')}
+          >
+            <Sparkles size={15} /> AI에게 추천받기
+          </button>
           <button
             className="secondary"
             aria-pressed={filter === '직접 등록'}
@@ -728,6 +734,9 @@ function ActivityCards({
             <small>신청 {period(a.applyStart, a.applyEnd)}</small>
             {(data.saved.includes(a.id) || isExt(a)) && <ActivityStageProgress title={a.title} stage={stage} />}
             <div className="card-foot">
+              <button className="link" onClick={() => go(`activities/recommend/${a.id}`)}>
+                <Sparkles size={16} /> AI에게 추천받기
+              </button>
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />
               </button>

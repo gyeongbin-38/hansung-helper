@@ -56,6 +56,15 @@ import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 import { shouldAutoRefreshSchool } from '@/lib/data/freshness';
 
+function normalizeAdvisorRoute(route: string) {
+  if (route === 'activities/apply' || route.startsWith('activities/apply/')) {
+    return `activities/recommend${route.slice('activities/apply'.length)}`;
+  }
+  if (!route.startsWith('advisor/')) return route;
+  const activity = route.slice('advisor/'.length);
+  return activity === 'activities' ? 'activities/recommend' : `activities/recommend/${activity}`;
+}
+
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
 function applyInfo(prev: Data, info: InfoSnapshot): Data {
@@ -186,7 +195,12 @@ export default function App() {
       .finally(() => {
         if (active) setReady(true);
       });
-    const sync = () => setRoute(location.hash.slice(1) || 'home');
+    const sync = () => {
+      const requested = location.hash.slice(1) || 'home';
+      const next = normalizeAdvisorRoute(requested);
+      if (next !== requested) history.replaceState(null, '', `${location.pathname}${location.search}#${next}`);
+      setRoute(next);
+    };
     sync();
     addEventListener('hashchange', sync);
     try {
@@ -724,8 +738,9 @@ export default function App() {
     }
   }
   function go(r: string) {
-    location.hash = r;
-    setRoute(r);
+    const next = normalizeAdvisorRoute(r);
+    location.hash = next;
+    setRoute(next);
     setDrawer(false);
     scrollTo(0, 0);
   }
@@ -821,6 +836,10 @@ export default function App() {
       return next ? persist(next, `안 ${key}를 삭제했습니다.`) : false;
     });
   }
+  // AI 추천 조건 — 키우고 싶은 역량 선택을 프로필에 저장한다
+  function setActGoals(goals: string[]) {
+    void persist({ ...data, actGoals: goals }, '추천 조건을 저장했습니다.');
+  }
   // 활동 진행 단계 — 본인 확인용 기록(저장됨 이후 신청→참여→수료→포인트)
   function setActStage(id: string, stage: string | null) {
     const actStatus = { ...data.actStatus };
@@ -901,7 +920,7 @@ export default function App() {
     (n) => !(data.readIds ?? []).includes(n.id),
   ).length;
   const label =
-    menus.find((m) => m[0] === section)?.[1] ||
+    (section === 'activities' && detail === 'recommend' ? 'AI에게 추천받기' : menus.find((m) => m[0] === section)?.[1]) ||
     (
       {
         profile: '내 정보',
@@ -962,6 +981,7 @@ export default function App() {
                   (d.notifiedIds === undefined ||
                     Array.isArray(d.notifiedIds)) &&
                   (d.actPrefs === undefined || Array.isArray(d.actPrefs)) &&
+                  (d.actGoals === undefined || Array.isArray(d.actGoals)) &&
                   (d.painPrefs === undefined || Array.isArray(d.painPrefs)) &&
                   (d.actStatus === undefined ||
                     (d.actStatus &&
@@ -1068,7 +1088,29 @@ export default function App() {
               onPainSurvey={openPainSurvey}
             />
           ) : section === 'activities' ? (
-            <Activities
+            detail === 'recommend' ? <Advisor
+              key={`${renderedGeneration}:activity:${route.split('/')[2] ?? ''}`}
+              purpose="activity"
+              activityId={route.split('/')[2]}
+              signedIn={!!account}
+              onSaveGoals={setActGoals}
+              onSchoolAccount={(result) => {
+                if (renderedGeneration !== accountGeneration.current || !accountRef.current) return;
+                setAccount(result);
+                const info = validateInfo(result.snapshot?.infoData);
+                if (info) setData(previous => applyInfo(previous, info));
+              }}
+              onSignIn={() => {
+                signInReturnRoute.current = route;
+                accountGeneration.current += 1;
+                setPainSurvey(false);
+                setDemo(false);
+                setData(empty);
+              }}
+              data={data}
+              catalog={catalog}
+              go={go}
+            /> : <Activities
               detail={detail}
               filter={filter}
               setFilter={setFilter}
@@ -1165,8 +1207,8 @@ export default function App() {
             />
           ) : section === 'advisor' ? (
             <Advisor
-              key={`${renderedGeneration}:${detail ?? ''}`}
-              activityId={detail}
+              key={`${renderedGeneration}:service`}
+              purpose="service"
               signedIn={!!account}
               onSchoolAccount={(result) => {
                 if (renderedGeneration !== accountGeneration.current || !accountRef.current) return;

@@ -103,6 +103,12 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     ),
     prefs: answers(base.prefs, local.prefs, remote.prefs),
     actPrefs: answers(base.actPrefs, local.actPrefs, remote.actPrefs),
+    actGoals: setMerge(
+      base.actGoals ?? [],
+      local.actGoals ?? [],
+      remote.actGoals ?? [],
+      (x) => x,
+    ),
     painPrefs: answers(base.painPrefs, local.painPrefs, remote.painPrefs),
     surveyStatus: scalar(base.surveyStatus, local.surveyStatus, remote.surveyStatus),
     actStatus: recMerge(base.actStatus, local.actStatus, remote.actStatus),

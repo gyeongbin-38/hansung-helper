@@ -215,7 +215,7 @@
 }
 .study-course-toggle {
   display: grid;
-  grid-template-columns: 30px minmax(100px, 1fr) minmax(100px, 0.7fr) minmax(
+  grid-template-columns: max-content minmax(100px, 1fr) minmax(100px, 0.7fr) minmax(
       125px,
       1.15fr
     ) 16px;
@@ -232,12 +232,15 @@
 .study-section {
   display: grid;
   place-items: center;
-  width: 30px;
+  min-width: 30px;
   height: 34px;
+  padding-inline: 6px;
   border-radius: 9px;
   color: var(--nt-primary);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
   background: var(--nt-tint-sky);
 }
 .study-course-name,
@@ -508,40 +511,6 @@
 .study-management .lms-conn > h3 {
   display: none;
 }
-.study-attention {
-  padding: 16px 18px;
-  background: linear-gradient(115deg, var(--nt-canvas), var(--nt-tint-peach));
-  border: 1px solid var(--nt-hairline);
-  border-radius: 14px;
-}
-.study-attention > summary {
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-.study-attention > summary svg {
-  color: var(--nt-orange);
-}
-.study-attention > summary > span {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--nt-orange-deep);
-}
-.study-attention > p {
-  color: var(--nt-steel);
-  font-size: 11px;
-  line-height: 1.6;
-  margin: 12px 0 0;
-}
-.study-attention .lms-match-warn {
-  margin: 12px 0 0;
-  background: var(--nt-canvas);
-  padding: 12px;
-}
 .study-archive {
   margin-top: 14px;
   border-top: 1px solid var(--nt-hairline-soft);
@@ -594,7 +563,7 @@
 }
 @media (max-width: 1350px) {
   .study-course-toggle {
-    grid-template-columns: 28px minmax(0, 1fr) 105px 14px;
+    grid-template-columns: max-content minmax(0, 1fr) 105px 14px;
     gap: 10px;
   }
   .study-course-preview {
@@ -663,7 +632,7 @@
     padding: 14px;
   }
   .study-course-toggle {
-    grid-template-columns: 26px minmax(0, 1fr) 14px;
+    grid-template-columns: max-content minmax(0, 1fr) 14px;
   }
   .study-course-progress {
     grid-column: 2;
@@ -704,20 +673,14 @@
   padding: 8px 10px;
   border-radius: var(--nt-r-sm);
   background: color-mix(in srgb, var(--nt-error) 8%, var(--nt-canvas));
-  border-left: 3px solid var(--nt-error);
   color: var(--nt-error);
   font-size: 12px;
   font-weight: 650;
   line-height: 1.5;
 }
-.study-due-row.is-overdue,
-.study-due-row.is-today {
-  background: color-mix(in srgb, var(--nt-error) 7%, var(--nt-canvas));
-  box-shadow: inset 3px 0 0 var(--nt-error);
-}
-.study-due-row.is-soon {
-  background: color-mix(in srgb, var(--nt-error) 4%, var(--nt-canvas));
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--nt-error) 55%, var(--nt-canvas));
+.study-dday.is-check {
+  background: color-mix(in srgb, var(--nt-navy-mid) 8%, var(--nt-canvas));
+  color: var(--nt-steel);
 }
 .study-dday.is-overdue,
 .study-dday.is-today {

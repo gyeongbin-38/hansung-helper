@@ -40,7 +40,7 @@ export type StudyStatus =
 const STATUS: Record<StudyStatus, string> = {
   syncing: '수집 중',
   login: '로그인 필요',
-  failed: '수집 실패',
+  failed: '업데이트 필요',
   delayed: '수집 지연',
   setup: '연결 전',
   stale: '업데이트 필요',
@@ -184,10 +184,18 @@ export function LmsOverview({
   const labels = new Map(
     snap.courses.map((c) => [c.title, courseDisplayName(c).title]),
   );
+  // 제출·기간 확인이 안 된 항목은 긴급 건수에서 제외 — 미완료로 단정하지 않는다.
   const urgentDue = due.filter((t) => {
+    if (t.uncertain || t.rangeUncertain) return false;
     const distance = kstDateNumber(t.dueTs) - kstDateNumber(now);
     return distance <= 2;
   }).length;
+  const pendingOf = (c: LmsCourse) =>
+    pendingTasks({ ...snap, courses: [c] }, before).sort(
+      (a, b) => (parseDue(a.due) ?? Infinity) - (parseDue(b.due) ?? Infinity),
+    );
+  const kindMatches = (kind: string) =>
+    filter === 'lecture' ? kind === '강의' : filter === 'task' ? kind !== '강의' : true;
   const nextDue = (c: LmsCourse) =>
     Math.min(
       ...pendingTasks({ ...snap, courses: [c] }, before).map(
@@ -196,12 +204,8 @@ export function LmsOverview({
       Infinity,
     );
   const filtered = courses
-    .filter((c) =>
-      filter === 'lecture'
-        ? c.vods.length > 0
-        : filter === 'task'
-          ? c.assigns.length + c.quizzes.length > 0
-          : true,
+    .filter(
+      (c) => filter === 'all' || pendingOf(c).some((t) => kindMatches(t.kind)),
     )
     .sort((a, b) =>
       sort === 'name'
@@ -355,14 +359,7 @@ export function LmsOverview({
             <div className="study-course-list">
               {displayed.map((c) => {
                 const p = courseProgress(c);
-                const items = pendingTasks(
-                  { ...snap, courses: [c] },
-                  before,
-                ).sort(
-                  (a, b) =>
-                    (parseDue(a.due) ?? Infinity) -
-                    (parseDue(b.due) ?? Infinity),
-                );
+                const items = pendingOf(c).filter((t) => kindMatches(t.kind));
                 const disp = courseDisplayName(c);
                 const percent = p.total
                   ? Math.round((p.done / p.total) * 100)
@@ -520,8 +517,16 @@ export function LmsOverview({
             {due.length ? (
               due.slice(0, 4).map((t, i) => {
                 const d = kstDateNumber(t.dueTs) - kstDateNumber(now);
-                const urgency =
-                  d < 0 ? 'overdue' : d === 0 ? 'today' : d <= 2 ? 'soon' : 'normal';
+                const unverified = !!(t.uncertain || t.rangeUncertain);
+                const urgency = unverified
+                  ? 'normal'
+                  : d < 0
+                    ? 'overdue'
+                    : d === 0
+                      ? 'today'
+                      : d <= 2
+                        ? 'soon'
+                        : 'normal';
                 return (
                   <div className={`study-due-row is-${urgency}`} key={i}>
                     <span
@@ -541,13 +546,18 @@ export function LmsOverview({
                         <b>{t.title}</b>
                       )}
                       <small>{labels.get(t.course) ?? t.course}</small>
-                      <small>
-                        {shortDate(t.dueTs)}
-                        {t.uncertain || t.rangeUncertain ? ' · 확인 필요' : ''}
-                      </small>
+                      <small>{shortDate(t.dueTs)}</small>
                     </div>
-                    <span className={`study-dday is-${urgency}`}>
-                      {d < 0 ? '기한 지남' : d === 0 ? '오늘' : `D-${d}`}
+                    <span
+                      className={`study-dday is-${unverified ? 'check' : urgency}`}
+                    >
+                      {unverified
+                        ? '확인 필요'
+                        : d < 0
+                          ? '기한 지남'
+                          : d === 0
+                            ? '오늘'
+                            : `D-${d}`}
                     </span>
                   </div>
                 );
