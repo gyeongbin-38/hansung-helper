@@ -2028,3 +2028,98 @@ BLOCKER: 없음. 라이브 dc7f7711.
 NOTE: 로그인 경로의 동시성은 학교 서버 부하 때문에 합성 부하
 불가 — 구조적 대비(IP 리밋·예산)가 답이며 실측은 실사용으로
 확인 필요.
+
+
+## 2026-10-10 — 월 그리드 캘린더 + ICS + 알림 확장 + 부분수집 보호 (ISSUE-36)
+
+TRIGGER: 사용자 "전부 진행하자" — planner 프로젝트에서 쓸 만한 것을
+가져오되 학사·수업 캘린더 기능 추가 요청. W1(캘린더)+W2(알림 확장)
+묶음을 먼저 구현·배포하고, 검증 도중 발견한 데이터 손실 버그를
+같은 배포에 포함.
+
+DONE:
+- lib/data/calendar.ts — 순수 캘린더 모델. monthGrid/addMonths/
+  itemsInRange/itemsOnDay, collectCalItems로 공식 학사일정·LMS 마감
+  (dueSoon)·개인 events·계획 수업을 CalItem으로 통합, parseQuickAdd
+  자연어(내일/모레/다음주 요일/M월D일/ISO) 해석.
+- lib/data/ics.ts — VCALENDAR 생성. 학사일정·개인 일정은 종일,
+  LMS 마감은 시각, 계획 수업은 FREQ=WEEKLY·BYDAY·UNTIL 반복 VEVENT.
+  계획 수업 설명에 '학교 수강신청 결과가 아님' 명시.
+- app/sections/calendar.tsx 전면 재작성 — planner CalendarView 패턴
+  (월 그리드+기간 밴드+선택일 agenda+quick-add 미리보기) 포팅.
+  공식 출처·수집 시각·원문 링크 유지, .ics 다운로드 버튼.
+- lib/data/notifs.ts — stageReminderTargets(활동 라이프사이클을
+  OS 알림 예약으로) + infoChanges(취득학점/평점/이수 과목 수 diff).
+  deriveNotifs에 info-changed 알림 추가.
+- page.tsx — OS 알림 큐에 stage 리마인드 합류, notifiedIds 공유.
+- lib/data/info.ts — InfoSnapshot.changed + mergeInfoSnapshot.
+  학교는 계정당 세션 1개라 타 기기 로그인이 수집 도중 세션을 끊음 →
+  페이지 200이어도 로그인 프레임셋이 돌아와 슬롯이 통째로 빔(실계정
+  completed 18→0 덮어쓰기 확인). diag.pages의 ok 슬롯만 새 값을 믿고
+  실패 슬롯은 이전 값 유지. changed는 미발화 시 null로 명시 삭제.
+- login/lms-refresh 라우트 — 지연 수집 완료 시 merge + changed 계산.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 14파일 전부 OK
+(calendar 51/51, info 83/83, notifs 40/40 — 신규 24건) · 빌드 green.
+
+DEPLOY: PR #22 squash 머지(191c1fa) → published-personal 동기화·빌드
+→ wrangler deploy 56acd1a9-3c0e-45da-ad1c-4efb5ab0cb77 → 엔드포인트
+전부 200 + 라이브 page 청크에 cal-cell·info-changed·stage-·VCALENDAR
+마커 확인. 배포 리포 1ffdca2.
+
+BLOCKER: hsportal 비교과 포인트 자동 수집 — /api/coursemos/login이
+GUEST 반환(계정 프로비저닝은 SSO 경유 추정). info.hansung left.jsp의
+비교과 링크가 SSO 브리지인지 확인 필요하나, 반복 로그인으로 로컬
+IP가 학교 측 스로틀 상태 — 쿨다운 후 재탐색.
+NOTE: 동시 로그인 세션 충돌은 학교 정책이라 제거 불가 — merge로
+데이터 손실만 차단. ICS는 로컬 시각 기준(Z 표기 없는 의도적 설계).
+
+
+## 2026-10-11 — 졸업 전망 역산 + 포인트 채우기 추천 + 프로필 3-way 병합 (ISSUE-37)
+
+TRIGGER: 수집된 실데이터(학점·평점·이수 18과목·포인트 필드)를
+사용자 가치로 전환하는 W3 묶음 — 졸업 시기 추정, 결핍 기반 비교과
+추천, 그리고 ISSUE-34 follow-up ③의 프로필 409 필드 병합.
+
+DONE:
+- lib/data/graduation.ts — graduationOutlook: remaining=required-
+  earned, 계획 학점 우선 차감(afterPlan), 학기당 목표 = 계획값 또는
+  18, 1~25 클램프, ceil로 학기 수 역산. parseSemester('2026-2')로
+  졸업 학기 라벨 추정 + admitYear로 현재 학년. required null/0이면
+  ok:false.
+- app/sections/graduation.tsx — '졸업 전망' 카드(intro 뒤): 남은
+  학점·계획 반영 후 학점·필요 학기 수·졸업 학기·현재 학년 + '추정 ·
+  공식 사정 아님' 배지 + 학기당 목표 조정 입력 + 가정 문구.
+  outlook.ok && !missingInput(total)일 때만 표시.
+- lib/data/activities.ts — pointScore(activity, deficit, now):
+  deficit<=0·신청 불가·무포인트 → 0. 커버율(최대 4)+마감 임박 3/
+  접수 중 2/곧 접수 1+인증 1, 근거 문자열(포인트 +N·부족분 한 번에
+  충족·마감 임박·접수 중·곧 접수·인재인증).
+- app/sections/activities.tsx — 현재 포인트 info.points 우선
+  (수동 data.points 폴백), 요건 ruleOverrides?.points ?? 800,
+  '포인트 채우기' 탭(결핍>0), isScoredTab으로 두 추천 탭 공통
+  점수 배지, 배지 툴팁 '추천 근거'로 중립화. 포인트 미입력이면 탭
+  숨김 + 밴드에서 입력 유도.
+- lib/data/profile-merge.ts (신규) — mergeProfile(base, local,
+  remote): 배열 집합 병합(양쪽 추가·local 삭제 반영), 레코드 키
+  단위 3-way, 스칼라 local 변경분만, 서버 필드 remote 고정.
+  app/sections/data.ts에서 re-export.
+- app/page.tsx persist — 전송 직전 mergeProfile(baseAtCall, next,
+  dataRef.current)으로 같은 탭 연속 쓰기 유실 수정(기존 enqueue는
+  직렬화만 — stale next가 앞선 저장을 덮어씀). 409 시 서버 상태
+  refetch → mergeProfile(stale, send, remote)로 한 번 재시도, 성공
+  시 '병합해 저장했습니다' 토스트, 재충돌은 서버 상태로 수렴.
+
+TESTS: tsc clean · oxlint 0 · 매트릭스 15파일 전부 OK
+(graduation 17/17 +outlook 6, activities 30/30 +pointScore 5,
+profile-merge 11/11 신규 — 같은 탭 연속 쓰기·양쪽 추가/삭제·
+서버 필드 remote 시나리오) · 빌드 green.
+
+DEPLOY: PR #24 squash 머지(2b4d4e3) → published-personal 동기화·
+빌드 → wrangler deploy 0cce2711-912f-4e8b-8bfe-71f5dc86195d →
+엔드포인트 전부 200 + page-CLx_0WA6.js 청크에 졸업 전망·포인트
+채우기·추천 근거·병합해 저장 마커 확인. 배포 리포 a3dfa55.
+
+BLOCKER: 없음. 라이브 0cce2711.
+NOTE: 409 병합 재충돌은 의도적으로 서버 우선(무한 재시도 방지).
+전망 추정치는 균등 이수 가정 — 공식 사정 대체 아님을 UI에 명시.
