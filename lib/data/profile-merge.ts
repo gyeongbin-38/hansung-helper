@@ -129,6 +129,16 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
       local.notifEnabled,
       remote.notifEnabled,
     ),
+    mascotEnabled: scalar(
+      base.mascotEnabled,
+      local.mascotEnabled,
+      remote.mascotEnabled,
+    ),
+    mascotGuideSeen: scalar(
+      base.mascotGuideSeen,
+      local.mascotGuideSeen,
+      remote.mascotGuideSeen,
+    ),
     lmsMatch: recMerge(base.lmsMatch, local.lmsMatch, remote.lmsMatch),
   };
 }
