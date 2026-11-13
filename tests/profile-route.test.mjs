@@ -71,6 +71,17 @@ assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 7 }) }))
 assert.equal(profile.surveyStatus, 'skipped', 'older client preserves the dismissed survey introduction');
 assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 8, surveyStatus: 'completed' }) })).status, 200);
 assert.equal(profile.surveyStatus, 'completed');
-assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 9, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 9, mascotEnabled: false, mascotGuideSeen: true }) })).status, 200);
+assert.equal(profile.mascotEnabled, false);
+assert.equal(profile.mascotGuideSeen, true);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 10, mascotEnabled: 'off' }) })).status, 400);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 10, mascotGuideSeen: 1 }) })).status, 400);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 10 }) })).status, 200);
+assert.equal(profile.mascotEnabled, false, 'older client must not erase the mascot setting');
+assert.equal(profile.mascotGuideSeen, true, 'older client must not erase guide history');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 11, mascotEnabled: true, mascotGuideSeen: false }) })).status, 200);
+assert.equal(profile.mascotEnabled, true);
+assert.equal(profile.mascotGuideSeen, false);
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 12, name: '로그아웃 후 요청' }), revoke: true })).status, 401);
 assert.equal(profile.name, '처음');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');

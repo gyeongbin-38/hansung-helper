@@ -10,9 +10,12 @@
 import { plainText } from './school.ts';
 import { infoCategory } from '../data/info.ts';
 import type {
+  InfoAcademic,
   InfoAuditRow,
   InfoCourse,
+  InfoCreditCategory,
   InfoPageFailure,
+  InfoSemester,
   InfoSnapshot,
 } from '../data/info.ts';
 
@@ -96,6 +99,21 @@ const SLOTS: { slot: string; res: RegExp[] }[] = [
     res: [/졸업.*(가?사정|심사)|사정표/, /졸업요건|졸업\s*기준/],
   },
 ];
+
+/** 메뉴 라벨이 바뀌어도 수집할 수 있는 직접 경로. 모두 로그인 세션이
+ *  있어야 실제 데이터가 오고, 없으면 로그인 벽으로 분류된다. */
+const DIRECT_PATHS = {
+  grades: ['jsp_21/student/grade/total_grade.jsp?viewMode=oc'],
+  semesterGrades: [
+    'fuz/seongjeok/seongjeok_new_rwd.jsp',
+    'fuz/seongjeok/seongjeok.jsp',
+  ],
+  academic: ['tonicsoft/jik/register/collage_register_hakjuk_rwd.jsp'],
+  audit: [
+    'jsp_21/student/graduation/joluprequire_track.jsp?viewMode=oc',
+    'jsp_21/student/graduation/graduation_requirement.jsp?viewMode=oc',
+  ],
+} as const;
 
 export function pickTargets(menu: InfoMenuItem[]) {
   const found: Record<string, string> = {};
@@ -226,6 +244,23 @@ export function parseGrades(html: string): {
       );
     });
     if (headerIdx === -1) {
+      // 새 성적 화면(seongjeok_new_rwd.jsp)은 헤더 없이
+      // '교과명 | 학점 | 성적' 행만 오는 경우가 있다 — 등급 셀이
+      // 있는 행만 골라 과목으로 인정한다(요약·소계 표 오염 방지).
+      const heuristic = parseHeuristicRows(rows, semester);
+      if (heuristic.length) {
+        recognized = true;
+        for (const c of heuristic) {
+          if (
+            /^(F|FA|NP|N|U|I|낙제|불합격|미이수|포기)/i.test(c.grade ?? '')
+          )
+            continue;
+          const key = normKey(c.name) + '|' + (c.semester ?? '');
+          if (seen.has(key)) continue;
+          seen.add(key);
+          completed.push(c);
+        }
+      }
       // 소계 테이블 — 총 취득학점/평점만 회수
       const flat = rows.flat().join(' ');
       if (!credits) {
@@ -314,6 +349,70 @@ export function parseGrades(html: string): {
 
 const normKey = (s: string) => s.replace(/\s+/g, '');
 
+const GRADE_RE =
+  /^(A\+|A0|A-|B\+|B0|B-|C\+|C0|C-|D\+|D0|D-|F|FA|P|NP|N|U|I|S)$/i;
+const CATEGORY_RE =
+  /^(전필|전선|전기|교필|선필교|일교|일선|교양|전공|일반|기초|토대|핵심|소양|자율|한성인재|소계|합계|총계|이수)$/;
+const isCourseName = (s: string) => {
+  const t = s.trim();
+  return (
+    t.length >= 2 &&
+    t.length <= 100 &&
+    /[가-힣A-Za-z]/.test(t) &&
+    !/^(구분|교과목명?|과목명?|교과명|강좌명|학점|성적|등급|이수구분|코드|비고|현재트랙.*)$/.test(
+      t,
+    ) &&
+    !CATEGORY_RE.test(t)
+  );
+};
+
+/** 헤더 없는 성적 표 — 등급 셀을 기준으로 과목·학점·코드를 역추적한다.
+ *  새 성적 화면은 표마다 헤더가 없거나 th에 과목명이 올 수 있어
+ *  고정 열 번호 대신 값의 형태로 열을 찾는다. */
+function parseHeuristicRows(rows: string[][], semester?: string): InfoCourse[] {
+  const out: InfoCourse[] = [];
+  for (const cells of rows) {
+    if (cells.length < 4) continue;
+    const gradeIdx = cells.findIndex((c) => GRADE_RE.test(c.trim()));
+    if (gradeIdx < 0) continue;
+    const crIdx = cells.findIndex(
+      (c, i) =>
+        i !== gradeIdx &&
+        /^\d{1,2}(?:\.\d)?$/.test(c.trim()) &&
+        parseFloat(c) > 0 &&
+        parseFloat(c) <= 20,
+    );
+    if (crIdx < 0) continue;
+    const nameIdx = cells.findIndex(
+      (c, i) => i !== crIdx && i !== gradeIdx && isCourseName(c),
+    );
+    if (nameIdx < 0) continue;
+    const catIdx = cells.findIndex(
+      (c, i) =>
+        i < nameIdx &&
+        /전필|전선|전기|교필|선필교|일교|일선|교양|전공|일반|기초|토대|핵심|소양|자율|한성인재/.test(
+          c,
+        ),
+    );
+    const codeIdx = cells.findIndex(
+      (c, i) =>
+        i !== nameIdx &&
+        i !== crIdx &&
+        i !== gradeIdx &&
+        /^[A-Z]{1,4}\d{2,5}[A-Z0-9]*$/i.test(c.trim()),
+    );
+    out.push({
+      code: (codeIdx >= 0 ? cells[codeIdx] : '미확인').slice(0, 30),
+      name: cells[nameIdx].slice(0, 100),
+      category: infoCategory(catIdx >= 0 ? cells[catIdx] : ''),
+      credits: parseFloat(cells[crIdx]),
+      semester,
+      grade: cells[gradeIdx].slice(0, 10),
+    });
+  }
+  return out;
+}
+
 /** 비교과 포인트 페이지 — 총점/합계 행 우선, 없으면 표 본문 합산은 하지 않는다(중복 위험). */
 export function parsePoints(html: string): number | undefined {
   for (const t of tables(html)) {
@@ -355,6 +454,188 @@ export function parseAudit(html: string): InfoAuditRow[] | undefined {
     if (rows.length) return rows;
   }
   return undefined;
+}
+
+const TERM_CODE: Record<string, string> = {
+  '1': '1',
+  '2': '2',
+  여름: 'S',
+  겨울: 'W',
+};
+
+const semesterCode = (year: string, term: string) =>
+  `${year}-${TERM_CODE[term] ?? term}`;
+
+const isoDate = (raw: string) => {
+  const m = raw.match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+  return m
+    ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+    : undefined;
+};
+
+/** 학적 페이지 — 학년·재학상태·제1/2트랙·입학일자를 라벨/값 쌍으로 읽는다. */
+export function parseAcademic(html: string): InfoAcademic | undefined {
+  const text = plainText(html);
+  const cellPair = (labelRe: RegExp) => {
+    const m = html.match(
+      new RegExp(
+        `<t[dh][^>]*>\\s*(?:${labelRe.source})\\s*[:：]?\\s*</t[dh]>\\s*<t[dh][^>]*>([\\s\\S]{1,80}?)</t[dh]>`,
+        'i',
+      ),
+    );
+    return m?.[1] ? plainText(m[1]) : '';
+  };
+  const textPair = (labelRe: RegExp) => {
+    const m = text.match(
+      new RegExp(`(?:${labelRe.source})\\s*[:：]?\\s*([^\\s]{1,40})`),
+    );
+    return m?.[1] ?? '';
+  };
+  const gradeRaw = cellPair(/학년/) || textPair(/학년/);
+  const gradeMatch = gradeRaw.match(/\d/);
+  const statusRaw =
+    cellPair(/상태|학적\s*상태/) ||
+    text.match(/(재학|휴학|졸업|수료|제적|유예|군휴학)/)?.[1] ||
+    '';
+  const track1 = cellPair(/제\s*1\s*트랙|트랙\s*1|주전공/);
+  const track2 = cellPair(/제\s*2\s*트랙|트랙\s*2|복수전공|부전공/);
+  const tracks = [track1, track2]
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0 && t.length <= 40);
+  const admissionDate = isoDate(cellPair(/입학일자|입학일/));
+  if (!gradeMatch && !statusRaw && !tracks.length && !admissionDate)
+    return undefined;
+  return {
+    grade: gradeMatch ? parseInt(gradeMatch[0], 10) : undefined,
+    status: statusRaw ? statusRaw.slice(0, 20) : undefined,
+    tracks: tracks.length ? tracks : undefined,
+    admissionDate,
+  };
+}
+
+/** 누적 이수구분별 취득학점 — 상단 요약 블록의 라벨/숫자만 사용한다.
+ *  과목 행의 이수구분과 섞이지 않도록 div_total 블록 안으로 제한한다. */
+export function parseCreditCategories(
+  html: string,
+): InfoCreditCategory[] | undefined {
+  const block =
+    /id=["']div_total["'][\s\S]*?(?=id=["']main_content["']|$)/i.exec(
+      html,
+    )?.[0] ?? '';
+  if (!block) return undefined;
+  const source = plainText(block).slice(0, 3000);
+  const labels = [
+    '기초(필수)',
+    '기초',
+    '토대',
+    '한성인재',
+    '자율',
+    '소양',
+    '핵심',
+    '전필',
+    '전기',
+    '전지',
+    '전선',
+    '교필',
+    '일교',
+    '일선',
+    '교직선',
+    '교직',
+    '부전지',
+    '부전선',
+    '부전기',
+    '복전지',
+    '복전선',
+    '복전기',
+    '연전지',
+    '연전선',
+    '연전기',
+  ].sort((a, b) => b.length - a.length);
+  const out: InfoCreditCategory[] = [];
+  for (const label of labels) {
+    if (out.some((c) => c.label.includes(label))) continue;
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = source.match(
+      new RegExp(`${esc}\\s*(?:학점)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)`),
+    );
+    if (!m) continue;
+    const credits = parseFloat(m[1]);
+    if (Number.isFinite(credits)) out.push({ label, credits });
+  }
+  return out.length ? out.slice(0, 30) : undefined;
+}
+
+/** 학기별 성적 페이지 — 학기 라벨 구간마다 요약 숫자와 과목을 묶는다.
+ *  total_grade.jsp와 seongjeok_new_rwd.jsp/seongjeok.jsp의 공통 형태를
+ *  모두 처리하도록 표 헤더에 의존하지 않는 parseGrades를 재사용한다. */
+export function parseSemesterGrades(html: string): {
+  semesters: InfoSemester[];
+  creditCategories?: InfoCreditCategory[];
+  recognized: boolean;
+} {
+  const grades = parseGrades(html);
+  const text = plainText(html);
+  const labelRe = /(20\d{2})\s*(?:학년도|년)?\s*(1|2|여름|겨울)\s*학기/g;
+  const labels = [...text.matchAll(labelRe)];
+  const recognized = grades.recognized || labels.length > 0;
+  if (!labels.length) {
+    return {
+      semesters: [],
+      creditCategories: parseCreditCategories(html),
+      recognized,
+    };
+  }
+  const seen = new Set<string>();
+  const semesters: InfoSemester[] = [];
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
+    const code = semesterCode(label[1], label[2]);
+    if (seen.has(code)) continue;
+    seen.add(code);
+    const start = label.index ?? 0;
+    const end = labels[i + 1]?.index ?? Math.min(text.length, start + 3000);
+    // 라벨 뒤쪽만 본다 — 앞쪽을 포함하면 상단 누적 요약(전체 학점/평점)이
+    // 모든 학기의 값으로 복사된다.
+    const windowText = text.slice(start, end);
+    const n = (re: RegExp) => {
+      const hit = windowText.match(re);
+      return hit ? parseFloat(hit[1].replace(/,/g, '')) : undefined;
+    };
+    const applied = n(/신청\s*학점\s*[:：]?\s*([\d,]+(?:\.\d+)?)/);
+    const earned = n(/취득\s*학점\s*[:：]?\s*([\d,]+(?:\.\d+)?)/);
+    const totalScore = n(/평점\s*총계\s*[:：]?\s*([\d,]+(?:\.\d+)?)/);
+    const gpa =
+      n(/평균\s*평점\s*[:：]?\s*([\d.]+)/) ??
+      n(/평점\s*평균\s*[:：]?\s*([\d.]+)/);
+    const percentile = n(/백분위\s*(?:점수)?\s*[:：]?\s*([\d.]+)/);
+    const courses = grades.completed.filter((c) => c.semester === code);
+    if (
+      !courses.length &&
+      applied === undefined &&
+      earned === undefined &&
+      gpa === undefined
+    )
+      continue;
+    semesters.push({
+      semester: code,
+      applied,
+      earned:
+        earned ??
+        (courses.length
+          ? courses.reduce((sum, c) => sum + c.credits, 0)
+          : undefined),
+      totalScore,
+      gpa,
+      percentile,
+      courses,
+    });
+  }
+  semesters.sort((a, b) => b.semester.localeCompare(a.semester));
+  return {
+    semesters,
+    creditCategories: parseCreditCategories(html),
+    recognized,
+  };
 }
 
 /** 학번 → 입학연도. 한성대 학번은 앞자리가 입학연도다 —
@@ -445,16 +726,31 @@ export async function collectInfo(
   const fetched: Record<string, string> = {};
   const menuHtmls: string[] = [ctx.menuHtml, ctx.mainHtml];
 
-  const get = async (path: string): Promise<{ html: string | null; reason?: InfoPageFailure }> => {
+  const get = async (
+    path: string,
+  ): Promise<{ html: string | null; reason?: InfoPageFailure }> => {
     const url = toUrl(path);
-    try {
-      const res = await session.follow(await session.request(url), url);
-      if (!res.ok) return { html: null, reason: 'upstream' };
-      const html = await decode(res);
-      return isLoginWall(html) ? { html: null, reason: 'session-expired' } : { html };
-    } catch {
-      return { html: null, reason: 'upstream' };
+    // 5xx만 한 번 재시도한다 — 세션 만료·로그인 벽은 재시도해도 같고,
+    // 네트워크 타임아웃을 두 번 기다리면 수집 예산을 크게 잡아먹는다.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await session.follow(await session.request(url), url);
+        if (!res.ok) {
+          if (attempt === 0 && res.status >= 500) {
+            await new Promise((r) => setTimeout(r, 300));
+            continue;
+          }
+          return { html: null, reason: 'upstream' };
+        }
+        const html = await decode(res);
+        return isLoginWall(html)
+          ? { html: null, reason: 'session-expired' }
+          : { html };
+      } catch {
+        return { html: null, reason: 'upstream' };
+      }
     }
+    return { html: null, reason: 'upstream' };
   };
 
   // 1차 메뉴 소스 — 프레임셋의 프레임들 (left.jsp가 실제 네비게이션).
@@ -491,10 +787,44 @@ export async function collectInfo(
     if (html !== null) fetched[slot] = html;
   };
 
+  /** 후보 경로를 순서대로 시도하고, accept를 통과한 첫 응답만 채택한다. */
+  const tryPaths = async (
+    slot: string,
+    paths: readonly string[],
+    accept: (html: string) => boolean,
+    force = false,
+  ) => {
+    if (fetched[slot] && !force) return true;
+    for (const path of paths) {
+      const { html, reason } = await get(path);
+      const ok = html !== null && accept(html);
+      pages.push({ slot, path, ok, ...(reason ? { reason } : {}) });
+      if (ok) {
+        fetched[slot] = html!;
+        return true;
+      }
+    }
+    return false;
+  };
+
   const targets = pickTargets(menuItems());
   await Promise.all(
     Object.entries(targets).map(([slot, path]) => fetchSlot(slot, path)),
   );
+
+  // 메뉴에서 못 찾았거나 라벨이 바뀐 슬롯은 직접 경로로 보완한다.
+  // 성적·학적·학기별 성적은 메뉴 구조와 무관하게 항상 시도한다.
+  await Promise.all([
+    tryPaths('grades', DIRECT_PATHS.grades, (h) => parseGrades(h).recognized),
+    tryPaths('semesterGrades', DIRECT_PATHS.semesterGrades, (h) =>
+      parseSemesterGrades(h).recognized,
+    ),
+    tryPaths(
+      'academic',
+      DIRECT_PATHS.academic,
+      (h) => h.trim().length > 0,
+    ),
+  ]);
 
   // 2차 탐색 — 가져온 페이지의 사이드바에서 못 찾은 슬롯을 재시도한다
   const deep = new Map<string, InfoMenuItem>();
@@ -509,8 +839,22 @@ export async function collectInfo(
     }
   }
 
-  // 못 찾은 슬롯도 diag에 남긴다 — '찾지 못함'과 '가져오기 실패'를 구분
-  for (const { slot } of SLOTS)
+  // 사정표는 학교가 '자료 없음'으로 응답하는 경우가 잦다 — 다른 졸업요건
+  // 페이지(graduation_requirement.jsp)로 한 번 더 시도한다.
+  if (!fetched.audit || !parseAudit(fetched.audit)) {
+    // '자료 없음' 응답은 실패가 아니라 빈 사정표다 — fetch 성공 표시는
+    // 유지하고, 다른 졸업요건 페이지에서 값이 오면 그쪽으로 교체한다.
+    await tryPaths('audit', DIRECT_PATHS.audit, (h) => !!parseAudit(h), true);
+  }
+
+  // 메뉴에 없던 직접 수집 슬롯까지 포함해 '찾지 못함'을 표면화한다.
+  for (const slot of [
+    'grades',
+    'points',
+    'audit',
+    'semesterGrades',
+    'academic',
+  ])
     if (!fetched[slot] && !pages.some((p) => p.slot === slot))
       pages.push({ slot, path: '-', ok: false, reason: 'missing' });
 
@@ -525,9 +869,20 @@ export async function collectInfo(
   if (!identity.admitYear && ctx.studentId)
     identity.admitYear = admitYearOf(ctx.studentId);
 
-  const grades = fetched.grades !== undefined
+  let grades = fetched.grades !== undefined
     ? parseGrades(fetched.grades)
     : { completed: [], recognized: false, hasUnconfirmed: false };
+  // 메뉴가 구형 성적 페이지를 가리키면 새 누적성적 페이지로 한 번 더 시도한다.
+  if (fetched.grades !== undefined && !grades.recognized) {
+    const direct = await tryPaths(
+      'grades',
+      DIRECT_PATHS.grades,
+      (h) => parseGrades(h).recognized,
+      true,
+    );
+    if (direct && fetched.grades !== undefined)
+      grades = parseGrades(fetched.grades);
+  }
   // 정상 HTTP 응답이라도 성적표의 필수 열이 사라지면 빈 이수 목록으로
   // 기존 결과를 교체하지 않는다. 헤더가 있는 빈 표는 정상 빈 목록이다.
   if (fetched.grades !== undefined && (!grades.recognized || grades.hasUnconfirmed)) {
@@ -536,6 +891,18 @@ export async function collectInfo(
       page.reason = grades.recognized ? 'unconfirmed' : 'structure';
     }
   }
+
+  const semesterParsed = fetched.semesterGrades
+    ? parseSemesterGrades(fetched.semesterGrades)
+    : { semesters: [], creditCategories: undefined, recognized: false };
+  if (fetched.semesterGrades && !semesterParsed.recognized) {
+    for (const page of pages)
+      if (page.slot === 'semesterGrades' && page.ok) {
+        page.ok = false;
+        page.reason = 'structure';
+      }
+  }
+  const academic = fetched.academic ? parseAcademic(fetched.academic) : undefined;
   const menu = menuItems();
   const snap: InfoSnapshot = {
     source: 'info-hansung',
@@ -545,6 +912,11 @@ export async function collectInfo(
     gpa: grades.gpa,
     points: fetched.points ? parsePoints(fetched.points) : undefined,
     completed: grades.completed,
+    academic,
+    semesters: semesterParsed.semesters.length
+      ? semesterParsed.semesters
+      : undefined,
+    creditCategories: semesterParsed.creditCategories,
     audit: fetched.audit ? parseAudit(fetched.audit) : undefined,
     diag: { menu, pages },
   };
@@ -554,6 +926,8 @@ export async function collectInfo(
       menu: menu.length,
       pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : p.reason ?? 'fail'}`),
       courses: snap.completed.length,
+      semesters: snap.semesters?.length ?? 0,
+      academic: snap.academic ? 'yes' : 'no',
       name: snap.name ? 'yes' : 'no',
       dept: snap.dept ? 'yes' : 'no',
     }),
