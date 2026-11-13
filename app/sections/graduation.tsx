@@ -86,6 +86,7 @@ export function Graduation({
   planned,
   persist,
   detail,
+  only,
   infoPending,
   infoFailed,
   admission,
@@ -97,6 +98,8 @@ export function Graduation({
   planned: CourseSection[];
   persist: (next: Data, msg?: string) => Promise<boolean>;
   detail?: string;
+  /** 'criteria'면 공식 규정·기준 조정만 렌더 — 요약/전망/수강/이수 블록 생략 */
+  only?: 'criteria';
   /** 종합정보 수집 진행 중 — 첫 로그인 직후 폴링 구간 */
   infoPending?: boolean;
   /** 종합정보 수집 실패 (로그인은 됐는데 페이지 파싱이 안 된 경우 포함) */
@@ -519,9 +522,11 @@ export function Graduation({
     },
   ];
   const pendingSteps = gradSteps.filter((s) => !s.done);
+  const criteriaOnly = only === 'criteria';
 
   return (
     <>
+      {!criteriaOnly && (
       <div className="card pad grad-intro">
         <div className="grad-intro-top">
           <ol className="grad-steps">
@@ -656,6 +661,7 @@ export function Graduation({
           {' · 편입·전과 등 개별 조건은 학교 확인'}
         </p>
       </div>
+      )}
 
       {guide && (
         <section className="card pad">
@@ -666,7 +672,7 @@ export function Graduation({
         </section>
       )}
 
-      {outlook.ok && !missingInput(total) && !total.uncertainCredits && (
+      {outlook.ok && !criteriaOnly && !missingInput(total) && !total.uncertainCredits && (
         <section className="card pad grad-outlook">
           <div className="between">
             <h3>졸업 전망</h3>
@@ -704,7 +710,7 @@ export function Graduation({
         </section>
       )}
 
-      {enrolled.length > 0 && (
+      {enrolled.length > 0 && !criteriaOnly && (
         <section className="card pad">
           <div className="between">
             <h3>현재 수강 중</h3>
@@ -1134,6 +1140,7 @@ export function Graduation({
         ))}
       </div>
 
+      {!criteriaOnly && (
       <section className="card pad" ref={completedRef}>
         <div className="between">
           <h3>이수한 과목</h3>
@@ -1309,6 +1316,7 @@ export function Graduation({
           종합정보시스템에서 이수 내역 확인 <ArrowUpRight size={16} />
         </a>
       </section>
+      )}
     </>
   );
 }
