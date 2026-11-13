@@ -615,6 +615,32 @@
 .settings > section {
   margin-top: 28px;
 }
+.settings-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.settings-head > div {
+  min-width: 0;
+}
+.settings-mascot {
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 1px solid var(--nt-hairline-soft);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-tint-sky);
+  padding: 8px;
+  line-height: 0;
+}
+.settings-mascot img {
+  border-radius: calc(var(--nt-r-md) - 4px);
+}
+@media (max-width: 560px) {
+  .settings-mascot {
+    display: none;
+  }
+}
 .connection-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

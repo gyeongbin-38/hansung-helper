@@ -234,12 +234,20 @@ export function SettingsSection({
       className="card detail settings"
       aria-labelledby="connection-settings-title"
     >
-      <h2 id="connection-settings-title">연결 및 저장 정보</h2>
-      <p>
-        {account
-          ? '학교에서 가져온 정보와 내 계정에 보관하는 내용을 확인하세요.'
-          : '체험 정보는 이 브라우저에 저장돼요. 학교 계정의 정보와는 별개예요.'}
-      </p>
+      <div className="settings-head">
+        <div>
+          <h2 id="connection-settings-title">연결 및 저장 정보</h2>
+          <p>
+            {account
+              ? '학교에서 가져온 정보와 내 계정에 보관하는 내용을 확인하세요.'
+              : '체험 정보는 이 브라우저에 저장돼요. 학교 계정의 정보와는 별개예요.'}
+          </p>
+        </div>
+        <span className="settings-mascot" aria-hidden="true">
+          {/* eslint-disable-next-line next/no-img-element -- bundled decorative asset; next/image is unavailable */}
+          <img src="/hsu-mascot.png" alt="" width={66} height={94} />
+        </span>
+      </div>
       <section aria-labelledby="school-connections-title">
         <h3 id="school-connections-title">학교에서 가져온 정보</h3>
         <div className="connection-grid">
