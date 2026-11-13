@@ -1118,6 +1118,45 @@ button.survey-trigger {
 .account-id b {
   font-size: 14px;
 }
+/* slim account bar — 카드 대신 아이콘+한 줄 상태, 전체가 연결 관리 링크 */
+.workspace .account-bar.slim {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: auto;
+  min-height: 0;
+  padding: 5px 10px;
+  margin-bottom: 16px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  color: var(--nt-stone);
+  cursor: pointer;
+  text-align: left;
+}
+.workspace .account-bar.slim:hover {
+  background: var(--nt-surface);
+  color: var(--nt-primary-deep);
+}
+.workspace .account-bar.slim:focus-visible {
+  outline: 2px solid var(--nt-primary);
+  outline-offset: 2px;
+}
+.account-bar.slim .avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  flex: none;
+}
+.account-bar.slim .status {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.account-bar.slim svg {
+  color: var(--nt-stone);
+  flex: none;
+}
 /* account connection action inside the demo note */
 .demo-note button.primary {
   color: var(--nt-on-primary);

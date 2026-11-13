@@ -323,35 +323,33 @@ export function AccountBar({
   go: (route: string) => void;
   onConnect: () => void;
 }) {
-  if (account)
+  if (account) {
+    const lms = account.snapshot.lmsPending
+      ? '수집 중…'
+      : account.snapshot.lms !== 'connected'
+        ? '실패'
+        : account.snapshot.lmsFailedAt
+          ? '수집 실패'
+          : account.snapshot.lmsData
+            ? '완료'
+            : '수집 실패';
+    const d = new Date(account.snapshot.checkedAt);
     return (
-      <div className="account-bar">
-        <div className="account-id">
-          <span className="avatar">
-            {(account.profile.name || '한성인').slice(0, 1)}
-          </span>
-          <div>
-            <b>학교 계정 연결됨</b>
-            <small>
-              코스모스{' '}
-              {account.snapshot.lmsPending
-                ? '수집 중…'
-                : account.snapshot.lms !== 'connected'
-                  ? '연결 실패'
-                  : account.snapshot.lmsFailedAt
-                    ? '수집 실패'
-                    : account.snapshot.lmsData
-                      ? '조회 완료'
-                      : '수집 실패'}{' '}
-              · {new Date(account.snapshot.checkedAt).toLocaleDateString('ko-KR')}
-            </small>
-          </div>
-        </div>
-        <button className="link" onClick={() => go('settings/connections')}>
-          연결 관리 <ArrowRight size={16} />
-        </button>
-      </div>
+      <button
+        className="account-bar slim"
+        onClick={() => go('settings/connections')}
+        title="연결 관리"
+      >
+        <span className="avatar">
+          {(account.profile.name || '한성인').slice(0, 1)}
+        </span>
+        <span className="status">
+          연결됨 · COSMOS {lms} · {d.getMonth() + 1}/{d.getDate()}
+        </span>
+        <ArrowRight size={13} aria-hidden />
+      </button>
     );
+  }
   return (
     <div className="demo-note">
       <span>체험용 예시 · 저장 내용은 이 브라우저에만 남습니다.</span>
