@@ -10,7 +10,12 @@ import {
 } from './school-session-crypto.ts';
 
 const TTL_MS = 2 * 60 * 60 * 1000;
+/** 사용자가 '자동 연결 유지'를 선택했을 때의 보관 상한 — 그 이상은 서버가 거부한다. */
+const MAX_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const MIN_SECRET_BYTES = 32;
+
+export const VAULT_TTL_MS = TTL_MS;
+export const VAULT_MAX_TTL_MS = MAX_TTL_MS;
 
 type VaultRow = {
   ciphertext: string;
@@ -56,13 +61,15 @@ export function sessionVaultConfigured(): boolean {
 export async function saveSchoolSession(
   accountId: string,
   cookies: SchoolCookieJar,
-  options: { sessionHash: string; issuedAt?: number },
+  options: { sessionHash: string; issuedAt?: number; ttlMs?: number },
 ): Promise<boolean> {
   const key = secret();
   if (!key) return false;
   const clean = sanitizeSchoolCookies(cookies);
   if (!clean) return false;
   const issuedAt = options.issuedAt ?? Date.now();
+  // 클라이언트가 긴 보관을 요청해도 상한 이상은 허용하지 않는다.
+  const ttlMs = Math.min(Math.max(options.ttlMs ?? TTL_MS, 0), MAX_TTL_MS);
   const payload = await encryptSchoolCookies(key, accountId, clean);
   const result = await database()
     .prepare(
@@ -94,7 +101,7 @@ export async function saveSchoolSession(
       payload,
       SCHOOL_SESSION_VERSION,
       issuedAt,
-      issuedAt + TTL_MS,
+      issuedAt + ttlMs,
       options.sessionHash,
       options.sessionHash,
       accountId,

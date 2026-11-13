@@ -86,7 +86,7 @@ export function parseInfoMenu(html: string): InfoMenuItem[] {
 
 /** 수집 슬롯 → 메뉴 라벨 매칭. 슬롯별 정규식은 우선순위 순 — '누적성적'이
  *  '금학기 성적조회'보다 먼저 시도된다. 라벨 없는 항목은 매칭 안 함. */
-const SLOTS: { slot: string; res: RegExp[] }[] = [
+const SLOTS: { slot: string; res: RegExp[]; paths?: RegExp[] }[] = [
   {
     slot: 'grades',
     res: [
@@ -94,7 +94,18 @@ const SLOTS: { slot: string; res: RegExp[] }[] = [
       /성적\s*조회|성적표\s*조회|성적/,
     ],
   },
-  { slot: 'points', res: [/비교과.*포인트/, /포인트.*(조회|내역|현황)/] },
+  {
+    slot: 'points',
+    res: [
+      /비교과.*포인트/,
+      /포인트.*(조회|내역|현황)/,
+      /비교과/,
+      /포인트|마일리지|역량\s*점수/,
+    ],
+    // 라벨이 포맷과 어긋나도 메뉴 링크의 파일명으로 찾는다 —
+    // 비교과 포인트 조회는 보통 point/bigyo/mile 이름의 JSP다.
+    paths: [/point|mile|bigyo|extra/i],
+  },
   {
     slot: 'audit',
     res: [/졸업.*(가?사정|심사)|사정표/, /졸업요건|졸업\s*기준/],
@@ -119,7 +130,7 @@ const DIRECT_PATHS = {
 
 export function pickTargets(menu: InfoMenuItem[]) {
   const found: Record<string, string> = {};
-  for (const { slot, res } of SLOTS)
+  for (const { slot, res, paths } of SLOTS) {
     for (const re of res) {
       const hit = menu.find((m) => re.test(m.label));
       if (hit) {
@@ -127,6 +138,11 @@ export function pickTargets(menu: InfoMenuItem[]) {
         break;
       }
     }
+    if (!found[slot] && paths) {
+      const hit = menu.find((m) => paths.some((re) => re.test(m.path)));
+      if (hit) found[slot] = hit.path;
+    }
+  }
   return found;
 }
 

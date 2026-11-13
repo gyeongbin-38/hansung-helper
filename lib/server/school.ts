@@ -176,6 +176,64 @@ export function parseCourses(html: string): SchoolCourse[] {
   return [...found.values()].slice(0, 100);
 }
 
+/** /my/courses.php의 페이지네이션 링크(?page=N) 번호 목록 */
+function coursePageNumbers(html: string): number[] {
+  const pages = new Set<number>();
+  for (const m of html.matchAll(
+    /href=["']([^"']*\/my\/courses\.php[^"']*)["']/gi,
+  )) {
+    const p = m[1].replace(/&amp;/g, '&').match(/[?&]page=(\d+)/)?.[1];
+    if (p) pages.add(parseInt(p, 10));
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
+/**
+ * 대시보드 첫 화면에는 최근·고정 과목 카드만 나와 숨겨진/밀린 강좌가 빠진다.
+ * '내 강좌' 목록 페이지(/my/courses.php)를 읽어 수강 중인 강좌 전체를 찾는다.
+ * Moodle의 분류 필터(classification=all)를 먼저 시도해 진행 중뿐 아니라
+ * 전체 수강 강좌를 잡고, 페이지네이션을 상한 내에서 따라간다.
+ * 실패하면 빈 배열 — 호출자가 대시보드 파싱 결과로 폴백한다.
+ */
+export async function discoverCourses(
+  session: SchoolSession,
+  readPage: (url: string) => Promise<Response>,
+): Promise<SchoolCourse[]> {
+  const found = new Map<string, SchoolCourse>();
+  for (const classification of ['all', 'inprogress']) {
+    const visited = new Set<number>();
+    for (let page = 0; page <= 8; page++) {
+      if (visited.has(page)) continue;
+      visited.add(page);
+      const url = `https://learn.hansung.ac.kr/my/courses.php?classification=${classification}${page ? `&page=${page}` : ''}`;
+      let html: string;
+      try {
+        const res = await session.follow(await readPage(url), url);
+        html = await res.text();
+      } catch {
+        break;
+      }
+      // 세션 만료·로그인 벽이면 목록 파싱은 의미가 없다.
+      if (!/\/login\/logout\.php/.test(html)) return [...found.values()];
+      for (const c of parseCourses(html)) if (!found.has(c.id)) found.set(c.id, c);
+      const pages = coursePageNumbers(html);
+      if (!pages.some((p) => p > page)) break;
+    }
+    // 첫 분류에서 강좌를 찾았으면 다른 분류는 생략한다.
+    if (found.size) break;
+  }
+  return [...found.values()];
+}
+
+/** 목록 페이지 결과와 대시보드 결과를 병합 — 커뮤니티 표시 등 대시보드
+ *  측 정보도 유지한다. */
+export function mergeCourses(primary: SchoolCourse[], fallback: SchoolCourse[]) {
+  const found = new Map<string, SchoolCourse>();
+  for (const c of [...fallback, ...primary])
+    found.set(c.id, { ...c, ...(found.get(c.id)?.community ? { community: true } : {}) });
+  return [...found.values()];
+}
+
 export async function connectSchool(
   studentId: string,
   password: string,
@@ -239,7 +297,7 @@ export async function connectSchool(
     courses: [],
     checkedAt: new Date().toISOString(),
     courseScope:
-      '코스모스 로그인 첫 화면에 표시된 강의 · 전체 개설 과목이나 이수 내역 아님',
+      '수강 중인 강좌 전체(내 강좌 페이지 기준) · 지난 학기나 숨긴 강좌는 제외될 수 있음',
   };
   // COSMOS 로그인 — 성공이면 과목 목록 HTML, 실패면 원인 분류를 돌려준다.
   // 로그인 직후 동의·비밀번호 변경·중복 로그인 등 중간 페이지에 멈춘 경우를
@@ -321,7 +379,9 @@ export async function connectSchool(
     if (res.err) snapshot.lmsError = res.err;
     else {
       snapshot.lms = 'connected';
-      snapshot.courses = parseCourses(res.html!);
+      // 대시보드 파싱 후 '내 강좌' 목록으로 전체 수강 강좌를 보강한다.
+      const discovered = await discoverCourses(session, readPage);
+      snapshot.courses = mergeCourses(discovered, parseCourses(res.html!));
       if (opts?.deferLms)
         opts.deferLms(() => collectLms(session, snapshot.courses));
       else
@@ -369,7 +429,7 @@ export async function resumeSchool(
     courses: [],
     checkedAt: new Date().toISOString(),
     courseScope:
-      '코스모스 로그인 첫 화면에 표시된 강의 · 전체 개설 과목이나 이수 내역 아님',
+      '수강 중인 강좌 전체(내 강좌 페이지 기준) · 지난 학기나 숨긴 강좌는 제외될 수 있음',
   };
   let infoOk = false;
   let lmsOk = false;
@@ -423,7 +483,9 @@ export async function resumeSchool(
     if (/\/login\/logout\.php/.test(html)) {
       lmsOk = true;
       snapshot.lms = 'connected';
-      snapshot.courses = parseCourses(html);
+      // 대시보드 파싱 후 '내 강좌' 목록으로 전체 수강 강좌를 보강한다.
+      const discovered = await discoverCourses(session, readPage);
+      snapshot.courses = mergeCourses(discovered, parseCourses(html));
       if (opts?.deferLms)
         opts.deferLms(() => collectLms(session, snapshot.courses));
       else

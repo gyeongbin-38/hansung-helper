@@ -61,7 +61,7 @@ export function SchoolConnection({ signedIn, onAccount, onSignIn, pending = fals
     let body = '{}';
     if (event) {
       const fields = new FormData(event.currentTarget);
-      body = JSON.stringify({ studentId: fields.get('studentId'), password: fields.get('password') });
+      body = JSON.stringify({ studentId: fields.get('studentId'), password: fields.get('password'), keepVault: fields.get('keepVault') === 'on' });
       fields.delete('password');
       const password = event.currentTarget.elements.namedItem('password');
       if (password instanceof HTMLInputElement) password.value = '';
@@ -156,7 +156,8 @@ export function SchoolConnection({ signedIn, onAccount, onSignIn, pending = fals
         <p className="meta"><LockKeyhole size={13} aria-hidden="true" /> 학교 인증용 입력이에요. 비밀번호는 AI에 보내거나 저장하지 않아요.</p>
         <label>학번<input className="field" name="studentId" inputMode="numeric" autoComplete="username" pattern="[0-9]{6,10}" minLength={6} maxLength={10} required disabled={busy || pending} /></label>
         <label>학교 비밀번호<input className="field" name="password" type="password" autoComplete="current-password" maxLength={128} required disabled={busy || pending} /></label>
-        <p className="meta">연결 성공 시 학교 세션 쿠키만 암호화해 최대 2시간 보관해요. 로그아웃하면 삭제돼요.</p>
+        <label className="school-connection-keep"><input type="checkbox" name="keepVault" disabled={busy || pending} /> 자동 연결 유지 — 세션을 최대 3일 보관해 비밀번호 없이 새로고침해요</label>
+        <p className="meta">연결 성공 시 학교 세션 쿠키만 암호화해 보관해요(선택 안 하면 2시간). 로그아웃하면 삭제돼요.</p>
         <div className="school-connection-actions"><button className="primary" disabled={busy || pending}>{busy ? '학교 인증 중…' : '학교 연결 확인'}</button><button type="button" className="link" disabled={busy} onClick={() => { form.current?.reset(); setOpen(false); }}><X size={14} aria-hidden="true" />취소</button></div>
       </form>}
       <p className="meta">비교과 접수 사이트는 별도 로그인 후 신청 내용을 확인해 주세요.</p>
