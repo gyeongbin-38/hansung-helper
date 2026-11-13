@@ -21,3 +21,5 @@
 .collect-queue-spin { margin-left: auto; flex-shrink: 0; color: var(--nt-primary); animation: collect-queue-flip 2.8s ease-in-out infinite; }
 @keyframes collect-queue-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes collect-queue-flip { 0%, 45% { transform: rotate(0deg); } 55%, 100% { transform: rotate(180deg); } }
+.school-connection-keep { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.6; cursor: pointer; }  
+.school-connection-keep input { margin-top: 3px; }  

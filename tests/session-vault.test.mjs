@@ -141,6 +141,26 @@ assert.equal(await vault.saveSchoolSession('fresh', cookies, {
 }), true);
 assert.ok(sqlite.prepare('SELECT 1 FROM school_session_vault WHERE account_id = ?').get('fresh'));
 
+// '자동 연결 유지' 선택 시 3일 TTL — 상한을 넘는 요청도 3일로 클램프된다.
+const DAY = 24 * 60 * 60 * 1000;
+sqlite.prepare('DELETE FROM school_session_vault WHERE account_id = ?').run('fresh');
+assert.equal(await vault.saveSchoolSession('fresh', cookies, {
+  sessionHash: 'fresh-session', issuedAt: now + 4_000, ttlMs: 3 * DAY,
+}), true);
+assert.equal(
+  sqlite.prepare('SELECT expires_at FROM school_session_vault WHERE account_id = ?').get('fresh').expires_at,
+  now + 4_000 + 3 * DAY,
+);
+sqlite.prepare('DELETE FROM school_session_vault WHERE account_id = ?').run('fresh');
+assert.equal(await vault.saveSchoolSession('fresh', cookies, {
+  sessionHash: 'fresh-session', issuedAt: now + 5_000, ttlMs: 365 * DAY,
+}), true);
+assert.equal(
+  sqlite.prepare('SELECT expires_at FROM school_session_vault WHERE account_id = ?').get('fresh').expires_at,
+  now + 5_000 + 3 * DAY,
+  'ttl above the 3-day cap is clamped',
+);
+
 delete env.SCHOOL_SESSION_KEY;
 const disabled = await vault.schoolSessionStatus('account');
 assert.equal(disabled.configured, false);

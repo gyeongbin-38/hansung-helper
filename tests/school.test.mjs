@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseCourses,
+  discoverCourses,
+  mergeCourses,
   connectSchool,
   resumeSchool,
   SchoolError,
@@ -37,6 +39,50 @@ test('course parser flags .course_label_ec community courses', () => {
 test('a malformed course link does not prevent other courses from being collected', () => {
   const html = '<a href="https://[bad/course/view.php?id=1">bad</a><a href="/course/view.php?id=2">good</a>';
   assert.deepEqual(parseCourses(html).map((course) => course.id), ['2']);
+});
+test('discoverCourses follows /my/courses.php pagination until no later page', async () => {
+  const logout = '<a href="/login/logout.php">logout</a>';
+  const page = (body) => new Response(logout + body);
+  const pages = {
+    'https://learn.hansung.ac.kr/my/courses.php?classification=all':
+      page('<a href="/course/view.php?id=10">강좌A</a><a href="/my/courses.php?classification=all&amp;page=1">next</a>'),
+    'https://learn.hansung.ac.kr/my/courses.php?classification=all&page=1':
+      page('<a href="/course/view.php?id=11">강좌B</a><a href="/course/view.php?id=10">강좌A중복</a>'),
+  };
+  const seen = [];
+  const found = await discoverCourses(new SchoolSession(), async (url) => {
+    seen.push(url);
+    return pages[url] ?? page('');
+  });
+  assert.deepEqual(
+    found.map((c) => c.id),
+    ['10', '11'],
+  );
+  assert.equal(seen.length, 2, 'stops when no later page exists');
+});
+test('discoverCourses returns an empty list at the login wall', async () => {
+  const found = await discoverCourses(
+    new SchoolSession(),
+    async () => new Response('login required'),
+  );
+  assert.deepEqual(found, []);
+});
+test('mergeCourses keeps dashboard-only community flags and unions ids', () => {
+  const discovered = [
+    { id: '1', name: '강좌A', url: 'u' },
+    { id: '3', name: '강좌C', url: 'u' },
+  ];
+  const dashboard = [
+    { id: '1', name: '강좌A', url: 'u', community: true },
+    { id: '2', name: '강좌B', url: 'u' },
+  ];
+  const merged = mergeCourses(discovered, dashboard);
+  assert.deepEqual(
+    merged.map((c) => c.id),
+    ['1', '2', '3'],
+  );
+  assert.equal(merged.find((c) => c.id === '1').community, true);
+  assert.equal(merged.find((c) => c.id === '3').community, undefined);
 });
 test('authentication upgrades legacy redirect and isolates per-host cookies', async () => {
   const original = globalThis.fetch,

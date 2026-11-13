@@ -270,7 +270,7 @@ export function parseVodRanges(
 export async function collectLms(
   session: LmsSession,
   courses: { id: string; name: string; community?: boolean }[],
-  options: { budgetMs?: number } = {},
+  options: { budgetMs?: number; rotateSeed?: number } = {},
 ): Promise<LmsSnapshot> {
   if (!courses.length) throw new Error('lms:no-courses-collected');
   const budgetMs = options.budgetMs ?? COLLECT_BUDGET_MS;
@@ -378,7 +378,15 @@ export async function collectLms(
     parseVodRanges(await html(`${BASE}/course/view.php?id=${id}`));
 
   const out: LmsCourse[] = [];
-  for (const c of courses) {
+  // 과목 수가 요청 예산을 넘으면 뒤쪽 과목이 매번 비게 된다 — 하루 단위로
+  // 시작 위치를 회전해 반복 재수집에서 모든 과목이 앞쪽 슬롯을 돌아가며 쓴다.
+  const rotate =
+    courses.length > 1
+      ? Math.abs(options.rotateSeed ?? Math.floor(Date.now() / 86_400_000)) %
+        courses.length
+      : 0;
+  const ordered = [...courses.slice(rotate), ...courses.slice(0, rotate)];
+  for (const c of ordered) {
     if (Date.now() >= deadline) {
       out.push({
         id: c.id,
@@ -438,17 +446,23 @@ export async function collectLms(
       ].filter((e): e is string => !!e),
     });
   }
-  const errCourses = out.filter((c) => c.errors?.length).length;
+  // 출력은 회전 순서가 아니라 발견 순서로 되돌린다 — 화면의 과목 정렬이
+  // 날마다 흔들리지 않게 한다.
+  const byId = new Map(out.map((c) => [c.id, c]));
+  const sorted = courses
+    .map((c) => byId.get(c.id))
+    .filter((c): c is LmsCourse => !!c);
+  const errCourses = sorted.filter((c) => c.errors?.length).length;
   console.log(
-    `[lms] collect done: courses=${out.length} ` +
-      `vod=${out.reduce((n, c) => n + c.vods.length, 0)} ` +
-      `assign=${out.reduce((n, c) => n + c.assigns.length, 0)} ` +
-      `quiz=${out.reduce((n, c) => n + c.quizzes.length, 0)} ` +
+    `[lms] collect done: courses=${sorted.length} ` +
+      `vod=${sorted.reduce((n, c) => n + c.vods.length, 0)} ` +
+      `assign=${sorted.reduce((n, c) => n + c.assigns.length, 0)} ` +
+      `quiz=${sorted.reduce((n, c) => n + c.quizzes.length, 0)} ` +
       `errorCourses=${errCourses}`,
   );
   return {
     source: 'cosmos-lms',
     fetchedAt: new Date().toISOString(),
-    courses: out,
+    courses: sorted,
   };
 }

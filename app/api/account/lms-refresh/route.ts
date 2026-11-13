@@ -14,7 +14,10 @@ import {
   type AccountRow,
 } from '@/lib/server/account';
 import { connectSchool, SchoolError, SchoolSession } from '@/lib/server/school';
-import { saveSchoolSession } from '@/lib/server/session-vault';
+import {
+  saveSchoolSession,
+  VAULT_MAX_TTL_MS,
+} from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -78,6 +81,8 @@ export async function POST(request: Request) {
       );
     }
     queueOwner = account.id;
+    // 자동 연결 유지 선택 시 학교 세션 보관을 3일로 — 미선택이면 고정 2시간.
+    const vaultTtl = input.keepVault === true ? VAULT_MAX_TTL_MS : undefined;
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
     const session = new SchoolSession();
@@ -97,6 +102,7 @@ export async function POST(request: Request) {
         await saveSchoolSession(id, session.exportCookies(), {
           sessionHash: account.session_hash,
           issuedAt: schoolSessionIssuedAt,
+          ttlMs: vaultTtl,
         });
       } catch {
         console.log('[vault] save failed');
@@ -145,6 +151,7 @@ export async function POST(request: Request) {
         await saveSchoolSession(id, session.exportCookies(), {
           sessionHash: account.session_hash,
           issuedAt: schoolSessionIssuedAt,
+          ttlMs: vaultTtl,
         });
       } catch {
         console.log('[vault] save failed');
