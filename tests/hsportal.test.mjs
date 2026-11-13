@@ -219,5 +219,65 @@ const baseSnap = () => ({
   );
 }
 
+{
+  // 비밀번호 수집 경로: 자격으로 포털 직접 로그인 → 포인트 페이지 수집
+  const snap = baseSnap();
+  let loggedIn = false;
+  await fillPortalPoints(
+    fakeSession({
+      '/ko/mypage/point': () => (loggedIn ? POINTS_HTML : WALL_HTML),
+      '/ko/process/coursemos/login': (_url, init) => {
+        if (init?.method === 'POST') {
+          loggedIn = true;
+          return { success: true };
+        }
+        return { success: false };
+      },
+    }),
+    snap,
+    { id: '2199999', pw: 'pw' },
+  );
+  t('fill: 포털 직접 로그인 수집', loggedIn === true && snap.points === 85);
+}
+
+{
+  // 포털 로그인 거부 → 브리지 단계로 계속, 최종 reason은 세션 계열
+  const snap = baseSnap();
+  await fillPortalPoints(
+    fakeSession({
+      '/ko/mypage/point': WALL_HTML,
+      '/ko/process/coursemos/login': { success: false, message: 'bad' },
+      syncCoursemosLms: { success: false },
+      getCoursemosUrl: { success: false },
+    }),
+    snap,
+    { id: 'x', pw: 'y' },
+  );
+  const page = snap.diag.pages.find((p) => p.slot === 'points');
+  t(
+    'fill: 포털 로그인 거부 후 브리지 폴백',
+    snap.points === undefined && page?.reason === 'session-expired',
+  );
+}
+
+{
+  // 자격 없으면(볼트 갱신) 포털 로그인을 시도하지 않는다
+  const snap = baseSnap();
+  let tried = false;
+  await fillPortalPoints(
+    fakeSession({
+      '/ko/mypage/point': WALL_HTML,
+      '/ko/process/coursemos/login': () => {
+        tried = true;
+        return { success: true };
+      },
+      syncCoursemosLms: { success: false },
+      getCoursemosUrl: { success: false },
+    }),
+    snap,
+  );
+  t('fill: 자격 없으면 직접 로그인 미시도', tried === false);
+}
+
 console.log(`hsportal: ${pass} pass, ${fail} fail`);
 assert.equal(fail, 0);

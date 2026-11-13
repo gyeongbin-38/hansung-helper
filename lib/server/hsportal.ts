@@ -135,12 +135,19 @@ type BridgeResult = {
   sawWall: boolean;
   /** 실패한 단계 — direct/token/login/fetch. 진단 로그용. */
   stage: 'direct' | 'token' | 'login' | 'fetch';
+  /** 각 호출 결과 요약 — 어느 응답이 어긋났는지 좁히기 위함. */
+  steps: string[];
 };
 
 /** LMS 세션으로 포털 로그인을 연동하고 포인트 페이지를 가져온다.
+ *  creds가 있으면(비밀번호 수집 경로) 포털 직접 로그인을 먼저 시도한다 —
+ *  학교 통합 계정과 동일 자격(email=학번, 공식 getModal 폼 필드).
  *  성공 시 해당 HTML, 실패 시 null을 반환한다(진단은 호출자가 기록).
  *  sawWall은 마지막으로 확인한 상태가 로그인 벽이었는지를 뜻한다. */
-async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
+async function bridgeAndFetch(
+  session: PortalSession,
+  creds?: { id: string; pw: string },
+): Promise<BridgeResult> {
   let budget = BUDGET;
   const get = async (url: string): Promise<string | null> => {
     if (budget-- <= 0) return null;
@@ -156,10 +163,36 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
     return postForm(session, url, body);
   };
 
+  const steps: string[] = [];
   // ① 이미 포털 로그인이 살아 있으면 브리지 불필요
   const direct = await get(PORTAL + POINT_PATH);
-  const sawWall = !!direct && isPortalLoginWall(direct);
-  if (direct && !sawWall) return { html: direct, sawWall, stage: 'direct' };
+  let sawWall = !!direct && isPortalLoginWall(direct);
+  steps.push(direct ? (sawWall ? 'direct:wall' : 'direct:page') : 'direct:none');
+  if (direct && !sawWall) return { html: direct, sawWall, stage: 'direct', steps };
+
+  // ①-b 포털 직접 로그인 — 비밀번호 수집 경로에서만(자격이 있는 동안만).
+  //   iModule 로그인 폼: email=학번/사번, password. DUPLICATED는 공식
+  //   스크립트처럼 is_duplication=TRUE로 한 번 강제 로그인한다.
+  if (creds) {
+    const tryLogin = (force: boolean) =>
+      post(`${PROCESS}/login`, {
+        email: creds.id,
+        password: creds.pw,
+        ...(force ? { is_duplication: 'TRUE' } : {}),
+      });
+    let login = await tryLogin(false);
+    if (login && login.success !== true && login.code === 'DUPLICATED')
+      login = await tryLogin(true);
+    steps.push(
+      `portalLogin:${login ? (login.success === true ? 'ok' : 'denied') : 'none'}`,
+    );
+    if (login?.success === true) {
+      const html = await get(PORTAL + POINT_PATH);
+      if (html && !isPortalLoginWall(html))
+        return { html, sawWall: false, stage: 'fetch', steps };
+      sawWall = sawWall || (!!html && isPortalLoginWall(html));
+    }
+  }
 
   // ② LMS→포털 방향의 공식 플로우(script.js syncSessionLms):
   //    syncCoursemosLms {type:session} → {url} →
@@ -170,6 +203,9 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
   let syncUrl: string | undefined;
   for (const action of ['syncCoursemosLms', 'getCoursemosUrl']) {
     const json = await post(`${PROCESS}/${action}`, { type: 'session' });
+    steps.push(
+      `${action}:${json ? (json.success === true ? 'ok' : 'reject') : 'none'}`,
+    );
     if (!json || json.success !== true) continue;
     syncUrl = pickField(json, 'url');
     // getCoursemosUrl의 token은 portal→LMS 방향용이므로 syncCoursemosLmsLogin에
@@ -182,20 +218,24 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
   if (!token && syncUrl) {
     const sep = syncUrl.includes('?') ? '&' : '?';
     const res = await get(`${syncUrl}${sep}lmsSync=true&callback=hssync`);
-    if (res) {
-      const json = parseJsonp(res);
-      if (json?.success === true) token = pickField(json, 'token') ?? str(json.token);
-    }
+    const json = res ? parseJsonp(res) : null;
+    steps.push(
+      `lmsSync:${res ? (json ? (json.success === true ? 'ok' : 'reject') : 'nonjson') : 'none'}`,
+    );
+    if (json?.success === true) token = pickField(json, 'token') ?? str(json.token);
   }
-  if (!token) return { html: null, sawWall, stage: 'token' };
+  if (!token) return { html: null, sawWall, stage: 'token', steps };
   // ④ 토큰으로 포털 세션 수립 후 포인트 페이지를 다시 가져온다.
   const login = await post(`${PROCESS}/syncCoursemosLmsLogin`, { token });
-  if (!login || login.success !== true) return { html: null, sawWall, stage: 'login' };
+  steps.push(`login:${login ? (login.success === true ? 'ok' : 'reject') : 'none'}`);
+  if (!login || login.success !== true)
+    return { html: null, sawWall, stage: 'login', steps };
   const html = await get(PORTAL + POINT_PATH);
   return {
     html,
     sawWall: sawWall || (!!html && isPortalLoginWall(html)),
     stage: 'fetch',
+    steps,
   };
 }
 
@@ -206,15 +246,16 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
 export async function fillPortalPoints(
   session: PortalSession,
   snap: InfoSnapshot,
+  creds?: { id: string; pw: string },
 ): Promise<boolean> {
   if (snap.points !== undefined) return false;
   snap.diag ??= { menu: [], pages: [] };
   snap.diag.pages ??= [];
   let result: BridgeResult;
   try {
-    result = await bridgeAndFetch(session);
+    result = await bridgeAndFetch(session, creds);
   } catch {
-    result = { html: null, sawWall: false, stage: 'direct' };
+    result = { html: null, sawWall: false, stage: 'direct', steps: ['throw'] };
   }
   const html = result.html;
   const points = html ? parsePortalPoints(html) : null;
@@ -222,6 +263,7 @@ export async function fillPortalPoints(
     '[info] portal-points:',
     JSON.stringify({
       stage: result.stage,
+      steps: result.steps,
       wall: result.sawWall || points === 'wall',
       points: typeof points === 'number' ? points : 'none',
     }),

@@ -407,7 +407,11 @@ export async function connectSchool(
     const info = await collectInfo(session, { menuHtml, mainHtml, studentId });
     // 종합정보에 포인트 페이지가 없으면 hsportal 브리지로 보충한다 —
     // 실패해도 진단 reason만 남고 기존 값은 유지된다.
-    await fillPortalPoints(session, info).catch(() => false);
+    // 비밀번호 수집 경로는 자격을 넘겨 포털 직접 로그인도 시도한다.
+    await fillPortalPoints(session, info, {
+      id: studentId,
+      pw: password,
+    }).catch(() => false);
     return info;
   };
   if (opts?.deferInfo) {
