@@ -21,7 +21,7 @@ DEPLOY_REPO = (
 WRANGLER_JSON = os.path.join(DEPLOY_REPO, 'dist', 'server', 'wrangler.json')
 
 DATABASE_ID = os.environ.get('HANSUNG_D1_DATABASE_ID', '')
-WORKER_NAME = 'hansung-helper'
+WORKER_NAME = 'haksa-bugi'
 
 def main():
     if not re.fullmatch(

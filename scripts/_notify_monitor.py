@@ -24,7 +24,7 @@ def request(path: str, method: str = "GET", body=None):
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {TOKEN}",
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "hansung-helper-monitor",
+            "User-Agent": "haksa-bugi-monitor",
             **({"Content-Type": "application/json"} if data else {}),
         },
     )

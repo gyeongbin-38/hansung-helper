@@ -23,7 +23,7 @@ DONE:
   프롬프트 → connectSchool 실행 → 과목/수집 요약 + lms-data.json
   저장; gitignore 처리됨).
 - `scripts/_run_tests.py` — 전체 테스트 매트릭스 러너.
-- 재배포: hansung-helper f4c193ce 라이브 (verify_prod 전체 200).
+- 재배포: haksa-bugi f4c193ce 라이브 (verify_prod 전체 200).
 
 IN PROGRESS: nothing.
 

@@ -11,7 +11,7 @@
   window.__hsHelperInjected = true;
 
   const BASE = 'https://learn.hansung.ac.kr';
-  const APP_URL = 'https://hansung-helper.gyeongbin-38.workers.dev/#lms';
+  const APP_URL = 'https://haksa-bugi.gyeongbin-38.workers.dev/#lms';
   const NOT_SUBMITTED = ['미제출', 'Not submitted', '提出なし', '没有作业'];
   const SUBMITTED = ['제출 완료', '제출됨', '제출함', 'submitted'];
   const BULK_APPROVED = ['일괄출석인정', 'Batch attendance'];

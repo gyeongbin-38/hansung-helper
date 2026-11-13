@@ -41,7 +41,7 @@ const uid = (s: string) => {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
-  return `hs-${(h >>> 0).toString(36)}@hansung-helper`;
+  return `hs-${(h >>> 0).toString(36)}@haksa-bugi`;
 };
 
 type VEvent = string[];
@@ -140,7 +140,7 @@ export function buildIcs(input: {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//hansung-helper//academic calendar//KO',
+    'PRODID:-//haksa-bugi//academic calendar//KO',
     'CALSCALE:GREGORIAN',
     'X-WR-CALNAME:한성 학사 도우미',
     ...events.flat(),

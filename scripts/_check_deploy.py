@@ -1,7 +1,7 @@
 import re
 import urllib.request
 
-BASE = 'https://hansung-helper.gyeongbin-38.workers.dev'
+BASE = 'https://haksa-bugi.gyeongbin-38.workers.dev'
 req = urllib.request.Request(BASE + '/', headers={'User-Agent': 'Mozilla/5.0'})
 html = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'replace')
 srcs = re.findall(r'(?:src|href)="(/_next/static/[^"]+\.js)"', html)

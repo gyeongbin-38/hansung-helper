@@ -1,7 +1,7 @@
 /**
  * 한성 학사 도우미 — 백그라운드 서비스 워커
  *
- * 앱(hansung-helper)이 열리면 app-bridge가 'hsu-refresh' 메시지를 보낸다.
+ * 앱(haksa-bugi)이 열리면 app-bridge가 'hsu-refresh' 메시지를 보낸다.
  * 대시보드(/my/ 또는 /)에 있는 LMS 탭을 재사용하거나, 없으면 비활성 탭을
  * 직접 만들어(수집 후 닫는다) 그 탭의 MAIN world에 심어진
  * window.__hsCollect를 실행해 스냅샷을 받는다.

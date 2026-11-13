@@ -9,7 +9,7 @@
 > 2026-11-07 현재 프론트·백엔드 담당 범위와 남은 검증은 [작업 인계](frontend-backend-handoff.md)를 우선 확인한다. 아래는 초기 작업 카드와 배경 기록이다.
 
 개발을 몰라도 이해할 수 있게 적은 작업 카드입니다.
-공유 주소(정식 배포): **https://hansung-helper.gyeongbin-38.workers.dev**
+공유 주소(정식 배포): **https://haksa-bugi.gyeongbin-38.workers.dev**
 — Cloudflare 정식 배포 주소입니다. 24시간 살아있고 사기 경고도 없습니다.
 — 단, 아는 사람 누구든 접속 가능 → 팀 내부 공유만! 공개 게시판에 올리지 마세요.
 — 이전 임시 터널 주소(trycloudflare.com)는 폐기됐습니다.
@@ -31,7 +31,7 @@
 - **하는 법 B — 콘솔 붙여넣기 (확장 설치가 어려우면)**:
   1. learn.hansung.ac.kr 로그인 → 내 강의실
   2. F12 → Console 탭
-  3. https://hansung-helper.gyeongbin-38.workers.dev/lms-collect.js
+  3. https://haksa-bugi.gyeongbin-38.workers.dev/lms-collect.js
      전체 복사 → 콘솔 붙여넣기 → Enter → `lms-data.json` 다운로드
 - **확인할 것**: 내 과목들이 다 나왔나 / 수강한 강의·안 들은 강의 구분이
   맞나 / 과제·퀴즈 마감일이 실제와 같은가
@@ -133,8 +133,8 @@
 ### B-6. 진짜 서버에 올리기 (배포) ✅ 완료 (2026-09-18)
 
 - **완료됨**: Cloudflare Workers에 정식 배포됨 —
-  `https://hansung-helper.gyeongbin-38.workers.dev`
-  (워커명 `hansung-helper`, 원격 D1 `site-creator-d1` 마이그레이션 적용 완료)
+  `https://haksa-bugi.gyeongbin-38.workers.dev`
+  (워커명 `haksa-bugi`, 원격 D1 `site-creator-d1` 마이그레이션 적용 완료)
 - **남은 것**: 나중에 코드가 바뀌면 재배포 —
   `published-personal`에서 `npm run build` 후 `python scripts/_deploy.py`
 

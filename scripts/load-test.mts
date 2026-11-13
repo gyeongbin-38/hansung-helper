@@ -7,7 +7,7 @@
  * info.hansung에 부하를 주므로 여기서는 제외한다(/api/account의
  * 401 경로만 포함). 응답 시간 분포·오류율·상태코드 집계를 출력한다.
  */
-const base = process.argv[2] || 'https://hansung-helper.gyeongbin-38.workers.dev';
+const base = process.argv[2] || 'https://haksa-bugi.gyeongbin-38.workers.dev';
 const conc = parseInt(process.argv[3] || '300', 10);
 const rounds = parseInt(process.argv[4] || '5', 10);
 const PATHS = [

@@ -151,8 +151,8 @@ GitHub Issue를 따른다.
 
 ## BE-6: 배포/원격 D1 ✅ 완료 (2026-09-18)
 
-- **라이브**: `https://hansung-helper.gyeongbin-38.workers.dev`
-  (워커 `hansung-helper`, 버전 `02bc60c9-afa2-438d-8b81-f34f2ab77177`)
+- **라이브**: `https://haksa-bugi.gyeongbin-38.workers.dev`
+  (워커 `haksa-bugi`, 버전 `02bc60c9-afa2-438d-8b81-f34f2ab77177`)
 - 원격 D1 `site-creator-d1` 생성됨 (APAC), 마이그레이션 적용 완료. 데이터베이스 식별자는 소유자 배포 설정에 보관.
 - workers.dev 서브도메인: `gyeongbin-38` (계정 등록됨).
 - **재배포 절차**: `published-personal`에서 `npm run build` →

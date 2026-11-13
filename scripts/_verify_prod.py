@@ -7,7 +7,7 @@ import urllib.request
 
 
 BASE = os.environ.get(
-    "HANSUNG_VERIFY_BASE", "https://hansung-helper.gyeongbin-38.workers.dev"
+    "HANSUNG_VERIFY_BASE", "https://haksa-bugi.gyeongbin-38.workers.dev"
 ).rstrip("/")
 CHECKS = [
     ("/", "text/html", None),
@@ -81,7 +81,7 @@ def verify() -> int:
     for path, kind, payload_kind in CHECKS:
         try:
             request = urllib.request.Request(
-                BASE + path, headers={"User-Agent": "hansung-helper-verify/1.0"}
+                BASE + path, headers={"User-Agent": "haksa-bugi-verify/1.0"}
             )
             with urllib.request.urlopen(request, timeout=30) as response:
                 status = response.status

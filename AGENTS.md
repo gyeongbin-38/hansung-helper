@@ -45,7 +45,7 @@
 - 배포 소스: `published-personal/` (별도 git repo) — 루트 변경 후 동기화 + 독립 빌드 필요
 
 ## 프로덕션 (2026-09-18부터 라이브)
-- **URL**: https://hansung-helper.gyeongbin-38.workers.dev (워커 `hansung-helper`)
+- **URL**: https://haksa-bugi.gyeongbin-38.workers.dev (워커 `haksa-bugi`)
 - Cloudflare 계정·데이터베이스 식별자와 비밀값은 저장소에 기록하지 않고 소유자 대시보드에서 확인한다.
 - 계정·로그인 IP 인덱스는 `ACCOUNT_INDEX_HMAC_KEY`로 HMAC 처리한다. 로컬 `.dev.vars` 또는 Worker 비밀값으로 32바이트 이상의 무작위 키를 설정하고, 계정 ID 마이그레이션 없이 키를 교체하지 않는다.
 - 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
@@ -54,6 +54,7 @@
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)
 - `/api/health`는 계정 HMAC 키와 계정 DB 테이블 준비 상태도 확인한다. 키 누락·DB 접근 실패 시 503이며, 공개 데이터 API의 200 또는 비로그인 `/api/account`의 401만으로 로그인 정상 여부를 판단하지 않는다.
 - `_deploy.py`는 기존 Worker의 `ACCOUNT_INDEX_HMAC_KEY` 이름을 확인한 뒤 배포한다. 기존 키를 교체하지 않는다. `_sync.py`는 Git에서 추적하는 `_` 접두사 운영 스크립트도 명시적으로 동기화한다.
+- **워커명 변경 첫 배포(최초 1회)**: 신규 이름의 워커는 시크릿이 없어 `_deploy.py` 사전 검증이 실패한다. `npm run build` → 패치된 `dist/server/wrangler.json`으로 `wrangler deploy`를 직접 실행해 워커 생성 → 같은 파일로 `wrangler secret put ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`(둘 다 기존 워커와 **동일 값** — 다르면 기존 계정 인덱스·세션 볼트 복호화 불가) → `python scripts/_deploy.py`로 재배포. 세션 쿠키는 host-only라 별도 이전 없이 동작하지만 도메인 변경 시 전원 재로그인된다.
 - GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)
 
 ## 커밋/PR 규칙 (에이전트 포함 전원)

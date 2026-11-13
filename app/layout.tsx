@@ -1,7 +1,7 @@
 ﻿import type { Metadata, Viewport } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
-  metadataBase: new URL('https://hansung-helper.gyeongbin-38.workers.dev'),
+  metadataBase: new URL('https://haksa-bugi.gyeongbin-38.workers.dev'),
   icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
   manifest: '/manifest.webmanifest',
   appleWebApp: { title: '학사 도우미', statusBarStyle: 'default' },

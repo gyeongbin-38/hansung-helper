@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   // Local D1 commands only. The placeholder matches vite.config.ts.
   // Runtime uses the built dist/server/wrangler.json with the same persist-to.
-  "name": "hansung-helper-local",
+  "name": "haksa-bugi-local",
   "d1_databases": [
     {
       "binding": "DB",

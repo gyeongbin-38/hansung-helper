@@ -56,7 +56,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn('deploy', run.call_args.args[0])
         self.assertFalse(any('put' in call.args[0] for call in run.call_args_list))
         config = json.loads(self.config.read_text(encoding='utf-8'))
-        self.assertEqual(config['name'], 'hansung-helper')
+        self.assertEqual(config['name'], 'haksa-bugi')
         self.assertEqual(config['ai'], {'binding': 'AI'})
         self.assertEqual(config['d1_databases'][0]['database_id'], DEPLOY.DATABASE_ID)
 

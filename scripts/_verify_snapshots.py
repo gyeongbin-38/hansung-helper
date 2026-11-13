@@ -6,7 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-BASE = "https://hansung-helper.gyeongbin-38.workers.dev"
+BASE = "https://haksa-bugi.gyeongbin-38.workers.dev"
 MAX_AGE = timedelta(hours=36)
 CHECKS = {
     "/api/activities": "itemCount",
@@ -21,7 +21,7 @@ def check(path: str, count_key: str) -> None:
         try:
             request = Request(
                 BASE + path,
-                headers={"User-Agent": "hansung-helper-snapshot-check/1.0"},
+                headers={"User-Agent": "haksa-bugi-snapshot-check/1.0"},
             )
             with urlopen(request, timeout=30) as response:
                 if response.status != 200:

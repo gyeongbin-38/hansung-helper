@@ -1,6 +1,6 @@
 // 프로덕션 로그인 → waitUntil LMS 수집 도착 검증.
 // COSMOS_ID/COSMOS_PW 환경변수로 자격증명 전달.
-const BASE = 'https://hansung-helper.gyeongbin-38.workers.dev';
+const BASE = 'https://haksa-bugi.gyeongbin-38.workers.dev';
 
 const studentId = process.env.COSMOS_ID ?? '';
 const password = process.env.COSMOS_PW ?? '';

@@ -22,7 +22,7 @@ request = Request(
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "hansung-helper-monitor",
+        "User-Agent": "haksa-bugi-monitor",
     },
 )
 with urlopen(request, timeout=20) as response:

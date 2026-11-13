@@ -6,7 +6,7 @@
   "permissions": ["scripting", "alarms", "storage"],
   "host_permissions": [
     "https://learn.hansung.ac.kr/*",
-    "https://hansung-helper.gyeongbin-38.workers.dev/*"
+    "https://haksa-bugi.gyeongbin-38.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -20,7 +20,7 @@
     },
     {
       "matches": [
-        "https://hansung-helper.gyeongbin-38.workers.dev/*"
+        "https://haksa-bugi.gyeongbin-38.workers.dev/*"
       ],
       "js": ["app-bridge.js"],
       "run_at": "document_idle"
