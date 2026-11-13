@@ -44,9 +44,13 @@ let finishSchool;
 const route = await load('app/api/account/lms-refresh/route.ts', {
   'cloudflare:workers': { waitUntil() {} },
   '@/lib/server/account': account,
-  '@/lib/server/school': { SchoolError: class extends Error {}, connectSchool: () => new Promise(resolve => { finishSchool = resolve; }) },
+  '@/lib/server/school': { SchoolError: class extends Error {}, SchoolSession: class {
+    hasCookies() { return false; }
+    exportCookies() { return {}; }
+  }, connectSchool: () => new Promise(resolve => { finishSchool = resolve; }) },
   '@/lib/data/info': { mergeInfoSnapshot() {} },
   '@/lib/server/lms-write': { writeCollectedLms() {} },
+  '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
 });
 const pending = route.POST({});

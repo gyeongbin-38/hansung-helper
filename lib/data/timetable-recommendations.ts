@@ -65,6 +65,12 @@ export function recommend(
         score += 3;
         reasons.push(resolved.dept && completedCodes.size ? '확인된 이수 내역에 없는 전필' : '개설강의상 전공필수 · 적용 여부 확인 필요');
       }
+    } else if (pool && s.cross) {
+      // 타학과 수강 가능 과목은 본인 학과 과목보다 후순위로 둔다.
+      // 학과 일치 점수(+4)와 같은 크기만큼 감점해, 연도·필수·선호 보너스가
+      // 겹쳐도 본인 학과 과목이 추천 상단을 차지하도록 한다.
+      score -= 4;
+      reasons.push('타학과 수강 가능 과목');
     }
     if (s.year === '전학년') {
       score += 1;
@@ -142,5 +148,15 @@ export function recommend(
     recs.push({ section: s, score, reasons });
   }
   recs.sort((a, b) => b.score - a.score);
-  return recs.slice(0, limit);
+  // 같은 과목(코드)의 여러 분반이 추천 상단을 채우지 않도록, 점수가 가장
+  // 높은 분반 하나만 남기고 나머지는 제외한다. 분반 선택은 상세에서 가능하다.
+  const seen = new Set<string>();
+  const unique: Rec[] = [];
+  for (const r of recs) {
+    if (seen.has(r.section.code)) continue;
+    seen.add(r.section.code);
+    unique.push(r);
+    if (unique.length >= limit) break;
+  }
+  return unique;
 }

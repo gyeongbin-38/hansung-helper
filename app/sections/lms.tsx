@@ -581,7 +581,9 @@ export function LmsSection({
           ? 'COSMOS 로그인 거부 — 학교 포털과 다른 비밀번호이거나 COSMOS 계정이 아직 없을 수 있습니다'
           : lmsError === 'landing'
             ? 'COSMOS 로그인 후 안내 페이지에서 멈췄습니다 — 직접 로그인해 안내를 완료해 주세요'
-            : 'COSMOS 접속 실패'
+            : lmsError === 'session'
+              ? '저장된 학교 세션이 만료되었습니다. 비밀번호로 다시 연결해 주세요.'
+              : 'COSMOS 접속 실패'
         : collectFailed
           ? '서버 수집 미완료'
           : undefined;
@@ -1412,6 +1414,13 @@ function ConnCard({
             busy={busy}
           />
         )}
+        {canRefresh && (
+          <SessionRefreshButton
+            onAccount={onAccount!}
+            notify={notify}
+            busy={busy}
+          />
+        )}
         <div className="lms-script-actions">
           <button className="secondary" onClick={onImport}>
             <Upload size={14} /> 파일로 가져오기
@@ -1423,6 +1432,59 @@ function ConnCard({
       </div>
       {err && <p className="lms-error">{err}</p>}
     </section>
+  );
+}
+
+/** 저장된 학교 세션 쿠키로 비밀번호 없이 재수집을 실행한다.
+ *  볼트가 없거나 만료면 서버가 안내 메시지를 돌려준다. */
+function SessionRefreshButton({
+  onAccount,
+  notify,
+  busy,
+}: {
+  onAccount: (account: Account) => void;
+  notify?: (msg: string) => void;
+  busy?: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const run = async () => {
+    if (loading) return;
+    setErr('');
+    setLoading(true);
+    try {
+      const res = await apiFetch(
+        '/api/account/lms-refresh-session',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        },
+        75000,
+      );
+      const body = await apiData<Account>(res);
+      onAccount(body);
+      notify?.(
+        '저장된 학교 세션으로 수업 현황을 다시 수집합니다. 완료되면 자동으로 반영됩니다.',
+      );
+    } catch (error) {
+      setErr(
+        error instanceof ApiRequestError
+          ? error.message
+          : '요청에 실패했습니다. 네트워크를 확인해 주세요.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <p className="lms-script-actions">
+      <button className="secondary" onClick={run} disabled={busy || loading}>
+        <RefreshCw size={14} />{' '}
+        {loading ? '확인 중…' : '비밀번호 없이 새로고침'}
+      </button>
+      {err && <span className="lms-error">{err}</span>}
+    </p>
   );
 }
 

@@ -52,7 +52,10 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
   const modules = {
     'cloudflare:workers': { waitUntil: (p) => deferred.push(p) },
     '@/lib/server/account': account,
-    '@/lib/server/school': { SchoolError: class extends Error {}, connectSchool: async (_id, _password, options) => {
+    '@/lib/server/school': { SchoolError: class extends Error {}, SchoolSession: class {
+      hasCookies() { return false; }
+      exportCookies() { return {}; }
+    }, connectSchool: async (_id, _password, options) => {
       if (outcome === 'revoked-in-connect') sessionActive = false;
       options.deferInfo(async () => {
         if (outcome === 'revoked') { await gate; return { value: 'new' }; }
@@ -63,6 +66,7 @@ for (const outcome of ['success', 'empty', 'failure', 'revoked', 'revoked-in-con
     } },
     '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
     '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
+    '@/lib/server/session-vault': { saveSchoolSession: async () => true },
     '@/lib/data/notifs': { infoChanges: () => [] },
   };
   const exports = {};

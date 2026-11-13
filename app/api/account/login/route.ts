@@ -14,7 +14,8 @@ import {
   validOrigin,
   type AccountRow,
 } from '@/lib/server/account';
-import { connectSchool, SchoolError } from '@/lib/server/school';
+import { connectSchool, SchoolError, SchoolSession } from '@/lib/server/school';
+import { saveSchoolSession } from '@/lib/server/session-vault';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
         database()
           .prepare('DELETE FROM academic_login_limits WHERE expires_at < ?')
           .bind(Date.now()),
+        database()
+          .prepare('DELETE FROM school_session_vault WHERE expires_at < ?')
+          .bind(Date.now()),
       ]);
     // IP 리밋은 공유망(캠퍼스 NAT) 기준으로 넉넉하게 — 계정별 리밋은
     // 무차별 대입 방어를 위해 엄격하게 유지한다.
@@ -69,8 +73,10 @@ export async function POST(request: Request) {
       );
     let deferredCollect: (() => Promise<LmsSnapshot>) | undefined;
     let deferredInfo: (() => Promise<InfoSnapshot | null>) | undefined;
+    const session = new SchoolSession();
     stage = 'school';
     const snapshot = await connectSchool(input.studentId, input.password, {
+      session,
       deferLms: (collect) => {
         deferredCollect = collect;
       },
@@ -81,6 +87,13 @@ export async function POST(request: Request) {
     stage = 'account-storage';
     input.password = '';
     await migrateLegacyStudentAccount(id, legacyId);
+    if (session.hasCookies()) {
+      try {
+        await saveSchoolSession(id, session.exportCookies());
+      } catch {
+        console.log('[vault] save failed');
+      }
+    }
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 새 스냅샷에 lmsData/infoData가 없으면(이번 수집 실패/진행 중) 이전
