@@ -11,6 +11,8 @@
 - 재빌드 후 계정 기능 사용 전에 마이그레이션 재적용:
   `npm run d1:migrate:local` (0000 계정 + 0001 공개 스냅샷 + 0002 학교 세션 볼트)
 - 좀비 `workerd.exe`가 `dist`를 잠그면: `tasklist`로 PID 확인 → `taskkill /F /PID <pid>` 후 삭제
+- `_publish_snapshots.mjs --local`은 `wrangler dev`를 멈춘 뒤 실행할 것 — dev 서버가 켜진 채 workerd를 강제 종료하면 로컬 D1의 스냅샷 행이 날아간다. 로컬 SQL 문장 한도는 ~100KB 바이트라 스크립트가 80KB 바이트 청크·kind 단위 배치 파일로 나눠 넣는다.
+- 과거 학기 카탈로그·교육과정(`lib/data/history/`)은 gitignore된 D1 게시용 생성물 — API는 `snapshotGetOnly`(번들 폴백 없음)로 읽고 D1에 없으면 404
 
 ## 검증 명령
 - `npx tsc --noEmit` / `npx oxlint app/ lib/` / `npm run build`

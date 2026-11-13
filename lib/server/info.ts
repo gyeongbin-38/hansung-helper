@@ -121,7 +121,10 @@ const DIRECT_PATHS = {
     'fuz/seongjeok/seongjeok_new_rwd.jsp',
     'fuz/seongjeok/seongjeok.jsp',
   ],
-  academic: ['tonicsoft/jik/register/collage_register_hakjuk_rwd.jsp'],
+  academic: [
+    'tonicsoft/jik/register/collage_register_hakjuk_rwd.jsp',
+    'tonicsoft/jik/register/collage_register_1_rwd.jsp',
+  ],
   audit: [
     'jsp_21/student/graduation/joluprequire_track.jsp?viewMode=oc',
     'jsp_21/student/graduation/graduation_requirement.jsp?viewMode=oc',

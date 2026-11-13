@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  applyAudit,
   evaluate,
   DEFAULT_RULES,
   graduationOutlook,
@@ -12,8 +13,10 @@ import {
 test('교양 기준은 입학연도와 유형을 구분한다', () => {
   assert.equal(generalEducationReference(2023, 'freshman').total, 28);
   assert.equal(generalEducationReference(2024, 'freshman').total, 31);
+  assert.equal(generalEducationReference(2022, 'freshman').total, 28);
+  assert.equal(generalEducationReference(2018, 'freshman').total, 22);
+  assert.equal(generalEducationReference(2016, 'freshman'), null);
   assert.equal(generalEducationReference(2023, 'general-transfer'), null);
-  assert.equal(generalEducationReference(2022, 'freshman'), null);
   const rule = evaluate([], [], {}, { admitYear: 2023, admissionType: 'freshman' }).find((r) => r.rule.id === 'gen');
   assert.equal(rule.required, 28);
   assert.equal(rule.status, 'unknown');
@@ -35,7 +38,8 @@ test('23학번 융합전공 I 78학점은 트랙별 인정 확인 전 충족으�
   assert.equal(scoped.earned, 78);
   assert.equal(scoped.status, 'unknown');
   assert.equal(scoped.uncertainTrack, true);
-  assert.equal(evaluate(courses, [], {}, { admitYear: 2023, admissionType: 'freshman', programMode: 'fusion2' }).find((r) => r.rule.id === 'major').required, null);
+  // 융합전공Ⅱ도 전공합계 78 — 과정 무관하게 동일 총량 (트랙 배분 검증은 fusion1에서만)
+  assert.equal(evaluate(courses, [], {}, { admitYear: 2023, admissionType: 'freshman', programMode: 'fusion2' }).find((r) => r.rule.id === 'major').required, 78);
 });
 
 test('24학번 신입학 융합전공 I에 31·78·21 기준을 적용하되 배분 확정은 보류한다', () => {
@@ -46,10 +50,15 @@ test('24학번 신입학 융합전공 I에 31·78·21 기준을 적용하되 배
     assert.equal(rule.status, 'unknown');
   }
   assert.match(generalEducationReference(2024, 'freshman').note, /13학점.*15학점.*3학점/);
+  // 일반편입도 학번 기준 적용 — 전공 78·교양 31 (자유선택은 인정학점 배분 불명확으로 미확정)
   const transfer = evaluate([], [], {}, { admitYear: 2024, admissionType: 'general-transfer', programMode: 'fusion1' });
-  for (const id of ['gen', 'major', 'free']) assert.equal(transfer.find((r) => r.rule.id === id).required, null);
+  assert.equal(transfer.find((r) => r.rule.id === 'gen').required, 31);
+  assert.equal(transfer.find((r) => r.rule.id === 'major').required, 78);
+  assert.equal(transfer.find((r) => r.rule.id === 'free').required, null);
+  // 다른 이수과정도 전공합계 78·자유선택 21 동일
   const otherMode = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman', programMode: 'fusion2' });
-  for (const id of ['major', 'free']) assert.equal(otherMode.find((r) => r.rule.id === id).required, null);
+  assert.equal(otherMode.find((r) => r.rule.id === 'major').required, 78);
+  assert.equal(otherMode.find((r) => r.rule.id === 'free').required, 21);
 });
 
 test('교과와 비교과 필요 기준의 단위 명칭이 구분된다', () => {
@@ -177,8 +186,9 @@ test('사용자 수정값 삭제 후 공식 기준 또는 미확정 상태로 �
   const restored = evaluate([], [], {}, opts);
   assert.equal(restored.find((x) => x.rule.id === 'total').required, 140);
   assert.equal(restored.find((x) => x.rule.id === 'total').requiredSource, 'dept');
-  assert.equal(restored.find((x) => x.rule.id === 'major').required, null);
-  assert.equal(restored.find((x) => x.rule.id === 'major').requiredSource, undefined);
+  // 23학번 전공 기준은 전역 수집 완료 — 학과 미수집이어도 78로 복원
+  assert.equal(restored.find((x) => x.rule.id === 'major').required, 78);
+  assert.equal(restored.find((x) => x.rule.id === 'major').requiredSource, 'global');
   const global = evaluate([], [], {}, { admitYear: 2023, admissionType: 'freshman' });
   assert.equal(global.find((x) => x.rule.id === 'total').requiredSource, 'global');
 });
@@ -318,4 +328,94 @@ test('outlook: 이미 채웠으면 남은 0 — 추가 학기 없음', () => {
   const o = graduationOutlook({ earned: 135, required: 130, planned: 0 });
   assert.equal(o.remaining, 0);
   assert.equal(o.semestersLeft, 0);
+});
+
+// ---------- 학교 졸업가사정표(info.audit) 오버레이 ----------
+const row = (area, required, earned, verdict) => ({ area, required, earned, verdict });
+
+test('사정표 행이 기준·취득을 학교 값으로 교체하고 판정을 보존한다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  const out = applyAudit(base, [
+    row('졸업학점', '130', '49', '미충족'),
+    row('비교과 포인트', '800', '0', '미충족'),
+  ]);
+  const total = out.find((r) => r.rule.id === 'total');
+  const points = out.find((r) => r.rule.id === 'points');
+  assert.equal(total.required, 130);
+  assert.equal(total.earned, 49);
+  assert.equal(total.requiredSource, 'audit');
+  assert.equal(total.auditVerdict, '미충족');
+  assert.equal(total.status, 'progress'); // '미충족'은 '충족' 부분 매칭으로 met가 되면 안 됨
+  assert.equal(points.earned, 0);
+  assert.equal(points.auditVerdict, '미충족');
+});
+
+test('사정표 충족 판정은 미충족보다 먼저 확인하지 않는다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  const met = applyAudit(base, [row('졸업학점', '130', '140', '충족')])
+    .find((r) => r.rule.id === 'total');
+  assert.equal(met.status, 'met');
+  const unmet = applyAudit(base, [row('졸업학점', '130', '140', '미충족')])
+    .find((r) => r.rule.id === 'total');
+  // 취득이 기준을 넘어도 학교 판정 '미충족'이면 미충족으로 표시
+  assert.equal(unmet.status, 'progress');
+});
+
+test('사정표 천 단위 쉼표와 판정 없는 행은 숫자 비교로 판정한다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  const out = applyAudit(base, [row('졸업학점', '130', '1,230', '진행중')])
+    .find((r) => r.rule.id === 'total');
+  assert.equal(out.earned, 1230);
+  assert.equal(out.status, 'met'); // 1230 >= 130
+  assert.equal(out.auditVerdict, '진행중');
+});
+
+test('사정표 전공·교양 결합 행이 없으면 세부 행을 합산한다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  const out = applyAudit(base, [
+    row('전공필수', '39', '12', '미충족'),
+    row('전공선택', '39', '30', '미충족'),
+    row('교양필수', '13', '10', '미충족'),
+    row('선택필수교양', '15', '9', '미충족'),
+    row('자율선택', '3', '3', '충족'),
+  ]);
+  const major = out.find((r) => r.rule.id === 'major');
+  const gen = out.find((r) => r.rule.id === 'gen');
+  assert.equal(major.required, 78); // 39 + 39
+  assert.equal(major.earned, 42); // 12 + 30
+  assert.equal(major.requiredSource, 'audit');
+  assert.equal(major.status, 'progress');
+  assert.equal(gen.required, 28); // 13 + 15 (+3은 자율선택 — parts 정규식 미포함)
+  assert.equal(gen.earned, 19);
+});
+
+test('사정표 없으면 결과를 그대로 반환한다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  assert.equal(applyAudit(base, undefined), base);
+  assert.equal(applyAudit(base, []), base);
+});
+
+test('사정표 행이 매칭되지 않거나 비숫자면 계산값을 유지한다', () => {
+  const base = evaluate([], [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  const unrelated = applyAudit(base, [row('평균평점', '2.0', '3.1', '충족')]);
+  for (const r of unrelated) {
+    const orig = base.find((x) => x.rule.id === r.rule.id);
+    // 평점 행은 어떤 규칙에도 매핑되지 않는다
+    assert.equal(r.requiredSource, orig.requiredSource);
+    assert.equal(r.auditVerdict, undefined);
+  }
+  // 비숫자 기준 행은 매칭돼도 required=null 유지 → 기존 'unknown' 보존
+  const vague = applyAudit(base, [row('기타 졸업조건', '-', '-', '확인중')]);
+  assert.equal(vague.find((r) => r.rule.id === 'majorReq').status, 'unknown');
+});
+
+test('사정표가 확정한 규칙은 재수강 추정 경고를 지운다', () => {
+  // 동일 과목코드 중복 → uncertainCredits 유발
+  const completed = [done('A1', '전선', 3), done('A1', '전선', 3)];
+  const base = evaluate(completed, [], {}, { admitYear: 2024, admissionType: 'freshman' });
+  assert.equal(base.find((r) => r.rule.id === 'total').uncertainCredits, true);
+  const out = applyAudit(base, [row('졸업학점', '130', '60', '미충족')]);
+  const total = out.find((r) => r.rule.id === 'total');
+  assert.equal(total.uncertainCredits, undefined);
+  assert.equal(total.earned, 60);
 });

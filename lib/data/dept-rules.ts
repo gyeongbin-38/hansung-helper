@@ -75,7 +75,10 @@ const SUBMENU =
  *  - '학과 소개/트랙소개' 라벨 → 그 URL의 첫 라벨이 학과명
  *    (글로벌융합대학처럼 학과명이 학과/학부로 끝나지 않는 경우)
  */
-export function pairDeptRules(links: SitemapLink[]): DeptRuleSource[] {
+export function pairDeptRules(
+  links: SitemapLink[],
+  opts: { siteDept?: string } = {},
+): DeptRuleSource[] {
   // pass 1: url별 라벨 수집 — '학과 소개' 라벨의 URL 첫(비소개) 라벨이 학과명
   const labelsOfUrl = new Map<string, string[]>();
   for (const { url, label } of links) {
@@ -83,16 +86,23 @@ export function pairDeptRules(links: SitemapLink[]): DeptRuleSource[] {
     if (!labelsOfUrl.has(url)) labelsOfUrl.set(url, []);
     labelsOfUrl.get(url)!.push(label);
   }
-  const deptOfUrl = (url: string) =>
-    (labelsOfUrl.get(url) ?? []).find((l) => {
+  // 같은 URL에 학부+학과(또는 학과+전공) 라벨이 함께 붙은 경우
+  // 마지막 학과명 라벨이 실제 페이지 소유자 (예: HmnArt/5570 = 영미문학문화트랙)
+  const deptOfUrl = (url: string) => {
+    const cands = (labelsOfUrl.get(url) ?? []).filter((l) => {
       const n = l.replace(/\s+/g, '');
       return (
         !INTRO_LABELS.has(n) && !RULE_LABEL.test(l) && !SUBMENU.test(l)
       );
     });
+    const named = cands.filter((l) =>
+      DEPT_NAME.test(l.replace(/\s+/g, '')),
+    );
+    return named.length ? named[named.length - 1] : cands[cands.length - 1];
+  };
 
   // pass 2: 순서대로 학과 갱신 + 졸업요건 링크 연결
-  let currentDept: string | null = null;
+  let currentDept: string | null = opts.siteDept ?? null;
   const out: DeptRuleSource[] = [];
   const seen = new Set<string>();
   const push = (url: string) => {

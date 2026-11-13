@@ -33,7 +33,9 @@ const UA = 'hansung-campus-helper/1.0 (+snapshot; contact: site admin)';
 const DELAY_MS = 700;
 
 /** 졸업요건을 탐색할 사이트 슬러그 — 사이트맵 존재 확인분 */
-const SLUGS = ['CreCon', 'Design', 'HmnArt', 'futureplus', 'CSE', 'SclScn', 'global'];
+const SLUGS = ['CreCon', 'Design', 'HmnArt', 'Engineering', 'futureplus', 'CSE', 'SclScn', 'global'];
+/** 사이트 자체가 단일 학과인 슬러그 — 사이트맵에 학과명 라벨이 없어 직접 지정 */
+const SITE_DEPT: Record<string, string> = { CSE: '컴퓨터공학부' };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -59,7 +61,7 @@ for (const slug of SLUGS) {
     await sleep(DELAY_MS);
     continue;
   }
-  const pairs = pairDeptRules(links);
+  const pairs = pairDeptRules(links, { siteDept: SITE_DEPT[slug] });
   console.log(`${slug}: ${pairs.length} 졸업요건 페이지 발견`);
   await sleep(DELAY_MS);
 

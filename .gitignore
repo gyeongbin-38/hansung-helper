@@ -54,5 +54,8 @@ scripts/_tunnel.log
 lms-data.json
 **/lms-data.json
 
+# 과거 학기 카탈로그·교육과정 — D1 게시 전용 대용량 생성물 (work/ 스크립트로 재생성 가능)
+/lib/data/history/
+
 # agent-local skill links (junctions to external drive, not portable)
 /.devin/skills/

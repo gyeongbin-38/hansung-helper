@@ -322,22 +322,23 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-metric-planned, .graduation-metric-empty { margin-top: 10px !important; color: var(--nt-slate); font-size: 10px; line-height: 1.6; }
 .graduation-metric-route { margin-top: 14px; font-size: 11px; }
 
-/* 진로 카드 — 전망 탭 */
-.graduation-career { padding: 18px; }
-.graduation-career .graduation-section-heading h3 { align-items: center; }
-.graduation-career-dept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.graduation-career-dept b { font-size: 14px; font-weight: 750; color: var(--nt-ink); }
-.graduation-career-dept span { font-size: 10px; color: var(--nt-slate); }
-.graduation-career-summary { margin: 10px 0 0; font-size: 11px; line-height: 1.6; color: var(--nt-charcoal); }
-.graduation-career-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.graduation-career-stats span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--nt-tint-sky); font-size: 10px; color: var(--nt-slate); }
-.graduation-career-stats b { font-size: 15px; font-weight: 750; color: var(--nt-primary); }
-.graduation-career-jobs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.graduation-career-jobs a { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--nt-line); font-size: 10px; color: var(--nt-charcoal); text-decoration: none; transition: border-color .12s, background .12s; }
-.graduation-career-jobs a:hover { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
-.graduation-career-links { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; }
-.graduation-career-links a { display: inline-flex; align-items: center; gap: 4px; }
-.graduation-career .meta { margin: 10px 0 0; }
+/* 학교 사정표 — 현황 탭 */
+.graduation-audit { padding: 18px; }
+.graduation-audit-table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 12px; }
+.graduation-audit-table th, .graduation-audit-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--nt-hairline-soft, #edf1f5); }
+.graduation-audit-table thead th { font-size: 10px; color: var(--nt-slate); font-weight: 600; border-bottom-color: var(--nt-line, #dfe4ea); }
+.graduation-audit-table tbody th { font-weight: 650; color: var(--nt-ink); }
+.graduation-audit-table tbody tr:last-child th, .graduation-audit-table tbody tr:last-child td { border-bottom: 0; }
+.graduation-audit-table td { color: var(--nt-charcoal); }
+
+/* 요약 — 다음 확인 항목 액션 스트립 */
+.graduation-next-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+.graduation-next-actions button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border: 1px solid var(--nt-line, #dfe4ea); border-radius: 12px; background: var(--nt-surface, #fff); color: var(--nt-ink); text-align: left; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.graduation-next-actions button:hover { border-color: var(--nt-primary); box-shadow: 0 2px 8px #1d5be81a; }
+.graduation-next-actions b { display: block; font-size: 12px; font-weight: 700; }
+.graduation-next-actions small { display: block; margin-top: 3px; font-size: 10px; color: var(--nt-slate); }
+.graduation-next-actions svg { flex-shrink: 0; color: var(--nt-slate); }
+
 
 @media (max-width: 650px) {
   .graduation-hero-grid { grid-template-columns: 1fr; gap: 16px; }

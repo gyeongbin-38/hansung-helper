@@ -18,9 +18,10 @@ import {
   deptRuleTargets,
   rulesetMatchesDept,
 } from '@/lib/data/dept-rules';
+import { deptPageMatches, type DeptPageKind } from '@/lib/data/dept-pages';
 import { staleLabel } from '@/lib/data/freshness';
 import { targetProgress } from '@/lib/data/visual-progress';
-import { deptPoolOf, useDeptRules, useNow } from './catalog';
+import { deptPoolOf, useDeptPages, useDeptRules, useNow } from './catalog';
 import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
 
@@ -122,6 +123,7 @@ export function Graduation({
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
+  const { snap: deptPages } = useDeptPages();
   const now = useNow(30000);
   const rulesStale = deptRules
     ? staleLabel(deptRules.fetchedAt, now)
@@ -139,11 +141,24 @@ export function Graduation({
     [data.completed, info],
   );
   const infoStale = info ? staleLabel(info.fetchedAt, now, 30) : null;
+  const pool = useMemo(
+    () =>
+      catalog
+        ? deptPoolOf(data.dept, [...new Set(catalog.sections.map((s) => s.dept))])
+        : null,
+    [catalog, data.dept],
+  );
+  const myDeptPages = useMemo(() => {
+    if (!deptPages) return null;
+    const byKind = new Map<DeptPageKind, (typeof deptPages.pages)[number]>();
+    for (const p of deptPages.pages) {
+      if (p.error || !deptPageMatches(p.deptLabel, data.dept, pool)) continue;
+      if (!byKind.has(p.kind)) byKind.set(p.kind, p);
+    }
+    return byKind.size ? byKind : null;
+  }, [deptPages, data.dept, pool]);
   const myRules = useMemo(() => {
-    if (!deptRules || !catalog) return null;
-    const pool = deptPoolOf(data.dept, [
-      ...new Set(catalog.sections.map((s) => s.dept)),
-    ]);
+    if (!deptRules) return null;
     // 같은 학과에 규정 페이지가 여러 곳이면 내용이 풍부한 쪽을 선택한다
     // (예: 첨부 문서만 있는 페이지 vs 규정 본문이 있는 페이지)
     const richness = (r: (typeof deptRules.items)[number]) =>
@@ -155,7 +170,7 @@ export function Graduation({
       .filter((r) => rulesetMatchesDept(r, data.dept, pool))
       .sort((a, b) => richness(b) - richness(a));
     return matches[0] ?? null;
-  }, [deptRules, catalog, data.dept]);
+  }, [deptRules, data.dept, pool]);
   // 학번-컬럼 규정표 → 학과 기준 해석 (검증된 yearTable이 있는 학과만)
   const deptTargets = useMemo(() => {
     const year = parseInt(data.year, 10);
@@ -942,6 +957,56 @@ export function Graduation({
               </>
             )}
           </p>
+        </section>
+      )}
+
+      {myDeptPages && (
+        <section className="card pad dept-pages">
+          <div className="between">
+            <h3>내 학과 공식 안내</h3>
+            <span className="badge green">학과 페이지</span>
+          </div>
+          <p className="meta">
+            학과 공식 사이트의 소개·교육과정·로드맵·졸업요건 안내입니다.
+            수집일 {deptPages?.fetchedAt.slice(0, 10)}.
+          </p>
+          <div className="rule-actions">
+            {(
+              [
+                ['intro', '학과·트랙 소개'],
+                ['curriculum', '교육과정 소개'],
+                ['roadmap', '교과목 로드맵'],
+                ['rules', '졸업요건'],
+              ] as [DeptPageKind, string][]
+            ).map(
+              ([kind, label]) =>
+                myDeptPages.get(kind) && (
+                  <a
+                    key={kind}
+                    className="link"
+                    href={myDeptPages.get(kind)!.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {label} <ArrowUpRight size={16} />
+                  </a>
+                ),
+            )}
+          </div>
+          {(() => {
+            const roadmap = myDeptPages.get('roadmap');
+            const img = roadmap?.image ?? roadmap?.images?.[0];
+            if (!img) return null;
+            return (
+              <div className="rules-image">
+                <p className="meta">학과 공식 로드맵 이미지 원본</p>
+                <a href={roadmap!.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line next/no-img-element -- 외부 학교 이미지 */}
+                  <img src={img.src} alt={img.alt ?? '교과목 로드맵'} loading="lazy" />
+                </a>
+              </div>
+            );
+          })()}
         </section>
       )}
 
