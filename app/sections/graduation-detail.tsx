@@ -155,7 +155,9 @@ export function GraduationMetricDetails({ className, icon, title, result, known,
       {segments && segments.over > 0 && <p className="gm-over">기준보다 {segments.over}{unit} 더 {isPoints ? '적립' : '이수'}했어요.</p>}
       {result.uncertainCredits && <p className="graduation-metric-warning"><Info size={14} />재수강·중복 과목 여부를 확인하기 전이라 학점이 달라질 수 있어요.</p>}
       {isPoints ? <div className="graduation-metric-source">
-        <b>포인트 출처</b><span>{!known ? '확인된 포인트 없음 — 학교 정보를 연결하면 자동으로 채워져요' : pointsSource === 'school' ? `종합정보 자동 수집${sourceDate ? ` · ${sourceDate}` : ''}` : '내 정보에서 직접 입력'}</span>
+        <b>포인트 출처</b><span>{!known
+          ? sourceDate ? '종합정보에서 누적 포인트를 찾지 못했어요 — hsportal에서 확인 후 내 정보에 입력해 주세요' : '확인된 포인트 없음 — 학교 정보를 연결하면 자동으로 채워져요'
+          : pointsSource === 'school' ? `종합정보 자동 수집${sourceDate ? ` · ${sourceDate}` : ''}` : '내 정보에서 직접 입력'}</span>
       </div> : <>
         <div className="gm-charts">
           <CategoryBars courses={courses} />

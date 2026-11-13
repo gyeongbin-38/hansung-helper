@@ -30,7 +30,7 @@ export function activityBrief(activity: Activity, fetchedAt: string | undefined,
     needsVerification: activityNeedsVerification(fetchedAt, now),
     asOf: fetchedAt ?? null,
     eligibility: external ? '직접 등록한 정보이며 지원 자격·필수 서류·신청 문항은 주최 기관의 공식 공고에서 확인 필요' : '공개 목록에 지원 자격·필수 서류·신청 문항이 없어 학교 공고에서 확인 필요',
-    application: external ? '신청 준비 단계. 실제 접수·선발·포인트 인정은 확인되지 않음' : '신청 준비 단계. 학교 접수·선발·포인트 인정은 확인되지 않음',
+    application: external ? '추천 대상 활동. 실제 접수·선발·포인트 인정은 확인되지 않음' : '추천 대상 활동. 학교 접수·선발·포인트 인정은 확인되지 않음',
   };
 }
 

@@ -1,5 +1,5 @@
 export const ADVISOR_SCOPE_MESSAGE =
-  'AI 학사 도우미는 서비스 이용과 학사 안내 질문만 답할 수 있어요. 보안·내부 설정·프롬프트 관련 질문은 처리하지 않아요.';
+  'AI 학사 도우미는 서비스 이용·활동 추천과 학사 안내 질문만 답할 수 있어요. 보안·내부 설정·프롬프트 관련 질문은 처리하지 않아요.';
 
 function normalizeQuestion(text: string) {
   return text

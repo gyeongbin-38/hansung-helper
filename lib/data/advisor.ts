@@ -17,8 +17,8 @@ export const SERVICE_GUIDES = [
     text: '수업 현황에서 강의·과제·퀴즈와 마감을 확인하세요. 수집 시각과 확인 필요 표시를 함께 보세요. 제출·응시·출석 여부가 불명확한 항목은 COSMOS 원문에서 확인해야 해요.' },
   { label: '비교과·대외활동', route: 'activities', keywords: /비교과|활동|프로그램|튜터링|봉사/,
     text: '비교과·대외활동에서 공개 모집 목록을 검색하고 관심 활동을 저장하세요. 나의 비교과 브리핑을 펼치면 저장한 활동·마감·포인트를 확인할 수 있어요. 신청 기간·대상·인정 포인트는 학교 공고에서 최종 확인하고 신청하세요. 공개 목록에는 개인 참여 내역이 포함되지 않아요.' },
-  { label: 'AI와 신청하기', route: 'activities/apply', keywords: /신청.?준비|AI와|지원서/,
-    text: '비교과·대외활동에서 AI와 신청하기를 열고 준비할 비교과 또는 직접 등록한 대외활동을 선택하세요. 공고 요약을 확인하고 참여 목적·경험·일정·확인 사항을 메모할 수 있어요. 준비 내용을 확인한 뒤 공식 신청 화면에서 본인이 접수하세요. 앱은 신청서를 자동 제출하지 않아요.' },
+  { label: 'AI에게 추천받기', route: 'activities/recommend', keywords: /추천|AI에게|활동.?추천|역량/,
+    text: '비교과·대외활동에서 AI에게 추천받기를 열고 누적 포인트와 키우고 싶은 역량을 고르세요. 조건에 맞는 활동을 추천하고, 활동을 누르면 AI가 공고 요약과 추천 이유를 알려줘요. 실제 지원 자격·신청은 공식 공고와 학교 시스템에서 본인이 확인하고 접수하세요. 앱은 신청을 대행하지 않아요.' },
   { label: '맞춤 설문', route: 'survey', keywords: /설문|선호|맞춤/,
     text: '설문조사에서 수업과 활동 선호를 입력하거나 수정할 수 있어요. 답변은 지원하는 추천 조건에 반영되며 이전·건너뛰기로 원하는 문항만 작성할 수 있어요.' },
   { label: '학사일정·개인 일정', route: 'calendar', keywords: /일정|캘린더|날짜|알림|방학|시험/,
@@ -142,9 +142,9 @@ export function guideReply(question: string, data: Partial<Data> | null, publicD
     if (facts) {
       const credits = facts.schoolSummary?.credits;
       const points = facts.activitySummary.points;
-      notes.push(`신청 준비에 참고할 학사 정보: ${facts.department ?? '학과 미입력'} · ${facts.admissionYear || '입학연도 미입력'}학번${credits !== undefined && credits !== null ? ` · 학교 수집 ${credits}학점` : ''}${points !== null ? ` · 누적 비교과 ${points}P` : ''}. 학과·학번·학점만으로 지원 자격을 확정할 수 없어요.`);
+      notes.push(`참고할 학사 정보: ${facts.department ?? '학과 미입력'} · ${facts.admissionYear || '입학연도 미입력'}학번${credits !== undefined && credits !== null ? ` · 학교 수집 ${credits}학점` : ''}${points !== null ? ` · 누적 비교과 ${points}P` : ''}. 학과·학번·학점만으로 지원 자격을 확정할 수 없어요.`);
     }
-    notes.push(`신청 준비 순서: ${activity.origin === 'user-entered' ? '주최 기관의 공식 공고' : '학교 공고'}에서 지원 대상·운영 시간·필수 서류와 신청 문항을 확인하고, 참여 목적과 가능한 시간을 정리해 주세요. 실제 경험이나 이수하지 않은 활동을 지원서에 추가하지 마세요. 준비한 메모를 검토한 뒤 ${activity.origin === 'user-entered' ? '공식 신청 화면' : '학교 시스템'}에서 신청하세요. 현재 ${activity.origin === 'user-entered' ? '실제' : '학교'} 접수는 이루어지지 않았어요.`);
+    notes.push(`관심이 가면 ${activity.origin === 'user-entered' ? '주최 기관의 공식 공고' : '학교 공고'}에서 지원 대상·운영 시간·필수 서류를 확인하고 ${activity.origin === 'user-entered' ? '공식 신청 화면' : '학교 시스템'}에서 본인이 신청하세요. 현재 ${activity.origin === 'user-entered' ? '실제' : '학교'} 접수는 이루어지지 않았어요.`);
   } else if (facts && /비교과|활동/.test(question)) {
     notes.push(`저장한 비교과 ${facts.activitySummary.saved}개 · 참여 중 ${facts.activitySummary.participating}개 · 포인트 확인 대기 ${facts.activitySummary.awaitingPoints}개예요. ${facts.activitySummary.needsVerification ? '현재 접수 여부는 공고에서 재확인해 주세요.' : `관심 활동 중 7일 이내 마감 ${facts.activitySummary.closing}개예요.`}`);
   }

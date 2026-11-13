@@ -231,8 +231,7 @@
 .graduation-course-filters > fieldset { padding: 0; }
 
 /* Figma Page 3: 졸업 요약 — 합산 카드 + 교양/전공 분해 + 전공별 요건 */
-.graduation-summary-hero { padding: 0; overflow: hidden; border-radius: 22px; }
-.graduation-summary-hero-grid { display: grid; grid-template-columns: 1fr 1px 1fr; align-items: start; }
+.graduation-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-summary-metric { display: block; padding: 32px 38px; min-width: 0; }
 .graduation-summary-metric summary { min-height: 156px; }
 .graduation-summary-metric h3 { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--nt-slate); font-weight: 650; }
@@ -240,7 +239,6 @@
 .graduation-summary-metric summary > strong { display: block; margin-top: 13px; font-size: 38px; font-weight: 800; letter-spacing: -1.1px; color: var(--nt-ink); line-height: 1.1; }
 .graduation-summary-meta { display: flex; align-items: center; min-height: 22px; }
 .graduation-summary-meta small { font-size: 13px; color: var(--nt-slate); font-weight: 650; }
-.graduation-summary-divider { background: var(--nt-hairline); align-self: stretch; }
 .graduation-summary-metric .progress-track { margin-top: auto; }
 .graduation-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-area-card { display: block; padding: 28px; text-align: left; width: 100%; }
@@ -342,13 +340,26 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-metric-source b { color: var(--nt-charcoal); font-size: 11px; }
 .graduation-metric-planned, .graduation-metric-empty { margin-top: 10px !important; color: var(--nt-slate); font-size: 10px; line-height: 1.6; }
 .graduation-metric-route { margin-top: 14px; font-size: 11px; }
-.graduation-major-requirements { padding: 6px 2px 0; }
-.graduation-major-requirements > .graduation-section-heading { margin-bottom: 18px; }
-.graduation-major-requirements h2 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 750; letter-spacing: -.4px; margin: 0; }
+
+/* 진로 카드 — 전망 탭 */
+.graduation-career { padding: 18px; }
+.graduation-career .graduation-section-heading h3 { align-items: center; }
+.graduation-career-dept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.graduation-career-dept b { font-size: 14px; font-weight: 750; color: var(--nt-ink); }
+.graduation-career-dept span { font-size: 10px; color: var(--nt-slate); }
+.graduation-career-summary { margin: 10px 0 0; font-size: 11px; line-height: 1.6; color: var(--nt-charcoal); }
+.graduation-career-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.graduation-career-stats span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--nt-tint-sky); font-size: 10px; color: var(--nt-slate); }
+.graduation-career-stats b { font-size: 15px; font-weight: 750; color: var(--nt-primary); }
+.graduation-career-jobs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.graduation-career-jobs a { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--nt-line); font-size: 10px; color: var(--nt-charcoal); text-decoration: none; transition: border-color .12s, background .12s; }
+.graduation-career-jobs a:hover { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
+.graduation-career-links { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; }
+.graduation-career-links a { display: inline-flex; align-items: center; gap: 4px; }
+.graduation-career .meta { margin: 10px 0 0; }
 
 @media (max-width: 650px) {
-  .graduation-summary-hero-grid { grid-template-columns: 1fr; }
-  .graduation-summary-divider { width: auto; height: 1px; }
+  .graduation-hero-grid { grid-template-columns: 1fr; gap: 16px; }
   .graduation-summary-metric { padding: 24px 22px; }
   .graduation-summary-metric summary { min-height: 0; }
   .graduation-summary-metric summary > strong { font-size: 30px; }
