@@ -1,4 +1,5 @@
 import { gradGroup, type CourseSection } from './catalog.ts';
+import type { InfoAuditRow } from './info.ts';
 
 /** 사용자가 직접 입력한 이수 완료 과목 — provenance: 사용자 입력 */
 export type CompletedCourse = {
@@ -31,7 +32,7 @@ export function requirementQuantityName(rule: Pick<GradRequirement, 'source'>): 
 export const GLOBAL_RULE_SOURCE = {
   url: 'https://www.hansung.ac.kr/hansung/6217/subview.do',
   label: '한성대학교 교육과정 이수체계 (공식 페이지)',
-  asOf: '2026-11-06',
+  asOf: '2026-11-13',
 };
 export const TRANSFER_RULE_SOURCE = {
   url: 'https://www.hansung.ac.kr/hansung/6221/subview.do',
@@ -80,8 +81,10 @@ export type AdmissionType = 'unknown' | 'freshman' | 'general-transfer' | 'bache
 /** 학교 공식 안내에서 확인한 학번별 교양 기준. 세부 충족은 별도 사정이 필요하다. */
 export function generalEducationReference(year: number | undefined, admission: AdmissionType) {
   if (admission !== 'freshman') return null;
-  if (year === 2023) return { total: 28, note: '교양필수 8~10학점, 선택필수교양 7~9학점, 일반교양·일반선택 9~13학점 및 3개 영역 이상 확인 필요', url: 'https://www.hansung.ac.kr/hansung/6219/subview.do' };
-  if (year === 2024) return { total: 31, note: '교양필수 13학점, 선택필수교양 15학점, 자율선택 3학점 및 4개 영역 이상 확인 필요', url: 'https://www.hansung.ac.kr/hansung/6219/subview.do' };
+  const url = 'https://www.hansung.ac.kr/hansung/6219/subview.do';
+  if (year !== undefined && year >= 2024) return { total: 31, note: '교양필수 13학점, 선택필수교양 15학점, 자율선택 3학점 및 4개 영역 이상 확인 필요', url };
+  if (year !== undefined && year >= 2019) return { total: 28, note: '교양필수 8~10학점, 선택필수교양 7~9학점, 일반교양·일반선택 9~13학점 및 3개 영역 이상 확인 필요', url };
+  if (year === 2017 || year === 2018) return { total: 22, note: '교양필수 16학점(필수 이수) 및 핵심역량별 자율교양 이수 확인 필요', url };
   return null;
 }
 
@@ -91,8 +94,8 @@ export function evaluateGpa(gpa: number | undefined, verified: boolean): { requi
   return { required: 2, earned: valid ? gpa : undefined,
     status: !verified || !valid ? 'unknown' : gpa >= 2 ? 'met' : 'progress' };
 }
-/** required 값의 출처 — 사용자 입력 > 학과 규정표 > 전역 공식 순으로 적용 */
-export type RequiredSource = 'override' | 'dept' | 'global';
+/** required 값의 출처 — 학교 사정표 > 사용자 입력 > 학과 규정표 > 전역 공식 순 */
+export type RequiredSource = 'audit' | 'override' | 'dept' | 'global';
 export type RuleResult = {
   rule: GradRequirement;
   /** 이수 완료로 확정된 학점 */
@@ -107,6 +110,8 @@ export type RuleResult = {
   uncertainCredits?: boolean;
   uncertainTrack?: boolean;
   uncertainAllocation?: boolean;
+  /** 학교 졸업가사정표에서 기준·취득을 직접 확인한 경우의 판정 원문 */
+  auditVerdict?: string;
 };
 
 function sumByGroups(
@@ -141,7 +146,7 @@ export function evaluate(
     deptTargets?: { total?: number; points?: number };
   } = {},
 ): RuleResult[] {
-  const year = opts.admitYear;
+  const year = opts.admitYear ?? 0;
   const currentYear = new Date(Date.now() + 9 * 3600_000).getUTCFullYear();
   const validYear = typeof year === 'number' && Number.isInteger(year) && year >= 1900 && year <= currentYear;
   const admission = ['freshman', 'general-transfer', 'bachelor-transfer'].includes(opts.admissionType ?? '')
@@ -174,7 +179,7 @@ export function evaluate(
         : rule.id === 'points'
           ? opts.deptTargets?.points
           : undefined;
-    let required: number | null;
+    let required: number | null = null;
     let requiredSource: RequiredSource | undefined;
     if (overrides[rule.id] !== undefined) {
       required = overrides[rule.id];
@@ -190,14 +195,26 @@ export function evaluate(
     } else if (rule.id === 'points' && year >= 2016) {
       required = admission === 'freshman' ? 800 : 400;
       requiredSource = 'global';
-    } else if (rule.id === 'major' && (year === 2023 || year === 2024) && admission === 'freshman' && opts.programMode === 'fusion1') {
-      // 39학점씩 두 전공의 충족 여부는 과목별 소속이 확인돼야 한다.
+    } else if (rule.id === 'major' && year >= 2017 && (admission === 'freshman' || admission === 'general-transfer')) {
+      // 17학번 이후 전공합계는 이수과정 무관하게 78 (융합Ⅰ 39+39 · 융합Ⅱ 57+21 · 심화 78)
       required = 78;
       requiredSource = 'global';
-    } else if (rule.id === 'gen' && (year === 2023 || year === 2024) && admission === 'freshman') {
-      required = year === 2024 ? 31 : 28;
+    } else if (rule.id === 'major' && year >= 2016 && admission === 'bachelor-transfer') {
+      // 학사편입생(16학번 이후): 본인 전공 39학점
+      required = 39;
       requiredSource = 'global';
-    } else if (rule.id === 'free' && year === 2024 && admission === 'freshman' && opts.programMode === 'fusion1') {
+    } else if (rule.id === 'gen' && (admission === 'freshman' || admission === 'general-transfer')) {
+      // 교양 최소 이수학점 — 17~18학번 22 / 19~23학번 28 / 24학번 이후 31
+      if (year >= 2024) required = 31;
+      else if (year >= 2019) required = 28;
+      else if (year >= 2017) required = 22;
+      if (required !== null) requiredSource = 'global';
+    } else if (rule.id === 'free' && admission === 'bachelor-transfer' && year >= 2016) {
+      // 학사편입생: 전공 39 + 자유선택 26 = 65학점
+      required = 26;
+      requiredSource = 'global';
+    } else if (rule.id === 'free' && admission === 'freshman' && year >= 2024) {
+      // 24학번 이후: 총 130 − 전공 78 − 교양 31 = 자유선택 21
       required = 21;
       requiredSource = 'global';
     } else {
@@ -208,10 +225,12 @@ export function evaluate(
     const plan = isPoints ? 0 : sumByGroups(plannedItems, rule.groups);
     const missingInput = isPoints && opts.points === undefined;
     const uncertainCredits = !isPoints && ambiguous.some((c) => rule.groups.includes(gradGroup(c.category)));
-    const uncertainTrack = rule.id === 'major' && requiredSource === 'global' && required === 78;
-    // 19~23학번 기준에는 일반선택이 일부 포함될 수 있어 분류만으로 배분할 수 없다.
+    // 융합전공Ⅰ 모의 계산에서만 — 두 트랙 각 39학점 배분은 과목별 소속 확인이 필요하다.
+    const uncertainTrack = rule.id === 'major' && requiredSource === 'global' && required === 78 && opts.programMode === 'fusion1';
+    // 교양 기준에는 일반선택 성격 과목이 일부 포함될 수 있어 분류만으로 배분할 수 없다.
     const uncertainAllocation = requiredSource === 'global' &&
-      ((rule.id === 'gen' && (year === 2023 || year === 2024)) || (rule.id === 'free' && year === 2024));
+      ((rule.id === 'gen' && year >= 2019) ||
+        (rule.id === 'free' && (year >= 2024 || admission === 'bachelor-transfer')));
     const status: RuleStatus =
       required === null || missingInput || uncertainCredits || uncertainTrack || uncertainAllocation
         ? 'unknown'
@@ -219,6 +238,99 @@ export function evaluate(
           ? 'met'
           : 'progress';
     return { rule, earned, planned: plan, required, requiredSource, status, uncertainCredits: uncertainCredits || undefined, uncertainTrack: uncertainTrack || undefined, uncertainAllocation: uncertainAllocation || undefined };
+  });
+}
+
+const auditNum = (s: string): number | undefined => {
+  const m = s.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : undefined;
+};
+
+/** 사정표 영역 라벨 → 규칙 id. 합성 행(parts)은 결합 행이 없을 때 합산한다. */
+const AUDIT_MAP: Record<string, { re: RegExp; excl?: RegExp; parts?: RegExp[] }> = {
+  points: { re: /비교과|포인트|마일리지/ },
+  majorReq: { re: /전공.*필수|필수.*전공|전필/ },
+  major: {
+    re: /전공/,
+    excl: /필수|선택/,
+    parts: [/전공.*필수|필수.*전공|전필/, /전공.*선택|선택.*전공|전선/],
+  },
+  gen: {
+    re: /교양|선필교/,
+    excl: /필수|선택|영역/,
+    parts: [/교양.*필수|필수.*교양|교필/, /선택.*교양|선필교/, /일반.*교양|일교/],
+  },
+  free: { re: /일반선택|자유선택|자유/ },
+  total: { re: /총|소계|합계|전체|졸업.*학점|졸업학점|수료/, excl: /비교과|포인트|평점|전공|교양/ },
+};
+
+const auditHit = (audit: InfoAuditRow[], re: RegExp, excl?: RegExp) =>
+  audit.find((a) => re.test(a.area) && !(excl && excl.test(a.area)));
+
+const auditMet = (verdict: string): boolean | undefined => {
+  // '미충족'이 '충족'에 매칭되므로 부정을 먼저 확인한다.
+  if (/미충족|미달|부족|불가|불충족|^n$/i.test(verdict)) return false;
+  if (/충족|통과|합격|가능|완료|^y$/i.test(verdict)) return true;
+  return undefined;
+};
+
+/**
+ * 학교 졸업가사정표(info.audit)를 평가 결과에 반영한다.
+ * 영역 행이 맞으면 기준·취득을 학교 값으로 교체하고 판정 원문을 보존한다.
+ * 결합 행이 없는 규칙은 세부 행 합산(2개 이상)으로 채운다.
+ */
+export function applyAudit(results: RuleResult[], audit: InfoAuditRow[] | undefined): RuleResult[] {
+  if (!audit?.length) return results;
+  return results.map((r) => {
+    const conf = AUDIT_MAP[r.rule.id];
+    if (!conf) return r;
+    let hit = auditHit(audit, conf.re, conf.excl);
+    const verdict = hit?.verdict ?? '';
+    if (!hit && conf.parts) {
+      const rows = conf.parts
+        .map((re) => audit.find((a) => re.test(a.area)))
+        .filter((a): a is InfoAuditRow => !!a);
+      if (rows.length >= 2) {
+        const req = rows.map((a) => auditNum(a.required));
+        const got = rows.map((a) => auditNum(a.earned));
+        hit = {
+          area: rows.map((a) => a.area).join('+'),
+          required: req.every((n) => n !== undefined)
+            ? String(req.reduce<number>((s, n) => s + (n ?? 0), 0))
+            : '',
+          earned: got.every((n) => n !== undefined)
+            ? String(got.reduce<number>((s, n) => s + (n ?? 0), 0))
+            : '',
+          verdict: '',
+        };
+      }
+    }
+    if (!hit) return r;
+    const req = auditNum(hit.required);
+    const got = auditNum(hit.earned);
+    const required = req ?? r.required;
+    const earned = got ?? r.earned;
+    const met = auditMet(verdict);
+    const status: RuleStatus =
+      met === true
+        ? 'met'
+        : met === false
+          ? 'progress'
+          : required === null
+            ? 'unknown'
+            : earned >= required
+              ? 'met'
+              : 'progress';
+    return {
+      ...r,
+      earned,
+      required,
+      requiredSource: 'audit',
+      status,
+      // 사정표 취득값이 확정치라 재수강 추정 경고는 사라진다.
+      uncertainCredits: undefined,
+      auditVerdict: verdict || undefined,
+    };
   });
 }
 

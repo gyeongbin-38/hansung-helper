@@ -1,5 +1,6 @@
 import { collectLms } from './lms.ts';
 import { collectInfo } from './info.ts';
+import { fillPortalPoints } from './hsportal.ts';
 import type { LmsSnapshot } from '../data/lms.ts';
 import type { InfoSnapshot } from '../data/info.ts';
 import { retrySchoolRead } from './school-retry.ts';
@@ -75,7 +76,11 @@ export class SchoolSession {
   async request(url: string, init: RequestInit = {}) {
     const target = new URL(url);
     if (
-      !['info.hansung.ac.kr', 'learn.hansung.ac.kr'].includes(target.hostname)
+      ![
+        'info.hansung.ac.kr',
+        'learn.hansung.ac.kr',
+        'hsportal.hansung.ac.kr',
+      ].includes(target.hostname)
     )
       throw new SchoolError('upstream');
     // The legacy portal emits an HTTP redirect. Upgrade before sending any cookie.
@@ -398,8 +403,13 @@ export async function connectSchool(
   }
   // 종합정보 수집 — LMS 결과와 무관하게 info 세션으로 진행한다.
   // deferInfo가 있으면 응답 후 waitUntil에서 실행, 없으면 여기서 수집한다.
-  const runInfo = () =>
-    collectInfo(session, { menuHtml, mainHtml, studentId });
+  const runInfo = async () => {
+    const info = await collectInfo(session, { menuHtml, mainHtml, studentId });
+    // 종합정보에 포인트 페이지가 없으면 hsportal 브리지로 보충한다 —
+    // 실패해도 진단 reason만 남고 기존 값은 유지된다.
+    await fillPortalPoints(session, info).catch(() => false);
+    return info;
+  };
   if (opts?.deferInfo) {
     opts.deferInfo(() => runInfo().catch(() => null));
   } else {
@@ -455,8 +465,15 @@ export async function resumeSchool(
       );
       if (menuHtml.includes('head_bt_logout.gif')) {
         infoOk = true;
-        const runInfo = () =>
-          collectInfo(session, { menuHtml, mainHtml, studentId });
+        const runInfo = async () => {
+          const info = await collectInfo(session, {
+            menuHtml,
+            mainHtml,
+            studentId,
+          });
+          await fillPortalPoints(session, info).catch(() => false);
+          return info;
+        };
         if (opts?.deferInfo) opts.deferInfo(() => runInfo().catch(() => null));
         else
           try {

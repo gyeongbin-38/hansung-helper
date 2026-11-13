@@ -61,24 +61,7 @@
 .graduation-department-card > .secondary { margin-top: auto; width: 100%; }
 .graduation-department-card > .link { font-size: 12px; }
 .graduation-view-description { font-size: 13px; line-height: 1.9; color: var(--nt-slate); }
-.graduation-outlook-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
-.graduation-workspace .graduation-outlook-card { background: linear-gradient(125deg, #eaf3ff, #f9fcff); border-color: #d8e7ff; }
-.graduation-outlook-card h2 { font-size: 23px; font-weight: 750; line-height: 1.6; margin: 27px 0 10px; }
-.graduation-outlook-card > p { font-size: 13px; line-height: 1.9; color: var(--nt-slate); }
-.graduation-outlook-card label { display: flex; align-items: center; gap: 14px; margin-top: 28px; font-size: 13px; }
-.graduation-outlook-card .field { width: 75px; background: white; }
-.graduation-workspace .graduation-outlook-card > .meta { display: flex; gap: 7px; font-size: 11px; margin-top: 20px; }
-.graduation-outlook-card .meta svg { flex-shrink: 0; margin-top: 3px; }
-.graduation-checkpoints > button { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 22px 0; border-bottom: 1px solid #edf1f5; }
-.graduation-checkpoints > button:last-child { border: 0; padding-bottom: 0; }
-.graduation-checkpoints > button > span:nth-child(2) { flex: 1; }
-.graduation-checkpoints b { display: block; font-size: 13px; margin-bottom: 5px; }
-.graduation-checkpoints small { display: block; font-size: 11px; }
 .graduation-round-icon { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; background: var(--nt-tint-sky); color: var(--nt-primary); }
-.graduation-enrolled > .meta { font-size: 12px; line-height: 1.8; margin-bottom: 15px; }
-.graduation-enrolled-row { width: 100%; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid #edf1f5; padding: 20px 0; text-align: left; }
-.graduation-enrolled-row b { flex: 1; font-size: 13px; }
-.graduation-row-index { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--nt-hairline); border-radius: 7px; color: var(--nt-slate); font-size: 12px; }
 .graduation-requirement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .graduation-requirement-card .title-link { color: inherit; font-size: 16px; font-weight: 700; }
 .graduation-requirement-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; font-size: 12px; color: var(--nt-slate); }
@@ -195,7 +178,7 @@
   .graduation-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .graduation-hero-heading { flex-wrap: wrap; }
   .graduation-mode-guide.expanded > div + div { margin-left: 12px; padding-left: 12px; }
-  .graduation-overview-bottom, .graduation-outlook-grid { grid-template-columns: 1fr; }
+  .graduation-overview-bottom, .graduation-next-actions { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
   .graduation-workspace { gap: 18px; }
@@ -206,7 +189,7 @@
   .graduation-mode-tabs button { font-size: 12px; padding: 10px 3px; }
   .graduation-mode-guide.expanded { grid-template-columns: 1fr; gap: 18px; }
   .graduation-mode-guide.expanded > div + div { margin: 0; padding: 15px 0 0; border: 0; border-top: 1px solid var(--nt-hairline); }
-  .graduation-hero h2, .graduation-outlook-card h2 { font-size: 21px; }
+  .graduation-hero h2 { font-size: 21px; }
   .graduation-hero-metrics { grid-template-columns: 1fr; gap: 28px; }
   .graduation-value strong { font-size: 28px; }
   .graduation-workspace .graduation-summary-card { padding: 17px; gap: 14px; }
@@ -223,8 +206,6 @@
   .graduation-course-row { gap: 10px; }
   .graduation-course-row > div { min-width: 150px; }
   .graduation-course-row > .badge { margin-left: 48px; }
-  .graduation-enrolled-row { flex-wrap: wrap; }
-  .graduation-enrolled-row b { min-width: 160px; }
 }
 
 .graduation-workspace fieldset { min-width: 0; margin-inline: 0; border: 0; }
@@ -341,22 +322,23 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-metric-planned, .graduation-metric-empty { margin-top: 10px !important; color: var(--nt-slate); font-size: 10px; line-height: 1.6; }
 .graduation-metric-route { margin-top: 14px; font-size: 11px; }
 
-/* 진로 카드 — 전망 탭 */
-.graduation-career { padding: 18px; }
-.graduation-career .graduation-section-heading h3 { align-items: center; }
-.graduation-career-dept { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.graduation-career-dept b { font-size: 14px; font-weight: 750; color: var(--nt-ink); }
-.graduation-career-dept span { font-size: 10px; color: var(--nt-slate); }
-.graduation-career-summary { margin: 10px 0 0; font-size: 11px; line-height: 1.6; color: var(--nt-charcoal); }
-.graduation-career-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.graduation-career-stats span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--nt-tint-sky); font-size: 10px; color: var(--nt-slate); }
-.graduation-career-stats b { font-size: 15px; font-weight: 750; color: var(--nt-primary); }
-.graduation-career-jobs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.graduation-career-jobs a { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--nt-line); font-size: 10px; color: var(--nt-charcoal); text-decoration: none; transition: border-color .12s, background .12s; }
-.graduation-career-jobs a:hover { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
-.graduation-career-links { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; }
-.graduation-career-links a { display: inline-flex; align-items: center; gap: 4px; }
-.graduation-career .meta { margin: 10px 0 0; }
+/* 학교 사정표 — 현황 탭 */
+.graduation-audit { padding: 18px; }
+.graduation-audit-table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 12px; }
+.graduation-audit-table th, .graduation-audit-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--nt-hairline-soft, #edf1f5); }
+.graduation-audit-table thead th { font-size: 10px; color: var(--nt-slate); font-weight: 600; border-bottom-color: var(--nt-line, #dfe4ea); }
+.graduation-audit-table tbody th { font-weight: 650; color: var(--nt-ink); }
+.graduation-audit-table tbody tr:last-child th, .graduation-audit-table tbody tr:last-child td { border-bottom: 0; }
+.graduation-audit-table td { color: var(--nt-charcoal); }
+
+/* 요약 — 다음 확인 항목 액션 스트립 */
+.graduation-next-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+.graduation-next-actions button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border: 1px solid var(--nt-line, #dfe4ea); border-radius: 12px; background: var(--nt-surface, #fff); color: var(--nt-ink); text-align: left; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.graduation-next-actions button:hover { border-color: var(--nt-primary); box-shadow: 0 2px 8px #1d5be81a; }
+.graduation-next-actions b { display: block; font-size: 12px; font-weight: 700; }
+.graduation-next-actions small { display: block; margin-top: 3px; font-size: 10px; color: var(--nt-slate); }
+.graduation-next-actions svg { flex-shrink: 0; color: var(--nt-slate); }
+
 
 @media (max-width: 650px) {
   .graduation-hero-grid { grid-template-columns: 1fr; gap: 16px; }

@@ -93,3 +93,16 @@ export async function snapshotGet(
   if (row && row.fetched_at >= bundledAt && (!accepts || accepts(JSON.parse(row.payload)))) return snapshotResponse(row.payload);
   return snapshotResponse(JSON.stringify(bundled));
 }
+
+/**
+ * 번들 폴백 없는 D1 전용 스냅샷 — 대용량 이력 데이터(과거 시간표·교육과정)처럼
+ * 워커 번들에 넣지 않는 데이터용. D1에 없으면 null 반환 (라우트가 404 처리).
+ */
+export async function snapshotGetOnly(
+  kind: string,
+  accepts?: (payload: unknown) => boolean,
+): Promise<Response | null> {
+  const row = await d1Snapshot(kind);
+  if (!row || (accepts && !accepts(JSON.parse(row.payload)))) return null;
+  return snapshotResponse(row.payload);
+}

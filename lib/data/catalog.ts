@@ -43,10 +43,13 @@ export function semesterStartTs(semester: string): number | null {
 }
 /** 원본 이수구분 → 졸업요건 계산용 그룹. 카탈로그의 표시용 catGroup과는 별도 축. */
 export function gradGroup(category: string): string {
-  if (category === '전필') return '전공필수';
-  if (category === '전선' || category === '전기' || category === 'MD전선')
+  if (category === '전필' || category === '전지') return '전공필수';
+  if (category === '전선' || category === '전기' || category === 'MD전선'
+    || category === '복전선' || category === '부전선' || category === '연전선')
     return '전공선택';
-  if (category === '교필' || category === '선필교' || category === '일교')
+  if (category === '교필' || category === '선필교' || category === '일교'
+    || category === '기초' || category === '핵심' || category === '소양'
+    || category === '자율')
     return '교양';
   if (category === '일선') return '일반선택';
   return '기타';

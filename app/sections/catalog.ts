@@ -9,6 +9,7 @@ import {
 } from '@/lib/data/catalog';
 import type { ActivitySnapshot } from '@/lib/data/activities';
 import type { DeptRulesSnapshot } from '@/lib/data/dept-rules';
+import type { DeptPagesSnapshot } from '@/lib/data/dept-pages';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import type { Data } from './data';
 
@@ -144,6 +145,36 @@ export function useDeptRules() {
   useEffect(() => {
     let on = true;
     loadDeptRules()
+      .then((s) => on && setSnap(s))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, [tick]);
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { snap, failed, retry };
+}
+
+let deptPagesCache: Promise<DeptPagesSnapshot> | null = null;
+function loadDeptPages() {
+  deptPagesCache ??= apiFetch('/api/dept-pages')
+    .then((r) => apiData<DeptPagesSnapshot>(r))
+    .catch((e) => {
+      deptPagesCache = null;
+      throw e;
+    });
+  return deptPagesCache;
+}
+export function useDeptPages() {
+  const [snap, setSnap] = useState<DeptPagesSnapshot | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    loadDeptPages()
       .then((s) => on && setSnap(s))
       .catch(() => on && setFailed(true));
     return () => {
