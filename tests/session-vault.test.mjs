@@ -10,6 +10,17 @@ const sqlite = new DatabaseSync(':memory:');
 sqlite.exec('PRAGMA foreign_keys=ON');
 sqlite.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));
 sqlite.exec(await readFile('drizzle/0002_school_session_vault.sql', 'utf8'));
+// 운영에 먼저 배포된 원본 0002 행을 만든 뒤 additive 0003을 적용한다.
+sqlite.prepare('INSERT INTO academic_accounts VALUES (?, ?, ?, ?, 0, 1, 1)')
+  .run('legacy', 'fixture', '{}', '{}');
+sqlite.prepare('INSERT INTO academic_sessions VALUES (?, ?, ?)')
+  .run('legacy-session', 'legacy', Date.now() + 60_000);
+sqlite.prepare(
+  `INSERT INTO school_session_vault
+   (account_id, ciphertext, key_version, created_at, expires_at, last_used_at)
+   VALUES (?, ?, 1, ?, ?, NULL)`,
+).run('legacy', 'legacy-payload', Date.now() + 86_400_000, Date.now() + 7_200_000);
+sqlite.exec(await readFile('drizzle/0003_school_session_vault_owner.sql', 'utf8'));
 sqlite.prepare('INSERT INTO academic_accounts VALUES (?, ?, ?, ?, 0, 1, 1)')
   .run('account', 'fixture', '{}', '{}');
 sqlite.prepare('INSERT INTO academic_sessions VALUES (?, ?, ?)')
@@ -48,6 +59,33 @@ vm.runInNewContext(js, {
 
 const cookies = { 'info.hansung.ac.kr': { JSESSIONID: 'old' } };
 const now = Date.now();
+
+// 소유 앱 세션을 알 수 없는 0002 행은 활성으로 표시하거나 복호화하지 않는다.
+let legacyStatus = await vault.schoolSessionStatus('legacy');
+assert.equal(legacyStatus.configured, true);
+assert.equal(legacyStatus.available, false);
+assert.equal(legacyStatus.expiresAt, null);
+assert.equal(await vault.loadSchoolSession('legacy', 'legacy-session'), null);
+
+// 새 인증은 미래 created_at을 가진 legacy 행도 소유권 있는 행으로 교체한다.
+assert.equal(await vault.saveSchoolSession('legacy', cookies, {
+  sessionHash: 'legacy-session', issuedAt: now,
+}), true);
+let legacyRow = sqlite.prepare(
+  'SELECT app_session_hash, created_at FROM school_session_vault WHERE account_id = ?',
+).get('legacy');
+assert.equal(legacyRow.app_session_hash, 'legacy-session');
+assert.equal(legacyRow.created_at, now);
+
+// 아직 교체되지 않은 legacy 행도 인증된 로그아웃으로 제거할 수 있다.
+sqlite.prepare('UPDATE school_session_vault SET app_session_hash = NULL WHERE account_id = ?')
+  .run('legacy');
+await vault.deleteSchoolSession('legacy', 'legacy-session');
+assert.equal(
+  sqlite.prepare('SELECT 1 FROM school_session_vault WHERE account_id = ?').get('legacy'),
+  undefined,
+);
+
 assert.equal(await vault.saveSchoolSession('account', cookies, {
   sessionHash: 'new-session', issuedAt: now,
 }), true);
