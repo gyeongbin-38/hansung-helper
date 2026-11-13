@@ -4767,3 +4767,180 @@ input[aria-invalid='true'] {
     min-height: 64px;
   }
 }
+
+.lms-course {
+  border-left: 3px solid var(--course-accent, var(--nt-navy-mid));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.lms-course[data-accent='0'] {
+  --course-accent: var(--nt-navy-mid);
+  --course-tint: var(--nt-tint-sky);
+}
+.lms-course[data-accent='1'] {
+  --course-accent: var(--nt-green-deep);
+  --course-tint: var(--nt-tint-mint);
+}
+.lms-course[data-accent='2'] {
+  --course-accent: var(--nt-purple);
+  --course-tint: var(--nt-tint-lavender);
+}
+.lms-course[data-accent='3'] {
+  --course-accent: var(--nt-orange-deep);
+  --course-tint: var(--nt-tint-peach);
+}
+.lms-course[data-accent='4'] {
+  --course-accent: var(--nt-teal-deep);
+  --course-tint: #e3f2f1;
+}
+.lms-course:hover,
+.lms-course[open] {
+  border-color: var(--course-accent, var(--nt-navy-mid));
+}
+.lms-course[open] {
+  box-shadow: var(--nt-shadow-2);
+}
+.lms-course.is-done {
+  border-left-color: var(--nt-hairline-strong);
+}
+.lms-course-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.lms-course-title {
+  min-width: 0;
+}
+.lms-course-title b {
+  display: block;
+}
+.lms-course-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--course-tint, var(--nt-surface));
+  color: var(--course-accent, var(--nt-navy-mid));
+  font-size: 14px;
+  font-weight: 700;
+}
+.lms-course[open] > summary {
+  margin-bottom: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--nt-hairline);
+}
+.lms-course-urgent {
+  padding: 2px 7px;
+  border-radius: var(--nt-r-pill);
+  background: color-mix(in srgb, var(--nt-error) 10%, var(--nt-canvas));
+  color: var(--nt-error) !important;
+  font-weight: 700;
+}
+.lms-task.is-overdue,
+.lms-task.is-today {
+  background: color-mix(in srgb, var(--nt-error) 8%, var(--nt-canvas));
+  box-shadow: inset 3px 0 0 var(--nt-error);
+}
+.lms-task.is-soon {
+  background: color-mix(in srgb, var(--nt-error) 5%, var(--nt-canvas));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--nt-error) 55%, var(--nt-canvas));
+}
+.lms-dday {
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--nt-r-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.lms-dday.is-overdue,
+.lms-dday.is-today {
+  background: var(--nt-error);
+  color: var(--nt-on-dark);
+}
+.lms-dday.is-soon {
+  border: 1px solid color-mix(in srgb, var(--nt-error) 30%, var(--nt-canvas));
+  background: color-mix(in srgb, var(--nt-error) 12%, var(--nt-canvas));
+  color: var(--nt-error);
+}
+.lms-task-course {
+  font-weight: 600;
+  color: var(--nt-slate);
+}
+.lms-due-alert {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--nt-r-sm);
+  background: color-mix(in srgb, var(--nt-error) 8%, var(--nt-canvas));
+  border-left: 3px solid var(--nt-error);
+  color: var(--nt-error);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.lms-match-info {
+  margin: 14px 0 0;
+  border-color: var(--nt-hairline);
+  background: var(--nt-surface-soft);
+}
+.lms-match-info.has-pending {
+  border-left: 3px solid var(--nt-navy-mid);
+}
+.lms-match-info > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.lms-match-info > summary::-webkit-details-marker {
+  display: none;
+}
+.lms-match-info[open] > summary {
+  margin-bottom: 8px;
+}
+.lms-match-summary {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.lms-match-summary b {
+  font-size: 14px;
+}
+.lms-match-summary small {
+  color: var(--nt-stone);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.lms-match-toggle {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-pill);
+  background: var(--nt-canvas);
+  color: var(--nt-slate);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lms-match-info .meta {
+  margin: 6px 0 0;
+}
+@media (max-width: 767px) {
+  .lms-course-stat {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .lms-course-stat .progress-track {
+    width: 80px;
+  }
+  .lms-match-info > summary {
+    align-items: flex-start;
+  }
+}

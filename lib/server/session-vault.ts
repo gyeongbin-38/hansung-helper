@@ -17,7 +17,7 @@ type VaultRow = {
   key_version: number;
   created_at: number;
   expires_at: number;
-  app_session_hash: string;
+  app_session_hash: string | null;
 };
 
 export type SchoolSessionStatus = {
@@ -80,7 +80,10 @@ export async function saveSchoolSession(
          expires_at = excluded.expires_at,
          last_used_at = NULL,
          app_session_hash = excluded.app_session_hash
-       WHERE excluded.created_at >= school_session_vault.created_at
+       WHERE (
+           school_session_vault.app_session_hash IS NULL
+           OR excluded.created_at >= school_session_vault.created_at
+         )
          AND EXISTS (
            SELECT 1 FROM academic_sessions
            WHERE token_hash = ? AND account_id = ? AND expires_at > ?
@@ -116,14 +119,16 @@ export async function loadSchoolSession(
     .prepare(
       `SELECT ciphertext, key_version, created_at, expires_at, app_session_hash
        FROM school_session_vault
-       WHERE account_id = ? AND EXISTS (
+       WHERE account_id = ? AND app_session_hash IS NOT NULL AND EXISTS (
          SELECT 1 FROM academic_sessions
          WHERE token_hash = ? AND account_id = ? AND expires_at > ?
        )`,
     )
     .bind(accountId, appSessionHash, accountId, Date.now())
     .first<VaultRow>();
-  if (!row) return null;
+  // 0003 이전 행은 어떤 앱 세션이 만들었는지 증명할 수 없다. 쿠키를
+  // 재사용하지 않고 다음 비밀번호 인증이 안전하게 교체하도록 둔다.
+  if (!row?.app_session_hash) return null;
   if (row.expires_at <= Date.now()) {
     await db
       .prepare(
@@ -191,7 +196,10 @@ export async function schoolSessionStatus(
   if (!secret())
     return { configured: false, available: false, expiresAt: null };
   const row = await database()
-    .prepare('SELECT expires_at FROM school_session_vault WHERE account_id = ?')
+    .prepare(
+      `SELECT expires_at FROM school_session_vault
+       WHERE account_id = ? AND app_session_hash IS NOT NULL`,
+    )
     .bind(accountId)
     .first<{ expires_at: number }>();
   const expiresAt = row?.expires_at ?? null;
@@ -210,7 +218,9 @@ export async function deleteSchoolSession(
   if (!secret()) return;
   await database()
     .prepare(
-      'DELETE FROM school_session_vault WHERE account_id = ? AND app_session_hash = ?',
+      `DELETE FROM school_session_vault
+       WHERE account_id = ?
+         AND (app_session_hash = ? OR app_session_hash IS NULL)`,
     )
     .bind(accountId, appSessionHash)
     .run();

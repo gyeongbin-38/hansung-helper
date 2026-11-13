@@ -65,6 +65,16 @@ export async function POST(request: Request) {
     });
     input.password = '';
     await migrateLegacyStudentAccount(id, legacyId, { hash: account.session_hash, accountId: account.id });
+    if (session.hasCookies()) {
+      try {
+        await saveSchoolSession(id, session.exportCookies(), {
+          sessionHash: account.session_hash,
+          issuedAt: schoolSessionIssuedAt,
+        });
+      } catch {
+        console.log('[vault] save failed');
+      }
+    }
     if (deferredCollect) snapshot.lmsPending = true;
     if (deferredInfo) snapshot.infoPending = true;
     // 이번 수집이 실패/진행 중이면 이전 수집본을 보존한다.

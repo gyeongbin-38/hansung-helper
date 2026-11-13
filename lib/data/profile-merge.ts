@@ -3,7 +3,7 @@ import type { Data } from '../../app/sections/data';
 /** 3-way 프로필 병합 — 다른 기기가 먼저 저장해 409가 났을 때
  *  base(내가 마지막으로 동기화한 상태) 대비 local(내 변경)과
  *  remote(서버의 현재 상태)를 필드별로 병합한다.
- *  - 배열 필드는 집합 병합: 양쪽 추가분을 합치고 삭제는 local 삭제분만
+ *  - 설문은 문항 위치별 병합. 그 외 배열 필드는 집합 병합: 양쪽 추가분을 합치고 삭제는 local 삭제분만
  *    반영(remote도 지운 항목은 어차피 remote에 없다)
  *  - 레코드 필드는 키 단위 3-way: local이 추가·변경한 키는 local 값,
  *    local이 지운 키는 삭제, 나머지는 remote
@@ -41,6 +41,11 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
     return out;
   };
   const scalar = <T>(b: T, l: T, r: T): T => (l !== b ? l : r);
+  // 답변에는 같은 선택지와 빈 문항이 반복된다. 집합으로 합치면 순서가 바뀐다.
+  const answers = (b: string[] = [], l: string[] = [], r: string[] = []) =>
+    Array.from({ length: Math.max(b.length, l.length, r.length) }, (_, i) =>
+      scalar(b[i] ?? '', l[i] ?? '', r[i] ?? ''),
+    );
   const semesterPlans = recMerge(base.semesterPlans, local.semesterPlans, remote.semesterPlans);
   for (const [key, localPlan] of Object.entries(local.semesterPlans ?? {})) {
     const basePlan = base.semesterPlans?.[key];
@@ -96,19 +101,10 @@ export function mergeProfile(base: Data, local: Data, remote: Data): Data {
       remote.events,
       (x) => `${x.title}|${x.date}`,
     ),
-    prefs: setMerge(base.prefs, local.prefs, remote.prefs, (x) => x),
-    actPrefs: setMerge(
-      base.actPrefs ?? [],
-      local.actPrefs ?? [],
-      remote.actPrefs ?? [],
-      (x) => x,
-    ),
-    painPrefs: setMerge(
-      base.painPrefs ?? [],
-      local.painPrefs ?? [],
-      remote.painPrefs ?? [],
-      (x) => x,
-    ),
+    prefs: answers(base.prefs, local.prefs, remote.prefs),
+    actPrefs: answers(base.actPrefs, local.actPrefs, remote.actPrefs),
+    painPrefs: answers(base.painPrefs, local.painPrefs, remote.painPrefs),
+    surveyStatus: scalar(base.surveyStatus, local.surveyStatus, remote.surveyStatus),
     actStatus: recMerge(base.actStatus, local.actStatus, remote.actStatus),
     extActivities: setMerge(
       base.extActivities ?? [],

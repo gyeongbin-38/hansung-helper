@@ -8,6 +8,7 @@ import {
   Layers,
   BookOpen,
   MonitorPlay,
+  ClipboardList,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -15,14 +16,15 @@ import type { ExtActivity } from '@/lib/data/activities';
 /* 사이드바 순서 — chrome.tsx NAV_GROUP_AT의 캡션 경계와 맞춘다 */
 export const menus = [
   ['home', '홈', Home],
-  ['graduation', '졸업 요건', GraduationCap],
   ['lms', '수업·과제', MonitorPlay],
-  ['timetable', '시간표 짜기', LayoutGrid],
+  ['graduation', '졸업 요건', GraduationCap],
   ['semester-plan', '학기별 계획', Layers],
+  ['timetable', '시간표 짜기', LayoutGrid],
   ['courses', '과목 추천', BookOpen],
   ['activities', '비교과·대외활동', Compass],
   ['calendar', '학사일정', CalendarDays],
   ['advisor', 'AI 학사 도우미', Sparkles],
+  ['survey', '설문조사', ClipboardList],
 ] as const;
 export type Completed = {
   code: string;
@@ -52,6 +54,8 @@ export type Data = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 (ACT_QUESTIONS 순서) */
   actPrefs?: string[];
+  /** 첫 설문 안내와 중단·완료 상태. 기존 답변 배열과 별도로 보관한다. */
+  surveyStatus?: 'in-progress' | 'completed' | 'skipped';
   /** 학습 고민(페인포인트) 설문 답변 (PAIN_QUESTIONS 순서) — 홈에서 한 번 제안한다 */
   painPrefs?: string[];
   /** 온보딩에서 저장한 학기 계획과 진행 상태 */
@@ -120,7 +124,7 @@ export const questions = [
   ['어떤 학기 구성을 원하나요?', '공강일 확보', '고른 배치', '상관없음'],
 ];
 
-/** 비교과·대외활동 취향 설문 — activities 섹션 전용 */
+/** 비교과·대외활동 취향 설문 — 독립 설문 페이지에서 수업 설문과 함께 사용 */
 export const ACT_QUESTIONS = [
   [
     '비교과 활동의 목표는 무엇인가요?',

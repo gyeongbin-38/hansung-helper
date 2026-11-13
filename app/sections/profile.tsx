@@ -14,17 +14,12 @@ export function ProfileSection({
   data,
   account,
   persist,
-  onOpenSurvey,
-  onOpenActSurvey,
   focus,
   go,
 }: {
   data: Data;
   account: Account | null;
   persist: (next: Data, msg?: string) => Promise<boolean>;
-  onOpenSurvey: () => void;
-  /** 비교과 취향 설문을 연다 */
-  onOpenActSurvey?: () => void;
   /** 홈 CTA 등에서 넘긴 필드명 — 해당 입력으로 포커스+안내 표시 */
   focus?: string;
   go: (route: string) => void;
@@ -134,18 +129,13 @@ export function ProfileSection({
       <h3>나의 활동 기록</h3>
       <p>
         저장한 활동 {data.saved.length}개 · 계획한 과목 {data.planned.length}개
-        · 수업 선호 {data.prefs.length ? '설정 완료' : '미설정'}
-        · 비교과 선호 {(data.actPrefs ?? []).length ? '설정 완료' : '미설정'}
+        · 수업 선호 {data.prefs.some(Boolean) ? '설정 완료' : '미설정'}
+        · 비교과 선호 {(data.actPrefs ?? []).some(Boolean) ? '설정 완료' : '미설정'}
       </p>
       <div className="actions">
-        <button className="secondary" onClick={onOpenSurvey}>
-          수업 선호 설정
+        <button className="secondary" onClick={() => go('survey')}>
+          나의 설문 답변 {data.prefs.some(Boolean) || data.actPrefs?.some(Boolean) ? '확인·수정' : '시작하기'}
         </button>
-        {onOpenActSurvey && (
-          <button className="secondary" onClick={onOpenActSurvey}>
-            비교과 취향 설정
-          </button>
-        )}
       </div>
     </section>
   );

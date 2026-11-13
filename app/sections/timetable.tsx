@@ -301,7 +301,6 @@ export function Timetable({
   onSaveScenario,
   onLoadScenario,
   onDeleteScenario,
-  onOpenSurvey,
 }: {
   catalog: Catalog | null;
   failed?: boolean;
@@ -315,7 +314,6 @@ export function Timetable({
   onSaveScenario: (key: string) => Promise<boolean>;
   onLoadScenario: (key: string) => Promise<boolean>;
   onDeleteScenario: (key: string) => Promise<boolean>;
-  onOpenSurvey: () => void;
 }) {
   const [q, setQ] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -987,9 +985,6 @@ export function Timetable({
                 <h3>
                   <Sparkles size={17} aria-hidden="true" /> 맞춤 추천
                 </h3>
-                <button type="button" className="link" onClick={onOpenSurvey}>
-                  수업 선호 설문 {data.prefs.some(Boolean) ? '다시 설정' : '시작하기'}
-                </button>
                 <p className="meta">
                   입력한 이수 내역·학과·선택한 요일·설문 선호와 확인된 시간의 충돌을 반영합니다. 전필의 개인 적용 여부와 미확인 시간은 학교에서 확인해 주세요.
                   {data.prefs.some((p) =>

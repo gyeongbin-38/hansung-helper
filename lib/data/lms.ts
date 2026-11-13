@@ -616,6 +616,8 @@ export type EnrolledMatch = {
   manual?: boolean;
   /** 사용자가 '해당 과목 없음'으로 제외한 과목 — 매칭 경고에서 빠진다 */
   ignored?: boolean;
+  /** 커뮤니티·비교과처럼 정규 수업이 아닌 LMS 항목 — 매칭 경고에서 빠진다 */
+  notCourse?: boolean;
   semesterMismatch?: boolean;
 };
 
@@ -639,6 +641,45 @@ const lmsKey = (title: string) =>
         ' ',
       ),
   );
+
+/** LMS 제목 끝에 붙은 교수명 — 분반 표기 뒤 한글 2~4자만 인정한다.
+ *  서버 수집본처럼 prof 필드가 없어도 카탈로그 이름 비교가 가능해진다. */
+const titleProfessor = (title: string): string => {
+  if (!/\[[^\]]+\]/.test(title)) return '';
+  const tail = title.slice(title.lastIndexOf(']') + 1).trim();
+  return /^[가-힣]{2,4}$/.test(tail) ? tail : '';
+};
+
+/** LMS 과목 본체 키 — 교수명을 뗀 뒤 비교해 '데이터통신'과
+ *  '데이터통신 및 컴퓨터네트워크' 같은 긴 공식 명칭도 연결한다. */
+const lmsBodyKey = (title: string, prof?: string) => {
+  const key = lmsKey(title);
+  const p = normTitle(prof || titleProfessor(title));
+  return p && key.endsWith(p) ? key.slice(0, -p.length) : key;
+};
+
+const DISPLAY_DECOR =
+  /(교과|비교과|커뮤니티|학부|대학원|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g;
+
+/** 화면 표시용 과목명 — 분반 배지와 교수명을 분리하고 장식을 벗긴다. */
+export function courseDisplayName(course: LmsCourse) {
+  const section = course.title.match(/\[([^\]]{1,8})\]/)?.[1]?.trim();
+  let title = course.title
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(DISPLAY_DECOR, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const prof = course.prof || titleProfessor(course.title);
+  if (prof && title.endsWith(prof)) title = title.slice(0, -prof.length).trim();
+  return { title: title || course.title, section, prof };
+}
+
+/** LMS 제목의 분반 표기 '[A,B,N,7]' → 비교 가능한 분반 키 집합 */
+const lmsSectionKeys = (title: string): string[] =>
+  (title.match(/\[([^\]]{1,12})\]/)?.[1] ?? '')
+    .split(',')
+    .map((part) => sectKey(part))
+    .filter(Boolean);
 
 /** LMS 수강 과목 ↔ 개설강의 카탈로그 이름 매칭 — 수강 정보를 지어내지 않고
  *  이름이 일치하는 분반만 반환한다(매칭 없으면 빈 배열).
@@ -683,11 +724,37 @@ export function matchEnrollment(
           manual: true,
         };
     }
-    const key = lmsKey(course.title);
-    if (!key) return { course, sections: [] };
+    if (course.community || /^\s*(커뮤니티|비교과)(\s|$)/.test(course.title))
+      return { course, sections: [], notCourse: true };
+    const body = lmsBodyKey(course.title, course.prof);
+    if (!body) return { course, sections: [] };
+    const profKey = normTitle(course.prof || titleProfessor(course.title));
     let best = '';
     for (const name of byName.keys()) {
-      if (key.startsWith(name) && name.length > best.length) best = name;
+      if (body.startsWith(name) && name.length > best.length) best = name;
+    }
+    if (!best && body.length >= 4) {
+      for (const name of byName.keys()) {
+        if (name.length > body.length && name.startsWith(body) && (!best || name.length < best.length))
+          best = name;
+      }
+    }
+    if (!best && body.length >= 3) {
+      const sectionsWanted = lmsSectionKeys(course.title);
+      let bestScore = 0;
+      for (const [name, sections] of byName) {
+        if (!name.includes(body)) continue;
+        const profMatch = !!profKey && sections.some((s) => normTitle(s.professor) === profKey);
+        const sectionMatch = sectionsWanted.some((wanted) =>
+          sections.some((s) => sectKey(s.section) === wanted),
+        );
+        const score = (profMatch ? 2 : 0) + (sectionMatch ? 1 : 0);
+        if (!score || (profKey ? !profMatch : !sectionMatch)) continue;
+        if (score > bestScore || (score === bestScore && name.length < best.length)) {
+          best = name;
+          bestScore = score;
+        }
+      }
     }
     return { course, sections: best ? byName.get(best)! : [] };
   });
@@ -774,12 +841,9 @@ export function suggestMatchCandidates(
   catalog: Catalog,
   limit = 5,
 ): MatchCandidate[] {
-  const key = lmsKey(course.title);
-  if (!key) return [];
-  const profKey = course.prof ? normTitle(course.prof) : '';
-  // LMS 제목 끝에 붙는 교수명을 떼면 과목 본체가 남는다
-  const body = profKey ? key.replace(profKey, '') : key;
+  const body = lmsBodyKey(course.title, course.prof);
   if (!body) return [];
+  const profKey = normTitle(course.prof || titleProfessor(course.title));
   const lmsSect = sectKey(course.title.match(/\[([^\]]{1,4})\]/)?.[1]);
   const byCode = new Map<string, MatchCandidate>();
   for (const s of catalog.sections) {

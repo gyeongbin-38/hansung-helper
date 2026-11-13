@@ -86,7 +86,6 @@ export function Activities({
   setActStage,
   addExtActivity,
   removeExtActivity,
-  onSurvey,
 }: {
   detail: string | undefined;
   filter: string;
@@ -101,8 +100,6 @@ export function Activities({
   /** hsportal 외 외부 활동 직접 등록 */
   addExtActivity: (fields: Omit<ExtActivity, 'id' | 'addedAt'>) => string;
   removeExtActivity: (id: string) => void;
-  /** 비교과 취향 설문 다이얼로그를 연다 */
-  onSurvey: () => void;
 }) {
   const { snap, failed, retry } = useActivities();
   const now = useNow(30000);
@@ -137,9 +134,6 @@ export function Activities({
         </small>
       </div>
       <div className="act-band-actions">
-        <button className="secondary" onClick={onSurvey}>
-          {hasActPrefs ? '취향 설문 다시하기' : '비교과 취향 설문'}
-        </button>
         <button className="secondary" onClick={() => go('graduation')}>
           졸업요건에서 확인
         </button>
@@ -574,13 +568,11 @@ export function Activities({
       ) : filter === '추천' && !hasActPrefs ? (
         <div className="card empty-small">
           <Search />
-          <h3>비교과 취향 설문을 하면 맞춤 추천이 생겨요.</h3>
-          <p>목표·활동 유형·일정 취향을 5문항으로 알려주세요.</p>
-          <p className="empty-actions">
-            <button className="primary" onClick={onSurvey}>
-              비교과 설문 시작하기
-            </button>
-          </p>
+          <h3>아직 설정한 비교과 취향이 없어요.</h3>
+          <p>전체 활동을 둘러보세요. 취향은 내 정보의 설문 페이지에서 설정할 수 있어요.</p>
+          <button className="secondary" onClick={() => setFilter('전체')}>
+            전체 활동 보기
+          </button>
         </div>
       ) : shown.length ? (
         <>

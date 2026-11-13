@@ -109,6 +109,12 @@ export async function PUT(request: Request) {
     // 구버전 클라이언트가 새 필드를 보내지 않아도 저장된 설정을 지우지 않는다.
     let storedProfile: Record<string, unknown> = {};
     try { storedProfile = JSON.parse(row.profile); } catch { /* 기존 손상 값 무시 */ }
+    const surveyStatuses = ['in-progress', 'completed', 'skipped'];
+    if (input.surveyStatus !== undefined && !surveyStatuses.includes(input.surveyStatus))
+      return json({ error: '설문 진행 상태를 확인해 주세요.' }, 400);
+    const surveyStatus = input.surveyStatus ?? storedProfile?.surveyStatus;
+    if (typeof surveyStatus === 'string' && surveyStatuses.includes(surveyStatus))
+      profile.surveyStatus = surveyStatus;
     const admissionTypes = ['unknown', 'freshman', 'general-transfer', 'bachelor-transfer'];
     if (input.admissionType !== undefined && !admissionTypes.includes(input.admissionType))
       return json({ error: '입학 구분을 확인해 주세요.' }, 400);

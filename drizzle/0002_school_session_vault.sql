@@ -4,8 +4,7 @@ CREATE TABLE IF NOT EXISTS school_session_vault (
  key_version INTEGER NOT NULL DEFAULT 1,
  created_at INTEGER NOT NULL,
  expires_at INTEGER NOT NULL,
- last_used_at INTEGER,
- app_session_hash TEXT NOT NULL
+ last_used_at INTEGER
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_school_session_vault_expiry ON school_session_vault(expires_at);

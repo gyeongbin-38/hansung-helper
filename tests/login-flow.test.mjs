@@ -11,6 +11,7 @@ const sql = new DatabaseSync(':memory:');
 sql.exec('PRAGMA foreign_keys=ON');
 sql.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));
 sql.exec(await readFile('drizzle/0002_school_session_vault.sql', 'utf8'));
+sql.exec(await readFile('drizzle/0003_school_session_vault_owner.sql', 'utf8'));
 const d1 = {
   prepare(query) {
     let args = [];

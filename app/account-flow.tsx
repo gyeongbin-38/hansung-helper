@@ -27,6 +27,7 @@ export type Profile = {
   prefs: string[];
   /** 비교과·대외활동 취향 설문 답변 */
   actPrefs?: string[];
+  surveyStatus?: 'in-progress' | 'completed' | 'skipped';
   /** 학습 고민 설문 답변 (PAIN_QUESTIONS 순서) */
   painPrefs?: string[];
   readIds: string[];
