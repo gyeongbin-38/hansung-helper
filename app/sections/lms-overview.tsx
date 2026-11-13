@@ -184,10 +184,14 @@ export function LmsOverview({
   const labels = new Map(
     snap.courses.map((c) => [c.title, courseDisplayName(c).title]),
   );
+  // 제출·기간 확인이 안 된 항목은 긴급 건수에서 제외 — 미완료로 단정하지 않는다.
   const urgentDue = due.filter((t) => {
+    if (t.uncertain || t.rangeUncertain) return false;
     const distance = kstDateNumber(t.dueTs) - kstDateNumber(now);
     return distance <= 2;
   }).length;
+  const staleSnapshot =
+    status === 'failed' || status === 'delayed' || status === 'stale';
   const nextDue = (c: LmsCourse) =>
     Math.min(
       ...pendingTasks({ ...snap, courses: [c] }, before).map(
@@ -512,6 +516,12 @@ export function LmsOverview({
                 전체 보기 <ArrowRight size={13} />
               </a>
             </header>
+            {staleSnapshot && (
+              <p className="study-due-stale">
+                최근 수집이 실패해 이전 상태를 표시 중이에요 — 이미 제출한
+                항목이 남아 있을 수 있습니다.
+              </p>
+            )}
             {urgentDue > 0 && (
               <p className="study-due-alert">
                 긴급 {urgentDue}건 — 3일 안에 마감되거나 이미 기한이 지났습니다.
@@ -520,8 +530,16 @@ export function LmsOverview({
             {due.length ? (
               due.slice(0, 4).map((t, i) => {
                 const d = kstDateNumber(t.dueTs) - kstDateNumber(now);
-                const urgency =
-                  d < 0 ? 'overdue' : d === 0 ? 'today' : d <= 2 ? 'soon' : 'normal';
+                const unverified = !!(t.uncertain || t.rangeUncertain);
+                const urgency = unverified
+                  ? 'normal'
+                  : d < 0
+                    ? 'overdue'
+                    : d === 0
+                      ? 'today'
+                      : d <= 2
+                        ? 'soon'
+                        : 'normal';
                 return (
                   <div className={`study-due-row is-${urgency}`} key={i}>
                     <span
@@ -546,8 +564,16 @@ export function LmsOverview({
                         {t.uncertain || t.rangeUncertain ? ' · 확인 필요' : ''}
                       </small>
                     </div>
-                    <span className={`study-dday is-${urgency}`}>
-                      {d < 0 ? '기한 지남' : d === 0 ? '오늘' : `D-${d}`}
+                    <span
+                      className={`study-dday is-${unverified ? 'check' : urgency}`}
+                    >
+                      {unverified
+                        ? '확인 필요'
+                        : d < 0
+                          ? '기한 지남'
+                          : d === 0
+                            ? '오늘'
+                            : `D-${d}`}
                     </span>
                   </div>
                 );
