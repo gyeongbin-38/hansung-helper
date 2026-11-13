@@ -59,6 +59,7 @@ const KINDS = {
   schedule: 'schedule.json',
   'dept-rules': 'dept-rules.json',
   'dept-pages': 'dept-pages.json',
+  equivalents: 'equivalents.json',
 };
 const onlyArg = process.argv.find((arg) => arg.startsWith('--only='));
 const excludeArg = process.argv.find((arg) => arg.startsWith('--exclude='));
@@ -77,6 +78,7 @@ const SHAPE = {
   schedule: (j) => Array.isArray(j.items),
   'dept-rules': (j) => Array.isArray(j.items),
   'dept-pages': (j) => Array.isArray(j.pages),
+  equivalents: (j) => j.groups && typeof j.groups === 'object' && !Array.isArray(j.groups) && typeof j.rowCount === 'number',
 };
 
 const esc = (s) => s.replace(/'/g, "''");
@@ -116,6 +118,8 @@ for (const [kind, file] of Object.entries(KINDS)) {
   if (!fetchedAt || Number.isNaN(Date.parse(fetchedAt)))
     throw new Error(`${file}: fetchedAt/generatedAt이 없거나 올바르지 않습니다`);
   if ((kind === 'activities' || kind === 'schedule' || kind === 'dept-rules' || kind === 'dept-pages') && (json.items ?? json.pages ?? []).length === 0)
+    throw new Error(`${file}: 비어 있는 스냅샷은 게시하지 않습니다`);
+  if (kind === 'equivalents' && Object.keys(json.groups ?? {}).length === 0)
     throw new Error(`${file}: 비어 있는 스냅샷은 게시하지 않습니다`);
   const chunkList = [...chunksOf(raw)];
   const parts = chunkList.length;

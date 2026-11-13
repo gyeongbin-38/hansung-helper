@@ -111,7 +111,12 @@ function pickField(json: Record<string, unknown>, kind: 'url' | 'token') {
   return undefined;
 }
 
-type BridgeResult = { html: string | null; sawWall: boolean };
+type BridgeResult = {
+  html: string | null;
+  sawWall: boolean;
+  /** 실패한 단계 — direct/token/login/fetch. 진단 로그용. */
+  stage: 'direct' | 'token' | 'login' | 'fetch';
+};
 
 /** LMS 세션으로 포털 로그인을 연동하고 포인트 페이지를 가져온다.
  *  성공 시 해당 HTML, 실패 시 null을 반환한다(진단은 호출자가 기록).
@@ -135,7 +140,7 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
   // ① 이미 포털 로그인이 살아 있으면 브리지 불필요
   const direct = await get(PORTAL + POINT_PATH);
   const sawWall = !!direct && isPortalLoginWall(direct);
-  if (direct && !sawWall) return { html: direct, sawWall };
+  if (direct && !sawWall) return { html: direct, sawWall, stage: 'direct' };
 
   // ② 연동 토큰 획득 — getCoursemosUrl(type=session) 또는
   //    syncCoursemosLms가 LMS 동기화 URL을 돌려준다.
@@ -162,12 +167,16 @@ async function bridgeAndFetch(session: PortalSession): Promise<BridgeResult> {
       }
     }
   }
-  if (!token) return { html: null, sawWall };
+  if (!token) return { html: null, sawWall, stage: 'token' };
   // ④ 토큰으로 포털 세션 수립 후 포인트 페이지를 다시 가져온다.
   const login = await post(`${PROCESS}/syncCoursemosLmsLogin`, { token });
-  if (!login || login.success !== true) return { html: null, sawWall };
+  if (!login || login.success !== true) return { html: null, sawWall, stage: 'login' };
   const html = await get(PORTAL + POINT_PATH);
-  return { html, sawWall: sawWall || (!!html && isPortalLoginWall(html)) };
+  return {
+    html,
+    sawWall: sawWall || (!!html && isPortalLoginWall(html)),
+    stage: 'fetch',
+  };
 }
 
 /** 종합정보 스냅샷에 포털 포인트를 병합한다.
@@ -185,9 +194,18 @@ export async function fillPortalPoints(
   try {
     result = await bridgeAndFetch(session);
   } catch {
-    result = { html: null, sawWall: false };
+    result = { html: null, sawWall: false, stage: 'direct' };
   }
   const html = result.html;
+  const points = html ? parsePortalPoints(html) : null;
+  console.log(
+    '[info] portal-points:',
+    JSON.stringify({
+      stage: result.stage,
+      wall: result.sawWall || points === 'wall',
+      points: typeof points === 'number' ? points : 'none',
+    }),
+  );
   if (!html) {
     snap.diag.pages.push({
       slot: 'points',
@@ -198,7 +216,6 @@ export async function fillPortalPoints(
     });
     return true;
   }
-  const points = parsePortalPoints(html);
   if (points === 'wall') {
     snap.diag.pages.push({
       slot: 'points',
