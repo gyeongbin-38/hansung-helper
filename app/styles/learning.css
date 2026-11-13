@@ -3656,6 +3656,155 @@ input[aria-invalid='true'] {
   }
 }
 
+/* ---------- timetable quick plans + recommendation controls ---------- */
+.plan-comparison {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, var(--nt-canvas), var(--nt-tint-sky));
+}
+.plan-comparison-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.plan-comparison-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.plan-comparison-head p {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+.plan-current-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: var(--nt-r-md);
+  background: var(--nt-canvas);
+  color: var(--nt-slate);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.plan-current-summary b {
+  color: var(--nt-primary);
+}
+.plan-comparison .plan-slots {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.plan-comparison .plan-slot {
+  gap: 5px;
+  min-height: 92px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--nt-canvas) 92%, transparent);
+}
+.plan-comparison .plan-slot.empty {
+  min-height: 76px;
+  align-content: space-between;
+  background: color-mix(in srgb, var(--nt-canvas) 70%, transparent);
+}
+.plan-slot-state {
+  color: var(--nt-stone);
+  font-size: 11px;
+}
+.plan-comparison .plan-slot-actions {
+  gap: 6px;
+  margin-top: auto;
+}
+.plan-comparison .plan-slot-actions .secondary {
+  padding: 4px 9px;
+}
+.builder-recs {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.rec-avoid-days {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--nt-purple) 28%, var(--nt-hairline));
+  border-radius: var(--nt-r-md);
+  background: color-mix(in srgb, var(--nt-purple) 7%, var(--nt-canvas));
+}
+.rec-avoid-days-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rec-avoid-days-head .rec-condition-label {
+  color: var(--nt-purple);
+}
+.rec-avoid-days-head small {
+  color: var(--nt-stone);
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+.rec-avoid-days .rec-day-buttons {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(24px, 1fr));
+  gap: 4px;
+}
+.rec-avoid-days .rec-day-buttons button {
+  width: 100%;
+  height: 30px;
+  border-radius: var(--nt-r-sm);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.rec-avoid-days .rec-day-buttons button:hover {
+  border-color: var(--nt-purple);
+}
+.rec-reasons {
+  gap: 3px;
+  margin-top: 5px;
+}
+.rec-reasons .badge {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+@container (max-width: 1250px) {
+  .builder-recs {
+    max-height: min(600px, 70vh);
+  }
+}
+@container (max-width: 760px) {
+  .plan-comparison-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .plan-current-summary {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .plan-comparison .plan-slots {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+  .plan-comparison .plan-slot {
+    flex: 0 0 min(250px, 82vw);
+    scroll-snap-align: start;
+  }
+  .builder-recs {
+    max-height: min(540px, 68vh);
+  }
+}
+
 /* ---------- COSMOS 수업 현황 ---------- */
 .lms-steps {
   margin: 14px 0 0;

@@ -55,6 +55,12 @@ import { useSlowLoading } from './use-slow-loading';
 import { DEMO_STORAGE_KEY } from '@/lib/data/demo-storage';
 import { shouldAutoRefreshSchool } from '@/lib/data/freshness';
 
+function normalizeAdvisorRoute(route: string) {
+  if (!route.startsWith('advisor/')) return route;
+  const activity = route.slice('advisor/'.length);
+  return activity === 'activities' ? 'activities/apply' : `activities/apply/${activity}`;
+}
+
 /** 종합정보 수집 스냅샷을 Data에 반영 — 빈칸 프로필 필드만 채우고
  *  사용자 입력값은 절대 덮어쓰지 않는다. */
 function applyInfo(prev: Data, info: InfoSnapshot): Data {
@@ -185,7 +191,12 @@ export default function App() {
       .finally(() => {
         if (active) setReady(true);
       });
-    const sync = () => setRoute(location.hash.slice(1) || 'home');
+    const sync = () => {
+      const requested = location.hash.slice(1) || 'home';
+      const next = normalizeAdvisorRoute(requested);
+      if (next !== requested) history.replaceState(null, '', `${location.pathname}${location.search}#${next}`);
+      setRoute(next);
+    };
     sync();
     addEventListener('hashchange', sync);
     try {
@@ -710,8 +721,9 @@ export default function App() {
     }
   }
   function go(r: string) {
-    location.hash = r;
-    setRoute(r);
+    const next = normalizeAdvisorRoute(r);
+    location.hash = next;
+    setRoute(next);
     setDrawer(false);
     scrollTo(0, 0);
   }
@@ -887,7 +899,7 @@ export default function App() {
     (n) => !(data.readIds ?? []).includes(n.id),
   ).length;
   const label =
-    menus.find((m) => m[0] === section)?.[1] ||
+    (section === 'activities' && detail === 'apply' ? 'AI와 신청하기' : menus.find((m) => m[0] === section)?.[1]) ||
     (
       {
         profile: '내 정보',
@@ -1054,7 +1066,28 @@ export default function App() {
               onPainSurvey={openPainSurvey}
             />
           ) : section === 'activities' ? (
-            <Activities
+            detail === 'apply' ? <Advisor
+              key={`${renderedGeneration}:activity:${route.split('/')[2] ?? ''}`}
+              purpose="activity"
+              activityId={route.split('/')[2]}
+              signedIn={!!account}
+              onSchoolAccount={(result) => {
+                if (renderedGeneration !== accountGeneration.current || !accountRef.current) return;
+                setAccount(result);
+                const info = validateInfo(result.snapshot?.infoData);
+                if (info) setData(previous => applyInfo(previous, info));
+              }}
+              onSignIn={() => {
+                signInReturnRoute.current = route;
+                accountGeneration.current += 1;
+                setPainSurvey(false);
+                setDemo(false);
+                setData(empty);
+              }}
+              data={data}
+              catalog={catalog}
+              go={go}
+            /> : <Activities
               detail={detail}
               filter={filter}
               setFilter={setFilter}
@@ -1151,8 +1184,8 @@ export default function App() {
             />
           ) : section === 'advisor' ? (
             <Advisor
-              key={`${renderedGeneration}:${detail ?? ''}`}
-              activityId={detail}
+              key={`${renderedGeneration}:service`}
+              purpose="service"
               signedIn={!!account}
               onSchoolAccount={(result) => {
                 if (renderedGeneration !== accountGeneration.current || !accountRef.current) return;

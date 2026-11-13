@@ -127,9 +127,9 @@ export function GraduationMetricDetails({ className, icon, title, result, known,
   const schoolCount = courses.filter(course => course.src === 'info').length;
   const recent = [...courses].sort((a, b) => (b.semester ?? '').localeCompare(a.semester ?? '')).slice(0, 6);
   const progress = known ? targetProgress(result.earned, result.required) : null;
-  return <details className={`${className} gm-details gm-tone-${tone}`}>
+  return <details name="gm-metric" className={`${className} gm-details gm-tone-${tone}`}>
     <summary>
-      <div className="graduation-metric-heading"><h3>{icon}{title}</h3><ResultBadge result={result} known={known} /></div>
+      <div className="graduation-metric-heading"><h3>{icon}{title}</h3><span className="gm-toggle" aria-hidden="true"><ChevronDown size={20} /></span></div>
       <strong>{value}</strong>
       <div className="graduation-summary-meta">
         {progress ? <small>{progress.percent}% {isPoints ? '적립' : '이수'}{progress.remaining > 0 ? ` · ${progress.remaining}${unit} 남음` : ' · 기준 도달'}</small>
@@ -137,7 +137,6 @@ export function GraduationMetricDetails({ className, icon, title, result, known,
       </div>
       <Ratio result={result} known={known} admissionMissing={admission === 'unknown'} />
       {foot}
-      <span className="graduation-metric-toggle"><span className="gm-toggle-closed">상세 보기</span><span className="gm-toggle-open">접기</span><ChevronDown size={16} /></span>
     </summary>
     <div className="graduation-metric-breakdown">
       <div className="gm-visual">
@@ -164,7 +163,7 @@ export function GraduationMetricDetails({ className, icon, title, result, known,
         </div>
         {recent.length > 0 && <div className="gm-course-chips">
           <span className="gm-chips-title">최근 반영 과목 <small>학교 수집 {schoolCount} · 직접 입력 {courses.length - schoolCount}{sourceDate ? ` · ${sourceDate} 기준` : ''}</small></span>
-          <ul>{recent.map(course => <li key={`${course.src}:${course.code}:${course.name}:${course.semester ?? ''}`} className={`gm-tone-border-${groupTone(course.category)}`}>
+          <ul>{recent.map(course => <li key={`${course.src}:${course.code}:${course.name}:${course.semester ?? ''}`}>
             <b>{course.name}</b><small>{categoryLabel(course.category)} · {course.credits}학점{course.grade ? ` · ${course.grade}` : ''}</small>
           </li>)}</ul>
           {courses.length > recent.length && <small className="gm-more">외 {courses.length - recent.length}과목</small>}

@@ -40,7 +40,7 @@ export type StudyStatus =
 const STATUS: Record<StudyStatus, string> = {
   syncing: '수집 중',
   login: '로그인 필요',
-  failed: '수집 실패',
+  failed: '업데이트 필요',
   delayed: '수집 지연',
   setup: '연결 전',
   stale: '업데이트 필요',
@@ -190,8 +190,12 @@ export function LmsOverview({
     const distance = kstDateNumber(t.dueTs) - kstDateNumber(now);
     return distance <= 2;
   }).length;
-  const staleSnapshot =
-    status === 'failed' || status === 'delayed' || status === 'stale';
+  const pendingOf = (c: LmsCourse) =>
+    pendingTasks({ ...snap, courses: [c] }, before).sort(
+      (a, b) => (parseDue(a.due) ?? Infinity) - (parseDue(b.due) ?? Infinity),
+    );
+  const kindMatches = (kind: string) =>
+    filter === 'lecture' ? kind === '강의' : filter === 'task' ? kind !== '강의' : true;
   const nextDue = (c: LmsCourse) =>
     Math.min(
       ...pendingTasks({ ...snap, courses: [c] }, before).map(
@@ -200,12 +204,8 @@ export function LmsOverview({
       Infinity,
     );
   const filtered = courses
-    .filter((c) =>
-      filter === 'lecture'
-        ? c.vods.length > 0
-        : filter === 'task'
-          ? c.assigns.length + c.quizzes.length > 0
-          : true,
+    .filter(
+      (c) => filter === 'all' || pendingOf(c).some((t) => kindMatches(t.kind)),
     )
     .sort((a, b) =>
       sort === 'name'
@@ -359,14 +359,7 @@ export function LmsOverview({
             <div className="study-course-list">
               {displayed.map((c) => {
                 const p = courseProgress(c);
-                const items = pendingTasks(
-                  { ...snap, courses: [c] },
-                  before,
-                ).sort(
-                  (a, b) =>
-                    (parseDue(a.due) ?? Infinity) -
-                    (parseDue(b.due) ?? Infinity),
-                );
+                const items = pendingOf(c).filter((t) => kindMatches(t.kind));
                 const disp = courseDisplayName(c);
                 const percent = p.total
                   ? Math.round((p.done / p.total) * 100)
@@ -516,12 +509,6 @@ export function LmsOverview({
                 전체 보기 <ArrowRight size={13} />
               </a>
             </header>
-            {staleSnapshot && (
-              <p className="study-due-stale">
-                최근 수집이 실패해 이전 상태를 표시 중이에요 — 이미 제출한
-                항목이 남아 있을 수 있습니다.
-              </p>
-            )}
             {urgentDue > 0 && (
               <p className="study-due-alert">
                 긴급 {urgentDue}건 — 3일 안에 마감되거나 이미 기한이 지났습니다.
@@ -559,10 +546,7 @@ export function LmsOverview({
                         <b>{t.title}</b>
                       )}
                       <small>{labels.get(t.course) ?? t.course}</small>
-                      <small>
-                        {shortDate(t.dueTs)}
-                        {t.uncertain || t.rangeUncertain ? ' · 확인 필요' : ''}
-                      </small>
+                      <small>{shortDate(t.dueTs)}</small>
                     </div>
                     <span
                       className={`study-dday is-${unverified ? 'check' : urgency}`}

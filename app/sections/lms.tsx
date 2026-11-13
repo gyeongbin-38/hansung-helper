@@ -1,7 +1,6 @@
 'use client';
 import {
   ArrowUpRight,
-  CircleAlert,
   Copy,
   Download,
   MonitorPlay,
@@ -505,7 +504,6 @@ export function LmsSection({
     !!c.errors?.length || c.vods.some(v => v.uncertain || lectureRangeStatus(c, v).rangeUncertain) ||
     [...c.assigns, ...c.quizzes].some(t => t.uncertain),
   ) ?? [];
-  const collectionIssues = coursesNeedingCheck.length;
   const issueCount = new Set([
     ...matchPending.map(m => m.course.id),
     ...coursesNeedingCheck.map(c => c.id),
@@ -566,12 +564,9 @@ export function LmsSection({
       onDelete={async () => await persist({ ...data, lms: undefined }, '수업 현황을 삭제했습니다.')}
       err={err} />
   </LmsConnectionSummary> : null;
-  const attention = snap && (issueCount > 0 || band !== 'fresh' || matchManual.length > 0 || matchIgnored.length > 0) ? <details className="study-attention" key={band} open={band === 'failed' || band === 'login'}>
-    <summary><CircleAlert size={17} /> 확인 필요 <span>{issueCount ? `${issueCount}과목` : '수집 상태'}</span></summary>
-    {collectionIssues > 0 && <p>{collectionIssues}과목의 일부 항목을 확인하지 못했어요. 이전 수집값이 포함될 수 있어요.</p>}
-    {band !== 'fresh' && <p>{band === 'syncing' ? '수집 중이에요. 완료되면 자동으로 반영돼요.' : band === 'login' ? 'COSMOS에 직접 로그인한 뒤 다시 수집해 주세요.' : band === 'failed' ? '수집에 실패해 이전 결과를 표시해요.' : band === 'delayed' ? '수집이 지연되고 있어요. 이전 결과를 표시해요.' : '수집값이 오래됐어요. 연결 관리에서 새로고침해 주세요.'}{lastError ? ` ${lastError}` : ''}</p>}
-    {catalog && (matchPending.length > 0 || matchManual.length > 0 || matchIgnored.length > 0) && <MatchFixer catalog={catalog} data={data} persist={persist} pending={matchPending} manual={matchManual} ignored={matchIgnored} />}
-  </details> : null;
+  const attention = snap && catalog && (matchPending.length > 0 || matchManual.length > 0 || matchIgnored.length > 0)
+    ? <MatchFixer catalog={catalog} data={data} persist={persist} pending={matchPending} manual={matchManual} ignored={matchIgnored} />
+    : null;
 
   return (
     <>
