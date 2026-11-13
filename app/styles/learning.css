@@ -26,7 +26,8 @@
   min-width: 132px;
   padding: 10px 12px;
 }
-.toolbar-side .secondary {
+.toolbar-side .secondary,
+.toolbar-side .primary {
   white-space: nowrap;
   padding: 9px 14px;
   min-height: 0;
@@ -135,13 +136,22 @@
   margin-top: auto;
 }
 .activity .card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--nt-hairline-soft);
 }
 .activity .card-foot .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 0;
   font-size: 13px;
+  white-space: nowrap;
 }
 .activity .icon.saved {
   color: var(--nt-navy);
@@ -2634,7 +2644,8 @@ input[aria-invalid='true'] {
   min-width: 132px;
   padding: 10px 12px;
 }
-.toolbar-side .secondary {
+.toolbar-side .secondary,
+.toolbar-side .primary {
   white-space: nowrap;
   padding: 9px 14px;
   min-height: 0;
@@ -2766,13 +2777,22 @@ input[aria-invalid='true'] {
   margin-top: auto;
 }
 .activity .card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--nt-hairline-soft);
 }
 .activity .card-foot .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 0;
   font-size: 13px;
+  white-space: nowrap;
 }
 .activity .icon.saved {
   color: var(--nt-navy);
@@ -3719,7 +3739,7 @@ input[aria-invalid='true'] {
 .plan-comparison .plan-slot-actions .secondary {
   padding: 4px 9px;
 }
-.builder-recs {
+.builder-recs.card {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
