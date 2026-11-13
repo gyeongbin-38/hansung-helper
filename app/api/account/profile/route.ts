@@ -306,7 +306,7 @@ export async function PUT(request: Request) {
       return json({ error: '시작 설정을 확인해 주세요.' }, 400);
     if (input.setupHistory !== undefined) profile.setupHistory = input.setupHistory;
     if (input.recommendationsSeen !== undefined) profile.recommendationsSeen = input.recommendationsSeen;
-    if (input.planSemester !== undefined && (typeof input.planSemester !== 'string' || !/^(legacy|20\d{2}-[12])$/.test(input.planSemester)))
+    if (input.planSemester !== undefined && (typeof input.planSemester !== 'string' || !/^(legacy|20\d{2}-[1-4])$/.test(input.planSemester)))
       return json({ error: '계획 학기를 확인해 주세요.' }, 400);
     if (input.planSemester !== undefined) profile.planSemester = input.planSemester;
     if (input.semesterPlans !== undefined) {
@@ -315,7 +315,7 @@ export async function PUT(request: Request) {
       for (const [semester, value] of Object.entries(input.semesterPlans)) {
         const entry = value as { sourceSemester?: unknown; planned?: unknown; plans?: unknown } | null;
         const validIds = (ids: unknown) => Array.isArray(ids) && ids.length <= 100 && ids.every((id) => typeof id === 'string' && id.length <= 200);
-        if (!/^20\d{2}-[12]$/.test(semester) || !entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.sourceSemester !== 'string' || !/^20\d{2}-[12]$/.test(entry.sourceSemester) || !validIds(entry.planned) || !entry.plans || typeof entry.plans !== 'object' || Array.isArray(entry.plans) || Object.entries(entry.plans).some(([key, ids]) => !['A', 'B', 'C'].includes(key) || !validIds(ids)))
+        if (!/^20\d{2}-[1-4]$/.test(semester) || !entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.sourceSemester !== 'string' || !/^20\d{2}-[1-4]$/.test(entry.sourceSemester) || !validIds(entry.planned) || !entry.plans || typeof entry.plans !== 'object' || Array.isArray(entry.plans) || Object.entries(entry.plans).some(([key, ids]) => !['A', 'B', 'C'].includes(key) || !validIds(ids)))
           return json({ error: '학기별 계획 형식을 확인해 주세요.' }, 400);
       }
       profile.semesterPlans = input.semesterPlans;

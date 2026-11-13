@@ -781,61 +781,104 @@ export function Graduation({
                 else blocks.push({ kind: 'text', line: l });
               }
             }
-            const shownBlocks = blocks.slice(0, 24);
-            const hasReq = blocks.some((b) => b.kind === 'req');
+            // 요건 번호 목록은 바로 보이고, 긴 세부 조건과 일반 안내 라인은
+            // 접어서 표시한다. 원문 내용은 펼치면 그대로 확인할 수 있다.
+            type Group =
+              | { kind: 'req'; b: Extract<Block, { kind: 'req' }> }
+              | { kind: 'texts'; lines: string[] };
+            const groups: Group[] = [];
+            for (const b of blocks) {
+              if (b.kind === 'req') groups.push({ kind: 'req', b });
+              else {
+                const last = groups[groups.length - 1];
+                if (last?.kind === 'texts') last.lines.push(b.line);
+                else groups.push({ kind: 'texts', lines: [b.line] });
+              }
+            }
+            const reqCount = groups.filter((g) => g.kind === 'req').length;
+            const mustCount = groups.filter(
+              (g) => g.kind === 'req' && g.b.level === '필수',
+            ).length;
+            const doneCount = groups.filter(
+              (g) => g.kind === 'req' && reqCheckSet.has(g.b.text),
+            ).length;
+            let shownReq = 0;
+            const REQ_LIMIT = 12;
             return (
               <>
-              <ul className="rule-lines">
-                {shownBlocks.map((b, i) =>
-                  b.kind === 'text' ? (
-                    <li key={i}>{b.line}</li>
-                  ) : (
-                    <li key={i} className="req-item">
-                      <label className="cond-check">
-                        <input
-                          type="checkbox"
-                          checked={reqCheckSet.has(b.text)}
-                          onChange={() => toggleReqCheck(b.text)}
-                          aria-label={b.text + ' 확인 완료'}
-                        />
-                        <span
-                          className={
-                            reqCheckSet.has(b.text)
-                              ? 'badge green'
-                              : b.level === '필수'
-                                ? 'badge orange'
-                                : 'badge'
-                          }
-                        >
-                          {reqCheckSet.has(b.text) ? '확인 완료' : b.level}
-                        </span>
-                        <div>
-                          <b
-                            className={
-                              reqCheckSet.has(b.text) ? 'done-text' : undefined
-                            }
-                          >
-                            {b.num}. {b.text}
-                          </b>
+                {reqCount > 0 && (
+                  <p className="dept-req-summary">
+                    {mustCount > 0 && <span className="badge orange">필수 {mustCount}개</span>}
+                    {reqCount > mustCount && <span className="badge">권장·선택 {reqCount - mustCount}개</span>}
+                    {doneCount > 0 && <span className="badge green">확인 완료 {doneCount}개</span>}
+                  </p>
+                )}
+                <ul className="rule-lines">
+                  {groups.map((g, i) => {
+                    if (g.kind === 'req') {
+                      shownReq += 1;
+                      if (shownReq > REQ_LIMIT) return null;
+                      const b = g.b;
+                      const checked = reqCheckSet.has(b.text);
+                      return (
+                        <li className="req-item" key={i}>
+                          <label className="cond-check">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleReqCheck(b.text)}
+                              aria-label={b.text + ' 확인 완료'}
+                            />
+                            <span
+                              className={
+                                checked
+                                  ? 'badge green'
+                                  : b.level === '필수'
+                                    ? 'badge orange'
+                                    : 'badge'
+                              }
+                            >
+                              {checked ? '확인 완료' : b.level}
+                            </span>
+                            <div>
+                              <b className={checked ? 'done-text' : undefined}>
+                                {b.num}. {b.text}
+                              </b>
+                            </div>
+                          </label>
                           {b.subs.length > 0 && (
-                            <small>{b.subs.join(' · ')}</small>
+                            <details className="req-subs">
+                              <summary>세부 조건 {b.subs.length}개</summary>
+                              <small>{b.subs.join(' · ')}</small>
+                            </details>
                           )}
-                        </div>
-                      </label>
-                    </li>
-                  ),
+                        </li>
+                      );
+                    }
+                    return g.lines.length <= 2 ? (
+                      <li className="rule-text-line" key={i}>{g.lines.join(' ')}</li>
+                    ) : (
+                      <li key={i} className="rule-text-group">
+                        <details className="dept-rules-raw">
+                          <summary>원문 안내 {g.lines.length}줄</summary>
+                          <ul>
+                            {g.lines.map((l, j) => <li key={j}>{l}</li>)}
+                          </ul>
+                        </details>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {reqCount > REQ_LIMIT && (
+                  <p className="meta">
+                    … 외 {reqCount - REQ_LIMIT}개 요건 · 원문 링크에서 계속
+                  </p>
                 )}
-                {blocks.length > 24 && (
-                  <li className="meta">
-                    … 외 {blocks.length - 24}줄 · 원문 링크에서 계속
-                  </li>
+                {reqCount > 0 && (
+                  <p className="meta">
+                    체크는 본인 확인용 · 공식 졸업 사정과 무관.
+                  </p>
                 )}
-              </ul>
-              {hasReq && (
-                <p className="meta">
-                  체크는 본인 확인용 · 공식 졸업 사정과 무관.
-                </p>
-              )}
               </>
             );
           })()}
@@ -1051,7 +1094,7 @@ export function Graduation({
         </details>
       )}
 
-      <div className="requirement-list">
+      {!criteriaOnly && <div className="requirement-list">
         {results.map((r) => (
           <section className="card pad" key={r.rule.id}>
             <div className="between">
@@ -1145,7 +1188,7 @@ export function Graduation({
             )}
           </section>
         ))}
-      </div>
+      </div>}
 
       {!criteriaOnly && (
       <section className="card pad" ref={completedRef}>

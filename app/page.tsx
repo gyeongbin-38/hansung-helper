@@ -767,7 +767,7 @@ export default function App() {
   const planData = { ...data, planned: visibleIds, plans: sourceMismatch ? {} : selectedScenarios };
   const planYears = Number(catalog?.semester.slice(0, 4)) || new Date().getFullYear();
   const semesterOptions = [...new Set([
-    ...Array.from({ length: 7 }, (_, i) => [1, 2].map((half) => `${planYears - 2 + i}-${half}`)).flat(),
+    ...Array.from({ length: 7 }, (_, i) => [1, 2, 3, 4].map((half) => `${planYears - 2 + i}-${half}`)).flat(),
     ...Object.keys(data.semesterPlans ?? {}),
     ...(selectedSemester === 'legacy' ? [] : [selectedSemester]),
   ])].sort();

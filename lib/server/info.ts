@@ -498,6 +498,101 @@ export function parsePoints(html: string): number | undefined {
   return m ? parseInt(m[1].replace(/,/g, ''), 10) : undefined;
 }
 
+/** 누적성적(total_grade.jsp) 요약표 → 사정표 행 합성.
+ *  졸업(가)사정이 비어 있는 학생(트랙제·저학년 등)도 누적성적 페이지에
+ *  영역별 '이수 / (기준)' 요약표와 공식 총 기준(130학점·800pt)이 있다.
+ *  반환 행은 parseAudit과 같은 InfoAuditRow 형태로, verdict 없이 수치만 둔다.
+ *  배열 앞쪽에 규칙 매칭용 결합 행, 뒤쪽에 트랙별 세부 행을 둔다 —
+ *  applyAudit이 첫 매칭을 쓰므로 순서가 중요하다. */
+export function parseGradeAudit(html: string): InfoAuditRow[] | undefined {
+  // '13 / (13)', '이수 학점 6 / (15)', '3 / ( 15 )' → {earned, required}
+  const pair = (s: string): { earned: string; required: string } | undefined => {
+    const m = s.match(/([\d,]+)\s*\/\s*\(\s*([\d,]+)\s*\)/);
+    return m ? { earned: m[1], required: m[2] } : undefined;
+  };
+  const single = (s: string): string | undefined => {
+    const m = s.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    return m?.[0];
+  };
+  const combined: InfoAuditRow[] = [];
+  const detail: InfoAuditRow[] = [];
+  for (const t of tables(html)) {
+    const head = t.head.join(' ');
+    // 트랙별 전공 요약 — '이수구분 | 전공기초 | 전공지정(전공필수) | 전공소계 | 총합계'
+    if (/이수구분/.test(head) && /전공/.test(head)) {
+      const iBase = col(t.head, [/기초/]);
+      const iReq = col(t.head, [/지정|필수/]);
+      const iSub = col(t.head, [/소계/]);
+      const iTot = col(t.head, [/총합계|합계/]);
+      let reqSum = 0, gotSum = 0, subSum = 0, subGot = 0;
+      let totalRow: { earned: string; required: string } | undefined;
+      for (const r of t.rows) {
+        if (!r.length) continue;
+        const track = (r[0] ?? '').replace(/\s+/g, '');
+        // 부전공·복수전공 등은 주전공 요건이 아니므로 결합 합산에서 제외(세부 행만)
+        const secondary = /부전공|복수전공|연계전공|마이크로/.test(track);
+        const base = iBase !== -1 ? pair(r[iBase] ?? '') : undefined;
+        const req = iReq !== -1 ? pair(r[iReq] ?? '') : undefined;
+        const sub = iSub !== -1 ? pair(r[iSub] ?? '') : undefined;
+        const tot = iTot !== -1 ? pair(r[iTot] ?? '') : undefined;
+        if (tot && !totalRow && !secondary) totalRow = tot;
+        if (req && !secondary) {
+          reqSum += Number(req.required.replace(/,/g, ''));
+          gotSum += Number(req.earned.replace(/,/g, ''));
+        }
+        if (sub && !secondary) {
+          subSum += Number(sub.required.replace(/,/g, ''));
+          subGot += Number(sub.earned.replace(/,/g, ''));
+        }
+        const push = (label: string, p: { earned: string; required: string } | undefined) => {
+          if (p && !(p.earned === '0' && p.required === '0'))
+            detail.push({ area: `${label}(${track})`, required: p.required, earned: p.earned, verdict: '' });
+        };
+        push('전공기초', base);
+        push('전공필수', req);
+        push('전공소계', sub);
+      }
+      if (reqSum > 0 || gotSum > 0)
+        combined.push({ area: '전공필수', required: String(reqSum), earned: String(gotSum), verdict: '' });
+      const tot =
+        totalRow ?? (subSum > 0 ? { required: String(subSum), earned: String(subGot) } : undefined);
+      if (tot) combined.push({ area: '전공(총합계)', required: tot.required, earned: tot.earned, verdict: '' });
+      continue;
+    }
+    // 공식 총 기준 — 헤더 자체가 '졸업에 필요한 학점 | 130학점 | 졸업에 필요한 비교과포인트 | 800pt'
+    if (/졸업에 필요한 학점/.test(head)) {
+      for (let i = 0; i + 1 < t.head.length; i += 2) {
+        const v = single(t.head[i + 1]);
+        if (v === undefined) continue;
+        if (/비교과|포인트/.test(t.head[i]))
+          combined.push({ area: '비교과포인트', required: v, earned: '', verdict: '' });
+        else if (/학점/.test(t.head[i]))
+          combined.push({ area: '졸업 이수학점', required: v, earned: '', verdict: '' });
+      }
+      continue;
+    }
+    // 카테고리 표 — 첫 행이 영역 라벨(나머지 칸은 비어 있음), '소 계' 행에 '이수 / (기준)'
+    const first = t.rows[0] ?? [];
+    const cat =
+      first.length > 0 &&
+      first[0].trim().length <= 20 &&
+      first.slice(1).every((c) => c.trim() === '') &&
+      /교양|전공|자유|선택|일반|기초/.test(first[0])
+        ? first[0].trim()
+        : '';
+    if (cat) {
+      const sumRow = t.rows.find((r) => /소\s*계|합\s*계/.test(r[0] ?? ''));
+      const p = sumRow?.slice(1).map(pair).find(Boolean);
+      if (!p) continue;
+      // 전공 하위 영역(전공기초 등)은 '전공(총합계)'보다 먼저 매칭되면 안 되므로 세부 행으로.
+      const row: InfoAuditRow = { area: cat, required: p.required, earned: p.earned, verdict: '' };
+      if (/전공/.test(cat) && !/총|합계/.test(cat)) detail.push(row);
+      else combined.push(row);
+    }
+  }
+  return combined.length ? [...combined, ...detail] : undefined;
+}
+
 /** 졸업가사정표 — 구분/기준/취득/판정 행을 원문 그대로 뽑는다. */
 export function parseAudit(html: string): InfoAuditRow[] | undefined {
   for (const t of tables(html)) {
@@ -916,12 +1011,26 @@ export async function collectInfo(
     }
   }
 
-  // 사정표는 학교가 '자료 없음'으로 응답하는 경우가 잦다 — 다른 졸업요건
-  // 페이지(graduation_requirement.jsp)로 한 번 더 시도한다.
-  if (!fetched.audit || !parseAudit(fetched.audit)) {
+  // 사정표는 학교가 '자료 없음'으로 응답하는 경우가 잦다 — 누적성적 요약표가
+  // 같은 수치를 주므로 폴백으로 먼저 합성하고, 둘 다 없을 때만 다른 졸업요건
+  // 페이지(graduation_requirement.jsp)로 한 번 더 시도한다(요청 예산 절약).
+  const gradeAudit = fetched.grades ? parseGradeAudit(fetched.grades) : undefined;
+  if ((!fetched.audit || !parseAudit(fetched.audit)) && !gradeAudit?.length) {
     // '자료 없음' 응답은 실패가 아니라 빈 사정표다 — fetch 성공 표시는
     // 유지하고, 다른 졸업요건 페이지에서 값이 오면 그쪽으로 교체한다.
     await tryPaths('audit', DIRECT_PATHS.audit, (h) => !!parseAudit(h), true);
+  }
+  // 사정표가 없거나(자료 없음) 구조가 다르면 누적성적 합성 행을 사정표로 쓴다 —
+  // 트랙제 학과는 사정표 대신 누적성적 요약이 사실상 사정표다.
+  const auditRows = fetched.audit ? parseAudit(fetched.audit) : undefined;
+  // 가져온 페이지가 사정표 구조가 아니고 성적표 합성도 없으면 ok를 거짓으로
+  // 되돌려 병합이 이전 수집본을 보존하게 하고 진단에 'structure'로 표시한다.
+  if (fetched.audit && !auditRows?.length && !gradeAudit?.length) {
+    for (const page of pages)
+      if (page.slot === 'audit' && page.ok) {
+        page.ok = false;
+        page.reason = 'structure';
+      }
   }
 
   // 메뉴에 없던 직접 수집 슬롯까지 포함해 '찾지 못함'을 표면화한다.
@@ -1013,7 +1122,7 @@ export async function collectInfo(
       ? semesterParsed.semesters
       : undefined,
     creditCategories: semesterParsed.creditCategories,
-    audit: fetched.audit ? parseAudit(fetched.audit) : undefined,
+    audit: auditRows?.length ? auditRows : gradeAudit,
     diag: { menu, pages },
   };
   console.log(
@@ -1022,6 +1131,8 @@ export async function collectInfo(
       menu: menu.length,
       pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : p.reason ?? 'fail'}`),
       courses: snap.completed.length,
+      auditRows: snap.audit?.length ?? 0,
+      auditSrc: auditRows?.length ? 'audit' : gradeAudit?.length ? 'grades' : 'none',
       semesters: snap.semesters?.length ?? 0,
       academic: snap.academic ? 'yes' : 'no',
       name: snap.name ? 'yes' : 'no',

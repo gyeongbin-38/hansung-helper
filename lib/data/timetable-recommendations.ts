@@ -35,7 +35,7 @@ export function recommend(
   const pool = resolved.dept ? [resolved.dept] : (resolved.candidates ?? null);
   // 휴학·편입 여부는 알 수 없으므로 입학연도와 자료 연도 기준의 추정치만 표시한다.
   const admit = parseInt(data.year, 10);
-  const sourceYear = /^20\d{2}-[12]$/.test(options.sourceSemester ?? '') ? Number(options.sourceSemester!.slice(0, 4)) : 0;
+  const sourceYear = /^20\d{2}-[1-4]$/.test(options.sourceSemester ?? '') ? Number(options.sourceSemester!.slice(0, 4)) : 0;
   const grade = admit && sourceYear && admit <= sourceYear ? Math.min(sourceYear - admit + 1, 4) : 0;
   const plannedDays = new Set(planned.flatMap((p) => p.slots.map((sl) => sl.d)));
   const dayLoad = new Map<number, number>();

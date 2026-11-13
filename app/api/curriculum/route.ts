@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   if (!semester)
     return snapshotGet('curriculum-index', indexJson, indexJson.generatedAt ?? '',
       (payload) => !!payload && typeof payload === 'object' && 'semesters' in payload);
-  if (!/^20\d{2}-[12]$/.test(semester))
+  if (!/^20\d{2}-[1-4]$/.test(semester))
     return Response.json({ ok: false, error: { code: 'INVALID_REQUEST', message: '학기 형식을 확인해 주세요.' } }, { status: 400 });
   const res = await snapshotGetOnly(
     `curriculum:${semester}`,

@@ -13,7 +13,7 @@ test('snapshot pointer changes only after all chunks are staged', () => {
     copyFileSync('scripts/_publish_snapshots.mjs', join(dir, 'scripts/_publish_snapshots.mjs'));
     writeFileSync(join(dir, 'node_modules/wrangler/bin/wrangler.js'), "const fs=require('node:fs');fs.copyFileSync(process.argv[process.argv.indexOf('--file')+1], 'capture.sql');");
     const now = '2026-01-01T00:00:00Z';
-    for (const [name, data] of Object.entries({ 'catalog-2026-2.json': { semester: '2026-2', sections: [], generatedAt: now }, 'activities.json': { fetchedAt: now, items: [{ body: 'x'.repeat(170000) }] }, 'schedule.json': { fetchedAt: now, items: [{}] }, 'dept-rules.json': { fetchedAt: now, items: [{}] }, 'dept-pages.json': { fetchedAt: now, pages: [{}] }, 'curriculum-index.json': { generatedAt: now, semesters: { '2026-2': {} } } })) writeFileSync(join(dir, 'lib/data', name), JSON.stringify(data));
+    for (const [name, data] of Object.entries({ 'catalog-2026-2.json': { semester: '2026-2', sections: [], generatedAt: now }, 'activities.json': { fetchedAt: now, items: [{ body: 'x'.repeat(170000) }] }, 'schedule.json': { fetchedAt: now, items: [{}] }, 'dept-rules.json': { fetchedAt: now, items: [{}] }, 'dept-pages.json': { fetchedAt: now, pages: [{}] }, 'equivalents.json': { generatedAt: now, groups: { '1': { name: 'x', courses: [{}] } }, rowCount: 1 }, 'curriculum-index.json': { generatedAt: now, semesters: { '2026-2': {} } } })) writeFileSync(join(dir, 'lib/data', name), JSON.stringify(data));
     const run = spawnSync(process.execPath, [join(dir, 'scripts/_publish_snapshots.mjs'), '--local'], { cwd: dir, encoding: 'utf8' });
     assert.equal(run.status, 0, run.stderr);
     const sql = readFileSync(join(dir, 'capture.sql'), 'utf8');
