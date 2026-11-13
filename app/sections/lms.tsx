@@ -1,6 +1,7 @@
 'use client';
 import {
   ArrowUpRight,
+  CircleAlert,
   Copy,
   Download,
   MonitorPlay,
@@ -10,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSlowLoading } from '../use-slow-loading';
+import { LmsConnectionSummary, LmsOverview } from './lms-overview';
+import { LmsTasks } from './lms-tasks';
 import type { Account } from '../account-flow';
 import type { Data } from './data';
 import { semesterStartTs, type Catalog } from '@/lib/data/catalog';
@@ -17,11 +20,11 @@ import { apiData, apiFetch, ApiRequestError } from '@/lib/data/api';
 import { useNow } from './catalog';
 import {
   bingeQueue,
+  courseDisplayName,
   courseIsPast,
   courseProgress,
   formatLmsTime,
   currentSemesterStart,
-  dueSoon,
   isPast,
   kstDateNumber,
   lectureRangeStatus,
@@ -32,7 +35,6 @@ import {
   relTime,
   searchMatchCandidates,
   staleDays,
-  submissionItems,
   suggestMatchCandidates,
   validateLms,
   weekProgress,
@@ -40,7 +42,6 @@ import {
   type EnrolledMatch,
   type LmsCourse,
   type LmsSnapshot,
-  type SubmissionItem,
 } from '@/lib/data/lms';
 
 const LMS_BASE = 'https://learn.hansung.ac.kr';
@@ -66,49 +67,7 @@ const shortRange = (r?: string) => {
 };
 
 /** LMS 원문 과목명 → 표시용 정제. '[A]' 분반을 배지로 분리하고
- *  '교과(온라인) 학부 … 김교수' 같은 장식 토큰을 벗긴다.
- *  매칭용 키(lmsKey)와 별개로 표시만 다듬는다. */
-const DISPLAY_DECOR =
-  /(교과|비교과|커뮤니티|학부|대학원|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g;
-/** 분반 표기 뒤에 붙은 교수명 — prof 필드가 없는 수집본에서도 표시를 정리한다 */
-const titleProfessor = (title: string) => {
-  if (!/\[[^\]]+\]/.test(title)) return '';
-  const tail = title.slice(title.lastIndexOf(']') + 1).trim();
-  return /^[가-힣]{2,4}$/.test(tail) ? tail : '';
-};
-const courseDisplay = (c: LmsCourse) => {
-  const m = c.title.match(/\[([^\]]{1,8})\]/);
-  const section = m?.[1]?.trim();
-  let t = c.title
-    .replace(/\[[^\]]*\]/g, ' ')
-    .replace(DISPLAY_DECOR, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const prof = c.prof || titleProfessor(c.title);
-  if (prof && t.endsWith(prof)) t = t.slice(0, -prof.length).trim();
-  return { title: t || c.title, section };
-};
-
-/** 과목 카드마다 다른 accent를 주어 목록에서 과목 경계를 바로 구분한다 */
-const courseAccent = (id: string) => {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 5;
-  return h;
-};
-
-type Urgency = 'overdue' | 'today' | 'soon' | 'normal';
-const urgencyFor = (dueTs: number | null, now: number): Urgency => {
-  if (dueTs === null) return 'normal';
-  const dd = kstDateNumber(dueTs) - kstDateNumber(now);
-  return dd < 0 ? 'overdue' : dd === 0 ? 'today' : dd <= 2 ? 'soon' : 'normal';
-};
-const urgencyLabel = (dueTs: number | null, now: number) => {
-  if (dueTs === null) return '';
-  const dd = kstDateNumber(dueTs) - kstDateNumber(now);
-  return dd < 0 ? '기한 지남' : dd === 0 ? '오늘 마감' : `D-${dd}`;
-};
-const courseNameMap = (snap: LmsSnapshot) =>
-  new Map(snap.courses.map((c) => [c.title, courseDisplay(c).title]));
+ *  '교과(온라인) 학부 … 김교수' 같은 장식 토큰을 벗긴다. */
 
 function TaskRow({
   kind,
@@ -144,9 +103,8 @@ function TaskRow({
   const dd = ts !== null ? kstDateNumber(ts) - kstDateNumber(now) : null;
   const tint =
     kind === '과제' ? 't-assign' : kind === '퀴즈' ? 't-quiz' : 't-vod';
-  const urgency = past ? 'normal' : urgencyFor(ts, now);
   return (
-    <div className={`lms-task ${tint}${urgency !== 'normal' ? ` is-${urgency}` : ''}`}>
+    <div className={`lms-task ${tint}`}>
       <span className={`badge ${kind === '과제' ? 'orange' : kind === '퀴즈' ? 'purple' : 'blue'}`}>
         {kind}
       </span>
@@ -171,9 +129,6 @@ function TaskRow({
             : ''}
         </small>
       </div>
-      {urgency !== 'normal' && (
-        <span className={`lms-dday is-${urgency}`}>{urgencyLabel(ts, now)}</span>
-      )}
     </div>
   );
 }
@@ -231,18 +186,11 @@ function CourseCard({
         past: pastCourse || isPast(parseDue(q.due ?? null), before),
       })),
   ];
-  const disp = courseDisplay(c);
-  const urgent = pend.filter(
-    (p) => !p.past && urgencyFor(parseDue(p.due), now) !== 'normal',
-  ).length;
+  const disp = courseDisplayName(c);
   return (
     <details
       id={`lms-c-${c.id}`}
-      className={
-        'lms-course' +
-        (pastCourse ? ' is-past' : pend.length ? ' has-pending' : ' is-done')
-      }
-      data-accent={courseAccent(c.id)}
+      className="lms-course"
       open={
         forceOpen ||
         (!pastCourse && pend.length > 0 && pend.length <= 8)
@@ -250,21 +198,16 @@ function CourseCard({
     >
       <summary>
         <div className="lms-course-head">
-          <span className="lms-course-mark" aria-hidden="true">
-            {disp.title.slice(0, 1)}
-          </span>
-          <div className="lms-course-title">
-            <b title={c.title}>
-              {disp.title}
-              {disp.section && (
-                <span className="lms-sect-badge">{disp.section}</span>
-              )}
-            </b>
-            <small>
-              {c.prof || titleProfessor(c.title) || '교수 미기재'}
-              {c.community ? ' · 커뮤니티' : ''}
-            </small>
-          </div>
+          <b title={c.title}>
+            {disp.title}
+            {disp.section && (
+              <span className="lms-sect-badge">{disp.section}</span>
+            )}
+          </b>
+          <small>
+            {c.prof || '교수 미기재'}
+            {c.community ? ' · 커뮤니티' : ''}
+          </small>
         </div>
         <div className="lms-course-stat">
           {total > 0 && (
@@ -281,7 +224,6 @@ function CourseCard({
             </>
           )}
           {c.vods.some((v) => v.uncertain) && <small>출석 확인 필요 {c.vods.filter((v) => v.uncertain).length}건</small>}
-          {urgent > 0 && <small className="lms-course-urgent">{urgent}건 급함</small>}
           <small>
             {pastCourse ? (
               <span className="badge">지난 학기</span>
@@ -352,20 +294,11 @@ function CourseCard({
 }
 
 /** 안 들은 강의 한 줄 — 몰아듣기 큐용 */
-function BingeRow({
-  b,
-  now,
-  courseName,
-}: {
-  b: BingeItem;
-  now: number;
-  courseName: string;
-}) {
+function BingeRow({ b, now }: { b: BingeItem; now: number }) {
   const overdue = b.dueTs !== null && b.dueTs <= now;
   const dd = b.dueTs !== null ? kstDateNumber(b.dueTs) - kstDateNumber(now) : null;
-  const urgency = b.past ? 'normal' : urgencyFor(b.dueTs, now);
   return (
-    <div className={`lms-task t-vod${urgency !== 'normal' ? ` is-${urgency}` : ''}`}>
+    <div className="lms-task t-vod">
       <span className={'badge ' + (overdue ? 'orange' : 'blue')}>
         {b.week ? `${b.week}주차` : '강의'}
       </span>
@@ -378,7 +311,7 @@ function BingeRow({
           <b>{b.title}</b>
         )}
         <small>
-          <span className="lms-task-course">{courseName}</span>
+          {b.course}
           {b.uncertain ? ' · 출석 상태 확인 실패' : ''}
           {b.rangeUncertain ? ' · 기간 재확인 필요' : ''}
           {b.range ? ` · ${shortRange(b.range)}` : ''}
@@ -399,9 +332,6 @@ function BingeRow({
             : ''}
         </small>
       </div>
-      {urgency !== 'normal' && (
-        <span className={`lms-dday is-${urgency}`}>{urgencyLabel(b.dueTs, now)}</span>
-      )}
     </div>
   );
 }
@@ -418,7 +348,6 @@ function BingeView({
   before?: number | null;
 }) {
   const queue = bingeQueue(snap, before);
-  const labels = courseNameMap(snap);
   if (!queue.length)
     return (
       <p className="meta">
@@ -440,12 +369,7 @@ function BingeView({
       </p>
       <div className="lms-tasks">
         {cur.map((b, i) => (
-          <BingeRow
-            key={i}
-            b={b}
-            now={now}
-            courseName={labels.get(b.course) ?? b.course}
-          />
+          <BingeRow key={i} b={b} now={now} />
         ))}
       </div>
       {past.length > 0 && (
@@ -453,122 +377,7 @@ function BingeView({
           <summary>지난 학기 미수강 강의 {past.length}개</summary>
           <div className="lms-tasks">
             {past.map((b, i) => (
-              <BingeRow
-                key={i}
-                b={b}
-                now={now}
-                courseName={labels.get(b.course) ?? b.course}
-              />
-            ))}
-          </div>
-        </details>
-      )}
-    </>
-  );
-}
-
-/** 과제·퀴즈 한 줄 — 제출·응시 상태 배지 포함 */
-function SubmissionRow({
-  s,
-  now,
-  courseName,
-}: {
-  s: SubmissionItem;
-  now: number;
-  courseName: string;
-}) {
-  const dd = s.dueTs !== null ? kstDateNumber(s.dueTs) - kstDateNumber(now) : null;
-  const urgency = s.past || s.submitted ? 'normal' : urgencyFor(s.dueTs, now);
-  return (
-    <div
-      className={`lms-task ${s.kind === '과제' ? 't-assign' : 't-quiz'}${urgency !== 'normal' ? ` is-${urgency}` : ''}`}
-    >
-      <span className={'badge ' + (s.kind === '과제' ? 'orange' : 'purple')}>
-        {s.kind}
-      </span>
-      <div>
-        {s.url ? (
-          <a className="link" href={s.url} target="_blank" rel="noreferrer">
-            {s.title} <ArrowUpRight size={13} />
-          </a>
-        ) : (
-          <b>{s.title}</b>
-        )}
-        <small>
-          <span className="lms-task-course">{courseName}</span>
-          {s.due
-            ? ` · 마감 ${s.due}${dd !== null ? (dd < 0 ? ' (지남)' : dd === 0 ? ' (오늘)' : ` (D-${dd})`) : ''}`
-            : ' · 마감 미기재'}
-        </small>
-      </div>
-      <span
-        className={
-          'badge ' +
-          (s.uncertain ? 'purple' : s.submitted ? 'green' : 'orange')
-        }
-      >
-        {s.uncertain
-          ? `${s.kind} 상태 확인 실패`
-          : s.submitted
-          ? s.kind === '퀴즈'
-            ? '응시 완료'
-            : '제출 완료'
-          : s.kind === '퀴즈'
-              ? '미응시'
-              : '미제출'}
-      </span>
-      {urgency !== 'normal' && (
-        <span className={`lms-dday is-${urgency}`}>{urgencyLabel(s.dueTs, now)}</span>
-      )}
-    </div>
-  );
-}
-
-/** 전체 과제·퀴즈 — 제출·응시 완료 항목 포함 통합 현황 */
-function SubmissionsView({
-  snap,
-  now,
-  before,
-}: {
-  snap: LmsSnapshot;
-  now: number;
-  /** 학기 경계 — 이전 마감 항목은 보관 영역으로 분리 */
-  before?: number | null;
-}) {
-  const items = submissionItems(snap, before);
-  const labels = courseNameMap(snap);
-  if (!items.length)
-    return <p className="meta">수집된 과제·퀴즈가 없습니다.</p>;
-  const cur = items.filter((i) => !i.past);
-  const past = items.filter((i) => i.past);
-  const done = cur.filter((i) => i.submitted).length;
-  return (
-    <>
-      <p className="meta">
-        과제·퀴즈 {cur.length}건 · 완료 {done} · 남은 것{' '}
-        {cur.length - done}. 링크는 COSMOS 제출·응시 페이지로 연결됩니다.
-      </p>
-      <div className="lms-tasks">
-        {cur.map((s, i) => (
-          <SubmissionRow
-            key={i}
-            s={s}
-            now={now}
-            courseName={labels.get(s.course) ?? s.course}
-          />
-        ))}
-      </div>
-      {past.length > 0 && (
-        <details className="lms-past">
-          <summary>지난 학기 과제·퀴즈 {past.length}건</summary>
-          <div className="lms-tasks">
-            {past.map((s, i) => (
-              <SubmissionRow
-                key={i}
-                s={s}
-                now={now}
-                courseName={labels.get(s.course) ?? s.course}
-              />
+              <BingeRow key={i} b={b} now={now} />
             ))}
           </div>
         </details>
@@ -639,7 +448,8 @@ export function LmsSection({
   const [err, setErr] = useState('');
   const [copying, setCopying] = useState(false);
   const now = useNow(30000);
-  const [view, setView] = useState<'courses' | 'binge' | 'submit'>('courses');
+  const [view, setView] = useState<'courses' | 'binge'>('courses');
+  const tasksView = detail === 'tasks';
   const snap = data.lms;
   const stale = snap ? staleDays(snap, now) : null;
   const canRefresh = !!onAccount && !!studentMask;
@@ -689,6 +499,15 @@ export function LmsSection({
   const matchManual = matches.filter((m) => m.manual);
   const matchIgnored = matches.filter((m) => m.ignored);
   const matchTotal = matches.filter((m) => !m.notCourse).length;
+  const coursesNeedingCheck = snap?.courses.filter(c =>
+    !!c.errors?.length || c.vods.some(v => v.uncertain || lectureRangeStatus(c, v).rangeUncertain) ||
+    [...c.assigns, ...c.quizzes].some(t => t.uncertain),
+  ) ?? [];
+  const collectionIssues = coursesNeedingCheck.length;
+  const issueCount = new Set([
+    ...matchPending.map(m => m.course.id),
+    ...coursesNeedingCheck.map(c => c.id),
+  ]).size;
 
   // 딥링크가 바뀌면 과목별 뷰로 돌아간다 — 대상 카드는 그 뷰에만 있다
   // (렌더 중 상태 조정 패턴 — effect 내 setState 대신)
@@ -732,9 +551,34 @@ export function LmsSection({
     setCopying(false);
   };
 
+  const connection = snap ? <LmsConnectionSummary
+    snap={snap} now={now} status={band} issueCount={issueCount}
+    extInstalled={extStatus.installed} notifications={!!data.notifEnabled}
+    matched={catalog ? matches.filter(m => m.sections.length > 0 && !m.ignored).length : null} total={matchTotal}
+  >
+    <ConnCard snap={snap} now={now} ext={extStatus} syncing={syncing}
+      lastError={lastError} matches={matches} catalogReady={!!catalog}
+      canRefresh={canRefresh} studentMask={studentMask} onAccount={onAccount}
+      notify={notify} busy={serverCollecting} onExtRefresh={onExtRefresh}
+      onImport={() => fileRef.current?.click()}
+      onDelete={async () => await persist({ ...data, lms: undefined }, '수업 현황을 삭제했습니다.')}
+      err={err} />
+  </LmsConnectionSummary> : null;
+  const attention = snap && (issueCount > 0 || band !== 'fresh' || matchManual.length > 0 || matchIgnored.length > 0) ? <details className="study-attention" key={band} open={band === 'failed' || band === 'login'}>
+    <summary><CircleAlert size={17} /> 확인 필요 <span>{issueCount ? `${issueCount}과목` : '수집 상태'}</span></summary>
+    {collectionIssues > 0 && <p>{collectionIssues}과목의 일부 항목을 확인하지 못했어요. 이전 수집값이 포함될 수 있어요.</p>}
+    {band !== 'fresh' && <p>{band === 'syncing' ? '수집 중이에요. 완료되면 자동으로 반영돼요.' : band === 'login' ? 'COSMOS에 직접 로그인한 뒤 다시 수집해 주세요.' : band === 'failed' ? '수집에 실패해 이전 결과를 표시해요.' : band === 'delayed' ? '수집이 지연되고 있어요. 이전 결과를 표시해요.' : '수집값이 오래됐어요. 연결 관리에서 새로고침해 주세요.'}{lastError ? ` ${lastError}` : ''}</p>}
+    {catalog && (matchPending.length > 0 || matchManual.length > 0 || matchIgnored.length > 0) && <MatchFixer catalog={catalog} data={data} persist={persist} pending={matchPending} manual={matchManual} ignored={matchIgnored} />}
+  </details> : null;
+
   return (
     <>
-      <SyncBand
+      <nav className="study-view-nav" aria-label="수업·과제 화면">
+        <a href="#lms" aria-current={!tasksView && view === 'courses' ? 'page' : undefined} onClick={() => setView('courses')}>수업 현황</a>
+        <a href="#lms/tasks" aria-current={tasksView ? 'page' : undefined} onClick={() => setView('courses')}>과제 모아보기</a>
+        <button type="button" aria-current={!tasksView && view === 'binge' ? 'page' : undefined} onClick={() => { window.location.hash = 'lms'; setView('binge'); }}>몰아듣기</button>
+      </nav>
+      {!snap && <SyncBand
         band={band}
         snap={snap}
         now={now}
@@ -746,22 +590,7 @@ export function LmsSection({
         matchPending={matchPending.length}
         matchTotal={matchTotal}
         serverLoginFailed={lmsUnavailable}
-      />
-
-      {snap &&
-        catalog &&
-        (matchPending.length > 0 ||
-          matchManual.length > 0 ||
-          matchIgnored.length > 0) && (
-          <MatchFixer
-            catalog={catalog}
-            data={data}
-            persist={persist}
-            pending={matchPending}
-            manual={matchManual}
-            ignored={matchIgnored}
-          />
-        )}
+      />}
 
       {!snap ? (
         <SetupGuide
@@ -777,90 +606,12 @@ export function LmsSection({
           busy={serverCollecting}
         />
       ) : (
-        <div className="lms-grid">
-          <section className="card pad lms-main">
-            <div className="between">
-              <div className="lms-tabs" role="tablist" aria-label="수업 현황 보기">
-                <button
-                  role="tab"
-                  aria-selected={view === 'courses'}
-                  className={'badge' + (view === 'courses' ? ' sel' : '')}
-                  onClick={() => setView('courses')}
-                >
-                  과목별
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={view === 'binge'}
-                  className={'badge' + (view === 'binge' ? ' sel' : '')}
-                  onClick={() => setView('binge')}
-                >
-                  몰아듣기
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={view === 'submit'}
-                  className={'badge' + (view === 'submit' ? ' sel' : '')}
-                  onClick={() => setView('submit')}
-                >
-                  제출·응시
-                </button>
-              </div>
-              <small className="meta">
-                남은 항목 {pendCount}건
-              </small>
-            </div>
-            {view === 'courses' && (
-              <div className="lms-courses">
-                {snap.courses.map((c) => (
-                  <CourseCard
-                    key={c.id}
-                    c={c}
-                    now={now}
-                    before={before}
-                    forceOpen={detail === c.id}
-                  />
-                ))}
-              </div>
-            )}
-            {view === 'binge' && (
-              <BingeView snap={snap} now={now} before={before} />
-            )}
-            {view === 'submit' && (
-              <SubmissionsView snap={snap} now={now} before={before} />
-            )}
-          </section>
-
-          <aside className="lms-side">
-            <section className="card pad">
-              <h3>마감 임박</h3>
-              <DueSoonList snap={snap} now={now} before={before} />
-            </section>
-            <ConnCard
-              snap={snap}
-              now={now}
-              ext={extStatus}
-              syncing={syncing}
-              lastError={lastError}
-              matches={matches}
-              catalogReady={!!catalog}
-              canRefresh={canRefresh}
-              studentMask={studentMask}
-              onAccount={onAccount}
-              notify={notify}
-              busy={serverCollecting}
-              onExtRefresh={onExtRefresh}
-              onImport={() => fileRef.current?.click()}
-              onDelete={async () =>
-                await persist(
-                  { ...data, lms: undefined },
-                  '수업 현황 데이터를 삭제했습니다.',
-                )
-              }
-              err={err}
-            />
-          </aside>
-        </div>
+        tasksView ? <LmsTasks snap={snap} now={now} before={before} sidebar={<>{connection}{attention}</>} /> :
+        view === 'binge' ? <div className="study-layout"><section className="card study-binge"><h2>강의 몰아듣기</h2><BingeView snap={snap} now={now} before={before} /></section><aside className="study-side">{connection}{attention}</aside></div> :
+        <LmsOverview key={detail ?? 'overview'} snap={snap} now={now} before={before} status={band}
+          issueCount={issueCount} detail={detail} connection={connection} attention={attention}
+          onRefresh={onExtRefresh} canRefresh={extStatus.installed}
+          renderCourse={c => <CourseCard c={c} now={now} before={before} forceOpen />} />
       )}
 
       <input
@@ -932,7 +683,9 @@ function MatchFixer({
               : '직접 연결하거나 제외한 내역을 확인할 수 있습니다.'}
           </small>
         </span>
-        <span className="lms-match-toggle">{hasPending ? '과목 확인' : '내역 보기'}</span>
+        <span className="lms-match-toggle">
+          {hasPending ? '과목 확인' : '내역 보기'}
+        </span>
       </summary>
       <p className="meta">
         {hasPending
@@ -941,19 +694,19 @@ function MatchFixer({
       </p>
       {hasPending && (
         <div className="matchfix-list">
-          {pending.map((m) => (
-            <MatchFixRow
-              key={m.course.id}
-              m={m}
-              catalog={catalog}
-              open={open === m.course.id}
-              onToggle={() =>
-                setOpen(open === m.course.id ? null : m.course.id)
-              }
-              onPick={(sectionId) => void setOverride(m.course.id, sectionId)}
-              onIgnore={() => void setOverride(m.course.id, 'ignore')}
-            />
-          ))}
+        {pending.map((m) => (
+          <MatchFixRow
+            key={m.course.id}
+            m={m}
+            catalog={catalog}
+            open={open === m.course.id}
+            onToggle={() =>
+              setOpen(open === m.course.id ? null : m.course.id)
+            }
+            onPick={(sectionId) => void setOverride(m.course.id, sectionId)}
+            onIgnore={() => void setOverride(m.course.id, 'ignore')}
+          />
+        ))}
         </div>
       )}
       {(manual.length > 0 || ignored.length > 0) && (
@@ -964,7 +717,7 @@ function MatchFixer({
           {manual.map((m) => (
             <div className="matchfix-row" key={m.course.id}>
               <div>
-                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <b title={m.course.title}>{courseDisplayName(m.course).title}</b>
                 <small>
                   →{' '}
                   {[...new Set(m.sections.map((s) => s.name))].join(', ')}
@@ -981,7 +734,7 @@ function MatchFixer({
           {ignored.map((m) => (
             <div className="matchfix-row" key={m.course.id}>
               <div>
-                <b title={m.course.title}>{courseDisplay(m.course).title}</b>
+                <b title={m.course.title}>{courseDisplayName(m.course).title}</b>
                 <small>매칭 제외됨 — 수업이 아닌 항목</small>
               </div>
               <button
@@ -1014,7 +767,7 @@ function MatchFixRow({
   onPick: (sectionId: string) => void;
   onIgnore: () => void;
 }) {
-  const disp = courseDisplay(m.course);
+  const disp = courseDisplayName(m.course);
   const [query, setQuery] = useState('');
   const candidates = !open ? [] : query.trim()
     ? searchMatchCandidates(catalog, query)
@@ -1204,8 +957,8 @@ function SyncBand({
           </div>
           {matchPending > 0 && (
             <div>
-              <dt>매칭 확인</dt>
-              <dd>{matchPending}과목 필요</dd>
+              <dt>카탈로그 확인</dt>
+              <dd>{matchPending}과목</dd>
             </div>
           )}
           <div>
@@ -1474,7 +1227,7 @@ function ConnCard({
                       확인 필요:{' '}
                       {pending
                         .slice(0, 3)
-                        .map((m) => courseDisplay(m.course).title)
+                        .map((m) => courseDisplayName(m.course).title)
                         .join(', ')}
                       {pending.length > 3 ? ` 외 ${pending.length - 3}` : ''}{' '}
                       (위 카드에서 직접 연결하거나 제외할 수 있습니다)
@@ -1631,70 +1384,5 @@ function RefreshForm({
       {slowRefresh && <p className="meta" aria-live="polite">학교 응답이 평소보다 오래 걸리고 있어요. 연결을 확인 중이니 잠시만 기다려 주세요.</p>}
       {err && <p className="lms-error" role="alert">{err}</p>}
     </form>
-  );
-}
-
-function DueSoonList({
-  snap,
-  now,
-  before,
-}: {
-  snap: LmsSnapshot;
-  now: number;
-  before?: number | null;
-}) {
-  const soon = dueSoon(snap, now, 7, 7, before);
-  const labels = courseNameMap(snap);
-  if (!soon.length)
-    return <p className="meta">7일 이내 마감되는 미완료 항목이 없습니다.</p>;
-  const urgent = soon.filter((t) => urgencyFor(t.dueTs, now) !== 'normal').length;
-  return (
-    <>
-      {urgent > 0 && (
-        <p className="lms-due-alert">
-          긴급 {urgent}건 — 3일 안에 마감되거나 이미 기한이 지났습니다.
-        </p>
-      )}
-      <div className="lms-tasks">
-        {soon.slice(0, 10).map((t, i) => {
-          const urgency = urgencyFor(t.dueTs, now);
-          return (
-            <div
-              className={`lms-task ${t.kind === '과제' ? 't-assign' : t.kind === '퀴즈' ? 't-quiz' : 't-vod'}${urgency !== 'normal' ? ` is-${urgency}` : ''}`}
-              key={i}
-            >
-              <span className={`badge ${t.kind === '과제' ? 'orange' : t.kind === '퀴즈' ? 'purple' : 'blue'}`}>
-                {t.kind}
-              </span>
-              <div>
-                {t.url ? (
-                  <a className="link" href={t.url} target="_blank" rel="noreferrer">
-                    {t.title} <ArrowUpRight size={13} />
-                  </a>
-                ) : (
-                  <b>{t.title}</b>
-                )}
-                <small>
-                  <span className="lms-task-course">
-                    {labels.get(t.course) ?? t.course}
-                  </span>{' '}
-                  ·{' '}
-                  {t.dueTs < now
-                    ? '마감 지남'
-                    : `D-${kstDateNumber(t.dueTs) - kstDateNumber(now)}`}
-                  {t.uncertain ? ' · 상태 확인 실패' : ''}
-                  {t.rangeUncertain ? ' · 기간 재확인 필요' : ''}
-                </small>
-              </div>
-              {urgency !== 'normal' && (
-                <span className={`lms-dday is-${urgency}`}>
-                  {urgencyLabel(t.dueTs, now)}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </>
   );
 }

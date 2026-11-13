@@ -658,6 +658,22 @@ const lmsBodyKey = (title: string, prof?: string) => {
   return p && key.endsWith(p) ? key.slice(0, -p.length) : key;
 };
 
+const DISPLAY_DECOR =
+  /(교과|비교과|커뮤니티|학부|대학원|전공|교양)(\s*\([^)]*\))?(?=\s|$)/g;
+
+/** 화면 표시용 과목명 — 분반 배지와 교수명을 분리하고 장식을 벗긴다. */
+export function courseDisplayName(course: LmsCourse) {
+  const section = course.title.match(/\[([^\]]{1,8})\]/)?.[1]?.trim();
+  let title = course.title
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(DISPLAY_DECOR, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const prof = course.prof || titleProfessor(course.title);
+  if (prof && title.endsWith(prof)) title = title.slice(0, -prof.length).trim();
+  return { title: title || course.title, section, prof };
+}
+
 /** LMS 제목의 분반 표기 '[A,B,N,7]' → 비교 가능한 분반 키 집합 */
 const lmsSectionKeys = (title: string): string[] =>
   (title.match(/\[([^\]]{1,12})\]/)?.[1] ?? '')

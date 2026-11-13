@@ -971,7 +971,7 @@ export default function App() {
         <main>
           <PageHeading
             section={section}
-            label={section === 'graduation' ? ({ outlook: '졸업 전망', requirements: '요건별 충족 현황', completed: '이수한 과목', department: '학과·트랙별 요건' } as Record<string, string>)[detail ?? ''] ?? label : label}
+            label={section === 'lms' && detail === 'tasks' ? '과제 모아보기' : section === 'graduation' ? ({ outlook: '졸업 전망', requirements: '요건별 충족 현황', completed: '이수한 과목', department: '학과·트랙별 요건' } as Record<string, string>)[detail ?? ''] ?? label : label}
             name={data.name}
           />
           {section !== 'home' && (
