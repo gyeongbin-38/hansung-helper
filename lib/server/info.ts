@@ -1131,6 +1131,8 @@ export async function collectInfo(
       menu: menu.length,
       pages: pages.map((p) => `${p.slot}:${p.ok ? 'ok' : p.reason ?? 'fail'}`),
       courses: snap.completed.length,
+      auditRows: snap.audit?.length ?? 0,
+      auditSrc: auditRows?.length ? 'audit' : gradeAudit?.length ? 'grades' : 'none',
       semesters: snap.semesters?.length ?? 0,
       academic: snap.academic ? 'yes' : 'no',
       name: snap.name ? 'yes' : 'no',
