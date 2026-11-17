@@ -19,6 +19,7 @@ import {
 import {
   Sidebar,
   Topbar,
+  MobileTabBar,
   PageHeading,
   AccountBar,
   ToastStack,
@@ -1044,6 +1045,12 @@ export default function App() {
         onCloseDrawer={() => setDrawer(false)}
         collapsed={sideCollapsed}
         onToggleCollapse={() => setSideCollapsed((v) => !v)}
+      />
+      <MobileTabBar
+        section={surveyOpen ? 'survey' : section}
+        data={data}
+        go={go}
+        onMenu={() => setDrawer(true)}
       />
       <div className="workspace">
         <Topbar
