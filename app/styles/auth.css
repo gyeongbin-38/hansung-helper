@@ -1154,3 +1154,58 @@ dialog.survey-dialog > p {
     font-size: 15px;
   }
 }
+/* 첫 화면 보안 안내 — 부기 마스코트 + 공지 카드 */
+.auth-security {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--nt-hairline);
+  border-radius: 12px;
+  background: var(--nt-tint-sky);
+}
+.auth-security-owl {
+  width: 52px;
+  height: auto;
+  flex-shrink: 0;
+}
+.auth-security-copy {
+  min-width: 0;
+}
+.auth-security-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nt-navy);
+  font-size: 14px;
+}
+.auth-security-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--nt-r-pill);
+  background: var(--nt-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.auth-security ul {
+  margin: 8px 0 0;
+  padding-left: 17px;
+  list-style: disc;
+  color: var(--nt-slate);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.auth-security li + li {
+  margin-top: 3px;
+}
+@media (max-width: 430px) {
+  .auth-security {
+    gap: 12px;
+    padding: 14px 15px;
+  }
+  .auth-security-owl {
+    width: 44px;
+  }
+}

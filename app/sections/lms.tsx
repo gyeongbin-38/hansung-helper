@@ -318,7 +318,7 @@ function BingeRow({ b, now }: { b: BingeItem; now: number }) {
           {b.range ? ` · ${shortRange(b.range)}` : ''}
           {dd !== null
             ? dd < 0
-              ? ' · 기한 지남'
+              ? ' · 마감 지남'
               : dd === 0
                 ? ' · 오늘까지'
                 : ` · D-${dd}`

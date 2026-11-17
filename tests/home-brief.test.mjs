@@ -11,7 +11,7 @@ const input = (changes = {}) => ({ now, activities: null, schedule: null, saved:
 test('KST 날짜 경계에서 오늘·내일·지난 기한을 구분한다', () => {
   assert.equal(briefTiming(Date.parse('2026-11-08T14:59:00Z'), now), '오늘');
   assert.equal(briefTiming(Date.parse('2026-11-08T15:10:00Z'), now), '내일');
-  assert.equal(briefTiming(now - 60000, now), '기한 지남');
+  assert.equal(briefTiming(now - 60000, now), '마감 지남');
 });
 
 test('현재 학기 미완료·미확인 항목만 모으고 원래 순서를 변경하지 않는다', () => {
