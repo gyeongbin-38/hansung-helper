@@ -38,6 +38,8 @@ export type CommunityPostSummary = {
   likeCount: number;
   createdAt: number;
   updatedAt?: number;
+  /** 로그인 시에만 채워진다 — 본인 글이면 true */
+  mine?: boolean;
 };
 
 export type CommunityComment = {

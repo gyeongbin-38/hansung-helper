@@ -506,6 +506,44 @@ button.community-back {
   font-weight: 600;
 }
 
+/* 내 글 빠른 삭제 — 목록·내 활동 행의 휴지통 버튼 */
+.community-list > li,
+.community-me-list > li {
+  position: relative;
+}
+.community-list > li > .community-row-del,
+.community-me-list > li > .community-row-del {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--nt-r-md);
+  background: none;
+  color: var(--nt-steel);
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background-color 0.12s ease;
+}
+.community-row-del:hover,
+.community-row-del:focus-visible {
+  background: var(--nt-tint-rose);
+  color: var(--nt-pink-deep);
+}
+/* 삭제 버튼과 제목이 겹치지 않게 내 글 행만 오른쪽 여백 */
+.community-list > li:has(.community-row-del) .community-row {
+  padding-right: 42px;
+}
+.community-me-list > li:has(.community-row-del) > button:first-child {
+  padding-right: 40px;
+}
+
 @media (max-width: 900px) {
   .community-me-grid {
     grid-template-columns: 1fr;
