@@ -554,7 +554,7 @@ export function LmsOverview({
                       {unverified
                         ? '확인 필요'
                         : d < 0
-                          ? '기한 지남'
+                          ? '마감 지남'
                           : d === 0
                             ? '오늘'
                             : `D-${d}`}

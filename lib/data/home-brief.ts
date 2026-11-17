@@ -31,7 +31,7 @@ type BriefInput = {
 const dayEnd = (date: string) => parseDue(date.slice(0, 10));
 
 export function briefTiming(at: number, now: number): string {
-  if (at < now) return '기한 지남';
+  if (at < now) return '마감 지남';
   const days = kstDateNumber(at) - kstDateNumber(now);
   return days === 0 ? '오늘' : days === 1 ? '내일' : `D-${days}`;
 }

@@ -122,6 +122,31 @@ export function SignIn({
           <br />
           나에게 맞는 다음 학기를 준비하세요.
         </p>
+        <div className="auth-security" role="note" aria-label="보안 안내">
+          {/* eslint-disable-next-line next/no-img-element -- bundled mascot asset; next/image is unavailable */}
+          <img
+            className="auth-security-owl"
+            src="/hsu-mascot.png"
+            alt=""
+            width="52"
+            height="74"
+          />
+          <div className="auth-security-copy">
+            <strong>
+              <span className="auth-security-tag">공지</span>
+              학교 보안 소식에 안심하고 쓰셔도 돼요
+            </strong>
+            <ul>
+              <li>비밀번호는 학교 인증 요청에만 쓰고 저장하지 않아요.</li>
+              <li>
+                학교 세션 쿠키는 암호화해 최대 2시간만 보관하고, 로그아웃·계정
+                삭제 시 즉시 지워요.
+              </li>
+              <li>학교 시스템에는 읽기 조회만 하고 학사 정보를 바꾸지 않아요.</li>
+              <li>설정에서 연결 정보와 계정 자료를 언제든 삭제할 수 있어요.</li>
+            </ul>
+          </div>
+        </div>
         {notice && (
           <div className="auth-error" role="alert">
             <p>{notice}</p>

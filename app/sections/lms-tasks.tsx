@@ -98,7 +98,7 @@ function formatDue(item: SubmissionItem, now: number) {
   const relative = item.uncertain
     ? ''
     : isOverdue(item, now)
-      ? '지연'
+      ? '마감 지남'
       : distance === 0
         ? '오늘'
         : distance > 0
@@ -151,10 +151,14 @@ function TaskRow({
     : complete
       ? '완료'
       : overdue
-        ? '지연'
+        ? '마감 지남'
         : distance === 0
           ? '오늘 마감'
-          : '미완료';
+          : distance === null
+            ? '날짜 없음'
+            : distance <= 2
+              ? '임박'
+              : '예정';
 
   return (
     <article
@@ -180,7 +184,7 @@ function TaskRow({
         {formatDue(item, now)}
       </span>
       <span
-        className={`lms-task-page__status is-${item.uncertain ? 'check' : complete ? 'done' : overdue ? 'late' : distance === 0 ? 'today' : 'pending'}`}
+        className={`lms-task-page__status is-${item.uncertain ? 'check' : complete ? 'done' : overdue ? 'late' : distance === 0 ? 'today' : distance !== null && distance <= 2 ? 'soon' : 'pending'}`}
       >
         {status}
       </span>
@@ -286,7 +290,7 @@ export function LmsTasks({ snap, now, before, sidebar }: LmsTasksProps) {
 
   const groups = useMemo(() => {
     const output: { key: string; label: string; items: SubmissionItem[] }[] = [
-      { key: 'overdue', label: '지연', items: [] },
+      { key: 'overdue', label: '마감 지남', items: [] },
       { key: 'today', label: '오늘', items: [] },
       { key: 'week', label: '이번 주', items: [] },
       { key: 'later', label: '이후', items: [] },
@@ -375,6 +379,20 @@ export function LmsTasks({ snap, now, before, sidebar }: LmsTasksProps) {
           </label>
         </div>
       </fieldset>
+
+      <details className="lms-task-page__legend">
+        <summary>상태 판단 기준</summary>
+        <ul>
+          <li><b>완료</b> — 제출이 확인된 항목</li>
+          <li><b>마감 지남</b> — 마감 시각이 지났는데 제출이 확인되지 않은 항목. 지연 제출 가능 여부는 LMS에서 확인해요.</li>
+          <li><b>오늘 마감</b> — 오늘 안에 마감되는 미제출 항목</li>
+          <li><b>임박</b> — 마감까지 이틀 이내인 미제출 항목</li>
+          <li><b>예정</b> — 마감까지 사흘 이상 남은 항목</li>
+          <li><b>날짜 없음</b> — 마감 시각이 수집되지 않은 항목</li>
+          <li><b>확인 필요</b> — 수집 정보가 애매해 제출 여부를 판단하지 못한 항목. LMS에서 직접 확인해요.</li>
+        </ul>
+        <p>마감 시각과 제출 여부는 마지막 COSMOS 수집 시점 기준입니다.</p>
+      </details>
 
       <div className="lms-task-page__metrics" aria-label="과제 현황">
         <article>
@@ -492,7 +510,7 @@ export function LmsTasks({ snap, now, before, sidebar }: LmsTasksProps) {
                 <dd>{metrics.remaining}</dd>
               </div>
               <div>
-                <dt>지연</dt>
+                <dt>마감 지남</dt>
                 <dd>{metrics.overdue}</dd>
               </div>
               <div>
