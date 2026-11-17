@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
+import { formatSemesterLabel, normalizeSemesterLabel } from '@/lib/data/graduation';
 
 /** 졸업요건 계산에 필요한 프로필 필드 — 누락 안내·포커스 대상 */
 const GRAD_FIELDS: [string, string][] = [
@@ -40,6 +41,13 @@ export function ProfileSection({
       ? !data.dept || data.dept === '소속 미입력'
       : !data.year,
   ).map(([, l]) => l);
+  // 목표 졸업학기 — 온보딩 자유 입력도 'YYYY-S'로 정규화해 선택지와 맞춘다
+  const curYear = new Date().getFullYear();
+  const savedTarget = normalizeSemesterLabel(data.graduationTarget);
+  const targetOptions = [...new Set([
+    ...Array.from({ length: 6 }, (_, i) => [`${curYear + i}-1`, `${curYear + i}-2`]).flat(),
+    ...(savedTarget ? [savedTarget] : []),
+  ])].sort();
   return (
     <section className="card detail profile">
       <div className="profile-mini">
@@ -76,6 +84,7 @@ export function ProfileSection({
             dept: d.get('dept') as string,
             credits: d.get('credits') as string,
             points: d.get('points') as string,
+            graduationTarget: d.get('graduationTarget') as string,
           });
         }}
       >
@@ -120,6 +129,17 @@ export function ProfileSection({
               />
             </label>
           ))}
+          <label>
+            목표 졸업학기
+            <select name="graduationTarget" defaultValue={savedTarget ?? ''}>
+              <option value="">선택하지 않음</option>
+              {targetOptions.map((v) => (
+                <option key={v} value={v}>
+                  {formatSemesterLabel(v)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <button className="primary">
           프로필 저장 <Check size={17} />

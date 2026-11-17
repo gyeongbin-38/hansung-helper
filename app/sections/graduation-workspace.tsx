@@ -2,17 +2,18 @@
 import { useMemo, useState, type ComponentProps } from 'react';
 import {
   ArrowRight, ArrowUpRight, BookOpen, Check, CircleAlert, ClipboardCheck, Clock3,
-  Database, GraduationCap, Info, Layers, Plus, Search, X,
+  Database, Flag, GraduationCap, Info, Layers, Plus, Search, X,
 } from 'lucide-react';
 import { Graduation } from './graduation';
 import { deptPoolOf, useDeptRules } from './catalog';
 import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { SchoolRequirementTables } from './graduation-school-requirements';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
-import { applyAudit, evaluate, evaluateGpa, generalEducationReference, requirementQuantityName, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
+import { applyAudit, evaluate, evaluateGpa, formatSemesterLabel, generalEducationReference, graduationOutlook, normalizeSemesterLabel, requirementQuantityName, semesterIndex, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
+import { semesterBreakdown } from '@/lib/data/visual-progress';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
 
@@ -67,6 +68,30 @@ export function GraduationWorkspace(props: Props) {
     status: r.required === null || r.uncertainCredits ? 'unknown' as const : earned >= r.required ? 'met' as const : 'progress' as const,
   }), data.info?.audit);
   const total = results[0];
+  // 졸업 전망 — 최근 이수 페이스로 남은 학점을 학기로 역산한다 (공식 사정 아님)
+  const pastPace = useMemo(() => {
+    const recent = semesterBreakdown(completed).items.slice(-4);
+    return recent.length ? Math.round(recent.reduce((s, i) => s + i.credits, 0) / recent.length) : undefined;
+  }, [completed]);
+  const outlook = graduationOutlook({
+    earned: earned ?? 0,
+    required: total.required,
+    planned: total.planned,
+    perSemester: total.planned > 0 ? undefined : pastPace,
+    semester: catalog?.semester,
+    admitYear: year,
+  });
+  const outlookTarget = normalizeSemesterLabel(data.graduationTarget);
+  const outlookEstIdx = semesterIndex(outlook.estLabel);
+  const outlookTargetIdx = semesterIndex(outlookTarget);
+  // 현재 학기 인덱스 = 예상 시기 − 남은 학기 수 (estLabel 역산과 동일 기준)
+  const outlookCurIdx = outlookEstIdx !== null ? outlookEstIdx - outlook.semestersLeft : null;
+  // 목표 학기까지 남은 학기에 필요한 페이스 — 목표가 예상보다 빠를 때만 계산
+  const outlookNeededPace = outlookCurIdx !== null && outlookEstIdx !== null && outlookTargetIdx !== null &&
+    outlookTargetIdx > outlookCurIdx && outlookTargetIdx < outlookEstIdx
+    ? Math.ceil(outlook.afterPlan / (outlookTargetIdx - outlookCurIdx))
+    : null;
+  const outlookGaps = results.filter(r => r.rule.id !== 'total' && r.required !== null && r.earned < r.required);
   const pointResult = results.find(r => r.rule.id === 'points')!;
   const general = results.find(r => r.rule.id === 'gen')!;
   const major = results.find(r => r.rule.id === 'major')!;
@@ -213,6 +238,53 @@ export function GraduationWorkspace(props: Props) {
           <GraduationMetricDetails className="card graduation-area-card" icon={<BookOpen size={19} />} title="교양" {...metric(general, 'graduation/gen')} />
           <GraduationMetricDetails className="card graduation-area-card" icon={<Layers size={19} />} title="전공" {...metric(major, 'graduation/major')} />
         </div>
+        <section className="card graduation-outlook" aria-labelledby="graduation-outlook-title">
+          <div className="graduation-section-heading">
+            <h3 id="graduation-outlook-title"><Flag size={19} />졸업 전망</h3>
+            {outlook.ok && earned !== null && outlookEstIdx !== null && outlookTargetIdx !== null && (
+              outlookTargetIdx > outlookEstIdx
+                ? <span className="badge green">목표보다 {outlookTargetIdx - outlookEstIdx}학기 여유</span>
+                : outlookTargetIdx === outlookEstIdx
+                  ? <span className="badge green">목표 학기와 동일</span>
+                  : <span className="badge orange">목표보다 {outlookEstIdx - outlookTargetIdx}학기 늦음</span>
+            )}
+          </div>
+          {!outlook.ok || earned === null ? (
+            <p className="graduation-outlook-note">입학 구분·학번·이수 정보를 확인하면 예상 졸업 시기를 계산해요. <button className="link" onClick={() => go('graduation/requirements')}>적용 기준 확인 <ArrowRight size={13} /></button></p>
+          ) : outlook.remaining === 0 ? (
+            <>
+              <b className="graduation-outlook-headline">교과 학점 기준을 채웠어요</b>
+              <p className="graduation-outlook-note">비교과 포인트와 졸업 학점 외 요건까지 학교 졸업사정에서 최종 확인해 주세요.</p>
+            </>
+          ) : (
+            <>
+              <b className="graduation-outlook-headline">
+                예상 졸업 시기 <em>{outlook.estLabel ? formatSemesterLabel(outlook.estLabel) : `약 ${outlook.semestersLeft}학기 후`}</em>
+              </b>
+              <p className="graduation-outlook-detail">
+                남은 교과 학점 <b>{outlook.remaining}학점</b>
+                {total.planned > 0 && <> · 현재 계획 {total.planned}학점 반영 시 <b>{outlook.afterPlan}학점</b></>}
+                {outlook.gradeYear !== undefined && <> · 현재 {outlook.gradeYear}학년 기준</>}
+              </p>
+              <p className="graduation-outlook-note">
+                학기당 {outlook.perSemester}학점 페이스 가정
+                {total.planned > 0 ? ' (이번 학기 계획 기준)' : pastPace !== undefined ? ' (최근 학기 평균)' : ' (기본값)'}
+                {' '}— 공식 졸업사정이 아닌 계획 참고용입니다.
+              </p>
+              {outlookNeededPace !== null && (
+                <p className="graduation-outlook-warn">목표 {formatSemesterLabel(outlookTarget!)}에 맞추려면 남은 학기 동안 학기당 약 {outlookNeededPace}학점이 필요해요.</p>
+              )}
+              {outlookTarget === null && (
+                <p className="graduation-outlook-note"><button className="link" onClick={() => go('profile')}>목표 졸업학기를 정하면</button> 목표 대비 여유·지연을 계산해 드려요.</p>
+              )}
+              {outlookGaps.length > 0 && (
+                <div className="graduation-outlook-gaps" aria-label="남은 요건">
+                  {outlookGaps.map(r => <span key={r.rule.id}>{r.rule.label} {r.required! - r.earned}{r.rule.unit ?? '학점'}</span>)}
+                </div>
+              )}
+            </>
+          )}
+        </section>
         <nav className="graduation-next-actions" aria-label="다음 확인 항목">
           {[
             ['비교과 포인트 확인', points === undefined ? '포인트 입력 필요' : `${points}P 적립`, 'profile'],

@@ -340,6 +340,22 @@ export const parseSemester = (s: string): [number, number] | null => {
   return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : null;
 };
 
+/** 학기 라벨 → 정수 인덱스(연도*2+학기-1) — 예상 시기와 목표 학기 비교용 */
+export const semesterIndex = (label: string | null | undefined) => {
+  const p = label ? parseSemester(label) : null;
+  return p ? p[0] * 2 + p[1] - 1 : null;
+};
+
+/** 'YYYY-S' → 'YYYY학년도 S학기' 표시용 라벨 */
+export const formatSemesterLabel = (label: string) =>
+  label.replace(/^(\d{4})-([12])$/, '$1학년도 $2학기');
+
+/** 자유 텍스트 목표 학기 → 'YYYY-S'. 온보딩 입력 '2029학년도 2학기'도 받는다. */
+export function normalizeSemesterLabel(s: string | null | undefined): string | null {
+  const p = s ? parseSemester(s.replace(/학년도/g, '-')) : null;
+  return p ? `${p[0]}-${p[1]}` : null;
+}
+
 const semIdx = (y: number, s: number) => y * 2 + (s - 1);
 const semLabel = (idx: number) => `${Math.floor(idx / 2)}-${(idx % 2) + 1}`;
 

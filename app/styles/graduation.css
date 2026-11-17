@@ -354,3 +354,15 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
   .admission-pick-options { width: 100%; }
   .admission-pick-options button { flex: 1; min-width: 0; }
 }
+
+/* 졸업 전망 — 남은 학점을 현재 페이스로 역산한 예상 시기 카드 */
+.graduation-outlook { display: grid; gap: 12px; }
+.graduation-outlook .graduation-section-heading { gap: 8px; margin-bottom: 0; }
+.graduation-outlook-headline { font-size: 18px; color: var(--nt-ink); font-weight: 750; }
+.graduation-outlook-headline em { font-style: normal; color: var(--nt-primary); }
+.graduation-outlook-detail { font-size: 13px; color: var(--nt-charcoal); }
+.graduation-outlook-detail b { color: var(--nt-ink); }
+.graduation-outlook-note { font-size: 11px; color: var(--nt-slate); line-height: 1.6; }
+.graduation-outlook-warn { font-size: 11px; color: var(--nt-brown); line-height: 1.6; padding: 9px 12px; border-radius: 9px; background: var(--nt-tint-yellow); }
+.graduation-outlook-gaps { display: flex; flex-wrap: wrap; gap: 6px; }
+.graduation-outlook-gaps span { font-size: 10px; font-weight: 650; padding: 5px 10px; border-radius: 999px; background: var(--nt-tint-sky); color: var(--nt-primary-pressed); }
