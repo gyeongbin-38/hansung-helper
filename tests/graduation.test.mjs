@@ -8,6 +8,9 @@ import {
   requirementQuantityName,
   generalEducationReference,
   evaluateGpa,
+  semesterIndex,
+  normalizeSemesterLabel,
+  formatSemesterLabel,
 } from '../lib/data/graduation.ts';
 
 test('교양 기준은 입학연도와 유형을 구분한다', () => {
@@ -328,6 +331,32 @@ test('outlook: 이미 채웠으면 남은 0 — 추가 학기 없음', () => {
   const o = graduationOutlook({ earned: 135, required: 130, planned: 0 });
   assert.equal(o.remaining, 0);
   assert.equal(o.semestersLeft, 0);
+});
+
+// ── 학기 라벨 헬퍼 — 예상 시기와 목표 학기 비교 ─────────
+
+test('semesterIndex: 학기 라벨을 비교 가능한 인덱스로', () => {
+  assert.equal(semesterIndex('2026-1'), 2026 * 2);
+  assert.equal(semesterIndex('2026-2'), 2026 * 2 + 1);
+  assert.ok(semesterIndex('2029-1') > semesterIndex('2026-2'));
+  assert.equal(semesterIndex('2029-1') - semesterIndex('2026-2'), 5);
+  assert.equal(semesterIndex(''), null);
+  assert.equal(semesterIndex(undefined), null);
+  assert.equal(semesterIndex('여름학기'), null);
+});
+
+test('normalizeSemesterLabel: 자유 텍스트 목표 학기를 YYYY-S로', () => {
+  assert.equal(normalizeSemesterLabel('2029학년도 2학기'), '2029-2');
+  assert.equal(normalizeSemesterLabel('2029-2'), '2029-2');
+  assert.equal(normalizeSemesterLabel('2029. 1학기'), '2029-1');
+  assert.equal(normalizeSemesterLabel(''), null);
+  assert.equal(normalizeSemesterLabel(undefined), null);
+  assert.equal(normalizeSemesterLabel('조기졸업 희망'), null);
+});
+
+test('formatSemesterLabel: YYYY-S를 표시 라벨로', () => {
+  assert.equal(formatSemesterLabel('2029-1'), '2029학년도 1학기');
+  assert.equal(formatSemesterLabel('legacy'), 'legacy');
 });
 
 // ---------- 학교 졸업가사정표(info.audit) 오버레이 ----------

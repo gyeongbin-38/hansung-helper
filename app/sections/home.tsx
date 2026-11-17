@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   CalendarDays,
   Clock3,
+  Flag,
   GraduationCap,
   Info,
   Link2,
@@ -18,7 +19,7 @@ import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { ActivitySummary } from './activity-summary';
 import { CreditComposition, ProgressMetric } from './visual-progress';
-import { targetProgress } from '@/lib/data/visual-progress';
+import { semesterBreakdown, targetProgress } from '@/lib/data/visual-progress';
 import {
   conflicts,
   fmtMin,
@@ -44,7 +45,13 @@ import {
 } from './catalog';
 import { addDays, dateOf } from '@/lib/data/calendar';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
-import { evaluate } from '@/lib/data/graduation';
+import {
+  evaluate,
+  formatSemesterLabel,
+  graduationOutlook,
+  normalizeSemesterLabel,
+  semesterIndex,
+} from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { dateDeadlineDays, deadlineDays, needsApplication } from '@/lib/data/home-deadlines';
@@ -370,6 +377,26 @@ export function Home({
       ? Math.max(0, total.required - credits)
       : null;
   const percent = targetProgress(hasCredits ? credits : null, total.required)?.percent ?? null;
+  // 졸업 전망 — 현재 페이스로 예상 졸업 시기를 역산해 한 줄로 보여준다
+  const recentPace = (() => {
+    const recent = semesterBreakdown(completed).items.slice(-4);
+    return recent.length
+      ? Math.round(recent.reduce((s, i) => s + i.credits, 0) / recent.length)
+      : undefined;
+  })();
+  const outlook = graduationOutlook({
+    earned: hasCredits ? credits : 0,
+    required: total.required,
+    planned: total.planned,
+    perSemester: total.planned > 0 ? undefined : recentPace,
+    semester: catalog?.semester,
+    admitYear: Number.isInteger(year) ? year : undefined,
+  });
+  const outlookTarget = normalizeSemesterLabel(data.graduationTarget);
+  const outlookDiff =
+    outlook.estLabel && outlookTarget
+      ? semesterIndex(outlookTarget)! - semesterIndex(outlook.estLabel)!
+      : null;
   const major = graduation.find((r) => r.rule.id === 'major')!;
   const general = graduation.find((r) => r.rule.id === 'gen')!;
   const weekday = (new Date(now + 9 * 3600_000).getUTCDay() + 6) % 7;
@@ -549,6 +576,16 @@ export function Home({
             value={percent}
             max={100}
           /> : <p className="home-credit-help">{hasCredits ? '이수학점은 반영됐어요. ' : '학점과 기준을 확인해 주세요. '}<button className="link" onClick={() => go('graduation')}>입학 구분·졸업 기준 확인 <ArrowRight size={13} /></button> 후 진행률을 계산해요.</p>}
+          {outlook.ok && hasCredits && outlook.remaining > 0 && (
+            <p className="home-outlook">
+              <Flag size={13} aria-hidden="true" />
+              예상 졸업 <b>{outlook.estLabel ? formatSemesterLabel(outlook.estLabel) : `약 ${outlook.semestersLeft}학기 후`}</b>
+              {outlookDiff !== null && outlookDiff > 0 && <span className="badge green">목표 {outlookDiff}학기 여유</span>}
+              {outlookDiff !== null && outlookDiff === 0 && <span className="badge green">목표와 동일</span>}
+              {outlookDiff !== null && outlookDiff < 0 && <span className="badge orange">목표보다 {-outlookDiff}학기 늦음</span>}
+              <small>남은 {outlook.remaining}학점 · 학기당 {outlook.perSemester}학점 페이스{total.planned > 0 ? ' (계획 기준)' : recentPace !== undefined ? ' (최근 평균)' : ' (기본값)'} — 계획 참고용</small>
+            </p>
+          )}
           <div className="home-grad-breakdown">
             <button onClick={() => go('graduation/major')}>
               <span>
