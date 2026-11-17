@@ -149,9 +149,10 @@ async function allowAfter(key: string, intervalMs: number) {
   return (results[1]?.meta.changes ?? 0) > 0;
 }
 
-function summaryOf(row: PostRow): CommunityPostSummary {
+function summaryOf(row: PostRow, accountId?: string): CommunityPostSummary {
   return {
     id: row.id,
+    ...(accountId && row.author_id === accountId ? { mine: true } : {}),
     category: row.category,
     title: row.title,
     preview: communityPreview(row.body),
@@ -175,11 +176,13 @@ export async function listCommunityPosts(options: {
   q?: string;
   sort?: CommunitySort;
   before?: string | null;
+  accountId?: string;
 }) {
   const db = database();
   const sort = isCommunitySort(options.sort) ? options.sort : 'latest';
   const query = (options.q ?? '').trim().slice(0, COMMUNITY_LIMITS.query);
   const before = (options.before ?? '').slice(0, 64) || null;
+  const accountId = options.accountId;
   const like = `%${escapeLike(query)}%`;
   const searchSql = query
     ? " AND (p.title LIKE ? ESCAPE '\\' OR p.body LIKE ? ESCAPE '\\')"
@@ -204,7 +207,9 @@ export async function listCommunityPosts(options: {
       )
       .bind(...args)
       .all<PostRow>();
-    const slice = rows.results.slice(0, COMMUNITY_PAGE_SIZE).map(summaryOf);
+    const slice = rows.results
+      .slice(0, COMMUNITY_PAGE_SIZE)
+      .map((row) => summaryOf(row, accountId));
     return {
       posts: slice,
       nextCursor: rows.results.length > COMMUNITY_PAGE_SIZE ? (slice.at(-1)?.id ?? null) : null,
@@ -220,7 +225,10 @@ export async function listCommunityPosts(options: {
     )
     .bind(...searchArgs)
     .all<PostRow>();
-  const sorted = sortCommunityPosts(rows.results.map(summaryOf), sort);
+  const sorted = sortCommunityPosts(
+    rows.results.map((row) => summaryOf(row, accountId)),
+    sort,
+  );
   const index = before ? sorted.findIndex((post) => post.id === before) : -1;
   const start = index < 0 ? 0 : index + 1;
   const slice = sorted.slice(start, start + COMMUNITY_PAGE_SIZE);

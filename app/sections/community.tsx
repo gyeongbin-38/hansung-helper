@@ -347,6 +347,25 @@ export function CommunitySection({
     }
   }
 
+  // 목록·내 활동에서 내 글을 바로 삭제 — 상세 화면으로 가지 않아도 된다
+  async function removePostItem(id: string) {
+    if (!confirm('이 글을 삭제할까요? 댓글도 함께 보이지 않게 됩니다.')) return;
+    setActionError('');
+    try {
+      await sendJson(`/api/community/posts/${id}`, 'DELETE');
+      setPosts((previous) => previous.filter((item) => item.id !== id));
+      if (me) {
+        setMe({
+          ...me,
+          posts: me.posts.filter((activity) => activity.id !== id),
+        });
+      }
+      notify('글을 삭제했습니다.');
+    } catch (error) {
+      setActionError(errorMessage(error));
+    }
+  }
+
   async function saveComment(commentId: string) {
     if (!post || !editCommentBody.trim()) return;
     setBusy(true);
@@ -914,6 +933,14 @@ export function CommunitySection({
                             {communityTimeAgo(activity.createdAt)}
                           </small>
                         </button>
+                        <button
+                          type="button"
+                          className="community-row-del"
+                          aria-label={`'${activity.title}' 삭제`}
+                          onClick={() => void removePostItem(activity.id)}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1038,6 +1065,7 @@ export function CommunitySection({
                     <div className="community-row-head">
                       <span className="badge blue">{item.category}</span>
                       <strong>{item.title}</strong>
+                      {item.mine && <span className="badge green">내 글</span>}
                     </div>
                     <p className="community-row-preview">{item.preview}</p>
                     <span className="community-row-meta">
@@ -1051,6 +1079,16 @@ export function CommunitySection({
                       <Heart size={13} aria-hidden="true" /> {item.likeCount}
                     </span>
                   </button>
+                  {item.mine && (
+                    <button
+                      type="button"
+                      className="community-row-del"
+                      aria-label={`'${item.title}' 삭제`}
+                      onClick={() => void removePostItem(item.id)}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

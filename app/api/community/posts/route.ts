@@ -10,10 +10,12 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const sort = url.searchParams.get('sort');
+    const account = await authenticated(request).catch(() => null);
     const result = await listCommunityPosts({
       q: url.searchParams.get('q') ?? '',
       sort: isCommunitySort(sort) ? sort : 'latest',
       before: url.searchParams.get('before'),
+      accountId: account?.id,
     });
     return json(result);
   } catch {

@@ -180,23 +180,49 @@ export function MobileTabBar({
   const now = useNow(30000);
   const pendingCount = data.lms ? pendingTasks(data.lms, currentSemesterStart(now)).length : 0;
   const iconOf = (key: string) => menus.find(([k]) => k === key)?.[2];
+  const activeIndex = TAB_KEYS.indexOf(
+    section as (typeof TAB_KEYS)[number],
+  );
+  // Android만 진동이 지원되지만 iOS에서는 조용히 무시된다
+  const buzz = () => {
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* 진동 미지원 환경 */
+    }
+  };
   return (
     <nav className="tabbar" aria-label="주요 화면 바로가기">
+      <span
+        className="tabbar-pill"
+        aria-hidden="true"
+        style={{
+          transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+          opacity: activeIndex >= 0 ? 1 : 0,
+        }}
+      >
+        <b />
+      </span>
       {TAB_KEYS.map((key) => {
         const Icon = iconOf(key);
+        const selected = section === key;
         return (
           <button
             key={key}
-            className={section === key ? 'selected' : ''}
-            aria-current={section === key ? 'page' : undefined}
+            className={selected ? 'selected' : ''}
+            aria-current={selected ? 'page' : undefined}
             aria-label={
               key === 'lms' && pendingCount > 0
                 ? `${TAB_LABEL[key]}, 미처리 과제 ${pendingCount}개`
                 : TAB_LABEL[key]
             }
-            onClick={() => go(key)}
+            onClick={() => {
+              buzz();
+              if (selected) window.scrollTo({ top: 0, behavior: 'smooth' });
+              else go(key);
+            }}
           >
-            <span className="tabbar-icon">
+            <span className="tabbar-icon" key={selected ? 'on' : 'off'}>
               {Icon ? <Icon size={20} /> : null}
               {key === 'lms' && pendingCount > 0 && (
                 <i aria-hidden="true">{pendingCount}</i>
@@ -206,7 +232,13 @@ export function MobileTabBar({
           </button>
         );
       })}
-      <button onClick={onMenu} aria-label="전체 메뉴 열기">
+      <button
+        onClick={() => {
+          buzz();
+          onMenu();
+        }}
+        aria-label="전체 메뉴 열기"
+      >
         <span className="tabbar-icon">
           <Menu size={20} />
         </span>
