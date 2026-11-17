@@ -11,6 +11,7 @@
 @import './styles/visual-progress.css';
 @import './styles/lms-overview.css';
 @import './styles/lms-tasks.css';
+@import './styles/community.css';
 /*
   Toss-inspired product token layer.
   This sans-first contract supplies every section stylesheet with accessible

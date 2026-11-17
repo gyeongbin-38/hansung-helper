@@ -21,7 +21,7 @@ import { useNow } from './catalog';
 const NAV_GROUP_AT: Record<number, string> = {
   3: '학업 계획',
   6: '학교생활',
-  8: '학사 안내',
+  9: '학사 안내',
 };
 import { Logo } from '../logo';
 import type { Account } from '../account-flow';
@@ -253,6 +253,7 @@ const NAV_GROUP_OF: Record<string, string> = {
   'semester-plan': '수업·계획',
   courses: '수업·계획',
   activities: '활동·일정',
+  community: '학교생활',
   calendar: '활동·일정',
   graduation: '점검',
   advisor: '점검',

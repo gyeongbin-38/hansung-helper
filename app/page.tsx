@@ -27,6 +27,7 @@ import {
 } from './sections/chrome';
 import { Home } from './sections/home';
 import { Activities } from './sections/activities';
+import { CommunitySection } from './sections/community';
 import { ProfileSection } from './sections/profile';
 import { GraduationWorkspace } from './sections/graduation-workspace';
 import { Courses } from './sections/courses';
@@ -1172,6 +1173,14 @@ export default function App() {
               setActStage={setActStage}
               addExtActivity={addExtActivity}
               removeExtActivity={removeExtActivity}
+            />
+          ) : section === 'community' ? (
+            <CommunitySection
+              signedIn={!!account}
+              detail={detail}
+              go={go}
+              onConnect={exitDemo}
+              notify={setToast}
             />
           ) : section === 'profile' ? (
             <ProfileSection

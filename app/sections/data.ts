@@ -9,6 +9,7 @@ import {
   BookOpen,
   MonitorPlay,
   ClipboardList,
+  MessagesSquare,
 } from 'lucide-react';
 import type { LmsSnapshot } from '@/lib/data/lms';
 import type { InfoSnapshot } from '@/lib/data/info';
@@ -22,6 +23,7 @@ export const menus = [
   ['timetable', '시간표 짜기', LayoutGrid],
   ['courses', '과목 추천', BookOpen],
   ['activities', '비교과·대외활동', Compass],
+  ['community', '커뮤니티', MessagesSquare],
   ['calendar', '학사일정', CalendarDays],
   ['advisor', 'AI 학사 도우미', Sparkles],
   ['survey', '설문조사', ClipboardList],
