@@ -157,6 +157,65 @@ export function Sidebar({
   );
 }
 
+/** 모바일 하단 탭 — 자주 쓰는 화면 4개 + 전체 메뉴(드로어). 768px 미만에서만 표시 */
+const TAB_KEYS = ['home', 'lms', 'activities', 'advisor'] as const;
+const TAB_LABEL: Record<string, string> = {
+  home: '홈',
+  lms: '수업·과제',
+  activities: '활동',
+  advisor: 'AI',
+};
+
+export function MobileTabBar({
+  section,
+  data,
+  go,
+  onMenu,
+}: {
+  section: string;
+  data: Data;
+  go: (route: string) => void;
+  onMenu: () => void;
+}) {
+  const now = useNow(30000);
+  const pendingCount = data.lms ? pendingTasks(data.lms, currentSemesterStart(now)).length : 0;
+  const iconOf = (key: string) => menus.find(([k]) => k === key)?.[2];
+  return (
+    <nav className="tabbar" aria-label="주요 화면 바로가기">
+      {TAB_KEYS.map((key) => {
+        const Icon = iconOf(key);
+        return (
+          <button
+            key={key}
+            className={section === key ? 'selected' : ''}
+            aria-current={section === key ? 'page' : undefined}
+            aria-label={
+              key === 'lms' && pendingCount > 0
+                ? `${TAB_LABEL[key]}, 미처리 과제 ${pendingCount}개`
+                : TAB_LABEL[key]
+            }
+            onClick={() => go(key)}
+          >
+            <span className="tabbar-icon">
+              {Icon ? <Icon size={20} /> : null}
+              {key === 'lms' && pendingCount > 0 && (
+                <i aria-hidden="true">{pendingCount}</i>
+              )}
+            </span>
+            <span className="tabbar-label">{TAB_LABEL[key] ?? key}</span>
+          </button>
+        );
+      })}
+      <button onClick={onMenu} aria-label="전체 메뉴 열기">
+        <span className="tabbar-icon">
+          <Menu size={20} />
+        </span>
+        <span className="tabbar-label">메뉴</span>
+      </button>
+    </nav>
+  );
+}
+
 export function Topbar({
   query,
   setQuery,
