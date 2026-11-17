@@ -366,3 +366,9 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-outlook-warn { font-size: 11px; color: var(--nt-brown); line-height: 1.6; padding: 9px 12px; border-radius: 9px; background: var(--nt-tint-yellow); }
 .graduation-outlook-gaps { display: flex; flex-wrap: wrap; gap: 6px; }
 .graduation-outlook-gaps span { font-size: 10px; font-weight: 650; padding: 5px 10px; border-radius: 999px; background: var(--nt-tint-sky); color: var(--nt-primary-pressed); }
+
+/* .graduation-next-actions 베이스가 위 1200px 미디어쿼리보다 뒤에 선언돼
+   모바일 1열 규칙이 덮였다 — 마지막에 다시 선언한다. */
+@media (max-width: 1200px) {
+  .graduation-next-actions { grid-template-columns: 1fr; }
+}

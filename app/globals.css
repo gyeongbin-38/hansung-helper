@@ -718,3 +718,32 @@ button:disabled {
     -webkit-print-color-adjust: exact;
   }
 }
+/* globals.css 베이스 규칙이 임포트된 스타일시트의 모바일 오버라이드보다
+   나중에 로드되므로, 모바일 전용 값은 여기서 다시 선언한다. */
+@media (max-width: 767px) {
+  h1 {
+    font-size: 26px;
+  }
+  .demo-note {
+    display: block;
+    font-size: 13px;
+  }
+  .demo-note button {
+    margin-top: 8px;
+  }
+  .detail {
+    padding: 24px;
+  }
+  .form-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-grid {
+    padding: 18px;
+    gap: 20px;
+  }
+  .event-line {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}

@@ -5139,3 +5139,32 @@ input[aria-invalid='true'] {
     align-items: flex-start;
   }
 }
+@media (max-width: 640px) {
+  .cal-cell {
+    min-height: 58px;
+    padding: 5px 2px 4px;
+    align-items: center;
+    gap: 5px;
+    text-align: center;
+  }
+  .cal-dayno {
+    justify-content: center;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .cal-dayno i,
+  .cal-bands,
+  .cal-chips {
+    display: none;
+  }
+  .cal-mobile-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--nt-muted);
+    font-size: 10px;
+    line-height: 12px;
+  }
+}
