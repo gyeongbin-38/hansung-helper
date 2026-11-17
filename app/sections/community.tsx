@@ -743,7 +743,9 @@ export function CommunitySection({
                   </select>
                 </label>
                 <label>
-                  상세 내용 <span className="meta">선택</span>
+                  <span>
+                    상세 내용 <span className="meta">선택</span>
+                  </span>
                   <textarea
                     value={reportDetail}
                     maxLength={COMMUNITY_LIMITS.reportDetail}

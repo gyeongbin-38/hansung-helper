@@ -22,8 +22,10 @@
 .community-hero > button {
   flex-shrink: 0;
 }
-.community-back {
-  margin: 0 0 14px;
+button.community-back {
+  display: flex;
+  width: fit-content;
+  margin: 4px 0 14px;
   padding: 0;
 }
 .community-state {
