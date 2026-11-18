@@ -686,7 +686,10 @@ footer {
     max-width: none;
   }
   footer {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
   }
   .event-line {
     gap: 10px;
@@ -1485,7 +1488,10 @@ footer {
     max-width: none;
   }
   footer {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
   }
   .event-line {
     gap: 10px;
