@@ -105,6 +105,12 @@ export async function ipRateLimitKey(ip: string) {
   return keyedDigest('login-ip', ip);
 }
 
+/** 익명 방문자 식별 — IP+UA+날짜를 HMAC해 일별로 순환되는 비가역 값을
+ *  만든다. 원본 IP는 저장하지 않는다. */
+export async function visitorDigest(ip: string, ua: string, day: string) {
+  return keyedDigest('visitor', `${ip}|${ua.slice(0, 120)}|${day}`);
+}
+
 type StudentAccountRow = {
   id: string;
   student_mask: string;
