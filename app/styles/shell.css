@@ -1556,49 +1556,51 @@ footer {
       color: var(--nt-primary);
     }
   }
-  /* 활성 탭 뒤로 미끄러지는 필 인디케이터 — 5등분 칸 단위로 translateX */
-  .tabbar-pill {
-    position: absolute;
-    top: 6px;
-    left: 0;
-    width: 20%;
-    height: 32px;
-    padding: 0 16px;
-    pointer-events: none;
-    transition:
-      transform 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.18),
-      opacity 0.2s ease;
-    will-change: transform;
-  }
-  .tabbar-pill b {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: var(--nt-tint-sky);
-  }
-  /* 탭 전환 시 아이콘 팝 — key remount로 매번 재생된다 */
-  .tabbar > button.selected .tabbar-icon {
-    animation: tabbar-pop 0.34s cubic-bezier(0.3, 1.4, 0.5, 1);
-  }
-  @keyframes tabbar-pop {
-    0% {
-      transform: scale(0.55) translateY(3px);
-    }
-    70% {
-      transform: scale(1.14) translateY(-1px);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
+  /* 활성 탭 인디케이터 — 아이콘이 동전처럼 뒤집혀 뒷면(틴트 디스크+컬러)이
+     나타난다. 선택 해제 시 앞면으로 되돌아간다 */
   .tabbar-icon {
     position: relative;
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    perspective: 120px;
+  }
+  .tabbar-icon .flip {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.3, 1.15, 0.4, 1);
+  }
+  .tabbar-icon .face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .tabbar-icon .face.back {
+    transform: rotateY(180deg);
+    background: var(--nt-tint-sky);
+    color: var(--nt-primary);
+  }
+  .tabbar > button.selected .tabbar-icon .flip {
+    transform: rotateY(180deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tabbar-icon .flip {
+      transition: none;
+    }
   }
   .tabbar-icon i {
     position: absolute;
-    top: -6px;
-    right: -14px;
+    top: -4px;
+    right: -10px;
     min-width: 16px;
     height: 16px;
     border-radius: 8px;
@@ -1612,7 +1614,6 @@ footer {
     align-items: center;
     justify-content: center;
     padding: 0 4px;
-    animation: tabbar-pop 0.3s ease;
   }
   main {
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
