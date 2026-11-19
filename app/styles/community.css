@@ -519,8 +519,8 @@ button.community-back {
   z-index: 1;
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   border-radius: var(--nt-r-md);
@@ -529,12 +529,22 @@ button.community-back {
   cursor: pointer;
   transition:
     color 0.12s ease,
-    background-color 0.12s ease;
+    background-color 0.12s ease,
+    transform 0.1s ease;
+}
+/* 보이는 버튼은 36px지만 탭 영역은 44px로 확장 — 모바일 오탭 방지 */
+.community-row-del::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 .community-row-del:hover,
 .community-row-del:focus-visible {
   background: var(--nt-tint-rose);
   color: var(--nt-pink-deep);
+}
+.community-row-del:active {
+  transform: scale(0.96);
 }
 /* 삭제 버튼과 제목이 겹치지 않게 내 글 행만 오른쪽 여백 */
 .community-list > li:has(.community-row-del) .community-row {

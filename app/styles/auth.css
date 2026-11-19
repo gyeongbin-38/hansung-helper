@@ -1209,3 +1209,24 @@ dialog.survey-dialog > p {
     width: 44px;
   }
 }
+/* 첫 로드 진입 — 패널이 부드럽게 뜨고 보안 카드가 한 박자 뒤 따라온다 */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-panel {
+    animation: auth-panel-in 0.36s var(--nt-ease) backwards;
+  }
+  .auth-security {
+    animation: auth-security-in 0.42s 0.16s var(--nt-ease) backwards;
+  }
+}
+@keyframes auth-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes auth-security-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}

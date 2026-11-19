@@ -1545,7 +1545,7 @@ footer {
   }
   .tabbar > button:active {
     color: var(--nt-primary-pressed);
-    transform: scale(0.92);
+    transform: scale(0.96);
   }
   /* 터치 환경에서는 탭 후 호버 색이 남지 않게 한다 */
   @media (hover: none) {
@@ -1607,6 +1607,7 @@ footer {
     font-size: 10px;
     font-style: normal;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     display: inline-flex;
     align-items: center;
     justify-content: center;
