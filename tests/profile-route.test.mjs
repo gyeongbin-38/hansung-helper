@@ -22,6 +22,8 @@ const modules = {
     PayloadTooLargeError: class extends Error {},
   },
   '@/lib/data/lms': { validateLms: (v) => v },
+  'cloudflare:workers': { waitUntil() {} },
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
 };
 const exports = {};
 vm.runInNewContext(js, { exports, require: (name) => modules[name], JSON, Number, Array, Object, String, SyntaxError });

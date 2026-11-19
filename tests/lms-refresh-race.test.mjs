@@ -35,6 +35,7 @@ const modules = {
     connectSchool: async () => new Promise((resolve) => pending.push(resolve)) },
   '@/lib/data/info': { mergeInfoSnapshot() {} },
   '@/lib/server/lms-write': { writeCollectedLms() {} },
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
   '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
   '@/lib/server/collect-queue': {

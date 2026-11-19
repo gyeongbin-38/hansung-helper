@@ -44,7 +44,8 @@ export async function apiFetch(
       context &&
       ((path.startsWith('/api/account') && path !== '/api/account/login') ||
         path === '/api/advisor' ||
-        path.startsWith('/api/community'))
+        path.startsWith('/api/community') ||
+        path.startsWith('/api/push'))
     )
       headers.set('X-Hansung-Session-Context', context);
     const response = await fetch(input, {
@@ -57,6 +58,7 @@ export async function apiFetch(
     const sessionRejected = response.status === 401 &&
       (path === '/api/account' || path === '/api/account/profile' || path === '/api/advisor' ||
         path.startsWith('/api/community') ||
+        path.startsWith('/api/push') ||
         ((path === '/api/account/lms-refresh' || path === '/api/account/lms-refresh-session') &&
           response.headers.get('X-Hansung-Session-Invalid') === '1'));
     const logoutMismatch = response.status === 409 && path === '/api/account/logout';

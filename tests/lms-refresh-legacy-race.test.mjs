@@ -50,6 +50,7 @@ const route = await load('app/api/account/lms-refresh/route.ts', {
   }, connectSchool: () => new Promise(resolve => { finishSchool = resolve; }) },
   '@/lib/data/info': { mergeInfoSnapshot() {} },
   '@/lib/server/lms-write': { writeCollectedLms() {} },
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
   '@/lib/server/session-vault': { saveSchoolSession: async () => true },
   '@/lib/data/notifs': { infoChanges() {} },
   '@/lib/server/collect-queue': {
