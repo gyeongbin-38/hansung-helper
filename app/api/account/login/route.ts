@@ -25,6 +25,7 @@ import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
 import { acquireWork, releaseWork, type WorkLease } from '@/lib/server/work-capacity';
+import { dispatchLmsRemindersIfReady } from '@/lib/server/push-dispatch';
 export async function POST(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   const schoolSessionIssuedAt = Date.now();
@@ -179,7 +180,9 @@ export async function POST(request: Request) {
       background(
         (async () => {
           try {
-            await writeCollectedLms(database(), id, snapshot.checkedAt, tokenHash, await deferredCollect());
+            const collected = await deferredCollect();
+            await writeCollectedLms(database(), id, snapshot.checkedAt, tokenHash, collected);
+            await dispatchLmsRemindersIfReady(database(), id, collected);
           } catch {
             console.log('[lms] deferred collect failed');
             try {

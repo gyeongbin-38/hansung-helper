@@ -15,6 +15,12 @@ import {
 } from '@/lib/data/catalog';
 import { currentSemesterStart } from '@/lib/data/lms';
 import { deriveNotifs, type NotifItem } from '@/lib/data/notifs';
+import {
+  currentPushEndpoint,
+  dropPushSubscription,
+  ensurePushSubscription,
+  pushSupported,
+} from '@/lib/push-client';
 
 export function Notifications({
   account,
@@ -99,6 +105,7 @@ export function Notifications({
         enabled={!!data.notifEnabled}
         onChange={async (on) => {
           if (!on) {
+            await dropPushSubscription();
             await persist(
               { ...data, notifEnabled: false },
               '마감 알림을 껐습니다.',
@@ -107,9 +114,14 @@ export function Notifications({
           }
           const perm = await Notification.requestPermission();
           if (perm !== 'granted') return;
+          // 로그인 상태면 이 기기의 푸시 구독도 함께 등록한다 — 실패해도
+          // 앱 내 알림은 그대로 동작한다.
+          const pushed = account ? await ensurePushSubscription() : null;
           await persist(
             { ...data, notifEnabled: true },
-            '마감 알림을 켰습니다. 이 페이지가 열려 있는 동안 울립니다.',
+            pushed
+              ? '마감 알림을 켰습니다. 앱이 닫혀 있어도 이 기기로 울립니다.'
+              : '마감 알림을 켰습니다. 이 페이지가 열려 있는 동안 울립니다.',
           );
         }}
       />
@@ -117,8 +129,8 @@ export function Notifications({
   );
 }
 
-/** 브라우저 마감 알림 설정 — 푸시 인프라가 없어 앱이 열려 있을 때만 울리는
- *  제한을 명시한다. 권한 거부·미지원 상태도 안내한다. */
+/** 브라우저 마감 알림 설정 — 푸시 구독이 이 기기에 연결돼 있으면 앱이 닫혀
+ *  있어도 울린다는 점을 명시한다. 권한 거부·미지원 상태도 안내한다. */
 function DeadlineNotifSetting({
   enabled,
   onChange,
@@ -128,6 +140,11 @@ function DeadlineNotifSetting({
 }) {
   const supported = typeof Notification !== 'undefined';
   const denied = supported && Notification.permission === 'denied';
+  const [pushed, setPushed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!enabled || !pushSupported()) return;
+    void currentPushEndpoint().then(setPushed);
+  }, [enabled]);
   return (
     <div className="notif-native">
       <div className="between">
@@ -152,7 +169,11 @@ function DeadlineNotifSetting({
           ? '이 브라우저는 알림을 지원하지 않습니다.'
           : denied
             ? '브라우저에서 알림이 차단되어 있습니다. 주소창 왼쪽 아이콘에서 허용으로 바꿀 수 있습니다.'
-            : '앱(탭)이 열려 있을 때만 울립니다. 탭을 닫으면 알림이 오지 않습니다. 백그라운드 푸시는 지원하지 않습니다.'}
+            : pushed
+              ? '이 기기는 푸시가 연결되어 앱이 닫혀 있어도 수업 마감 알림이 옵니다.'
+              : pushSupported()
+                ? '켜면 수업 마감 푸시가 이 기기에 연결됩니다. 앱이 열려 있을 때는 모든 알림이 바로 울립니다.'
+                : '앱(탭)이 열려 있을 때만 울립니다. 이 브라우저는 백그라운드 푸시를 지원하지 않습니다.'}
       </p>
     </div>
   );

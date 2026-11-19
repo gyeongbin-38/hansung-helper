@@ -1,0 +1,16 @@
+# 학사부기 마감 푸시 크론 워커 — 배포 시 database_id를 실값으로 패치한다
+# (HANSUNG_D1_DATABASE_ID 환경변수, 저장소에 기록 금지). VAPID_JWK는
+# `wrangler secret put VAPID_JWK`로 설정한다(메인 앱과 같은 키 쌍).
+name = "hansung-helper-push"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[triggers]
+crons = ["0 */3 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "site-creator-d1"
+database_id = "00000000-0000-4000-8000-000000000000"

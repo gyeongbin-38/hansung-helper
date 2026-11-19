@@ -45,6 +45,11 @@ import {
   activityReminderTargets,
 } from '@/lib/data/notifs';
 import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtensionLms } from '@/lib/data/lms';
+import {
+  currentPushEndpoint,
+  ensurePushSubscription,
+  pushSupported,
+} from '@/lib/push-client';
 import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
 import { isQueuedResponse, waitForCollectTurn } from '@/lib/data/collect-queue';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
@@ -577,6 +582,26 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refs만 사용
   }, []);
+  // 마감 푸시 — 알림을 켠 로그인 기기에는 구독을 자동 연결한다. 이미 구독된
+  // 기기는 서버 쪽 레코드 유실에 대비해 재등록(upsert)만 시도한다. 푸시가
+  // 연결된 기기에서는 LMS 마감 로컬 예약을 끈다 — 서버가 같은 id로 보낸다.
+  const [pushOn, setPushOn] = useState(false);
+  const notifWanted = !!data.notifEnabled;
+  useEffect(() => {
+    if (!account || !notifWanted || !pushSupported()) {
+      setPushOn(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const ep =
+        (await currentPushEndpoint()) ?? (await ensurePushSubscription());
+      if (!cancelled) setPushOn(!!ep);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account, notifWanted]);
   useEffect(() => {
     const d = data;
     if (
@@ -598,7 +623,9 @@ export default function App() {
         extActivities: d.extActivities,
         now: Date.now(),
       }),
-      ...(d.lms
+      // 푸시가 연결된 기기에서는 LMS 마감을 서버가 보낸다 — 로컬 예약은
+      // 비활동(활동·단계) 알림만 남긴다.
+      ...(d.lms && !pushOn
         ? reminderTargets(d.lms, Date.now(), undefined, undefined, before)
         : []),
     ].sort((a, b) => a.fireAt - b.fireAt);
@@ -619,7 +646,7 @@ export default function App() {
       );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist는 안정 함수
-  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, data.saved, catalog, actsSnap]);
+  }, [data.notifEnabled, data.lms, data.actStatus, data.extActivities, data.saved, catalog, actsSnap, pushOn]);
   async function persist(
     next: Data,
     msg = '저장했습니다.',

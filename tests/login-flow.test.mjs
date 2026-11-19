@@ -89,10 +89,13 @@ const login = await load('app/api/account/login/route.ts', {
     },
   },
   '@/lib/server/lms-write': {}, '@/lib/data/info': {}, '@/lib/data/notifs': {},
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
 });
 const current = await load('app/api/account/route.ts', imports);
 const profile = await load('app/api/account/profile/route.ts', {
   ...imports, '@/lib/data/lms': { validateLms: value => value },
+  'cloudflare:workers': { waitUntil() {} },
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
 });
 const logout = await load('app/api/account/logout/route.ts', imports);
 const health = await load('app/api/health/route.ts', imports);

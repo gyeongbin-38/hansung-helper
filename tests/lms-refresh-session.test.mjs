@@ -80,6 +80,7 @@ const modules = {
   },
   '@/lib/server/session-vault': vault,
   '@/lib/server/lms-write': { writeCollectedLms: async () => {} },
+  '@/lib/server/push-dispatch': { dispatchLmsRemindersIfReady: async () => {} },
   '@/lib/data/info': { mergeInfoSnapshot: (_old, current) => current },
   '@/lib/data/notifs': { infoChanges: () => [] },
   '@/lib/server/collect-queue': {

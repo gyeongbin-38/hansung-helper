@@ -1,3 +1,4 @@
+import { waitUntil } from 'cloudflare:workers';
 import {
   authenticated,
   database,
@@ -6,7 +7,8 @@ import {
   readTextLimited,
   validOrigin,
 } from '@/lib/server/account';
-import { validateLms } from '@/lib/data/lms';
+import { validateLms, type LmsSnapshot } from '@/lib/data/lms';
+import { dispatchLmsRemindersIfReady } from '@/lib/server/push-dispatch';
 export async function PUT(request: Request) {
   if (!validOrigin(request)) return json({ error: '잘못된 요청입니다.' }, 403);
   try {
@@ -349,6 +351,16 @@ export async function PUT(request: Request) {
           conflict: true,
         },
         409,
+      );
+    // 확장·수동 수집 경로로 새 LMS 스냅샷이 들어오면 마감 푸시를 발송한다.
+    // 응답 후 waitUntil에서 처리해 저장 경로를 지연시키지 않는다.
+    if (profile.lms)
+      waitUntil(
+        dispatchLmsRemindersIfReady(
+          database(),
+          row.id,
+          profile.lms as LmsSnapshot,
+        ),
       );
     return json({ saved: true, rev: profile.rev });
   } catch (error) {

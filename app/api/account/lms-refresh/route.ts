@@ -23,6 +23,7 @@ import { writeCollectedLms } from '@/lib/server/lms-write';
 import type { InfoSnapshot } from '@/lib/data/info';
 import { mergeInfoSnapshot } from '@/lib/data/info';
 import { infoChanges } from '@/lib/data/notifs';
+import { dispatchLmsRemindersIfReady } from '@/lib/server/push-dispatch';
 import {
   abandonCollectQueue,
   enterCollectQueue,
@@ -163,7 +164,9 @@ export async function POST(request: Request) {
         (async () => {
           try {
             await heartbeatCollectQueue(account.id);
-            await writeCollectedLms(database(), id, snapshot.checkedAt, account.session_hash, await deferredCollect());
+            const collected = await deferredCollect();
+            await writeCollectedLms(database(), id, snapshot.checkedAt, account.session_hash, collected);
+            await dispatchLmsRemindersIfReady(database(), id, collected);
           } catch {
             console.log('[lms] deferred collect failed');
             try {
