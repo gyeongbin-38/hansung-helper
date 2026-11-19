@@ -95,15 +95,8 @@ function formatDue(item: SubmissionItem, now: number) {
   const dateLabel = `${due.month + 1}.${String(due.day).padStart(2, '0')}`;
   const timeLabel = `${String(time.getUTCHours()).padStart(2, '0')}:${String(time.getUTCMinutes()).padStart(2, '0')}`;
   const distance = kstDateNumber(item.dueTs) - kstDateNumber(now);
-  const relative = item.uncertain
-    ? ''
-    : isOverdue(item, now)
-      ? '마감 지남'
-      : distance === 0
-        ? '오늘'
-        : distance > 0
-          ? `D-${distance}`
-          : '';
+  // 상태 문구(마감 지남·오늘)는 옆의 status 칩이 담당 — 메타에는 D-n만 남긴다
+  const relative = !item.uncertain && distance > 0 ? `D-${distance}` : '';
   return [dateLabel, timeLabel, relative].filter(Boolean).join(' · ');
 }
 

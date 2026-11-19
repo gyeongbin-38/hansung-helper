@@ -240,7 +240,7 @@ export function CalendarSection({
               )}
             </>
           )}
-          {data.lms && <> · 수업 마감(COSMOS 수집) · 개인 일정을 함께 표시</>}
+          {data.lms && <> · <span style={{ whiteSpace: 'nowrap' }}>수업 마감(COSMOS 수집)</span> · 개인 일정을 함께 표시</>}
         </p>
         {failed && (
           <p className="meta">

@@ -115,6 +115,8 @@ body {
   font-size: 16px;
   line-height: 1.6;
   background: var(--nt-paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   /* 한글 어절 단위 줄바꿈 — 음절 중간 절개 금지.
      긴 영문/URL은 overflow-wrap이 마지막 수단으로 절개한다. */
   word-break: keep-all;
@@ -160,6 +162,11 @@ a {
 a {
   color: var(--nt-link);
   text-decoration: none;
+}
+img.detail-cover,
+.rules-image img {
+  outline: 1px solid oklch(0 0 0 / 0.1);
+  outline-offset: -1px;
 }
 p {
   color: var(--nt-slate);
@@ -287,7 +294,7 @@ small {
 }
 .primary:active,
 .secondary:active {
-  transform: translateY(1px);
+  transform: scale(0.96);
 }
 .secondary {
   background: var(--nt-canvas);
@@ -326,13 +333,20 @@ small {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  min-height: 34px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: var(--nt-r-md);
   color: var(--nt-slate);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 }
 .icon:hover {
   background: var(--nt-tint-gray);
+}
+.icon:active {
+  transform: scale(0.96);
 }
 .field,
 input {
@@ -434,6 +448,7 @@ select {
   color: var(--nt-muted);
   line-height: 1.55;
   margin: 10px 0;
+  text-wrap: pretty;
 }
 .demo-note {
   display: flex;

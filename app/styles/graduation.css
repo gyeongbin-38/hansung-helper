@@ -330,6 +330,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-audit-table tbody th { font-weight: 650; color: var(--nt-ink); }
 .graduation-audit-table tbody tr:last-child th, .graduation-audit-table tbody tr:last-child td { border-bottom: 0; }
 .graduation-audit-table td { color: var(--nt-charcoal); }
+.graduation-audit-table .badge { min-width: 52px; justify-content: center; }
 
 /* 요약 — 다음 확인 항목 액션 스트립 */
 .graduation-next-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }

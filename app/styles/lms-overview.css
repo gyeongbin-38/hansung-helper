@@ -31,6 +31,7 @@
   line-height: 1.15;
   color: var(--nt-navy);
   letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
 }
 .study-metrics strong > span {
   font-size: 14px;
