@@ -9,7 +9,7 @@
 ## 로컬 D1 주의
 - 로컬 D1 state는 `dist/server/.wrangler/state/` 안에 생성됨 → **`dist` 삭제/재빌드 시 DB 초기화됨**
 - 재빌드 후 계정 기능 사용 전에 마이그레이션 재적용:
-  `npm run d1:migrate:local` (0000~0006 전체 — journal 순서 적용)
+  `npm run d1:migrate:local` (0000~0007 전체 — journal 순서 적용)
 - 좀비 `workerd.exe`가 `dist`를 잠그면: `tasklist`로 PID 확인 → `taskkill /F /PID <pid>` 후 삭제
 - `_publish_snapshots.mjs --local`은 `wrangler dev`를 멈춘 뒤 실행할 것 — dev 서버가 켜진 채 workerd를 강제 종료하면 로컬 D1의 스냅샷 행이 날아간다. 로컬 SQL 문장 한도는 ~100KB 바이트라 스크립트가 80KB 바이트 청크·kind 단위 배치 파일로 나눠 넣는다.
 - 과거 학기 카탈로그·교육과정(`lib/data/history/`)은 gitignore된 D1 게시용 생성물 — API는 `snapshotGetOnly`(번들 폴백 없음)로 읽고 D1에 없으면 404
@@ -31,7 +31,7 @@
 - 브라우저 E2E: `npm run test:e2e` (Playwright, `tests/e2e/`). 선행 조건: `npm run build && node scripts/setup-local.mjs && npm run d1:migrate:local` — 재빌드하면 `dist/server/.dev.vars`와 로컬 D1이 지워지므로 순서를 지킨다. CI는 `e2e.yml`이 같은 단계를 자동 수행
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
-- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002`+`0003`) + `collect_queue` (`0004`) + `community_posts`·`community_comments`·`community_votes` (`0005`) + `push_subscriptions`·`push_notified` (`0006`). 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
+- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002`+`0003`) + `collect_queue` (`0004`) + `community_posts`·`community_comments`·`community_votes` (`0005`) + `push_subscriptions`·`push_notified` (`0006`) + `site_visitors`·`site_views` (`0007`). 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
 - 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
 - 백업: `npm run d1:backup:local` 또는 소유자 승인 후 `HANSUNG_D1_DATABASE_ID` 설정 + `npm run d1:backup:remote`; 백업은 gitignore된 `.d1-backups/`에 저장
@@ -61,6 +61,7 @@
 - **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
   (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)
+- **방문자 분석**: `POST /api/analytics`에 섹션 전환마다 1핑(`lib/analytics.ts`). 방문자는 IP+UA+날짜의 HMAC이라 원본 IP를 저장하지 않고 매일 순환된다. `GET /api/analytics`가 최근 30일 일별 방문자·조회·섹션별 조회수 집계를 돌려준다.
 - `/api/health`는 계정 HMAC 키와 계정 DB 테이블 준비 상태도 확인한다. 키 누락·DB 접근 실패 시 503이며, 공개 데이터 API의 200 또는 비로그인 `/api/account`의 401만으로 로그인 정상 여부를 판단하지 않는다.
 - `_deploy.py`는 기존 Worker의 `ACCOUNT_INDEX_HMAC_KEY` 이름을 확인한 뒤 배포한다. 기존 키를 교체하지 않는다. `_sync.py`는 Git에서 추적하는 `_` 접두사 운영 스크립트도 명시적으로 동기화한다.
 - GitHub: `gyeongbin-38/hansung-helper` (public, master) / `hansung-helper-deploy` (private, master)

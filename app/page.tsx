@@ -52,6 +52,7 @@ import {
 } from '@/lib/push-client';
 import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
 import { isQueuedResponse, waitForCollectTurn } from '@/lib/data/collect-queue';
+import { pingAnalytics } from '@/lib/analytics';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
@@ -229,6 +230,11 @@ export default function App() {
       removeEventListener('hashchange', sync);
     };
   }, []);
+  // 익명 방문 집계 — 섹션 전환마다 1뷰. 식별자는 서버에서 일별 HMAC으로
+  // 만들어 원본 IP가 저장되지 않는다.
+  useEffect(() => {
+    pingAnalytics(route.split('/')[0] || 'home');
+  }, [route]);
   useEffect(() => {
     try {
       localStorage.setItem(
