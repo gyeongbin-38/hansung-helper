@@ -6,7 +6,7 @@ import sys
 SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DST = os.path.join(SRC, 'published-personal')
 
-DIRS = ['app', 'lib', 'tests', 'scripts', 'docs', 'drizzle', 'data', 'public', 'extension']
+DIRS = ['app', 'lib', 'tests', 'scripts', 'docs', 'drizzle', 'data', 'public', 'extension', 'push-worker']
 FILES = [
     'package.json',
     'package-lock.json',
