@@ -448,6 +448,7 @@ select {
   color: var(--nt-muted);
   line-height: 1.55;
   margin: 10px 0;
+  text-wrap: pretty;
 }
 .demo-note {
   display: flex;
