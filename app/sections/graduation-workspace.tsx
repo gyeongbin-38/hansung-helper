@@ -92,6 +92,28 @@ export function GraduationWorkspace(props: Props) {
     ? Math.ceil(outlook.afterPlan / (outlookTargetIdx - outlookCurIdx))
     : null;
   const outlookGaps = results.filter(r => r.rule.id !== 'total' && r.required !== null && r.earned < r.required);
+  // 부족 요건을 이번 학기 개설 과목으로 채우는 경로 — 학과 과목은 소속 풀로 제한한다
+  const fillableGaps = (() => {
+    if (!catalog) return [] as { rule: (typeof outlookGaps)[number]['rule']; missing: number; courses: CourseSection[]; needsDept: boolean }[];
+    const doneCodes = new Set(completed.map(c => c.code));
+    const doneNames = new Set(completed.map(c => c.name.replace(/\s/g, '')));
+    const plannedCodes = new Set(planned.map(p => p.code));
+    return outlookGaps
+      .filter(r => r.rule.source !== 'points')
+      .map(r => {
+        const deptScoped = r.rule.groups.every(g => g.startsWith('전공'));
+        const seen = new Set<string>();
+        const courses = deptScoped && !pool ? [] : catalog.sections.filter(s => {
+          if (!r.rule.groups.includes(gradGroup(s.category))) return false;
+          if (deptScoped && !pool!.includes(s.dept)) return false;
+          if (doneCodes.has(s.code) || doneNames.has(s.name.replace(/\s/g, ''))) return false;
+          if (plannedCodes.has(s.code) || seen.has(s.code)) return false;
+          seen.add(s.code);
+          return true;
+        }).slice(0, 6);
+        return { rule: r.rule, missing: r.required! - r.earned, courses, needsDept: deptScoped && !pool };
+      });
+  })();
   const pointResult = results.find(r => r.rule.id === 'points')!;
   const general = results.find(r => r.rule.id === 'gen')!;
   const major = results.find(r => r.rule.id === 'major')!;
@@ -277,6 +299,15 @@ export function GraduationWorkspace(props: Props) {
               {outlookTarget === null && (
                 <p className="graduation-outlook-note"><button className="link" onClick={() => go('profile')}>목표 졸업학기를 정하면</button> 목표 대비 여유·지연을 계산해 드려요.</p>
               )}
+              {outlook.afterPlan > 0 && catalog?.semester && (
+                <div className="graduation-outlook-scenarios" aria-label="학기당 학점별 예상 졸업 시기 비교">
+                  <small>학기당 학점을 바꾸면 졸업 시기가 이렇게 달라져요</small>
+                  <div>{[12, 15, 18, 21].map(pace => {
+                    const o = graduationOutlook({ earned: earned ?? 0, required: total.required, planned: total.planned, perSemester: pace, semester: catalog.semester, admitYear: year });
+                    return <span key={pace} className={pace === outlook.perSemester ? 'current' : ''}><em>학기당 {pace}</em><b>{o.estLabel ? formatSemesterLabel(o.estLabel) : `+${o.semestersLeft}학기`}</b></span>;
+                  })}</div>
+                </div>
+              )}
               {outlookGaps.length > 0 && (
                 <div className="graduation-outlook-gaps" aria-label="남은 요건">
                   {outlookGaps.map(r => <span key={r.rule.id}>{r.rule.label} {r.required! - r.earned}{r.rule.unit ?? '학점'}</span>)}
@@ -295,6 +326,17 @@ export function GraduationWorkspace(props: Props) {
       </>}
       {view === 'requirements' && <>
         <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
+        {fillableGaps.length > 0 && <section className="card graduation-fill" aria-labelledby="graduation-fill-title">
+          <div className="graduation-section-heading"><h3 id="graduation-fill-title"><BookOpen size={19} />이번 학기 개설 과목으로 채우기</h3>{catalog && <span className="badge">{catalog.semester} 개설 기준</span>}</div>
+          <p className="graduation-view-description">부족한 요건에 맞는 과목만 골라 보여요. 분반·시간 선택은 시간표에서 진행합니다.</p>
+          {fillableGaps.map(({ rule, missing, courses, needsDept }) => <div className="graduation-fill-row" key={rule.id}>
+            <div className="graduation-fill-head"><b>{rule.label}</b><span className="badge orange">{missing}{rule.unit ?? '학점'} 부족</span></div>
+            {needsDept ? <p className="meta">소속 학과를 확인하면 개설 과목을 골라 드려요.</p>
+              : courses.length ? <ul className="graduation-fill-courses">{courses.map(s => <li key={s.code}><b>{s.name}</b><small>{s.category} · {s.credits}학점 · {s.dept}</small></li>)}</ul>
+                : <p className="meta">이번 학기 개설 과목 중 해당 이수구분 과목이 없습니다.</p>}
+          </div>)}
+          <button className="secondary" onClick={() => go('timetable')}>시간표에서 분반 담기 <ArrowRight size={15} /></button>
+        </section>}
         <section className="card graduation-general-guide"><h3><Info size={20} />교양 세부 요건</h3><p>교양 이수 기준과 세부 학점을 확인하세요.</p><button className="secondary" onClick={() => go('graduation/gen')}>교양 요건 자세히 보기 <ArrowRight size={15} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문 확인 <ArrowUpRight size={14} /></a></section>
         <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3><small>계산 결과와 확인 메모를 함께 확인하세요.</small></div>
           {[total, pointResult, general].map(r => <div className="graduation-check-row" key={r.rule.id}><label><input type="checkbox" checked={checks.has(r.rule.label)} disabled={busy} onChange={() => void toggleCheck(r.rule.label)} />{r.rule.label}</label><small>{value(r)}</small><ResultBadge result={r} known={known(r)} /></div>)}

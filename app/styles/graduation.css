@@ -354,6 +354,33 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
   .graduation-workspace .admission-pick { padding: 18px; }
   .admission-pick-options { width: 100%; }
   .admission-pick-options button { flex: 1; min-width: 0; }
+  .graduation-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .graduation-tabs::-webkit-scrollbar { display: none; }
+  .graduation-tabs button { flex: none; }
+}
+
+/* 요건 채우기 — 부족 영역별 이번 학기 개설 과목 */
+.graduation-fill-courses { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.graduation-fill-courses li { padding: 10px 13px; border: 1px solid var(--nt-hairline-soft); border-radius: 10px; font-size: 12px; }
+.graduation-fill-courses li small { display: block; margin-top: 3px; font-size: 10px; color: var(--nt-slate); }
+.graduation-fill-row + .graduation-fill-row { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--nt-hairline); }
+.graduation-fill-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.graduation-fill > .secondary { margin-top: 16px; }
+.graduation-view-description { margin-top: 8px; color: var(--nt-slate); font-size: 12px; line-height: 1.6; }
+@media (max-width: 650px) {
+  .graduation-fill-courses { grid-template-columns: 1fr; }
+}
+
+/* 졸업 전망 — 학기당 학점 시나리오 비교 */
+.graduation-outlook-scenarios { display: grid; gap: 8px; }
+.graduation-outlook-scenarios > small { font-size: 11px; color: var(--nt-slate); }
+.graduation-outlook-scenarios > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.graduation-outlook-scenarios span { display: grid; gap: 3px; padding: 9px 11px; border: 1px solid var(--nt-hairline-soft); border-radius: 10px; font-size: 11px; }
+.graduation-outlook-scenarios span em { font-style: normal; color: var(--nt-slate); font-size: 10px; }
+.graduation-outlook-scenarios span b { font-size: 12px; color: var(--nt-ink); font-variant-numeric: tabular-nums; }
+.graduation-outlook-scenarios span.current { border-color: var(--nt-primary); background: var(--nt-tint-sky); }
+@media (max-width: 650px) {
+  .graduation-outlook-scenarios > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 졸업 전망 — 남은 학점을 현재 페이스로 역산한 예상 시기 카드 */
