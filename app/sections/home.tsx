@@ -5,7 +5,6 @@ import {
   Clock3,
   Flag,
   GraduationCap,
-  Info,
   Link2,
   FileText,
   MonitorPlay,
@@ -502,7 +501,7 @@ export function Home({
     ? '마감 정보를 확인하고 있어요.'
     : srcRows.some((r) => r.state === 'failed')
       ? '일부 마감 정보를 확인하지 못했어요.'
-      : '마감 확인 완료 — 수집 시점 기준이에요.';
+      : '마감 확인 완료';
   return (
     <div className="home-dashboard">
       {planSourceMismatch && (
@@ -554,7 +553,7 @@ export function Home({
           </p>
           {gradesUnverified && (
             <p className="home-card-description">
-              최근 성적 미확인 — 이전 이수 내역일 수 있어요. 종합정보에서 확인해 주세요.
+              최근 성적 미확인 — 이전 이수 내역일 수 있어요.
             </p>
           )}
           <div className="home-progress-caption">
@@ -583,7 +582,7 @@ export function Home({
               {outlookDiff !== null && outlookDiff > 0 && <span className="badge green">목표 {outlookDiff}학기 여유</span>}
               {outlookDiff !== null && outlookDiff === 0 && <span className="badge green">목표와 동일</span>}
               {outlookDiff !== null && outlookDiff < 0 && <span className="badge orange">목표보다 {-outlookDiff}학기 늦음</span>}
-              <small>남은 {outlook.remaining}학점 · 학기당 {outlook.perSemester}학점 페이스{total.planned > 0 ? ' (계획 기준)' : recentPace !== undefined ? ' (최근 평균)' : ' (기본값)'} — 계획 참고용</small>
+              <small>남은 {outlook.remaining}학점 · 학기당 {outlook.perSemester}학점 페이스{total.planned > 0 ? ' (계획 기준)' : recentPace !== undefined ? ' (최근 평균)' : ' (기본값)'}</small>
             </p>
           )}
           <div className="home-grad-breakdown">
@@ -830,9 +829,6 @@ export function Home({
               시간표 보기 <ArrowRight size={14} />
             </button>
           </div>
-          <p className="home-card-description">
-            계획에 담은 수업을 요일별로 확인하세요.
-          </p>
           <fieldset className="home-day-picker" aria-label="시간표 요일">
             {weekdays.map((label, i) => (
               <button
@@ -890,14 +886,6 @@ export function Home({
           )}
         </section>
       </div>
-      <p className="home-source-note">
-        <Info size={13} />
-        <span>
-          표시된 학점·수업 정보는 참고용입니다. 실제 이수 내역과 졸업 기준은
-          학교에서 확인해 주세요.
-          {lmsSnap && ` · COSMOS ${lmsSnap.fetchedAt.slice(0, 10)} 수집`}
-        </span>
-      </p>
       {scheduleFailed && (
         <p className="home-source-note">
           학사일정을 불러오지 못했어요.{' '}

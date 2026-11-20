@@ -262,7 +262,7 @@ export function Advisor({
           </span>
           <h1 id="advisor-title">{application ? '내 포인트와 목표에 맞는 활동을 골라드려요' : '학사부기, 이렇게 사용해 보세요'}</h1>
           <p>
-            {application ? '공개 목록과 입력한 조건 기준으로 추천해요. 지원 자격·서류·접수는 공식 공고에서 확인하세요.' : '기능을 찾고 쓰는 방법이 궁금할 때 물어보세요.'}
+            {application ? '공개 목록과 입력 조건으로 추천해요.' : '기능을 찾고 쓰는 방법이 궁금할 때 물어보세요.'}
           </p>
         </div>
         {application ? <SchoolConnection
@@ -390,10 +390,6 @@ export function Advisor({
                   </dd>
                 </div>
               </dl>
-              <p className="advisor-boundary">
-                지원 자격·필수 서류·실시간 접수 여부는 공식 공고에서 확인해야
-                해요.
-              </p>
               <div className="advisor-brief-actions">
                 <button className="primary" onClick={summarize} disabled={pending}>
                   AI 요약
@@ -586,12 +582,6 @@ export function Advisor({
             />
             내 학사 요약 참고
           </label>
-          <p className="advisor-privacy">
-            AI 상담은 질문·최근 AI 대화{application ? '·선택한 활동 정보' : ''}와 동의 시 학과·입학연도·이수·포인트 요약·계획 과목명·과제와 강의 마감 정보를
-            Cloudflare Workers AI에 보내요. 학교 인증 정보는 이 요약에 포함하지
-            않으며 대화는 서버에 저장하지 않아요. 질문에 학번·비밀번호를 직접
-            입력하지 마세요.
-          </p>
           <div className="advisor-conversation" role="log" aria-live="polite">
             {!turns.length && (
               <p className="advisor-chat-welcome">

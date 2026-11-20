@@ -43,7 +43,7 @@ export function ActivitySummary({ data, snapshot, now, go }: {
       <p className="meta">미기록 {stages.pending}개 · 본인 기록 기준</p>
     </div>}
     {digest.remainingPoints !== null && <p className="meta">졸업 기준 {digest.requiredPoints}P까지 {digest.remainingPoints}P 남았어요.</p>}
-    {digest.stale && <p className="meta">최신 접수 여부는 학교 공고에서 확인해 주세요.{snapshot ? ` 수집일 ${snapshot.fetchedAt.slice(0, 10)}` : ' 목록을 불러오는 중이에요.'}</p>}
+    {digest.stale && !snapshot && <p className="meta">목록을 불러오는 중이에요.</p>}
     <div className="activity-summary-picks">{digest.picks.map(a => <div key={a.id}>
       <button className="activity-summary-title" onClick={() => go(`activities/${a.id}`)}><b>{a.title}</b><small>{a.applyEnd ? `신청 마감 ${a.applyEnd.slice(0, 10)}` : '신청 기간 확인 필요'} · {a.points === null ? '포인트 확인 필요' : `${a.points}P`} · {data.saved.includes(a.id) ? '관심 활동' : '공개 목록에서 제안'}</small></button>
       <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}>AI 추천</button>

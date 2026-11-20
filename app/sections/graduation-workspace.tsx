@@ -196,7 +196,7 @@ export function GraduationWorkspace(props: Props) {
     </fieldset>
     {view === 'department' ? <>
       {!!data.info?.requirements?.length && <section className="card school-requirements" aria-labelledby="school-requirements-title">
-        <div className="school-section-heading"><span className="school-section-icon"><BookOpen size={20} aria-hidden="true" /></span><div><h3 id="school-requirements-title">학교 포털 졸업요건</h3><p>학교 수집 원문 — 적용 트랙·최신 기준을 확인하세요.</p></div><span className="badge">학교 원문</span></div>
+        <div className="school-section-heading"><span className="school-section-icon"><BookOpen size={20} aria-hidden="true" /></span><div><h3 id="school-requirements-title">학교 포털 졸업요건</h3><p>학교 수집 원문</p></div><span className="badge">학교 원문</span></div>
         <SchoolRequirementTables tables={data.info.requirements} />
       </section>}
       <Graduation {...props} detail={undefined} admission={admission} onAdmissionChange={setAdmission} only="criteria" />
@@ -211,17 +211,17 @@ export function GraduationWorkspace(props: Props) {
       </div>}
       {(view === '' || view === 'requirements') && admission === 'unknown' && year !== undefined &&
         <AdmissionQuickPick value={admission} busy={busy} onPick={next => void setAdmission(next)} />}
-      {gradesUnverified && <p className="meta conn-warn">최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 학교 종합정보에서 확인해 주세요.</p>}
+      {gradesUnverified && <p className="meta conn-warn">최근 성적 미확인 — 이전 이수 내역일 수 있어요.</p>}
       {view === 'requirements' && !!data.info?.audit?.length && <section className="card graduation-audit" aria-labelledby="graduation-audit-title">
         <div className="graduation-section-heading"><h3 id="graduation-audit-title"><ClipboardCheck size={20} />학교 졸업가사정표</h3><span className="badge green">학교 데이터 {sourceDate}</span></div>
         <table className="graduation-audit-table">
           <thead><tr><th scope="col">구분</th><th scope="col">기준</th><th scope="col">취득</th><th scope="col">판정</th></tr></thead>
           <tbody>{data.info.audit.map((a, i) => <tr key={i}><th scope="row">{a.area}</th><td>{a.required || '—'}</td><td>{a.earned || '—'}</td><td><span className={`badge ${/미충족|미달|부족|불가/.test(a.verdict) ? 'orange' : /충족|통과|완료|가능/.test(a.verdict) ? 'green' : ''}`}>{a.verdict || '—'}</span></td></tr>)}</tbody>
         </table>
-        <p className="meta">학교 시스템에서 조회한 값이며 공식 졸업 사정이 아닐 수 있습니다.</p>
+        <p className="meta">학교 조회값 · 공식 졸업 사정 아님</p>
       </section>}
       {view === 'requirements' && <section className="card school-criteria" aria-labelledby="school-criteria-title">
-        <div className="school-section-heading"><span className="school-section-icon"><ClipboardCheck size={20} aria-hidden="true" /></span><div><h3 id="school-criteria-title">학교 기준과 확인 사항</h3><p>내 학적 정보와 학교 기준을 함께 확인하세요.</p></div></div>
+        <div className="school-section-heading"><span className="school-section-icon"><ClipboardCheck size={20} aria-hidden="true" /></span><div><h3 id="school-criteria-title">학교 기준과 확인 사항</h3></div></div>
         <div className="school-criteria-summary">
           <dl className="school-affiliation">
             <div><dt>소속 학과</dt><dd>{data.info?.dept || data.dept || '확인 필요'}</dd></div>
@@ -239,7 +239,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-criteria-actions"><a className="secondary" href="https://rule.hansung.ac.kr/lmxsrv/law/lawFullContent.do?SEQ=104&amp;SEQ_HISTORY=1640" target="_blank" rel="noreferrer">졸업사정 기준 <ArrowUpRight size={15} aria-hidden="true" /></a><a className="link" href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noreferrer">비교과 포인트 확인 <ArrowUpRight size={14} aria-hidden="true" /></a><button className="link school-points-action" onClick={() => go('profile/points')}>확인한 포인트 입력 <ArrowRight size={14} aria-hidden="true" /></button></div>
       </section>}
       {view === 'completed' && !!data.info?.failedCourses?.length && <section className="card school-failed" aria-labelledby="school-failed-title">
-        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>재수강·졸업 적용은 학교 성적표에서 확인해 주세요. 학점 미합산.</p></div></div>
+        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>학점 미합산</p></div></div>
         <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
       </section>}
       {(view === '' || view === 'requirements') && <>
@@ -276,7 +276,7 @@ export function GraduationWorkspace(props: Props) {
           ) : outlook.remaining === 0 ? (
             <>
               <b className="graduation-outlook-headline">교과 학점 기준을 채웠어요</b>
-              <p className="graduation-outlook-note">비교과 포인트와 졸업 학점 외 요건까지 학교 졸업사정에서 최종 확인해 주세요.</p>
+              <p className="graduation-outlook-note">학점 외 요건은 학교 졸업사정 기준이에요.</p>
             </>
           ) : (
             <>
@@ -291,7 +291,7 @@ export function GraduationWorkspace(props: Props) {
               <p className="graduation-outlook-note">
                 학기당 {outlook.perSemester}학점 페이스 가정
                 {total.planned > 0 ? ' (이번 학기 계획 기준)' : pastPace !== undefined ? ' (최근 학기 평균)' : ' (기본값)'}
-                {' '}— 공식 졸업사정이 아닌 계획 참고용입니다.
+                {' '}· 참고용
               </p>
               {outlookNeededPace !== null && (
                 <p className="graduation-outlook-warn">목표 {formatSemesterLabel(outlookTarget!)}에 맞추려면 남은 학기 동안 학기당 약 {outlookNeededPace}학점이 필요해요.</p>
@@ -337,8 +337,8 @@ export function GraduationWorkspace(props: Props) {
           </div>)}
           <button className="secondary" onClick={() => go('timetable')}>시간표에서 분반 담기 <ArrowRight size={15} /></button>
         </section>}
-        <section className="card graduation-general-guide"><h3><Info size={20} />교양 세부 요건</h3><p>교양 이수 기준과 세부 학점을 확인하세요.</p><button className="secondary" onClick={() => go('graduation/gen')}>교양 요건 자세히 보기 <ArrowRight size={15} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문 확인 <ArrowUpRight size={14} /></a></section>
-        <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3><small>계산 결과와 확인 메모를 함께 확인하세요.</small></div>
+        <section className="card graduation-general-guide"><h3><Info size={20} />교양 세부 요건</h3><button className="secondary" onClick={() => go('graduation/gen')}>교양 요건 자세히 보기 <ArrowRight size={15} /></button><a className="link" href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문 확인 <ArrowUpRight size={14} /></a></section>
+        <section className="card graduation-checklist"><div className="graduation-section-heading"><h3><ClipboardCheck size={19} />공통 졸업 체크리스트</h3></div>
           {[total, pointResult, general].map(r => <div className="graduation-check-row" key={r.rule.id}><label><input type="checkbox" checked={checks.has(r.rule.label)} disabled={busy} onChange={() => void toggleCheck(r.rule.label)} />{r.rule.label}</label><small>{value(r)}</small><ResultBadge result={r} known={known(r)} /></div>)}
           <div className="graduation-check-row"><label><input type="checkbox" checked={checks.has('교양 영역 세부 기준 확인')} disabled={busy} onChange={() => void toggleCheck('교양 영역 세부 기준 확인')} />교양 영역 세부 기준 확인</label><button className="link" onClick={() => go('graduation/gen')}>세부 기준 확인 <ArrowRight size={14} /></button></div>
           <p className="meta">체크는 본인 확인 메모이며 계산 결과를 바꾸지 않습니다.</p>
@@ -356,7 +356,7 @@ export function GraduationWorkspace(props: Props) {
         {infoFailed && <p className="meta conn-warn">최근 학교 수집에 실패했습니다. 보관된 내역을 확인하거나 직접 입력할 수 있습니다.</p>}
       </>}
       {error && <p className="form-error" role="alert">{error}</p>}
-      <p className="graduation-footnote"><Info size={14} />표시한 현황과 전공 유형은 계획 참고용입니다. 학과별 기준과 개인 적용 조건은 <a href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문</a>에서 확인해 주세요. · 자료 확인일 {reference.asOf}</p>
+      <p className="graduation-footnote"><Info size={14} />계획 참고용 · 학과별 적용은 <a href={ruleLink.url} target="_blank" rel="noreferrer">학교 원문</a>에서 확인 · 자료 확인일 {reference.asOf}</p>
     </>}
   </div>;
 }

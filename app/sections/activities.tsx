@@ -404,7 +404,7 @@ export function Activities({
                 target="_blank"
                 rel="noreferrer"
               >
-                {isExt(a) ? '등록한 링크 열기 ' : '공고 보기 · 신청은 학교 시스템에서 '}
+                {isExt(a) ? '등록한 링크 열기 ' : '공고 보기 '}
                 <ArrowUpRight size={16} />
               </a>
             )}
@@ -427,10 +427,10 @@ export function Activities({
                   (data.extActivities ?? [])
                     .find((x) => x.id === a.id)
                     ?.addedAt.slice(0, 10) ?? ''
-                } 추가 · 단계 기록은 본인 확인용 · 포인트 인정은 학교에서 확인`
+                } 추가 · 단계는 본인 확인용`
               : `출처: hsportal ${
                   snap ? snap.fetchedAt.slice(0, 10) + ' 수집' : ''
-                }${actStale ? ` · ${actStale}` : ''} · 단계 기록은 본인 확인용 · 신청은 학교 시스템에서`}
+                }${actStale ? ` · ${actStale}` : ''} · 단계는 본인 확인용`}
           </p>
         </section>
       </>

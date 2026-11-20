@@ -361,7 +361,7 @@ export function Graduation({
                 }`}
           </strong>
           {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
-          {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역 및 전공별 인정 학점은 학교에서 확인해 주세요.</p> : <progress
+          {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역·전공별 인정 기준은 학교 확인이 필요해요.</p> : <progress
             className="progress-track"
             aria-label={r.rule.label + ' 충족률'}
             aria-valuetext={
@@ -379,7 +379,7 @@ export function Graduation({
           )}
           <p className="meta">
             {baseline.required === null ? (
-              `이 규정의 공식 필요 ${r.rule.source === 'points' ? '포인트는' : '학점은'} 수집되지 않았습니다. 학과별 세부 요건을 학교에서 확인하세요.`
+              `이 규정의 공식 필요 ${r.rule.source === 'points' ? '포인트는' : '학점은'} 수집되지 않았습니다.`
             ) : baseline.requiredSource === 'dept' && myRules && deptTargets ? (
               <>
                 내 학과 규정표 기준 ({deptTargets.columnLabel}) · 출처:{' '}
@@ -566,7 +566,7 @@ export function Graduation({
         </div>
         {gradesUnverified && (
           <p className="meta conn-warn">
-            최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 마지막 성적 확인 시각은 알 수 없으니 학교 종합정보에서 확인해 주세요.
+            최근 성적 미확인 — 이전 이수 내역일 수 있어요.
           </p>
         )}
         <progress
@@ -632,7 +632,7 @@ export function Graduation({
           </a>
         </div>
         <p className="meta grad-intro-note">
-          계획 참고용(공식 사정 아님) ·{' '}
+          계획 참고용 ·{' '}
           {admissionType === 'unknown' || !data.year
             ? '입학 구분·연도 확인 필요'
             : admissionType === 'freshman' && deptTargets
@@ -959,15 +959,13 @@ export function Graduation({
                 })}
               </ul>
               <p className="meta">
-                학점 외 조건은 자동 집계하지 않습니다 — 학교에서 확인 후
-                체크해 두세요. (본인 확인용)
+                학점 외 조건은 학교에서 확인 후 직접 체크해 두세요.
               </p>
             </div>
           )}
           {myRules.attachment && (
             <p className="meta">
-              규정이 첨부 문서({myRules.attachment})로 제공됩니다. 원문
-              링크에서 확인하세요.
+              규정이 첨부 문서({myRules.attachment})로 제공돼요.
             </p>
           )}
           {myRules.image && (
@@ -991,15 +989,12 @@ export function Graduation({
           >
             학과 공식 페이지에서 원문 보기 <ArrowUpRight />
           </a>
-          <p className="meta">
-            수집일 {deptRules?.fetchedAt.slice(0, 10)}
-            {rulesStale && (
-              <>
-                {' '}
-                <span className="badge orange">{rulesStale}</span>
-              </>
-            )}
-          </p>
+          {rulesStale && (
+            <p className="meta">
+              수집일 {deptRules?.fetchedAt.slice(0, 10)}{' '}
+              <span className="badge orange">{rulesStale}</span>
+            </p>
+          )}
         </section>
       )}
 
@@ -1081,7 +1076,7 @@ export function Graduation({
             ))}
           </ul>
           <p className="meta">
-            출처: 학교 각 학과 공식 사이트 · 수집일{' '}
+            출처: 학과 공식 사이트 · 수집일{' '}
             {deptRules.fetchedAt.slice(0, 10)}
             {rulesStale && (
               <>
@@ -1126,7 +1121,7 @@ export function Graduation({
                   : `${shown(r)} / ${r.required}${r.rule.unit ?? '학점'}`}
             </strong>
             {r.requiredSource === 'override' && <span className="badge orange">사용자 수정값</span>}
-            {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역 및 전공별 인정 학점은 학교에서 확인해 주세요.</p> : <progress
+            {r.uncertainAllocation || r.uncertainTrack ? <p className="meta">영역·전공별 인정 기준은 학교 확인이 필요해요.</p> : <progress
               className="progress-track"
               aria-label={r.rule.label + ' 충족률'}
               aria-valuetext={
@@ -1203,9 +1198,9 @@ export function Graduation({
         {detail === 'completed' && <button className="secondary" onClick={() => go('home')}>홈에서 다음 단계 확인</button>}
         <p>
           {info?.completed.length
-            ? '종합정보 수집 내역과 직접 입력분을 함께 계산합니다.'
-            : '이미 이수한 과목을 입력하면 졸업 충족률과 과목 추천에 반영됩니다.'}{' '}
-          학교 기록과 다를 수 있으니 정확한 내역은 종합정보시스템에서 확인하세요.
+            ? '종합정보 수집 내역과 직접 입력분을 함께 계산해요.'
+            : '이수한 과목을 입력하면 졸업 충족률과 과목 추천에 반영돼요.'}{' '}
+          학교 기록과 다를 수 있어요.
         </p>
         <label className="cat-search">
           <Search size={15} aria-hidden="true" />
@@ -1328,8 +1323,7 @@ export function Graduation({
               ` · 취득 ${info.credits}학점`}
             {info.gpa !== undefined && ` · 평점 ${info.gpa}`} ·{' '}
             {info.fetchedAt.slice(0, 10)} 조회
-            {infoStale ? ` · ${infoStale}` : ''}. 수집 항목은 수동 삭제되지
-            않습니다 — 잘못 보인 항목은 학교 시스템에서 확인하세요.
+            {infoStale ? ` · ${infoStale}` : ''} · 수집 항목은 삭제되지 않아요.
           </p>
         )}
         {info?.audit && info.audit.length > 0 && (
@@ -1352,8 +1346,7 @@ export function Graduation({
               ))}
             </ul>
             <p className="meta">
-              종합정보시스템 졸업가사정표 원문 — 참고용이며 공식 사정 결과가
-              아닐 수 있습니다.
+              종합정보 졸업가사정표 원문 (참고용)
             </p>
           </details>
         )}
