@@ -11,6 +11,8 @@ import type { ActivitySnapshot } from '@/lib/data/activities';
 import type { DeptRulesSnapshot } from '@/lib/data/dept-rules';
 import type { DeptPagesSnapshot } from '@/lib/data/dept-pages';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
+import type { Curriculum, CurriculumIndex } from '@/lib/data/curriculum';
+import type { EquivalentsSnapshot } from '@/lib/data/equivalents';
 import type { Data } from './data';
 
 /**
@@ -156,6 +158,94 @@ export function useDeptRules() {
     setTick((t) => t + 1);
   };
   return { snap, failed, retry };
+}
+
+let currIndexCache: Promise<CurriculumIndex> | null = null;
+function loadCurriculumIndex() {
+  currIndexCache ??= apiFetch('/api/curriculum')
+    .then((r) => apiData<CurriculumIndex>(r))
+    .catch((e) => {
+      currIndexCache = null;
+      throw e;
+    });
+  return currIndexCache;
+}
+const currCache = new Map<string, Promise<Curriculum>>();
+function loadCurriculum(semester: string) {
+  let req = currCache.get(semester);
+  if (!req) {
+    req = apiFetch(`/api/curriculum?semester=${semester}`)
+      .then((r) => apiData<Curriculum>(r))
+      .catch((e) => {
+        currCache.delete(semester);
+        throw e;
+      });
+    currCache.set(semester, req);
+  }
+  return req;
+}
+/**
+ * 입학연도 교육과정 로드 — 색인을 먼저 받아 적용 학기를 고른 뒤
+ * 해당 학기 파일을 받는다. 학기가 못 정해지면 fetch하지 않는다.
+ */
+export function useCurriculum(semester: string | null) {
+  // 학기별 결과를 함께 보관해 이전 학기 데이터가 새 학기에 새어 나오지 않게 한다.
+  const [state, setState] = useState<{ sem: string; snap?: Curriculum; failed?: boolean }>({ sem: '' });
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!semester) return;
+    let on = true;
+    loadCurriculum(semester)
+      .then((s) => { if (on) setState({ sem: semester, snap: s }); })
+      .catch(() => { if (on) setState({ sem: semester, failed: true }); });
+    return () => { on = false; };
+  }, [semester, tick]);
+  const retry = () => {
+    setState({ sem: semester ?? '' });
+    setTick((t) => t + 1);
+  };
+  const snap = semester && state.sem === semester ? state.snap ?? null : null;
+  const failed = !!semester && state.sem === semester && !!state.failed;
+  return { snap, failed, retry };
+}
+export function useCurriculumIndex() {
+  const [snap, setSnap] = useState<CurriculumIndex | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    loadCurriculumIndex()
+      .then((s) => on && setSnap(s))
+      .catch(() => on && setFailed(true));
+    return () => { on = false; };
+  }, [tick]);
+  const retry = () => {
+    setFailed(false);
+    setTick((t) => t + 1);
+  };
+  return { snap, failed, retry };
+}
+
+let equivCache: Promise<EquivalentsSnapshot> | null = null;
+function loadEquivalents() {
+  equivCache ??= apiFetch('/api/equivalents')
+    .then((r) => apiData<EquivalentsSnapshot>(r))
+    .catch((e) => {
+      equivCache = null;
+      throw e;
+    });
+  return equivCache;
+}
+export function useEquivalents() {
+  const [snap, setSnap] = useState<EquivalentsSnapshot | null>(null);
+  useEffect(() => {
+    let on = true;
+    loadEquivalents()
+      .then((s) => on && setSnap(s))
+      .catch(() => {});
+    return () => { on = false; };
+  }, []);
+  return snap;
 }
 
 let deptPagesCache: Promise<DeptPagesSnapshot> | null = null;
