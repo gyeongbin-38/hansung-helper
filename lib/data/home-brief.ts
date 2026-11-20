@@ -42,10 +42,11 @@ export function buildHomeBrief(input: BriefInput): { deadlines: BriefItem[]; che
   const deadlines: BriefItem[] = [];
   const checks: BriefItem[] = [];
   const before = currentSemesterStart(now);
-  const inWeek = (at: number) => {
-    const days = kstDateNumber(at) - kstDateNumber(now);
-    return days >= 0 && days <= 7;
+  const inHorizon = (at: number, days: number) => {
+    const diff = kstDateNumber(at) - kstDateNumber(now);
+    return diff >= 0 && diff <= days;
   };
+  const inWeek = (at: number) => inHorizon(at, 7);
   const fetched = lms ? Date.parse(lms.fetchedAt) : NaN;
   const staleLms = !Number.isFinite(fetched) || fetched > now || now - fetched >= 86400000;
 
@@ -101,9 +102,12 @@ export function buildHomeBrief(input: BriefInput): { deadlines: BriefItem[]; che
     const end = dayEnd(event.end ?? event.start);
     if (end === null || end < now) continue;
     const start = dayEnd(event.start);
-    const ending = event.end !== null && inWeek(end);
+    // 졸업 행정 일정(유예·조기졸업·학위수여)은 창구가 길어 7일 안에만
+    // 잡으면 놓친다 — 미리 준비할 수 있게 45일 전부터 보여준다.
+    const window = /졸업|학위|수료/.test(event.title) ? 45 : 7;
+    const ending = event.end !== null && inHorizon(end, window);
     const at = ending ? end : start;
-    if (at === null || !inWeek(at)) continue;
+    if (at === null || !inHorizon(at, window)) continue;
     deadlines.push({
       id: `schedule:${event.id}`, kind: '학사일정', title: event.title,
       context: event.end ? `${event.start} ~ ${event.end}` : event.start,

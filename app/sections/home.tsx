@@ -227,10 +227,13 @@ export function Home({
   }
   for (const e of sched?.items ?? []) {
     const dd = dateDeadlineDays(e.end ?? e.start, now);
-    if (dd !== null && dd >= 0 && dd <= 7)
+    // 졸업 행정 일정(유예·조기졸업·학위수여)은 신청 창구가 길어
+    // 7일만 보고는 놓친다 — 45일 전부터 보여준다.
+    const grad = /졸업|학위|수료/.test(e.title);
+    if (dd !== null && dd >= 0 && dd <= (grad ? 45 : 7))
       week.push({
         dday: dd,
-        kind: '학사일정',
+        kind: grad ? '졸업' : '학사일정',
         title: e.title,
         sub: '',
         route: 'calendar',
@@ -248,6 +251,11 @@ export function Home({
       });
   }
   week.sort((a, b) => a.dday - b.dday);
+  // 임박 2건 + 졸업 일정은 날짜가 멀어도 최대 2건 함께 보여준다
+  const weekShown = [
+    ...week.slice(0, 2),
+    ...week.slice(2).filter((t) => t.kind === '졸업').slice(0, 2),
+  ];
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
   // 상태는 수집 시점 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
   const rank: Record<string, number> = { closing: 0, open: 1, upcoming: 2 };
@@ -633,9 +641,9 @@ export function Home({
             놓치면 안 되는 수업과 일정을 모았어요.
           </p>
           <DeadlineSources rows={srcRows} summary={srcSummary} go={go} />
-          {week.length ? (
+          {weekShown.length ? (
             <div className="home-deadline-list">
-              {week.slice(0, 2).map((t, i) => (
+              {weekShown.map((t, i) => (
                 <button
                   key={i}
                   className="home-deadline-row"
