@@ -160,7 +160,7 @@ export function SchoolConnection({ signedIn, onAccount, onSignIn, pending = fals
         <p className="meta">연결 성공 시 학교 세션 쿠키만 암호화해 보관해요(선택 안 하면 2시간). 로그아웃하면 삭제돼요.</p>
         <div className="school-connection-actions"><button className="primary" disabled={busy || pending}>{busy ? '학교 인증 중…' : '학교 연결 확인'}</button><button type="button" className="link" disabled={busy} onClick={() => { form.current?.reset(); setOpen(false); }}><X size={14} aria-hidden="true" />취소</button></div>
       </form>}
-      <p className="meta">비교과 접수 사이트는 별도 로그인 후 신청 내용을 확인해 주세요.</p>
+      <p className="meta">비교과 신청은 학교 사이트에서 진행해요.</p>
       {notice && <output className="meta school-connection-notice"><Check size={14} aria-hidden="true" />{notice}</output>}
       {error && <p className="form-error" role="alert">{error}</p>}
     </section>

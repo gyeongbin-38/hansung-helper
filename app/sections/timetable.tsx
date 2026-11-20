@@ -268,10 +268,6 @@ function EnrolledStrip({
           );
         })}
       </div>
-      <p className="meta">
-        수강 상태는 COSMOS 수집 시점 기준이며 최종 수강 여부는 학교 시스템에서
-        확인하세요.
-      </p>
     </details>
   );
 }
@@ -1045,7 +1041,7 @@ export function Timetable({
               <>
                 <h3>맞춤 추천</h3>
                 <p className="meta">
-                  이수 내역·학과·설문 선호와 시간 충돌을 반영해 추천합니다. 전필 적용 여부·미확인 시간은 학교에서 확인해 주세요.
+                  이수 내역·선호·시간 충돌을 반영해 추천해요.
                   {data.prefs.some((p) =>
                     [
                       '이론',
@@ -1147,8 +1143,7 @@ export function Timetable({
                     ({ section }) => section.untimed || !section.slots.length,
                   ) && (
                     <p className="rec-unknown-note">
-                      시간 미정 과목은 피할 요일을 확인할 수 없어 후보에
-                      남겼습니다. 수강신청 전에 요일을 확인해 주세요.
+                      시간 미정 과목은 피할 요일 확인이 불가해 후보에 남겼어요.
                     </p>
                   )}
                 {recs.map((r) => (

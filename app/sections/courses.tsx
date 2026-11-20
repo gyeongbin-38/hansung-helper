@@ -215,7 +215,7 @@ export function Courses({
               </div>
             ))}
           </div>
-          {s.online && roomLabel(s) && <p className="meta">원자료에 온라인과 강의실이 함께 표시되어 있습니다. 실제 운영 방식은 교수 공지 또는 COSMOS에서 확인해 주세요.</p>}
+          {s.online && roomLabel(s) && <p className="meta">온라인·강의실 병기 — 실제 운영은 COSMOS에서 확인해 주세요.</p>}
           {clashes.length > 0 && !added && (
             <p className="meta">
               현재 계획과 시간이 겹칩니다:{' '}
@@ -289,8 +289,7 @@ export function Courses({
         {catalog ? (
           <>
             <b>{catalog.semester} 공식 개설 시간표</b> · {catalog.sectionCount}
-            개 분반 · {catalog.source}. 수강 가능 여부는 학교 수강신청에서 최종
-            확인해 주세요.
+            개 분반 · {catalog.source}
           </>
         ) : failed ? (
           <>
@@ -367,7 +366,7 @@ export function Courses({
             : `학과 매칭 확인 필요 · '${myDept}'을(를) 카탈로그 학과에서 찾지 못했습니다. 전체 학과를 표시합니다.`}
         </p>
       )}
-      <p className="meta">입력한 학과·이수 내역·선호와 선택한 요일을 기준으로 정렬합니다. 이수 내역은 누락될 수 있으며 전필 적용 여부는 학교 기준을 확인해 주세요.</p>
+      <p className="meta">입력한 학과·이수·선호·요일을 기준으로 정렬해요.</p>
       {!catalog && !failed && <SkeletonCards />}
       <div className="cards">
         {suggestions.slice(0, LIMIT).map(({ section: s, reasons }, i) => {

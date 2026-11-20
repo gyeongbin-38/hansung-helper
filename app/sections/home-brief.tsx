@@ -102,13 +102,13 @@ export function HomeBrief({
         <h2 id="home-brief-title">놓치기 쉬운 할 일</h2>
         <button className="link" onClick={() => go('lms')}>수업 현황 <ArrowRight size={15} aria-hidden="true" /></button>
       </div>
-      <p className="meta">7일 이내 마감과 일정, 최근 기한이 지난 수업을 모았어요. 학사일정은 본인 해당 여부를 확인해 주세요.</p>
+
       {shown.length ? (
         <ul className="brief-list" id="home-deadlines">
           {shown.map((item) => <BriefRow key={item.id} item={item} go={go} />)}
         </ul>
       ) : (
-        <p className="brief-empty">가져온 정보에서 가까운 마감을 찾지 못했어요. 아래 수집 상태와 마감 미기재 항목도 확인해 주세요.</p>
+        <p className="brief-empty">가까운 마감을 찾지 못했어요.</p>
       )}
       {deadlines.length > 5 && (
         <button className="link brief-more" aria-expanded={expanded} aria-controls="home-deadlines" onClick={() => setExpanded((value) => !value)}>
@@ -118,13 +118,13 @@ export function HomeBrief({
       {checks.length > 0 && (
         <details className="brief-checks">
           <summary>마감·접수 확인이 필요한 항목 {checks.length}건</summary>
-          <p className="meta">마감이 없거나 현재 접수 상태를 확인하지 못한 항목이에요. 원문에서 확인해 주세요.</p>
+          <p className="meta">마감 미기재·접수 상태 미확인 항목이에요.</p>
           <ul className="brief-list">{checks.map((item) => <BriefRow key={item.id} item={item} go={go} />)}</ul>
         </details>
       )}
       <details className="brief-sources">
         <summary>학교 정보 확인 상태{sources.some((source) => source.warning) ? ' · 확인 필요' : ''}</summary>
-        <p className="meta">자동 수집에서 빠진 항목이 있을 수 있어요. 완료·신청 여부와 변경 사항은 학교 원문이 기준이에요.</p>
+
         <ul>
           {sources.map((source) => (
             <li key={source.name}>

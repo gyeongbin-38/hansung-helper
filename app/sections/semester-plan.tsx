@@ -46,8 +46,7 @@ export function SemesterPlan({
       <p>계획 학점은 이수학점에 포함되지 않습니다.</p>
       {credits > 21 && (
         <p className="meta">
-          계획 학점이 {credits}학점입니다. 학기당 수강 상한을 넘었을 수
-          있으니 학교 수강신청 안내에서 최종 확인하세요.
+          계획 {credits}학점 — 학기 수강 상한을 넘었을 수 있어요.
         </p>
       )}
       {planned.map((s) => (
