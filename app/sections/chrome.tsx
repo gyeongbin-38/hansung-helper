@@ -250,6 +250,7 @@ export function Topbar({
   unread,
   onMenu,
   onSearch,
+  onPalette,
   onBell,
   onExpandSide,
 }: {
@@ -260,6 +261,8 @@ export function Topbar({
   unread: number;
   onMenu: () => void;
   onSearch: () => void;
+  /** 검색창 포커스 시 커맨드 팔레트를 연다 */
+  onPalette?: () => void;
   onBell: () => void;
   /** 사이드바가 접혀 있을 때만 전달 — 데스크톱 전용 펼치기 버튼 */
   onExpandSide?: () => void;
@@ -302,6 +305,12 @@ export function Topbar({
           placeholder="과목·활동·학사일정 검색"
           aria-label="통합 검색"
           value={query}
+          readOnly={!!onPalette}
+          onFocus={() => {
+            if (!onPalette) return;
+            onPalette();
+            (document.activeElement as HTMLElement | null)?.blur();
+          }}
           onChange={(e) => setQuery(e.target.value)}
         />
         <kbd>↵</kbd>

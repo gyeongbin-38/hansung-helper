@@ -682,7 +682,7 @@
   padding: 8px 13px;
   border: 1px solid var(--nt-hairline);
   border-radius: 20px;
-  background: #fff;
+  background: var(--nt-canvas);
   font-size: 12px;
   color: var(--nt-slate);
 }
@@ -692,7 +692,7 @@
 }
 .plan-semester-chip[aria-pressed='true'] {
   background: var(--nt-tint-sky);
-  border-color: #bdd6ff;
+  border-color: var(--nt-hairline-strong);
   color: var(--nt-primary);
   font-weight: 700;
 }

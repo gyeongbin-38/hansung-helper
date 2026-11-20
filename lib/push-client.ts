@@ -13,6 +13,14 @@ export function pushSupported(): boolean {
 export type PushStatus = 'unsupported' | 'off' | 'active' | 'no-server';
 
 let swRegistration: ServiceWorkerRegistration | undefined;
+
+/** 앱 시작 시 무조건 호출 — 푸시 구독과 무관하게 SW를 등록해
+ *  오프라인 캐시(fetch 핸들러)를 모든 사용자에게 활성화한다. */
+export function ensureSwRegistered() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  void registration().catch(() => {});
+}
+
 async function registration() {
   if (!swRegistration) swRegistration = await navigator.serviceWorker.register('/sw.js');
   return swRegistration;

@@ -48,14 +48,19 @@ import { validateLms, currentSemesterStart, mergeLmsSnapshot, canImportExtension
 import {
   currentPushEndpoint,
   ensurePushSubscription,
+  ensureSwRegistered,
   pushSupported,
 } from '@/lib/push-client';
+import { applyTheme } from '@/lib/theme';
 import { apiData, apiFetch, ApiRequestError, getAccountContext, setAccountContext, shouldResetSession } from '@/lib/data/api';
 import { isQueuedResponse, waitForCollectTurn } from '@/lib/data/collect-queue';
 import { pingAnalytics } from '@/lib/analytics';
 import { validateInfo, type InfoSnapshot } from '@/lib/data/info';
 import { semesterStartTs } from '@/lib/data/catalog';
 import { SearchResults } from './sections/search';
+import { SectionBoundary } from './sections/error-boundary';
+import { InstallHint } from './sections/install-hint';
+import { CommandPalette } from './sections/command-palette';
 import { SettingsSection } from './sections/settings';
 import { SurveyPage } from './sections/survey';
 import { SurveyDialog } from './sections/survey-dialog';
@@ -117,6 +122,7 @@ export default function App() {
     [filter, setFilter] = useState('전체'),
     [query, setQuery] = useState(''),
     [notifOpen, setNotifOpen] = useState(false),
+    [paletteOpen, setPaletteOpen] = useState(false),
     [painSurvey, setPainSurvey] = useState(false),
     [painStep, setPainStep] = useState(0),
     [painDraft, setPainDraft] = useState<string[]>([]);
@@ -150,6 +156,29 @@ export default function App() {
   const { snap: schedSnap } = useSchedule();
   // 벨 배지·패널의 마감 계산도 실제 시각을 따라가도록 주기 갱신
   const notifNow = useNow(30000);
+  // 서비스워커는 푸시 구독과 무관하게 등록 — 공개 데이터 오프라인 캐시가 전원에 적용된다
+  useEffect(() => {
+    ensureSwRegistered();
+  }, []);
+  // 테마: 저장된 선호를 적용하고, '자동'일 때 OS 다크 전환을 따라간다
+  useEffect(() => {
+    applyTheme();
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const on = () => applyTheme();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  // ⌘K / Ctrl+K — 어디서든 커맨드 팔레트를 연다
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     const resetSession = () => {
       if (demoRef.current) return;
@@ -1094,6 +1123,7 @@ export default function App() {
           unread={unread}
           onMenu={() => setDrawer(true)}
           onSearch={() => go('search')}
+          onPalette={() => setPaletteOpen(true)}
           onBell={() => setNotifOpen(true)}
           onExpandSide={
             sideCollapsed ? () => setSideCollapsed(false) : undefined
@@ -1166,6 +1196,7 @@ export default function App() {
               {pollDelayed && <button className="secondary" onClick={() => setPollRetry((n) => n + 1)}>수집 상태 다시 확인</button>}
             </div>
           )}
+          <SectionBoundary resetKey={route} onHome={() => go('home')}>
           {section === 'home' ? (
             <Home
               data={data}
@@ -1375,6 +1406,7 @@ export default function App() {
               </button>
             </section>
           )}
+          </SectionBoundary>
           <footer>
             <span>한성 학사 도우미</span>
             <span>세계로 뻗어나가는 한성, 한성으로 모여드는 세계</span>
@@ -1395,7 +1427,17 @@ export default function App() {
         }
         go={go}
       />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        query={query}
+        setQuery={setQuery}
+        data={data}
+        catalog={catalog}
+        go={go}
+      />
       <ToastStack toasts={toasts} onClose={dismissToast} />
+      <InstallHint />
       {ready && !account && !data.consent && (
         <CookieBanner
           onConfirm={() => persist({ ...data, consent: true }, '')}

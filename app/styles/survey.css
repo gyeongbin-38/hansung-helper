@@ -44,7 +44,7 @@
 }
 
 .survey-close:hover {
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
   background: var(--nt-surface);
 }
 .survey-close:disabled {
@@ -94,7 +94,7 @@
 
 .survey-intro-card h1 {
   margin: 10px 0 14px;
-  color: var(--nt-navy-deep);
+  color: var(--nt-navy-deep-text);
   font-family: var(--nt-font-display);
   font-size: clamp(27px, 5vw, 36px);
   line-height: 1.32;
@@ -134,7 +134,7 @@
   display: block;
 }
 .survey-intro-sections strong {
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
   font-size: 14px;
 }
 .survey-intro-sections small {
@@ -262,7 +262,7 @@
 
 .survey-question-copy h1 {
   margin: 9px 0 8px;
-  color: var(--nt-navy-deep);
+  color: var(--nt-navy-deep-text);
   font-family: var(--nt-font-display);
   font-size: clamp(23px, 4vw, 29px);
   line-height: 1.38;
