@@ -5,7 +5,7 @@
 
 const CACHE = 'hs-static-v1';
 const DATA_CACHE = 'hs-data-v1';
-const DATA_API = /^\/api\/(courses|schedule|activities|dept-rules|dept-pages)(\/|$|\?)/;
+const DATA_API = /^\/api\/(courses|schedule|activities|dept-rules|dept-pages|curriculum|equivalents)(\/|$|\?)/;
 const STATIC_ASSET = /^\/(icons\/|illustrations\/|_next\/|favicon\.svg|logo-mark\.svg|manifest\.webmanifest|apple-touch-icon\.png)/;
 
 self.addEventListener('install', () => self.skipWaiting());

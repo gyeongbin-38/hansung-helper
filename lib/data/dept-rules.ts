@@ -370,7 +370,7 @@ export function yearColumnIndex(table: YearTable, admitYear: number): number | n
  *   웹공학 — 이 중 2026-2 카탈로그에 개설이 확인된 단위만 등록)
  * 검증되지 않은 매핑은 추가하지 않는다.
  */
-const RULESET_DEPT_FAMILY: Record<string, string[]> = {
+export const RULESET_DEPT_FAMILY: Record<string, string[]> = {
   컴퓨터공학부: ['IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙'],
 };
 

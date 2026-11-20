@@ -5,7 +5,8 @@ import {
   Database, Flag, GraduationCap, Info, Layers, Plus, Search, X,
 } from 'lucide-react';
 import { Graduation } from './graduation';
-import { deptPoolOf, useDeptRules } from './catalog';
+import { GraduationTrack } from './graduation-track';
+import { deptPoolOf, useDeptRules, useNow, useSchedule } from './catalog';
 import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { SchoolRequirementTables } from './graduation-school-requirements';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
@@ -14,12 +15,13 @@ import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
 import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { semesterBreakdown } from '@/lib/data/visual-progress';
+import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
 
 type Props = ComponentProps<typeof Graduation>;
 const VIEWS = [
-  ['', '졸업 요약'], ['requirements', '요건별 충족 현황'],
+  ['', '졸업 요약'], ['track', '필수 이수 지도'], ['requirements', '요건별 충족 현황'],
   ['completed', '이수한 과목'], ['department', '학과 요건·계산 기준'],
 ] as const;
 const MODES = [
@@ -40,6 +42,7 @@ export function GraduationWorkspace(props: Props) {
   const [source, setSource] = useState('all');
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState('recent');
+  const [simGpa, setSimGpa] = useState('');
   const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -51,6 +54,13 @@ export function GraduationWorkspace(props: Props) {
     if (!saved) setError('입학 구분을 저장하지 못했습니다. 다시 선택해 주세요.');
   }
   const { snap: rules } = useDeptRules();
+  const { snap: schedule } = useSchedule();
+  const now = useNow();
+  const todayKst = scheduleToday(now);
+  const gradEvents = upcomingSchedule(
+    (schedule?.items ?? []).filter((e) => /졸업|학위|수료/.test(e.title)),
+    todayKst,
+  ).slice(0, 3);
   const completed = useMemo(() => mergeCompleted(data.completed, data.info?.completed), [data.completed, data.info]);
   const year = data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
   const genReference = generalEducationReference(year, admission);
@@ -229,6 +239,18 @@ export function GraduationWorkspace(props: Props) {
           </dl>
           <div className="school-gpa"><span>누적 평점</span><div><strong>{gpa.earned === undefined ? '미확인' : gpa.earned.toFixed(2)}</strong><span className={`badge ${gpa.status === 'met' ? 'green' : gpa.status === 'progress' ? 'orange' : ''}`}>{gpa.status === 'unknown' ? '확인 필요' : gpa.status === 'met' ? '기준 이상' : '기준 미달'}</span></div><small>졸업 기준 2.00 이상</small></div>
         </div>
+        {gpa.earned !== undefined && earned !== null && total.planned > 0 && (() => {
+          const simNum = simGpa.trim() ? Number(simGpa) : NaN;
+          const simOk = Number.isFinite(simNum) && simNum >= 0 && simNum <= 4.5;
+          const projected = simOk ? (gpa.earned! * earned + simNum * total.planned) / (earned + total.planned) : null;
+          return <div className="gpa-sim">
+            <label>이번 학기 예상 평점
+              <input type="number" inputMode="decimal" min={0} max={4.5} step={0.1} value={simGpa} placeholder="예: 3.8"
+                aria-label="이번 학기 예상 평점" onChange={(e) => setSimGpa(e.target.value)} /></label>
+            {projected !== null && <p>계획 {total.planned}학점 반영 → 누적 <b>{projected.toFixed(2)}</b> · 기준 2.00 {projected >= 2 ? '유지' : '미달'}</p>}
+            {simGpa.trim() && !simOk && <p className="form-error" role="alert">0~4.5 사이로 입력해 주세요.</p>}
+          </div>;
+        })()}
         <div className="school-criteria-guidance"><Info size={16} aria-hidden="true" /><div>
         {genReference ? <p><b>{year}학번 교양 참고 기준 · {genReference.total}학점 이상</b><br />{genReference.note} <a className="link" href={genReference.url} target="_blank" rel="noreferrer">학교 원문 <ArrowUpRight size={13} aria-hidden="true" /></a></p> : <p>학번·입학유형별 교양 세부 기준은 학교에서 확인해 주세요.</p>}
         {year === 2023 && admission === 'freshman' && <p className="meta">31학점(13·15·3)은 학교 안내의 24학번 기준으로, 23학번에 자동 적용하지 않습니다.</p>}
@@ -242,6 +264,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>학점 미합산</p></div></div>
         <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
       </section>}
+      {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} />}
       {(view === '' || view === 'requirements') && <>
         <fieldset className="graduation-mode-tabs" aria-label="졸업 전공 유형">
           {MODES.map(m => <button key={m.id} aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{m.label}</button>)}
@@ -318,11 +341,19 @@ export function GraduationWorkspace(props: Props) {
         </section>
         <nav className="graduation-next-actions" aria-label="다음 확인 항목">
           {[
+            ['필수 이수 지도', '전필·교필 과목별 확인', 'graduation/track'],
             ['비교과 포인트 확인', points === undefined ? '포인트 입력 필요' : `${points}P 적립`, 'profile'],
             ['요건 충족 현황', '영역별 기준·학교 판정', 'graduation/requirements'],
             ['전공/트랙 기준 확인', '학과 공식 요건', 'graduation/department'],
           ].map(([title, note, route]) => <button key={title} onClick={() => go(route)}><span><b>{title}</b><small>{note}</small></span><ArrowRight size={15} /></button>)}
         </nav>
+        {!!gradEvents.length && <section className="card graduation-deadlines" aria-labelledby="graduation-deadlines-title">
+          <div className="graduation-section-heading"><h3 id="graduation-deadlines-title"><Clock3 size={19} />졸업 관련 학사일정</h3></div>
+          <ul>{gradEvents.map((e) => {
+            const days = Math.ceil((Date.parse(`${e.start}T00:00:00+09:00`) - Date.parse(`${todayKst}T00:00:00+09:00`)) / 86400000);
+            return <li key={e.id}><div><b>{e.title}</b><small>{scheduleDateLabel(e)}</small></div><span className={`badge ${days <= 14 ? 'orange' : ''}`}>{days === 0 ? 'D-Day' : `D-${days}`}</span></li>;
+          })}</ul>
+        </section>}
       </>}
       {view === 'requirements' && <>
         <div className="graduation-requirement-grid">{results.map(requirementCard)}</div>
