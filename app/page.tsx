@@ -1269,6 +1269,8 @@ export default function App() {
               planned={planned}
               persist={persist}
               detail={detail}
+              onPlan={plan}
+              notify={setToast}
               infoPending={
                 infoPending && !collectStale(infoPending) && !pollDelayed
               }

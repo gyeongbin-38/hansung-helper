@@ -13,6 +13,7 @@ import type { DeptPagesSnapshot } from '@/lib/data/dept-pages';
 import type { ScheduleSnapshot } from '@/lib/data/schedule';
 import type { Curriculum, CurriculumIndex } from '@/lib/data/curriculum';
 import type { EquivalentsSnapshot } from '@/lib/data/equivalents';
+import type { CourseHistory } from '@/lib/data/course-history';
 import type { Data } from './data';
 
 /**
@@ -241,6 +242,28 @@ export function useEquivalents() {
   useEffect(() => {
     let on = true;
     loadEquivalents()
+      .then((s) => on && setSnap(s))
+      .catch(() => {});
+    return () => { on = false; };
+  }, []);
+  return snap;
+}
+
+let courseHistoryCache: Promise<CourseHistory> | null = null;
+function loadCourseHistory() {
+  courseHistoryCache ??= apiFetch('/api/course-history')
+    .then((r) => apiData<CourseHistory>(r))
+    .catch((e) => {
+      courseHistoryCache = null;
+      throw e;
+    });
+  return courseHistoryCache;
+}
+export function useCourseHistory() {
+  const [snap, setSnap] = useState<CourseHistory | null>(null);
+  useEffect(() => {
+    let on = true;
+    loadCourseHistory()
       .then((s) => on && setSnap(s))
       .catch(() => {});
     return () => { on = false; };

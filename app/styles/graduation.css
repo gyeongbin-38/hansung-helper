@@ -436,8 +436,15 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .track-course-body small { font-size: 11px; color: var(--nt-slate); }
 .track-course .badge { flex-shrink: 0; font-size: 10px; }
 .track-offered { font-style: normal; font-weight: 650; color: var(--nt-primary); }
+.track-warn { font-style: normal; font-weight: 600; color: var(--nt-orange-deep); }
 .track-now { display: grid; gap: 6px; border-color: var(--nt-primary); }
 .track-now > .secondary { justify-self: start; margin-top: 4px; }
+/* 이번 학기 개설 미이수 행 — 분반 칩을 행 아래에 둔다 */
+.track-now-row { flex-wrap: wrap; }
+.track-now-secs { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px 27px; }
+.track-chip { padding: 5px 10px; border: 1px solid var(--nt-hairline-strong); border-radius: 999px; background: var(--nt-paper); font-size: 11px; font-weight: 600; color: var(--nt-ink); cursor: pointer; white-space: nowrap; }
+.track-chip:hover { border-color: var(--nt-primary); }
+.track-chip.on { border-color: var(--nt-primary); background: var(--nt-tint-sky); color: var(--nt-primary); }
 details.track-group summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
 details.track-group summary::-webkit-details-marker { display: none; }
 details.track-group summary > span { display: grid; gap: 2px; }
