@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import {
+  Bookmark,
   CalendarDays,
   Clock3,
   Flag,
@@ -406,6 +407,14 @@ export function Home({
       : null;
   const major = graduation.find((r) => r.rule.id === 'major')!;
   const general = graduation.find((r) => r.rule.id === 'gen')!;
+  // 이번 학기에 담아둔 과목 중 분반이 열렸는데 아직 계획에 없는 것 —
+  // 학기별 계획으로 이어지는 알림 한 줄
+  const plannedCodes = new Set(planned.map((s) => s.code));
+  const openWishes = catalog
+    ? (data.semesterWishes?.[catalog.semester] ?? []).filter(
+        (w) => !plannedCodes.has(w.code) && catalog.sections.some((s) => s.code === w.code),
+      )
+    : [];
   const weekday = (new Date(now + 9 * 3600_000).getUTCDay() + 6) % 7;
   const monday = addDays(today, -weekday);
   const day = selectedDay ?? weekday;
@@ -591,6 +600,13 @@ export function Home({
               {outlookDiff !== null && outlookDiff === 0 && <span className="badge green">목표와 동일</span>}
               {outlookDiff !== null && outlookDiff < 0 && <span className="badge orange">목표보다 {-outlookDiff}학기 늦음</span>}
               <small>남은 {outlook.remaining}학점 · 학기당 {outlook.perSemester}학점 페이스{total.planned > 0 ? ' (계획 기준)' : recentPace !== undefined ? ' (최근 평균)' : ' (기본값)'}</small>
+            </p>
+          )}
+          {!!openWishes.length && (
+            <p className="home-outlook home-wish-hint">
+              <Bookmark size={13} aria-hidden="true" />
+              이번 학기 담아둔 과목 <b>{openWishes.length}과목 개설</b>
+              <button className="link" onClick={() => go('semester-plan')}>분반 고르기 <ArrowRight size={13} /></button>
             </p>
           )}
           <div className="home-grad-breakdown">
