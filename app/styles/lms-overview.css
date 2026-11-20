@@ -13,7 +13,6 @@
   gap: 12px;
   padding: 18px;
   min-width: 0;
-  background: linear-gradient(125deg, var(--nt-canvas), var(--nt-surface));
 }
 .study-metrics > a:hover {
   border-color: var(--nt-primary);
@@ -56,8 +55,8 @@
   border-radius: 15px;
 }
 .study-metric-icon.blue {
-  color: var(--nt-primary);
-  background: var(--nt-tint-sky);
+  color: var(--nt-slate);
+  background: var(--nt-tint-gray);
 }
 .study-metric-icon.orange {
   color: var(--nt-orange);
@@ -86,7 +85,7 @@
   padding: 20px;
   border-radius: 14px;
   color: var(--nt-on-primary);
-  background: linear-gradient(115deg, var(--nt-navy-deep), var(--nt-navy));
+  background: var(--nt-navy);
 }
 .study-sync-mark {
   display: grid;
@@ -208,7 +207,6 @@
 .study-course {
   border: 1px solid var(--nt-hairline-soft);
   border-radius: 11px;
-  background: linear-gradient(115deg, var(--nt-canvas), var(--nt-surface));
   min-width: 0;
 }
 .study-course.expanded {
@@ -228,7 +226,7 @@
   border-radius: inherit;
 }
 .study-course-toggle:hover {
-  background: var(--nt-tint-sky);
+  background: var(--nt-surface);
 }
 .study-section {
   display: grid;
@@ -237,12 +235,12 @@
   height: 34px;
   padding-inline: 6px;
   border-radius: 9px;
-  color: var(--nt-primary);
+  color: var(--nt-slate);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: -0.2px;
   white-space: nowrap;
-  background: var(--nt-tint-sky);
+  background: var(--nt-tint-gray);
 }
 .study-course-name,
 .study-course-progress,
@@ -363,16 +361,8 @@
   line-height: 1.5;
   padding: 1px 5px;
   border-radius: 4px;
-  color: var(--nt-purple-800);
-  background: var(--nt-tint-lavender);
-}
-.study-tag.lecture {
-  color: var(--nt-primary-deep);
-  background: var(--nt-tint-sky);
-}
-.study-tag.assignment {
-  color: var(--nt-orange-deep);
-  background: var(--nt-tint-peach);
+  color: var(--nt-slate);
+  background: var(--nt-tint-gray);
 }
 .study-side > .card {
   padding: 18px;

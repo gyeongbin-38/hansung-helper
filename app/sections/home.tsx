@@ -554,7 +554,7 @@ export function Home({
           </p>
           {gradesUnverified && (
             <p className="home-card-description">
-              최근 성적 확인이 완료되지 않아 이전 이수 내역이 표시될 수 있습니다. 학교 종합정보에서 확인해 주세요.
+              최근 성적 미확인 — 이전 이수 내역일 수 있어요. 종합정보에서 확인해 주세요.
             </p>
           )}
           <div className="home-progress-caption">
@@ -621,7 +621,7 @@ export function Home({
         >
           <div className="home-card-heading">
             <h2 id="home-deadlines-title">
-              <span className="home-heading-icon orange">
+              <span className="home-heading-icon">
                 <Clock3 size={18} />
               </span>
               다가오는 마감
@@ -1052,7 +1052,6 @@ export function Home({
                   '졸업요건 체크리스트',
                   '계산 대기',
                   '적용 졸업 규정 확인 필요',
-                  'lavender',
                 ],
                 [
                   '총 이수학점',
@@ -1066,7 +1065,6 @@ export function Home({
                     : data.credits
                       ? '사용자 입력 · 미검증'
                       : '내 정보에서 입력할 수 있어요',
-                  'sky',
                 ],
                 [
                   '비교과 포인트',
@@ -1080,10 +1078,9 @@ export function Home({
                     : data.points
                       ? '사용자 입력 · 미검증'
                       : '학교 인정 내역 확인 필요',
-                  'mint',
                 ],
-              ].map(([l, v, s, tone]) => (
-                <div className={'card stat ' + tone} key={l}>
+              ].map(([l, v, s]) => (
+                <div className="card stat" key={l}>
                   <span className="stat-tag">{l}</span>
                   <strong>{v}</strong>
                   <small>{s}</small>

@@ -5,9 +5,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  background:
-    radial-gradient(circle at 92% 14%, var(--nt-tint-sky) 0, transparent 38%),
-    var(--nt-canvas);
+  background: var(--nt-canvas);
 }
 .community-hero-copy {
   max-width: 640px;
@@ -227,8 +225,8 @@ button.community-back {
   width: 22px;
   height: 22px;
   border-radius: var(--nt-r-pill);
-  background: var(--nt-tint-sky);
-  color: var(--nt-primary-deep);
+  background: var(--nt-tint-gray);
+  color: var(--nt-slate);
   font-size: 11px;
   font-weight: 700;
   flex-shrink: 0;
@@ -411,9 +409,10 @@ button.community-back {
 .community-notice {
   margin: 16px 0 0;
   padding: 12px 16px;
+  border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-md);
-  background: var(--nt-tint-mint);
-  color: var(--nt-green-deep);
+  background: var(--nt-surface);
+  color: var(--nt-slate);
   font-size: 13px;
   line-height: 1.6;
 }

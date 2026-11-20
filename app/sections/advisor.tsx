@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
   ArrowRight,
+  Bot,
   Compass,
   MessageCircle,
   RotateCcw,
   Search,
   Send,
-  Sparkles,
   Target,
 } from 'lucide-react';
 import type { Data } from './data';
@@ -258,11 +258,11 @@ export function Advisor({
         <div>
           {application && <button className="link advisor-back" onClick={() => go('activities')}>비교과·대외활동으로 돌아가기</button>}
           <span className="eyebrow">
-            <Sparkles size={15} /> {application ? 'AI에게 추천받기' : '서비스 이용 안내'}
+            {application ? 'AI 추천' : '서비스 이용 안내'}
           </span>
           <h1 id="advisor-title">{application ? '내 포인트와 목표에 맞는 활동을 골라드려요' : '학사부기, 이렇게 사용해 보세요'}</h1>
           <p>
-            {application ? '추천은 공개 목록과 입력한 조건 기준이에요. 실제 지원 자격·서류·접수는 공식 공고에서 확인해요.' : '기능을 찾고 사용하는 방법이 궁금할 때, 이용 도우미에게 물어보세요.'}
+            {application ? '공개 목록과 입력한 조건 기준으로 추천해요. 지원 자격·서류·접수는 공식 공고에서 확인하세요.' : '기능을 찾고 쓰는 방법이 궁금할 때 물어보세요.'}
           </p>
         </div>
         {application ? <SchoolConnection
@@ -291,9 +291,9 @@ export function Advisor({
       </nav>}
       <div className="advisor-workspace-grid">
         {!application && <section className="advisor-service-guides" aria-labelledby="advisor-guide-title">
-          <div className="advisor-service-guide-heading"><span className="eyebrow">서비스 가이드</span><h2 id="advisor-guide-title">어떤 기능이 궁금하세요?</h2><p>궁금한 기능을 고르면 사용 방법을 안내해 드려요.</p></div>
+          <div className="advisor-service-guide-heading"><span className="eyebrow">서비스 가이드</span><h2 id="advisor-guide-title">어떤 기능이 궁금하세요?</h2><p>기능을 고르면 사용법을 안내해 드려요.</p></div>
           <div className="advisor-service-topics">{SERVICE_GUIDES.map((guide, i) => <button key={guide.route + guide.label} onClick={() => { const q = `${guide.label} 기능은 어떻게 사용하나요?`; setQuestion(q); void ask(q); }} disabled={pending}><span className="advisor-topic-index">{String(i + 1).padStart(2, '0')}</span><span><b>{guide.label}</b><small>사용 방법 알아보기</small></span><ArrowRight size={16} aria-hidden="true" /></button>)}</div>
-          <div className="advisor-service-application"><Sparkles size={19} aria-hidden="true" /><div><h3>어떤 활동이 나에게 맞을지 궁금한가요?</h3><p>비교과·대외활동에서 포인트와 목표 역량으로 맞춤 추천을 받아 보세요.</p><button className="link" onClick={() => go('activities/recommend')}>AI에게 추천받기 <ArrowRight size={14} /></button></div></div>
+          <div className="advisor-service-application"><Bot size={19} aria-hidden="true" /><div><h3>어떤 활동이 나에게 맞을까요?</h3><p>포인트와 목표 역량으로 맞는 활동을 추천받아 보세요.</p><button className="link" onClick={() => go('activities/recommend')}>AI 추천 <ArrowRight size={14} /></button></div></div>
         </section>}
         {application && <><aside
           className={`advisor-finder ${tab === 'goals' ? 'is-mobile-active' : ''}`}
@@ -396,7 +396,7 @@ export function Advisor({
               </p>
               <div className="advisor-brief-actions">
                 <button className="primary" onClick={summarize} disabled={pending}>
-                  <Sparkles size={15} /> AI에게 이 활동 요약받기
+                  AI 요약
                 </button>
                 {activity.url && (
                   <a
@@ -539,7 +539,7 @@ export function Advisor({
               <span>ASSISTANT</span>
               <h2>{application ? 'AI 추천 도우미' : '서비스 이용 도우미'}</h2>
             </div>
-            <Sparkles size={18} />
+            <Bot size={18} />
           </div>
           <fieldset className="advisor-mode">
             <legend className="sr-only">답변 방식</legend>

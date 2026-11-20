@@ -7,7 +7,7 @@ import {
   Search,
   Plus,
   Trash2,
-  Sparkles,
+
 } from 'lucide-react';
 import type { Data } from './data';
 import { ActivitySummary } from './activity-summary';
@@ -387,7 +387,7 @@ export function Activities({
             </p>
           )}
           <div className="actions">
-            <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}><Sparkles size={16} />AI에게 추천받기</button>
+            <button className="secondary" onClick={() => go(`activities/recommend/${a.id}`)}>AI 추천</button>
             {!isExt(a) && (
               <button className="primary" onClick={() => save(a.id)}>
                 <Bookmark
@@ -540,7 +540,7 @@ export function Activities({
             className="primary"
             onClick={() => go('activities/recommend')}
           >
-            <Sparkles size={15} /> AI에게 추천받기
+            AI 추천
           </button>
           <button
             className="secondary"
@@ -735,7 +735,7 @@ function ActivityCards({
             {(data.saved.includes(a.id) || isExt(a)) && <ActivityStageProgress title={a.title} stage={stage} />}
             <div className="card-foot">
               <button className="link" onClick={() => go(`activities/recommend/${a.id}`)}>
-                <Sparkles size={16} /> AI에게 추천받기
+                AI 추천
               </button>
               <button className="link" onClick={() => go('activities/' + a.id)}>
                 자세히 보기 <ArrowUpRight size={16} />

@@ -263,8 +263,9 @@
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px;
+  border: 1px solid var(--nt-hairline);
   border-radius: var(--nt-r-md);
-  background: var(--nt-tint-sky);
+  background: var(--nt-surface);
   font-size: 14px;
 }
 
@@ -1095,34 +1096,9 @@
   opacity: 0.6;
 }
 
-.art0 {
-  background: var(--nt-tint-peach);
-  color: var(--nt-orange-deep);
-}
-
-.art1 {
-  background: var(--nt-tint-cream);
-  color: var(--nt-brown);
-}
-
-.art2 {
-  background: var(--nt-tint-mint);
-  color: var(--nt-teal-deep);
-}
-
-.art3 {
-  background: var(--nt-tint-rose);
-  color: var(--nt-pink-deep);
-}
-
-.art4 {
-  background: var(--nt-tint-sky);
-  color: var(--nt-link-pressed);
-}
-
-.art5 {
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+.art {
+  background: var(--nt-tint-gray);
+  color: var(--nt-slate);
 }
 
 .activity .pad {
@@ -1173,7 +1149,7 @@
 }
 
 .activity .icon.saved:hover {
-  background: var(--nt-tint-sky);
+  background: var(--nt-surface);
 }
 
 /* ---------- courses ---------- */
@@ -1773,7 +1749,7 @@
 }
 
 .enrolled-pick-row:hover {
-  background: var(--nt-tint-sky);
+  background: var(--nt-surface);
 }
 
 .enrolled-pick-row b {
@@ -2213,7 +2189,7 @@
 .plan-comparison {
   margin: 0 0 16px;
   padding: 14px 16px;
-  background: linear-gradient(135deg, var(--nt-canvas), var(--nt-tint-sky));
+  background: var(--nt-surface);
 }
 
 .plan-comparison-head {
@@ -3161,7 +3137,7 @@
 }
 
 .matchfix-cand:hover {
-  background: var(--nt-tint-sky);
+  background: var(--nt-surface);
 }
 
 .matchfix-cand b {

@@ -66,20 +66,12 @@
   height: 34px;
   padding: 8px;
   border-radius: var(--nt-r-md);
-  background: var(--nt-tint-sky);
-  color: var(--nt-primary);
+  background: var(--nt-tint-gray);
+  color: var(--nt-slate);
 }
 .lms-task-page__metrics article:nth-child(2) svg {
   background: var(--nt-tint-peach);
   color: var(--nt-orange);
-}
-.lms-task-page__metrics article:nth-child(3) svg {
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple);
-}
-.lms-task-page__metrics article:nth-child(4) svg {
-  background: var(--nt-tint-mint);
-  color: var(--nt-green-deep);
 }
 .lms-task-page__metrics span {
   color: var(--nt-slate);
@@ -156,12 +148,8 @@
 .lms-task-page__kind {
   min-width: 38px;
   padding: 3px 6px;
-  background: var(--nt-tint-peach);
-  color: var(--nt-orange-deep);
-}
-.lms-task-page__kind.is-quiz {
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+  background: var(--nt-tint-gray);
+  color: var(--nt-slate);
 }
 .lms-task-page__row-copy {
   min-width: 0;
@@ -208,16 +196,12 @@
   color: var(--nt-green-deep);
 }
 .lms-task-page__status.is-late {
-  background: var(--nt-tint-peach);
-  color: var(--nt-orange-deep);
-}
-.lms-task-page__status.is-today {
   background: var(--nt-tint-rose);
   color: var(--nt-pink-deep);
 }
-.lms-task-page__status.is-soon {
-  background: var(--nt-tint-lavender);
-  color: var(--nt-purple-800);
+.lms-task-page__status.is-today {
+  background: var(--nt-tint-peach);
+  color: var(--nt-orange-deep);
 }
 .lms-task-page__status.is-check {
   background: var(--nt-tint-yellow);

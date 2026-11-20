@@ -802,10 +802,7 @@ export function CommunitySection({
         <div className="community-hero-copy">
           <span className="badge blue">익명 커뮤니티</span>
           <h2>한성인들의 이야기</h2>
-          <p>
-            수강 후기, 졸업 준비, 학교생활 팁을 익명 별명으로 나눠요. 글·댓글
-            작성은 학교 계정으로 로그인한 뒤 이용할 수 있습니다.
-          </p>
+          <p>수강 후기·졸업 준비·학교생활 팁을 익명으로 나눠요.</p>
         </div>
         {signedIn ? (
           <button

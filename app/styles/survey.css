@@ -157,13 +157,10 @@
   width: 19px;
   height: 19px;
 }
-.survey-section-icon.course {
-  color: var(--nt-primary-deep);
-  background: var(--nt-tint-sky);
-}
+.survey-section-icon.course,
 .survey-section-icon.activities {
-  color: var(--nt-purple-800);
-  background: var(--nt-tint-lavender);
+  color: var(--nt-slate);
+  background: var(--nt-tint-gray);
 }
 
 .survey-time {
