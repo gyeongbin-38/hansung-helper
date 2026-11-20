@@ -12,9 +12,11 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, deptMatches, planBlockReason } from './catalog';
+import { catGroup, deptMatches, planBlockReason, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
+import { buildRequiredTrack, missingRequiredCodeSet, pickCurriculumSemester } from '@/lib/data/curriculum';
+import { mergeCompleted } from '@/lib/data/info';
 import { enrolledSectionIds } from '@/lib/data/lms';
 import { courseSuggestion } from '@/lib/data/course-suggestions';
 import type { Data } from './data';
@@ -61,6 +63,30 @@ export function Courses({
     dept === '' && !myDeptRes.dept && !myDeptRes.candidates?.length
       ? '전체'
       : dept;
+  // 졸업 필수 표시 — 입학연도 교육과정 + 이수 내역으로 미이수 필수 과목을 찾아
+  // 개설 분반에 '졸업 필수' 배지와 필터를 제공한다 (필수 지도와 같은 판정)
+  const { snap: currIndex } = useCurriculumIndex();
+  const admitYear =
+    data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
+  const currSemester = pickCurriculumSemester(admitYear, currIndex);
+  const { snap: curriculum } = useCurriculum(currSemester);
+  const equiv = useEquivalents();
+  const requiredMissing = useMemo(() => {
+    if (!curriculum || !catalog) return null;
+    const track = buildRequiredTrack({
+      curriculum,
+      deptInput: data.info?.dept || data.dept,
+      completed: mergeCompleted(data.completed, data.info?.completed),
+      offeredCodes: new Set(catalog.sections.map((s) => s.code)),
+      equiv,
+      failed: data.info?.failedCourses,
+    });
+    return missingRequiredCodeSet({
+      track,
+      trackName: data.info?.track ?? data.info?.tracks?.[0],
+      equiv,
+    });
+  }, [curriculum, catalog, equiv, data.info, data.completed, data.dept]);
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept
@@ -74,10 +100,12 @@ export function Courses({
           : s.dept === effectiveDept;
       if (!deptOk) return false;
       const catOk =
-        cat === '전체' ||
-        (cat === '기타'
-          ? !['전필', '전선', '교양·일반'].includes(catGroup(s))
-          : catGroup(s) === cat);
+        cat === '졸업 필수'
+          ? !!requiredMissing?.has(s.code)
+          : cat === '전체' ||
+            (cat === '기타'
+              ? !['전필', '전선', '교양·일반'].includes(catGroup(s))
+              : catGroup(s) === cat);
       if (!catOk || !courseMatch(s, q)) return false;
       if (day === '' && band === '전체') return true;
       if (!s.slots.length) return false;
@@ -93,7 +121,7 @@ export function Courses({
         );
       return dayOk && bandOk;
     });
-  }, [catalog, q, effectiveDept, cat, day, band, myDeptRes]);
+  }, [catalog, q, effectiveDept, cat, day, band, myDeptRes, requiredMissing]);
   const plannedSecs = useMemo(
     () =>
       (catalog?.sections ?? []).filter((s) => data.planned.includes(s.id)),
@@ -183,6 +211,9 @@ export function Courses({
               >
                 수강 중
               </span>
+            )}
+            {requiredMissing?.has(s.code) && (
+              <span className="badge orange">졸업 필수</span>
             )}
             <span className="badge">{s.category}</span>
             {s.online && <span className="badge blue">온라인</span>}
@@ -324,7 +355,14 @@ export function Courses({
           ))}
         </select>
         <div className="tabs">
-          {['전체', '전필', '전선', '교양·일반', '기타'].map((f) => (
+          {[
+            '전체',
+            ...(requiredMissing?.size ? ['졸업 필수'] : []),
+            '전필',
+            '전선',
+            '교양·일반',
+            '기타',
+          ].map((f) => (
             <button
               key={f}
               className={cat === f ? 'active' : ''}
@@ -387,6 +425,9 @@ export function Courses({
                     >
                       수강 중
                     </span>
+                  )}
+                  {requiredMissing?.has(s.code) && (
+                    <span className="badge orange">졸업 필수</span>
                   )}
                   <span className="badge">{s.category}</span>
                   {s.online && <span className="badge blue">온라인</span>}

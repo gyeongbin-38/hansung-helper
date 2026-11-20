@@ -346,6 +346,37 @@ export function buildRequiredTrack(args: {
   return { groups, requiredDone: doneCodes.size, requiredTotal: requiredCodes.size, ambiguous };
 }
 
+/**
+ * 미이수 필수 과목 코드 집합 — 카탈로그·시간표 뷰의 '졸업 필수' 표시용.
+ * 트랙이 여럿인 학부는 학생 소속 트랙 과목만 포함하고(없으면 트랙 과목 제외),
+ * 동일과목 그룹으로 확장해 폐지 과목 코드로 개설된 분반도 매칭한다.
+ * 선택필수교양은 개별 과목이 필수가 아니므로 뺀다.
+ */
+export function missingRequiredCodeSet(args: {
+  track: TrackResult;
+  /** 학생 소속 트랙 라벨 ('모바일소프트웨어트랙') */
+  trackName?: string | null;
+  equiv?: EquivalentsSnapshot | null;
+}): Set<string> {
+  const { siblingCodes } = equivCodeIndex(args.equiv);
+  const t = (args.trackName ?? '').replace(/[\s·-]/g, '');
+  const set = new Set<string>();
+  for (const g of args.track.groups) {
+    if (g.role === 'gen-selective') continue;
+    if (g.role === 'major-track') {
+      if (!t) continue;
+      const title = g.title.replace(/[\s·-]/g, '');
+      if (!(title.includes(t) || t.includes(title))) continue;
+    }
+    for (const c of g.courses) {
+      if (c.status !== 'missing') continue;
+      set.add(c.code);
+      for (const s of siblingCodes(c.code)) set.add(s);
+    }
+  }
+  return set;
+}
+
 /** 성적 갱신으로 의미가 있는 구간 — B0 이상은 재수강 실익이 적다 */
 const RETAKE_GRADES = ['D0', 'D+', 'C0', 'C+'] as const;
 
