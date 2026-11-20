@@ -412,7 +412,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .graduation-deadlines li .badge { flex-shrink: 0; font-size: 11px; }
 
 /* 필수 이수 지도 — 학번 교육과정 기준 전필·교필 과목별 이수 체크 */
-.track-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.track-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .track-summary h3 { display: flex; align-items: center; gap: 7px; font-size: 15px; color: var(--nt-ink); }
 .track-summary .meta { margin-top: 3px; }
 .track-total { display: grid; justify-items: end; gap: 1px; flex-shrink: 0; }
@@ -463,3 +463,15 @@ details.track-group[open] summary { padding-bottom: 8px; }
 .gpa-sim input:focus { outline: 2px solid var(--nt-primary); outline-offset: 1px; }
 .gpa-sim p { font-size: 12px; color: var(--nt-slate); }
 .gpa-sim p b { color: var(--nt-primary); font-variant-numeric: tabular-nums; }
+
+/* 남은 학기 로드맵 — 미이수 필수의 학기별 배치 */
+.track-roadmap { display: grid; gap: 8px; }
+.roadmap-slot { display: grid; gap: 2px; padding: 9px 0 9px 14px; border-left: 2px solid var(--nt-primary); }
+.roadmap-sem { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.roadmap-sem b { font-size: 13px; font-weight: 700; color: var(--nt-ink); }
+.roadmap-sem span { font-size: 11px; color: var(--nt-slate); }
+.roadmap-slot small { font-size: 11.5px; color: var(--nt-slate); line-height: 1.5; }
+.roadmap-sem .track-warn { font-size: 11px; }
+.track-reg { display: flex; align-items: center; gap: 5px; }
+.track-reg svg { color: var(--nt-primary); flex-shrink: 0; }
+.track-points-link { display: inline-flex; align-items: center; gap: 4px; flex-basis: 100%; width: fit-content; font-size: 11.5px; font-weight: 650; color: var(--nt-purple-800); background: var(--nt-tint-lavender); border-radius: 999px; padding: 5px 10px; border: none; cursor: pointer; }
