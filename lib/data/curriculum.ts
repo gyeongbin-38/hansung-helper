@@ -359,8 +359,39 @@ export function missingRequiredCodeSet(args: {
   equiv?: EquivalentsSnapshot | null;
 }): Set<string> {
   const { siblingCodes } = equivCodeIndex(args.equiv);
-  const t = (args.trackName ?? '').replace(/[\s·-]/g, '');
   const set = new Set<string>();
+  for (const c of missingRequiredCourses(args)) {
+    set.add(c.code);
+    for (const s of siblingCodes(c.code)) set.add(s);
+  }
+  return set;
+}
+
+/**
+ * 동일과목 코드 → 원래 미이수 필수 과목명.
+ * 카탈로그 '졸업 필수' 배지가 형제 코드 개설분에 붙을 때
+ * 왜 필수인지 설명하는 용도 — 직접 코드는 넣지 않는다.
+ */
+export function missingRequiredSiblings(args: {
+  track: TrackResult;
+  trackName?: string | null;
+  equiv?: EquivalentsSnapshot | null;
+}): Map<string, string> {
+  const { siblingCodes } = equivCodeIndex(args.equiv);
+  const map = new Map<string, string>();
+  for (const c of missingRequiredCourses(args))
+    for (const s of siblingCodes(c.code))
+      if (s !== c.code) map.set(s, c.name);
+  return map;
+}
+
+/** 미이수 필수 과목 나열 — 코드 집합·동일과목 맵이 같은 필터를 공유 */
+function missingRequiredCourses(args: {
+  track: TrackResult;
+  trackName?: string | null;
+}): { code: string; name: string }[] {
+  const t = (args.trackName ?? '').replace(/[\s·-]/g, '');
+  const out: { code: string; name: string }[] = [];
   for (const g of args.track.groups) {
     if (g.role === 'gen-selective') continue;
     if (g.role === 'major-track') {
@@ -368,17 +399,23 @@ export function missingRequiredCodeSet(args: {
       const title = g.title.replace(/[\s·-]/g, '');
       if (!(title.includes(t) || t.includes(title))) continue;
     }
-    for (const c of g.courses) {
-      if (c.status !== 'missing') continue;
-      set.add(c.code);
-      for (const s of siblingCodes(c.code)) set.add(s);
-    }
+    for (const c of g.courses)
+      if (c.status === 'missing') out.push({ code: c.code, name: c.name });
   }
-  return set;
+  return out;
 }
 
 /** 성적 갱신으로 의미가 있는 구간 — B0 이상은 재수강 실익이 적다 */
 const RETAKE_GRADES = ['D0', 'D+', 'C0', 'C+'] as const;
+
+/** 학교 4.5 만점 환산표 — 졸업 평점 기준(evaluateGpa)과 같은 체계 */
+const GRADE_POINTS: Record<string, number> = {
+  'A+': 4.5, 'A0': 4.0, 'B+': 3.5, 'B0': 3.0,
+  'C+': 2.5, 'C0': 2.0, 'D+': 1.5, 'D0': 1.0, 'F': 0,
+};
+
+/** 재수강 목표 성적 — 학교 재수강 성적 상한(A0) 가정 */
+const RETAKE_TARGET = 'A0';
 
 export type RetakeCandidate = {
   code: string;
@@ -388,18 +425,33 @@ export type RetakeCandidate = {
   grade: string;
   /** 이번 학기 개설된 과목 코드 — 동일과목 매칭 시 원 코드와 다르다 */
   offeredCode: string;
+  /**
+   * A0으로 재수강(기존 성적 대체) 시 예상 평균평점 상승폭.
+   * 총 이수학점을 모르면 undefined — 추정치를 꾸며내지 않는다.
+   */
+  gain?: number;
 };
+
+/** 재수강 성적 갱신 효과 — 정렬과 표시가 같은 가정을 공유한다 */
+export function retakeGainPoints(grade: string, credits: number): number {
+  const pt = GRADE_POINTS[grade];
+  if (pt === undefined) return 0;
+  return (GRADE_POINTS[RETAKE_TARGET] - pt) * credits;
+}
 
 /**
  * 이수 과목 중 C+ 이하 + 이번 학기 개설 → 평점 개선 재수강 후보.
- * 동일과목(폐지 과목) 매칭으로 개설됐어도 인정하고, 낮은 성적순으로
- * 최대 limit개까지. 이미 계획에 담은 과목은 뺀다.
+ * 동일과목(폐지 과목) 매칭으로 개설됐어도 인정하고, A0 갱신 시
+ * 평점 상승폭이 큰 순으로 최대 limit개까지. 이미 계획에 담은 과목은 뺀다.
+ * totalCredits를 주면 후보별 예상 상승폭(gain)을 계산한다.
  */
 export function findRetakeCandidates(args: {
   completed: { code: string; name: string; credits?: number; grade?: string }[];
   offeredCodes?: Set<string>;
   plannedCodes?: Set<string>;
   equiv?: EquivalentsSnapshot | null;
+  /** 총 이수학점 — 학교 수집값 기준. gain 추정에 사용 */
+  totalCredits?: number;
   limit?: number;
 }): RetakeCandidate[] {
   const offered = args.offeredCodes ?? new Set<string>();
@@ -412,7 +464,10 @@ export function findRetakeCandidates(args: {
   const seen = new Set<string>();
   const out: RetakeCandidate[] = [];
   const sorted = [...args.completed].sort(
-    (a, b) => (rank(a.grade) === -1 ? 99 : rank(a.grade)) - (rank(b.grade) === -1 ? 99 : rank(b.grade)),
+    (a, b) =>
+      retakeGainPoints(b.grade ?? '', b.credits ?? 0) -
+        retakeGainPoints(a.grade ?? '', a.credits ?? 0) ||
+      (rank(a.grade) === -1 ? 99 : rank(a.grade)) - (rank(b.grade) === -1 ? 99 : rank(b.grade)),
   );
   for (const c of sorted) {
     const grade = (c.grade ?? '').trim().toUpperCase().replace('＋', '+');
@@ -423,7 +478,11 @@ export function findRetakeCandidates(args: {
     if (!offeredCode || seen.has(offeredCode)) continue;
     if (planned.has(c.code) || planned.has(offeredCode)) continue;
     seen.add(offeredCode);
-    out.push({ code: c.code, name: c.name, credits: c.credits ?? 0, grade, offeredCode });
+    const credits = c.credits ?? 0;
+    const gain = args.totalCredits && args.totalCredits > 0
+      ? retakeGainPoints(grade, credits) / args.totalCredits
+      : undefined;
+    out.push({ code: c.code, name: c.name, credits, grade, offeredCode, gain });
     if (out.length >= (args.limit ?? 5)) break;
   }
   return out;
