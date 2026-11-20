@@ -4,7 +4,7 @@ import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, u
 import { buildRequiredTrack, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
-import { formatSemesterLabel, normalizeSemesterLabel } from '@/lib/data/graduation';
+import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
 import { planRoadmap } from '@/lib/data/roadmap';
 import { scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { slotsLabel } from '@/lib/data/catalog';
@@ -49,6 +49,7 @@ function CourseRow({ c, warn }: { c: TrackCourse; warn?: string | null }) {
         <b>{c.name}</b>
         <small>
           {c.credits}학점{c.matchedName && <> · ‘{c.matchedName}’(으)로 인정</>}
+          {c.failed && <> · <em className="track-warn">{c.failed} — 재수강 필요</em></>}
           {c.status === 'missing' && c.offered && <> · <em className="track-offered">이번 학기 개설</em></>}
           {warn && <> · <em className="track-warn">{warn}</em></>}
         </small>
@@ -81,6 +82,7 @@ function NowRow({
         <b>{c.name}</b>
         <small>
           {c.credits}학점
+          {c.failed && <> · <em className="track-warn">{c.failed} 재수강</em></>}
           {c.offeredCode && <> · 동일과목 {c.offeredCode}(으)로 개설</>}
         </small>
       </div>
@@ -112,7 +114,7 @@ function NowRow({
   );
 }
 
-function Group({ g, currentSemester }: { g: TrackGroup; currentSemester?: string }) {
+function Group({ g, currentSemester, selProgress }: { g: TrackGroup; currentSemester?: string; selProgress?: string }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -132,8 +134,8 @@ function Group({ g, currentSemester }: { g: TrackGroup; currentSemester?: string
   if (g.role === 'gen-selective') {
     return (
       <details className="card track-group track-group-selective">
-        <summary aria-label={`${g.title} — 이 중 선택 이수, ${done}/${g.courses.length}과목 완료`}>
-          <span><b>{g.title}</b><small>이 중 선택 이수 · {done}/{g.courses.length}과목 완료</small></span>
+        <summary aria-label={`${g.title} — 이 중 선택 이수, ${selProgress ?? `${done}/${g.courses.length}과목 완료`}`}>
+          <span><b>{g.title}</b><small>이 중 선택 이수{selProgress ? ` · ${selProgress}` : ` · ${done}/${g.courses.length}과목 완료`}</small></span>
         </summary>
         {body}
       </details>
@@ -191,7 +193,20 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
     equiv,
     history,
+    failed: data.info?.failedCourses,
   });
+
+  // 선택필수교양 진행도 — 학번별 교양 기준 표의 선필교 학점을 파싱한다
+  const selEarned = completed
+    .filter((c) => c.category === '선필교')
+    .reduce((s, c) => s + c.credits, 0);
+  const genRef = generalEducationReference(year, data.admissionType ?? 'unknown');
+  const selTargetText = genRef?.note.match(/선택필수교양\s*(\d+(?:~\d+)?)학점/)?.[1];
+  const selMin = selTargetText ? Number(selTargetText.split('~')[0]) : null;
+  const selGap = selMin !== null ? Math.max(0, selMin - selEarned) : 0;
+  const selProgress = selTargetText
+    ? `이수 ${selEarned}학점 / 기준 ${selTargetText}학점`
+    : selEarned > 0 ? `이수 ${selEarned}학점` : undefined;
 
   // 그룹(공통·트랙·교필 목록)에 걸친 동일 코드는 한 번만 — 담기 카드·로드맵이 중복되지 않게
   const missing = [...new Map(
@@ -203,6 +218,17 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   ).values()];
   const sectionsOf = (code: string) =>
     catalog?.sections.filter((s) => s.code === code) ?? [];
+
+  // 선택필수 후보 — 선필교 학점이 부족할 때 이번 학기 개설 과목을 보여준다
+  const selOffered = selGap > 0
+    ? [...new Map(
+        track.groups
+          .filter((g) => g.role === 'gen-selective')
+          .flatMap((g) => g.courses)
+          .filter((c) => c.status === 'missing' && c.offered)
+          .map((c) => [c.code, c]),
+      ).values()]
+    : [];
 
   // 남은 학기 로드맵 — 진짜 미이수만 미래 학기에 배치한다 (계획 중은 이번 학기 처리 중)
   // 트랙이 여럿인 학부는 학생의 트랙 과목만 배치한다 — 모든 트랙을 이수할 필요는 없기 때문
@@ -272,7 +298,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         <p className="meta conn-warn">이 교육과정에서 ‘{dept}’ 전공을 찾지 못했어요. 표기가 다르면 교양 과목만 표시됩니다.</p>
       )}
 
-      {!!missing.length && missing.some((c) => c.offered) && (
+      {(!!missing.length && missing.some((c) => c.offered)) || !!selOffered.length ? (
         <section className="card track-now">
           <div className="track-group-head"><h3>이번 학기에 들을 수 있는 미이수 필수</h3><span className="badge">{catalog?.semester}</span></div>
           {regEvent && regDday !== null && regDday <= 45 && (
@@ -282,7 +308,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
             </p>
           )}
           <ul className="track-courses">
-            {missing.filter((c) => c.offered).map((c) => (
+            {missing.filter((c) => c.offered).sort((a, b) => Number(!!b.failed) - Number(!!a.failed)).map((c) => (
               <NowRow
                 key={c.code}
                 c={c}
@@ -294,8 +320,26 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
               />
             ))}
           </ul>
+          {!!selOffered.length && (
+            <>
+              <div className="track-group-head track-sel-head"><h3>선택필수 후보</h3><span className="badge orange">{selGap}학점 부족</span></div>
+              <ul className="track-courses">
+                {selOffered.map((c) => (
+                  <NowRow
+                    key={c.code}
+                    c={c}
+                    sections={sectionsOf(c.offeredCode ?? c.code)}
+                    planned={planned}
+                    data={data}
+                    onPlan={onPlan}
+                    notify={notify}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
         </section>
-      )}
+      ) : null}
 
       {(!!roadmap.slots.length || !!roadmap.unplaced.length) && (
         <section className="card track-roadmap">
@@ -320,7 +364,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         </section>
       )}
 
-      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} />)}
+      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} />)}
 
       {!track.groups.length && (
         <section className="card track-empty">
