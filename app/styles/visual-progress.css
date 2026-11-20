@@ -11,7 +11,7 @@
 .visual-progress-note { display: flex; gap: 12px; justify-content: space-between; font-size: 11px; color: var(--nt-slate); }
 .visual-progress-note b { color: var(--nt-primary-deep); }
 .visual-progress-pending { width: 100%; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--nt-slate); font-size: 11px; line-height: 1.8; margin: 12px 0; }
-.visual-progress-pending > span { width: 50px; height: 9px; border-radius: 10px; background: repeating-linear-gradient(120deg, #d8e2ef 0 4px, #f1f5fa 4px 8px); }
+.visual-progress-pending > span { width: 50px; height: 9px; border-radius: 10px; background: repeating-linear-gradient(120deg, var(--nt-hairline) 0 4px, var(--nt-surface) 4px 8px); }
 .credit-composition { margin: 22px 0; padding-top: 18px; border-top: 1px solid var(--nt-hairline-soft); }
 .credit-composition figcaption { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 12px; }
 .credit-composition figcaption small { font-size: 11px; color: var(--nt-slate); }
@@ -20,7 +20,7 @@
 .credit-segment-0 { background: var(--nt-primary); }
 .credit-segment-1 { background: var(--nt-teal-deep); }
 .credit-segment-2 { background: var(--nt-purple); }
-.credit-segment-3 { background: #a6b6ca; color: var(--nt-ink); }
+.credit-segment-3 { background: var(--nt-muted); color: var(--nt-ink); }
 .credit-composition-key { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .credit-composition-key > span { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--nt-slate); }
 .credit-composition-key i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; }
@@ -29,7 +29,7 @@
 .activity-summary-progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
 .activity-summary-progress-grid > .visual-progress, .activity-progress-empty { margin: 0; padding: 18px; border: 1px solid var(--nt-hairline); border-radius: 12px; }
 .activity-progress-empty { display: grid; align-content: center; color: var(--nt-slate); font-size: 12px; line-height: 1.9; }
-.activity-stage-overview { padding: 16px; border-radius: 12px; background: #f5f9fd; margin-bottom: 16px; }
+.activity-stage-overview { padding: 16px; border-radius: 12px; background: var(--nt-surface-soft); margin-bottom: 16px; }
 .activity-stage-overview > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .activity-stage-overview > div > span { display: grid; gap: 5px; text-align: center; font-size: 11px; color: var(--nt-slate); position: relative; }
 .activity-stage-overview > div > span:not(:last-child)::after { content: '›'; position: absolute; right: -7px; top: 3px; font-size: 19px; color: var(--nt-stone); }

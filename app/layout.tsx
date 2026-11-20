@@ -23,7 +23,10 @@ export const metadata: Metadata = {
   },
 };
 export const viewport: Viewport = {
-  themeColor: '#1769ff',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#1769ff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e131d' },
+  ],
   viewportFit: 'cover',
 };
 export default function RootLayout({
@@ -33,7 +36,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {/* 첫 페인트 전 data-theme을 심어 테마 플래시를 막는다 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('hs-theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){}",
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

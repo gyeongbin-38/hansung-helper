@@ -28,7 +28,7 @@
   display: block;
   font-size: 26px;
   line-height: 1.15;
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
   letter-spacing: -0.6px;
   font-variant-numeric: tabular-nums;
 }
@@ -177,7 +177,7 @@
   border: 1px solid var(--nt-hairline);
   border-radius: 8px;
   background: var(--nt-canvas);
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
 }
 .study-segments {
   min-width: 0;
@@ -264,7 +264,7 @@
   gap: 4px;
   margin-bottom: 6px;
   font-size: 10px;
-  color: var(--nt-navy-mid);
+  color: var(--nt-navy-mid-text);
 }
 .study-course-progress b {
   font-size: 10px;
@@ -322,7 +322,7 @@
   font-size: 10px;
 }
 .study-course-chevron {
-  color: var(--nt-navy-mid);
+  color: var(--nt-navy-mid-text);
 }
 .study-course.expanded .study-course-chevron {
   transform: rotate(90deg);
@@ -349,7 +349,7 @@
   font-size: 12px;
   font-weight: 600;
   border-radius: 8px;
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
   background: var(--nt-surface);
 }
 .study-tag {
@@ -420,7 +420,7 @@
   font-size: 10px;
   padding: 2px 6px;
   background: var(--nt-surface);
-  color: var(--nt-navy-mid);
+  color: var(--nt-navy-mid-text);
   border-radius: 12px;
   white-space: nowrap;
 }
@@ -479,7 +479,7 @@
 }
 .study-connection dd {
   margin: 0;
-  color: var(--nt-navy);
+  color: var(--nt-navy-text);
 }
 .study-connection dd a {
   color: var(--nt-primary);
@@ -543,7 +543,7 @@
 .study-view-nav [aria-current='page'] {
   color: var(--nt-on-primary);
   background: var(--nt-navy);
-  border-color: var(--nt-navy);
+  border-color: var(--nt-navy-text);
 }
 .study-binge {
   padding: 20px;

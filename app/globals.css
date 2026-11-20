@@ -18,6 +18,7 @@
   action, text, surface, and semantic roles. Reuse these variables locally.
 */
 :root {
+  color-scheme: light;
   font-family:
     'Pretendard Variable',
     Pretendard,
@@ -27,8 +28,8 @@
     'Segoe UI',
     'Malgun Gothic',
     sans-serif;
-  color: #17243a;
-  background: #f7f9fc;
+  color: var(--nt-ink);
+  background: var(--nt-paper);
   font-synthesis: none;
   /* brand + primary — 선명한 파랑 행동과 네이비 브랜드 */
   --nt-primary: #1769ff;
@@ -63,7 +64,12 @@
   --nt-tint-yellow: #f7f1dc;
   --nt-tint-yellow-bold: #f2e6ae;
   --nt-tint-cream: #f6f3e9;
+  --nt-tint-teal: #e3f2f1;
   --nt-tint-gray: #f2f5f9;
+  /* 텍스트로 쓰는 네이비 — 다크에서는 밝게 뜬다 (배경 네이비와 분리) */
+  --nt-navy-text: var(--nt-navy);
+  --nt-navy-deep-text: var(--nt-navy-deep);
+  --nt-navy-mid-text: var(--nt-navy-mid);
   /* surface — 흰 카드와 청회색 작업 공간 */
   --nt-canvas: #ffffff;
   --nt-paper: #f7f9fc;
@@ -102,6 +108,69 @@
   --nt-shadow-modal: rgba(25, 50, 84, 0.16) 0 16px 48px -8px;
   /* motion */
   --nt-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* ---- dark theme — 토큰만 뒤집어 전체 표면을 전환한다.
+   네이비 배경 영역(밴드·아이콘)은 의도된 다크 표면이라 유지하고,
+   텍스트용 네이비는 별도 *-text 토큰으로 밝게 처리한다. ---- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --nt-primary: #4d8dff;
+  --nt-primary-pressed: #347ef5;
+  --nt-primary-deep: #79a8ff;
+  --nt-on-primary: #ffffff;
+  --nt-navy: #16233c;
+  --nt-navy-deep: #0e1a2e;
+  --nt-navy-mid: #2c4066;
+  --nt-link: #6ea3ff;
+  --nt-link-pressed: #93bbff;
+  --nt-navy-text: #c9dbf6;
+  --nt-navy-deep-text: #dbe7fb;
+  --nt-navy-mid-text: #a4bde0;
+  --nt-orange: #e8863b;
+  --nt-orange-deep: #f0a768;
+  --nt-pink: #f78fd2;
+  --nt-pink-deep: #f2a8d6;
+  --nt-purple: #a07ef5;
+  --nt-purple-300: #8a68cf;
+  --nt-purple-800: #c9b2f5;
+  --nt-teal: #3fb8b3;
+  --nt-teal-deep: #6fcdc8;
+  --nt-green: #43c462;
+  --nt-green-deep: #6fd484;
+  --nt-yellow: #e8cd6a;
+  --nt-brown: #c9a26b;
+  --nt-tint-peach: #35281e;
+  --nt-tint-rose: #362430;
+  --nt-tint-mint: #1d3028;
+  --nt-tint-lavender: #2a2740;
+  --nt-tint-sky: #1d2c46;
+  --nt-tint-yellow: #332e1c;
+  --nt-tint-yellow-bold: #453d22;
+  --nt-tint-cream: #2b2922;
+  --nt-tint-teal: #1d3130;
+  --nt-tint-gray: #222b3b;
+  --nt-canvas: #171e2c;
+  --nt-paper: #0e131d;
+  --nt-surface: #1f2837;
+  --nt-surface-soft: #131926;
+  --nt-hairline: #2b3649;
+  --nt-hairline-soft: #232d3f;
+  --nt-hairline-strong: #3b4a63;
+  --nt-ink: #e8edf6;
+  --nt-charcoal: #d3dceb;
+  --nt-slate: #a9b6cb;
+  --nt-steel: #8b9ab3;
+  --nt-stone: #7a8aa3;
+  --nt-muted: #647490;
+  --nt-on-dark: #ffffff;
+  --nt-on-dark-muted: #8fa0bd;
+  --nt-success: #46c667;
+  --nt-warning: #e8863b;
+  --nt-error: #f07070;
+  --nt-shadow-1: rgba(0, 0, 0, 0.25) 0 1px 2px;
+  --nt-shadow-2: rgba(0, 0, 0, 0.35) 0 4px 14px;
+  --nt-shadow-3: rgba(0, 0, 0, 0.5) 0 24px 48px -8px;
+  --nt-shadow-modal: rgba(0, 0, 0, 0.55) 0 16px 48px -8px;
 }
 * {
   box-sizing: border-box;

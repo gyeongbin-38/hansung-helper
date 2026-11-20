@@ -1,6 +1,7 @@
 'use client';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowUpRight, Layers } from 'lucide-react';
+import { getThemePref, setThemePref, type ThemePref } from '@/lib/theme';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
 import type { Catalog } from '@/lib/data/catalog';
@@ -113,6 +114,14 @@ export function SettingsSection({
   const snapshot = account?.snapshot;
   const [action, setAction] = useState<'logout' | 'delete' | null>(null);
   const actionPending = useRef(false);
+  // 테마 — 저장된 선호(없으면 '자동')를 읽고, 선택 시 즉시 <html data-theme>에 반영한다
+  const storedTheme = useSyncExternalStore(
+    () => () => {},
+    getThemePref,
+    () => 'system' as ThemePref,
+  );
+  const [themeOverride, setThemeOverride] = useState<ThemePref | null>(null);
+  const theme = themeOverride ?? storedTheme;
   const infoPages = data.info?.diag?.pages ?? [];
   const infoLabels: Record<string, string> = {
     grades: '이수 내역·평점',
@@ -248,6 +257,30 @@ export function SettingsSection({
           <img src="/hsu-mascot.png" alt="" width={66} height={94} />
         </span>
       </div>
+      <section aria-labelledby="display-settings-title">
+        <h3 id="display-settings-title">화면</h3>
+        <div className="theme-opts">
+          {(
+            [
+              ['light', '라이트'],
+              ['dark', '다크'],
+              ['system', '자동'],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              className="secondary"
+              aria-pressed={theme === v}
+              onClick={() => {
+                setThemePref(v);
+                setThemeOverride(v);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
       <section aria-labelledby="school-connections-title">
         <h3 id="school-connections-title">학교에서 가져온 정보</h3>
         <div className="connection-grid">
@@ -349,23 +382,17 @@ export function SettingsSection({
           </details>
         )}
         <p className="meta">
-          종합정보는 학교 계정으로 로그인할 때 조회해요. 수업 현황에서는 서버
-          재수집과 가져오기 안내를 확인할 수 있어요. 학교 비밀번호는 저장하지
-          않아요. 학교 세션 쿠키는 비밀번호 없이 재수집할 수 있도록 암호화해
-          보관해요(기본 2시간, 자동 연결 선택 시 최대 3일). 로그아웃하면 즉시
-          삭제해요.
+          비밀번호는 저장하지 않아요. 학교 세션 쿠키는 재수집용으로 암호화해
+          보관해요(최대 3일, 로그아웃 시 삭제).
         </p>
       </section>
       <section aria-labelledby="public-connections-title">
         <h3 id="public-connections-title">학교 공개 자료</h3>
-        <p className="meta">
-          계정 연결 없이도 이용할 수 있어요. 비교과 공개 목록에는 나의 신청·참여
-          내역이 포함되지 않아요.
-        </p>
+        <p className="meta">계정 연결 없이 이용할 수 있어요.</p>
         <div className="connection-grid">
           <SourceCard
             title="비교과 프로그램"
-            description="스마트자기관리시스템의 공개 목록이에요. 접수 상태는 학교 원문에서 최종 확인해 주세요."
+            description="스마트자기관리시스템 공개 목록"
             status={activityStatus}
             fetchedAt={activity?.fetchedAt}
           >
@@ -381,7 +408,7 @@ export function SettingsSection({
           </SourceCard>
           <SourceCard
             title="학사일정"
-            description="학교가 공개한 학사일정이에요. 본인에게 적용되는 일정인지 확인해 주세요."
+            description="학교 공개 학사일정"
             status={scheduleStatus}
             fetchedAt={scheduleState.snap?.fetchedAt}
           >
@@ -396,16 +423,14 @@ export function SettingsSection({
             )}
           </SourceCard>
         </div>
-        <p className="meta">
-          다시 불러오기는 서비스에 게시된 자료를 다시 읽어요. 학교 원문을
-          실시간으로 수집하는 동작은 아니에요.
-        </p>
       </section>
       <section
         aria-labelledby="storage-location-title"
         className="settings-storage"
       >
         <h3 id="storage-location-title">어디에 무엇을 보관하나요?</h3>
+        <details className="settings-more">
+          <summary>보관 위치와 범위 자세히 보기</summary>
         <dl className="storage-locations">
           <div>
             <dt>{account ? '내 계정' : '이 브라우저 · 체험 모드'}</dt>
@@ -454,6 +479,7 @@ export function SettingsSection({
             </dd>
           </div>
         </dl>
+        </details>
         <button className="secondary" onClick={() => go('profile')}>
           {account ? '프로필 수정하기' : '체험 프로필 입력하기'}
         </button>
@@ -486,8 +512,7 @@ export function SettingsSection({
       >
         <h3 id="settings-removal-title">로그아웃과 삭제 범위</h3>
         <p className="meta">
-          학교에 있는 원본 정보는 어떤 동작으로도 삭제되지 않아요. 학교 수집
-          정보만 따로 삭제하거나 연결만 해제하는 기능은 아직 제공하지 않아요.
+          학교 원본은 어떤 동작으로도 삭제되지 않아요.
         </p>
         {account && (
           <>
