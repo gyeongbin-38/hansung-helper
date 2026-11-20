@@ -43,6 +43,20 @@ const semIndex = (s: string) => {
   return p ? p[0] * 2 + (p[1] - 1) : null;
 };
 
+/** 학기의 달력 순서 — 1학기(봄) → 여름(3) → 2학기(가을) → 겨울(4) */
+const CAL_SLOT: Record<number, number> = { 1: 0, 3: 1, 2: 2, 4: 3 };
+const SLOT_TERM = [1, 3, 2, 4];
+
+/** 계절 포함 학기 인덱스 — '2026-2' → 2026*4 + 2 (달력 순서 기준)
+ *  parseSemester는 1·2학기만 읽으므로 3·4학기 포함 전용 정규식을 쓴다 */
+const allIndex = (s: string) => {
+  const m = s.match(/^(20\d{2})-([1-4])$/);
+  return m ? Number(m[1]) * 4 + CAL_SLOT[Number(m[2])] : null;
+};
+
+/** 달력 순서 비교용 — 'YYYY-S' 두 라벨의 선후 관계(계절 포함) */
+export const semesterCalendarIndex = allIndex;
+
 /** 현재 학기 다음의 정규 학기(1·2학기) 열 — target까지, 없으면 n개 */
 export function nextRegularSemesters(
   currentSemester: string | null | undefined,
@@ -58,6 +72,25 @@ export function nextRegularSemesters(
     i += 1;
     if (tIdx && i > tIdx) break;
     out.push(`${Math.floor(i / 2)}-${(i % 2) + 1}`);
+  }
+  return out;
+}
+
+/** 계절학기(3·4)를 포함한 학기 열 — 달력 순서로, target까지 또는 n개 */
+export function nextAllSemesters(
+  currentSemester: string | null | undefined,
+  target: string | null | undefined,
+  n = 8,
+): string[] {
+  const idx = currentSemester ? allIndex(currentSemester) : null;
+  if (idx === null) return [];
+  const tIdx = target ? allIndex(target) : null;
+  const out: string[] = [];
+  let i = idx;
+  while (out.length < (tIdx ? 32 : n)) {
+    i += 1;
+    if (tIdx && i > tIdx) break;
+    out.push(`${Math.floor(i / 4)}-${SLOT_TERM[i % 4]}`);
   }
   return out;
 }
@@ -81,26 +114,35 @@ const REQUIRED_CAP = 9;
 export function earliestRoadmapSemester(input: {
   missing: RoadmapCourse[];
   currentSemester?: string | null;
-  /** 탐색할 최대 학기 수 — 기본 8(4년) */
+  /** 탐색할 최대 학기 슬롯 수 — 기본 정규 8(4년) */
   horizon?: number;
+  /** 참이면 계절학기(3·4) 슬롯도 배치에 사용 — '이력상 열린다면' 앞당김 추정 */
+  seasonal?: boolean;
 }): { semester: string | null; label?: string; blocked: RoadmapCourse[] } | null {
-  const idx = semIndex(input.currentSemester ?? '');
+  const idx = input.seasonal
+    ? allIndex(input.currentSemester ?? '')
+    : semIndex(input.currentSemester ?? '');
   if (idx === null || !input.missing.length) return null;
+  const termsPool = input.seasonal ? ['1', '2', '3', '4'] : ['1', '2'];
   const placeable = input.missing.filter(
-    (c) => !c.terms || c.terms.includes('1') || c.terms.includes('2'),
+    (c) => !c.terms || termsPool.some((t) => c.terms!.includes(t)),
   );
   const blocked = input.missing.filter(
-    (c) => c.terms && !c.terms.includes('1') && !c.terms.includes('2'),
+    (c) => c.terms && !termsPool.some((t) => c.terms!.includes(t)),
   );
   if (!placeable.length) return { semester: null, blocked };
-  const horizon = input.horizon ?? 8;
+  // 계절 모드는 연 4슬롯이라 정규와 같은 연도 범위를 커버하려면 2배 필요
+  const horizon = input.horizon ?? (input.seasonal ? 16 : 8);
   for (let n = 1; n <= horizon; n++) {
     const i = idx + n;
-    const target = `${Math.floor(i / 2)}-${(i % 2) + 1}`;
+    const target = input.seasonal
+      ? `${Math.floor(i / 4)}-${SLOT_TERM[i % 4]}`
+      : `${Math.floor(i / 2)}-${(i % 2) + 1}`;
     const r = planRoadmap({
       missing: placeable,
       currentSemester: input.currentSemester,
       target,
+      seasonal: input.seasonal,
       strictCap: true,
     });
     if (!r.unplaced.length)
@@ -118,13 +160,21 @@ export function planRoadmap(input: {
   futureCount?: number;
   /** 참이면 학기당 필수 상한을 강제 — 초과 시 배치하지 않는다 (졸업 가능 시점 산정용) */
   strictCap?: boolean;
+  /** 참이면 여름(3)·겨울(4) 계절학기 슬롯도 배치 — 계절 개설 이력 과목에 한정해 실제로 호환된다 */
+  seasonal?: boolean;
 }): RoadmapResult {
   const target = input.target ?? null;
-  const semesters = nextRegularSemesters(
-    input.currentSemester,
-    target,
-    input.futureCount ?? 4,
-  );
+  const semesters = input.seasonal
+    ? nextAllSemesters(
+        input.currentSemester,
+        target,
+        (input.futureCount ?? 4) * 2,
+      )
+    : nextRegularSemesters(
+        input.currentSemester,
+        target,
+        input.futureCount ?? 4,
+      );
   const slots: RoadmapSlot[] = semesters.map((sem) => ({
     semester: sem,
     label: formatSemesterLabel(sem),
@@ -133,13 +183,12 @@ export function planRoadmap(input: {
   }));
   const unplaced: RoadmapResult['unplaced'] = [];
 
-  // 배치 순서: 개설 학기가 좁은 과목 먼저(단일 정규학기 > 양 학기 > 계절전용),
+  // 배치 순서: 개설 학기가 좁은 과목 먼저(좁을수록 먼저 잡아야 한다),
   // 같은 제약이면 권장 학년이 낮은 순
+  const pool = input.seasonal ? '1234' : '12';
   const restriction = (c: RoadmapCourse) => {
-    if (!c.terms) return 2;
-    const regular = ['1', '2'].filter((t) => c.terms!.includes(t)).length;
-    if (regular === 0) return 0; // 정규학기 미개설 — 배치 불가능
-    return regular === 1 ? 1 : 2;
+    if (!c.terms) return pool.length;
+    return c.terms.split('').filter((t) => pool.includes(t)).length;
   };
   const sorted = [...input.missing].sort(
     (a, b) =>
@@ -148,9 +197,16 @@ export function planRoadmap(input: {
       a.name.localeCompare(b.name, 'ko'),
   );
 
+  const TERM_NAME: Record<string, string> = { '1': '1학기', '2': '2학기', '3': '여름 계절', '4': '겨울 계절' };
+  const termLabel = (terms?: string) =>
+    !terms ? '' : terms.split('').map((t) => TERM_NAME[t] ?? `${t}학기`).join('·');
+
   for (const course of sorted) {
     if (restriction(course) === 0) {
-      unplaced.push({ course, reason: '정규학기 개설 이력이 없어요' });
+      unplaced.push({
+        course,
+        reason: input.seasonal ? '개설 이력이 없어요' : '정규학기 개설 이력이 없어요',
+      });
       continue;
     }
     const ok = slots.filter((s) => compatible(course, s.semester));
@@ -158,7 +214,7 @@ export function planRoadmap(input: {
       unplaced.push({
         course,
         reason: target
-          ? `${course.terms === '1' ? '1' : '2'}학기 개설 과목인데 목표 학기 전 ${course.terms}학기가 없어요`
+          ? `${termLabel(course.terms)} 개설 과목인데 목표 학기 전 개설 학기가 없어요`
           : '배치 가능한 학기가 없어요',
       });
       continue;

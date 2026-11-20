@@ -5,7 +5,7 @@ import { buildRequiredTrack, findRetakeCandidates, pickCurriculumSemester, type 
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
-import { earliestRoadmapSemester, planRoadmap } from '@/lib/data/roadmap';
+import { earliestRoadmapSemester, planRoadmap, semesterCalendarIndex } from '@/lib/data/roadmap';
 import { scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { slotsLabel } from '@/lib/data/catalog';
 import { SkeletonRows, RetryButton } from './skeleton';
@@ -260,6 +260,24 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     missing: roadmapMissing,
     currentSemester: catalog?.semester,
   });
+  // 계절학기 개설 이력까지 활용하면 더 빨라지는지 — 정규 전용 결과보다 앞설 때만 노출
+  const earliestSeasonal = earliestRoadmapSemester({
+    missing: roadmapMissing,
+    currentSemester: catalog?.semester,
+    seasonal: true,
+  });
+  const seasonalEarlier =
+    !!earliestSeasonal?.semester &&
+    (!earliest?.semester ||
+      (semesterCalendarIndex(earliestSeasonal.semester) ?? 0) <
+        (semesterCalendarIndex(earliest.semester) ?? 0));
+  const seasonalCourseNames = seasonalEarlier
+    ? roadmapMissing
+        .filter((c) => c.terms && /[34]/.test(c.terms))
+        .map((c) => c.name)
+        .slice(0, 4)
+        .join('·')
+    : '';
   const semIdxOf = (s?: string | null) => {
     const m = s?.match(/^(20\d{2})-([12])$/);
     return m ? Number(m[1]) * 2 + Number(m[2]) : null;
@@ -396,6 +414,12 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
             <p className="meta roadmap-earliest">
               필수 과목 배치 기준 빠른 졸업 <b>{earliest.label}</b>
               {earlyGap > 0 && <> — 목표보다 {earlyGap}학기 앞당길 수 있어요</>}
+            </p>
+          )}
+          {seasonalEarlier && earliestSeasonal?.semester && (
+            <p className="meta roadmap-earliest">
+              계절학기 개설 이력 활용 시 <b>{earliestSeasonal.label}</b>
+              {!!seasonalCourseNames && <> — 계절 개설: {seasonalCourseNames}</>}
             </p>
           )}
           {roadmap.slots.map((s) => (

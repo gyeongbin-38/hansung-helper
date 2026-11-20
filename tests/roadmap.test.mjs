@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { earliestRoadmapSemester, nextRegularSemesters, planRoadmap } from '../lib/data/roadmap.ts';
+import { earliestRoadmapSemester, nextAllSemesters, nextRegularSemesters, planRoadmap, semesterCalendarIndex } from '../lib/data/roadmap.ts';
 
 describe('nextRegularSemesters', () => {
   it('현재 학기 다음 정규 학기부터 n개', () => {
@@ -159,5 +159,78 @@ describe('strictCap', () => {
     });
     assert.equal(r.unplaced.length, 1);
     assert.match(r.unplaced[0].reason, /상한/);
+  });
+});
+
+describe('계절학기 모드', () => {
+  it('nextAllSemesters는 달력 순서(봄→여름→가을→겨울)로 나열한다', () => {
+    assert.deepEqual(nextAllSemesters('2026-2', null, 4), ['2026-4', '2027-1', '2027-3', '2027-2']);
+    assert.deepEqual(nextAllSemesters('2026-1', null, 3), ['2026-3', '2026-2', '2026-4']);
+    // target 포함, 초과 안 함
+    assert.deepEqual(nextAllSemesters('2026-1', '2026-2'), ['2026-3', '2026-2']);
+  });
+
+  it('semesterCalendarIndex로 정규·계절 라벨의 선후를 비교한다', () => {
+    assert.ok(semesterCalendarIndex('2026-4') < semesterCalendarIndex('2027-1'));
+    assert.ok(semesterCalendarIndex('2027-3') < semesterCalendarIndex('2027-2'));
+  });
+
+  it('seasonal=true이면 계절 개설 과목을 계절 슬롯에 배치한다', () => {
+    const r = planRoadmap({
+      missing: [C('SUM', 3, '3'), C('BOTH')],
+      currentSemester: '2026-1',
+      target: '2026-2',
+      seasonal: true,
+    });
+    const summer = r.slots.find((s) => s.semester === '2026-3');
+    assert.equal(summer.courses[0].code, 'SUM');
+    assert.equal(r.unplaced.length, 0);
+  });
+
+  it('계절전용 과목은 정규 모드에선 불가, 계절 모드에선 배치된다', () => {
+    const regular = earliestRoadmapSemester({
+      missing: [C('SEASONAL', 3, '34')],
+      currentSemester: '2026-2',
+    });
+    assert.equal(regular.semester, null);
+    const seasonal = earliestRoadmapSemester({
+      missing: [C('SEASONAL', 3, '34')],
+      currentSemester: '2026-2',
+      seasonal: true,
+    });
+    assert.equal(seasonal.semester, '2026-4');
+    assert.equal(seasonal.blocked.length, 0);
+  });
+
+  it('계절 개설 과목이 있으면 빠른 졸업이 앞당겨질 수 있다', () => {
+    // 겨울(4) 개설 과목을 정규 모드는 배치 못 하고 blocked로 돌린다
+    const regular = earliestRoadmapSemester({
+      missing: [C('WIN', 3, '4'), C('SPRING', 3, '1'), C('ANY')],
+      currentSemester: '2026-2',
+    });
+    assert.equal(regular.blocked[0].code, 'WIN');
+    assert.equal(regular.semester, '2027-1');
+    // 계절 모드는 겨울 슬롯(2026-4)에 WIN을 배치하고 전체 완료는 동일 2027-1
+    const seasonal = earliestRoadmapSemester({
+      missing: [C('WIN', 3, '4'), C('SPRING', 3, '1'), C('ANY')],
+      currentSemester: '2026-2',
+      seasonal: true,
+    });
+    assert.equal(seasonal.semester, '2027-1');
+    assert.equal(seasonal.blocked.length, 0);
+    // 봄·여름 개설('13') 과목이 있으면 여름 슬롯으로 빠른 졸업이 앞당겨진다
+    const faster = earliestRoadmapSemester({
+      missing: [C('WIN', 3, '4'), C('S1', 3, '1'), C('S2', 3, '1'), C('S3', 3, '1'), C('S4', 3, '13')],
+      currentSemester: '2026-2',
+      seasonal: true,
+    });
+    // 2026-4: WIN — 2027-1: S1~S3(9학점 상한) — 2027-3(여름): S4('13' 호환)
+    assert.equal(faster.semester, '2027-3');
+    const fasterRegular = earliestRoadmapSemester({
+      missing: [C('WIN', 3, '4'), C('S1', 3, '1'), C('S2', 3, '1'), C('S3', 3, '1'), C('S4', 3, '13')],
+      currentSemester: '2026-2',
+    });
+    // 정규만이면 S4('13')는 다음 1학기인 2028-1을 기다린다
+    assert.equal(fasterRegular.semester, '2028-1');
   });
 });
