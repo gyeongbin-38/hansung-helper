@@ -5,7 +5,7 @@ import { buildRequiredTrack, findRetakeCandidates, pickCurriculumSemester, type 
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
-import { earliestRoadmapSemester, planRoadmap, semesterCalendarIndex } from '@/lib/data/roadmap';
+import { earliestRoadmapSemester, nextRegularSemesters, planRoadmap, semesterCalendarIndex } from '@/lib/data/roadmap';
 import { scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { slotsLabel } from '@/lib/data/catalog';
 import { SkeletonRows, RetryButton } from './skeleton';
@@ -20,6 +20,8 @@ type Props = {
   go: (route: string) => void;
   onPlan?: (id: string) => Promise<boolean>;
   notify?: (msg: string) => void;
+  /** 프로필 저장 — 졸업 목표 빠른 설정에 사용 */
+  persist?: (draft: Data, msg?: string) => Promise<boolean>;
 };
 
 const STATUS_LABEL: Record<TrackCourse['status'], { text: string; cls: string }> = {
@@ -160,7 +162,7 @@ function Group({ g, currentSemester, selProgress }: { g: TrackGroup; currentSeme
   );
 }
 
-export function GraduationTrack({ data, year, catalog, planned, go, onPlan, notify }: Props) {
+export function GraduationTrack({ data, year, catalog, planned, go, onPlan, notify, persist }: Props) {
   const { snap: index, failed: indexFailed, retry: retryIndex } = useCurriculumIndex();
   const semester = pickCurriculumSemester(year, index);
   const { snap: curriculum, failed, retry } = useCurriculum(semester);
@@ -290,6 +292,11 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     ? (semIdxOf(roadmap.target)! - semIdxOf(earliest.semester)!)
     : 0;
 
+  // 졸업 목표 빠른 설정 — 배치 가능한 가장 빠른 학기부터 선택지를 준다
+  const targetOptions = earliest?.semester
+    ? [earliest.semester, ...nextRegularSemesters(earliest.semester, null, 2)]
+    : nextRegularSemesters(catalog?.semester, null, 3);
+
   // 성적 갱신 재수강 — 이수했지만 C+ 이하이고 이번 학기 개설된 과목
   const enteredCredits = data.credits.trim() ? Number(data.credits) : undefined;
   const totalCredits = data.info?.credits ?? (Number.isFinite(enteredCredits) ? enteredCredits : undefined);
@@ -310,6 +317,13 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   const regDday = regEvent
     ? Math.round((Date.parse(regEvent.start) - Date.parse(todayKst)) / 86400000)
     : null;
+  // 다음 계절학기 개강 — 계절 활용 판정이 뜰 때 함께 보여준다
+  const nextSeasonalStart = seasonalEarlier
+    ? upcomingSchedule(
+        (schedule?.items ?? []).filter((e) => /계절학기.*개강|상상더학기.*개강/.test(e.title)),
+        todayKst,
+      )[0]
+    : undefined;
 
   // 비교과 포인트 결핍 → 채울 활동 직결
   const ptsTarget = (data.admissionType ?? 'freshman') === 'freshman' ? 800 : 400;
@@ -428,7 +442,26 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
             <p className="meta roadmap-earliest">
               계절학기 개설 이력 활용 시 <b>{earliestSeasonal.label}</b>
               {!!seasonalCourseNames && <> — 계절 개설: {seasonalCourseNames}</>}
+              {!!nextSeasonalStart && <> — {nextSeasonalStart.title} {nextSeasonalStart.start}</>}
             </p>
+          )}
+          {!roadmap.target && !!persist && !!targetOptions.length && (
+            <fieldset className="track-target-chips" aria-label="졸업 목표 빠른 설정">
+              {targetOptions.map((s) => (
+                <button
+                  key={s}
+                  className="track-chip"
+                  onClick={() =>
+                    void persist(
+                      { ...data, graduationTarget: s },
+                      `${formatSemesterLabel(s)} 졸업 목표로 저장했어요`,
+                    )
+                  }
+                >
+                  {formatSemesterLabel(s)}
+                </button>
+              ))}
+            </fieldset>
           )}
           {roadmap.slots.map((s) => (
             <div className="roadmap-slot" key={s.semester}>

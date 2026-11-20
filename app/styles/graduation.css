@@ -445,6 +445,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .track-chip { padding: 5px 10px; border: 1px solid var(--nt-hairline-strong); border-radius: 999px; background: var(--nt-paper); font-size: 11px; font-weight: 600; color: var(--nt-ink); cursor: pointer; white-space: nowrap; }
 .track-chip:hover { border-color: var(--nt-primary); }
 .track-chip.on { border-color: var(--nt-primary); background: var(--nt-tint-sky); color: var(--nt-primary); }
+.track-target-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; padding: 0; border: 0; min-inline-size: 0; }
 details.track-group summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
 details.track-group summary::-webkit-details-marker { display: none; }
 details.track-group summary > span { display: grid; gap: 2px; }

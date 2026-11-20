@@ -272,7 +272,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>학점 미합산</p></div></div>
         <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
       </section>}
-      {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} onPlan={onPlan} notify={notify} />}
+      {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} onPlan={onPlan} notify={notify} persist={persist} />}
       {(view === '' || view === 'requirements') && <>
         <fieldset className="graduation-mode-tabs" aria-label="졸업 전공 유형">
           {MODES.map(m => <button key={m.id} aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{m.label}</button>)}

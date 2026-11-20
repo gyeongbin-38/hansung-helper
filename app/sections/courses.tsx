@@ -12,11 +12,9 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, deptMatches, planBlockReason, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
+import { catGroup, deptMatches, planBlockReason, useRequiredMissing } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
-import { buildRequiredTrack, missingRequiredCodeSet, missingRequiredSiblings, pickCurriculumSemester } from '@/lib/data/curriculum';
-import { mergeCompleted } from '@/lib/data/info';
 import { enrolledSectionIds } from '@/lib/data/lms';
 import { courseSuggestion } from '@/lib/data/course-suggestions';
 import type { Data } from './data';
@@ -65,46 +63,9 @@ export function Courses({
       : dept;
   // 졸업 필수 표시 — 입학연도 교육과정 + 이수 내역으로 미이수 필수 과목을 찾아
   // 개설 분반에 '졸업 필수' 배지와 필터를 제공한다 (필수 지도와 같은 판정)
-  const { snap: currIndex } = useCurriculumIndex();
-  const admitYear =
-    data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
-  const currSemester = pickCurriculumSemester(admitYear, currIndex);
-  const { snap: curriculum } = useCurriculum(currSemester);
-  const equiv = useEquivalents();
-  const requiredTrack = useMemo(() => {
-    if (!curriculum || !catalog) return null;
-    return buildRequiredTrack({
-      curriculum,
-      deptInput: data.info?.dept || data.dept,
-      completed: mergeCompleted(data.completed, data.info?.completed),
-      offeredCodes: new Set(catalog.sections.map((s) => s.code)),
-      equiv,
-      failed: data.info?.failedCourses,
-    });
-  }, [curriculum, catalog, equiv, data.info, data.completed, data.dept]);
-  const requiredMissing = useMemo(
-    () =>
-      requiredTrack
-        ? missingRequiredCodeSet({
-            track: requiredTrack,
-            trackName: data.info?.track ?? data.info?.tracks?.[0],
-            equiv,
-          })
-        : null,
-    [requiredTrack, equiv, data.info],
-  );
-  // 동일과목(폐지 과목 후속 코드) 매칭 시 왜 필수인지 설명
-  const requiredSiblings = useMemo(
-    () =>
-      requiredTrack
-        ? missingRequiredSiblings({
-            track: requiredTrack,
-            trackName: data.info?.track ?? data.info?.tracks?.[0],
-            equiv,
-          })
-        : null,
-    [requiredTrack, equiv, data.info],
-  );
+  const required = useRequiredMissing(data, catalog);
+  const requiredMissing = required?.missing ?? null;
+  const requiredSiblings = required?.siblings ?? null;
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept
