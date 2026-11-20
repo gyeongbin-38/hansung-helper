@@ -1,10 +1,12 @@
 'use client';
-import { ArrowRight, BookOpen, Check, CircleAlert, ClipboardList } from 'lucide-react';
-import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
+import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
+import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
 import { buildRequiredTrack, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
-import { formatSemesterLabel } from '@/lib/data/graduation';
+import { formatSemesterLabel, normalizeSemesterLabel } from '@/lib/data/graduation';
+import { planRoadmap } from '@/lib/data/roadmap';
+import { scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { slotsLabel } from '@/lib/data/catalog';
 import { SkeletonRows, RetryButton } from './skeleton';
 import type { Catalog, CourseSection } from '@/lib/data/catalog';
@@ -155,6 +157,8 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   const { snap: curriculum, failed, retry } = useCurriculum(semester);
   const equiv = useEquivalents();
   const history = useCourseHistory();
+  const { snap: schedule } = useSchedule();
+  const now = useNow();
   const dept = data.info?.dept || data.dept;
 
   if (!year)
@@ -189,12 +193,54 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     history,
   });
 
-  const missing = track.groups
-    .filter((g) => g.role !== 'gen-selective')
-    .flatMap((g) => g.courses)
-    .filter((c) => c.status !== 'done');
+  // 그룹(공통·트랙·교필 목록)에 걸친 동일 코드는 한 번만 — 담기 카드·로드맵이 중복되지 않게
+  const missing = [...new Map(
+    track.groups
+      .filter((g) => g.role !== 'gen-selective')
+      .flatMap((g) => g.courses)
+      .filter((c) => c.status !== 'done')
+      .map((c) => [c.code, c]),
+  ).values()];
   const sectionsOf = (code: string) =>
     catalog?.sections.filter((s) => s.code === code) ?? [];
+
+  // 남은 학기 로드맵 — 진짜 미이수만 미래 학기에 배치한다 (계획 중은 이번 학기 처리 중)
+  // 트랙이 여럿인 학부는 학생의 트랙 과목만 배치한다 — 모든 트랙을 이수할 필요는 없기 때문
+  const myTrack = data.info?.track ?? data.info?.tracks?.[0];
+  const roadmapGroups = track.groups.filter((g) => {
+    if (g.role !== 'major-track') return g.role !== 'gen-selective';
+    if (!myTrack) return false;
+    const t = myTrack.replace(/[\s·-]/g, '');
+    const title = g.title.replace(/[\s·-]/g, '');
+    return title.includes(t) || t.includes(title);
+  });
+  const roadmapMissing = [...new Map(
+    roadmapGroups
+      .flatMap((g) => g.courses)
+      .filter((c) => c.status === 'missing')
+      .map((c) => [c.code, { code: c.code, name: c.name, credits: c.credits, year: c.year, terms: c.hist?.terms }]),
+  ).values()];
+  const roadmap = planRoadmap({
+    missing: roadmapMissing,
+    currentSemester: catalog?.semester,
+    target: normalizeSemesterLabel(data.graduationTarget),
+  });
+
+  // 수강신청·정정 기간 — 분반 담기 행동과 직접 관련된 창구만 표시
+  const todayKst = scheduleToday(now);
+  const regEvent = upcomingSchedule(
+    (schedule?.items ?? []).filter((e) => /수강신청|정정/.test(e.title)),
+    todayKst,
+  )[0];
+  const regDday = regEvent
+    ? Math.round((Date.parse(regEvent.start) - Date.parse(todayKst)) / 86400000)
+    : null;
+
+  // 비교과 포인트 결핍 → 채울 활동 직결
+  const ptsTarget = (data.admissionType ?? 'freshman') === 'freshman' ? 800 : 400;
+  const entered = data.points.trim() ? Number(data.points) : undefined;
+  const ptsHave = data.info?.points ?? (Number.isFinite(entered) ? entered : undefined);
+  const ptsGap = ptsHave !== undefined ? Math.max(0, ptsTarget - ptsHave) : 0;
 
   return (
     <>
@@ -208,6 +254,11 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
             <b>{track.requiredDone}/{track.requiredTotal}</b>
             <span>필수 이수</span>
           </div>
+        )}
+        {ptsGap > 0 && (
+          <button className="track-points-link" onClick={() => go('activities/points')}>
+            비교과 포인트 {ptsGap} 부족 — 채울 활동 보기 <ArrowRight size={13} />
+          </button>
         )}
       </section>
 
@@ -224,6 +275,12 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
       {!!missing.length && missing.some((c) => c.offered) && (
         <section className="card track-now">
           <div className="track-group-head"><h3>이번 학기에 들을 수 있는 미이수 필수</h3><span className="badge">{catalog?.semester}</span></div>
+          {regEvent && regDday !== null && regDday <= 45 && (
+            <p className="meta track-reg">
+              <CalendarClock size={13} aria-hidden="true" />
+              {regEvent.title} {regDday <= 0 ? '진행 중' : `D-${regDday}`}
+            </p>
+          )}
           <ul className="track-courses">
             {missing.filter((c) => c.offered).map((c) => (
               <NowRow
@@ -237,6 +294,29 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
               />
             ))}
           </ul>
+        </section>
+      )}
+
+      {(!!roadmap.slots.length || !!roadmap.unplaced.length) && (
+        <section className="card track-roadmap">
+          <div className="track-group-head">
+            <h3>남은 학기 로드맵</h3>
+            {roadmap.target
+              ? <span className="badge">{formatSemesterLabel(roadmap.target)} 목표</span>
+              : <button className="link" onClick={() => go('profile')}>졸업 목표 설정 <ArrowRight size={13} /></button>}
+          </div>
+          {roadmap.slots.map((s) => (
+            <div className="roadmap-slot" key={s.semester}>
+              <div className="roadmap-sem">
+                <b>{s.label}</b>
+                <span>{s.courses.length}과목 · {s.credits}학점{s.heavy && <em className="track-warn"> 필수 부하</em>}</span>
+              </div>
+              <small>{s.courses.map((c) => c.name).join(' · ')}</small>
+            </div>
+          ))}
+          {roadmap.unplaced.map(({ course, reason }) => (
+            <p className="meta conn-warn" key={course.code}>{course.name} — {reason}</p>
+          ))}
         </section>
       )}
 

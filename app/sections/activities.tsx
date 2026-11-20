@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bookmark,
   ArrowUpRight,
@@ -109,6 +109,13 @@ export function Activities({
   const extItems = (data.extActivities ?? []).map(extToActivity);
   const items = [...(snap?.items ?? []), ...extItems];
   const a = items.find((x) => x.id === detail);
+  // 졸업 지도의 '포인트 채우기' 딥링크 — 필터를 맞춘 뒤 목록으로 되돌린다
+  useEffect(() => {
+    if (detail === 'points') {
+      setFilter('포인트 채우기');
+      go('activities');
+    }
+  }, [detail, setFilter, go]);
   // 졸업요건 연결 컨텍스트 — 학교 수집 포인트를 우선한다(졸업 페이지와 동일)
   const hasActPrefs = (data.actPrefs ?? []).some((p) => p);
   const ptsRaw = data.info?.points ?? parseInt(data.points, 10);
