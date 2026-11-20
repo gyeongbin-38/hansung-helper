@@ -19,7 +19,12 @@ import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/s
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
 import reference from '@/lib/data/graduation-reference.json';
 
-type Props = ComponentProps<typeof Graduation>;
+type Props = ComponentProps<typeof Graduation> & {
+  /** 필수 과목 분반을 계획에 담기 — 시간표 담기와 같은 토글 동작 */
+  onPlan?: (id: string) => Promise<boolean>;
+  /** 담기 차단 사유 등 짧은 안내 */
+  notify?: (msg: string) => void;
+};
 const VIEWS = [
   ['', '졸업 요약'], ['track', '필수 이수 지도'], ['requirements', '요건별 충족 현황'],
   ['completed', '이수한 과목'], ['department', '학과 요건·계산 기준'],
@@ -31,7 +36,10 @@ const MODES = [
 ] as const;
 
 export function GraduationWorkspace(props: Props) {
-  const { data, go, planned, catalog, persist, detail, infoPending, infoFailed } = props;
+  const { data, go, planned, catalog, persist, detail, infoPending, infoFailed, onPlan, notify } = props;
+  const gradProps = { ...props };
+  delete gradProps.onPlan;
+  delete gradProps.notify;
   const [mode, setMode] = useState('fusion1');
   const admission = data.admissionType ?? 'unknown';
   const gradeChecks = data.info?.diag?.pages.filter((p) => p.slot === 'grades') ?? [];
@@ -199,7 +207,7 @@ export function GraduationWorkspace(props: Props) {
     void saveCourse({ code: course.code, name: course.name, category: course.category, credits: course.credits });
   }
 
-  if (view === 'legacy') return <Graduation {...props} admission={admission} onAdmissionChange={setAdmission} />;
+  if (view === 'legacy') return <Graduation {...gradProps} admission={admission} onAdmissionChange={setAdmission} />;
   return <div className="graduation-workspace">
     <fieldset className="graduation-tabs" aria-label="졸업 정보 화면">
       {VIEWS.map(([id, label]) => <button key={id} aria-pressed={view === id} onClick={() => go(id ? `graduation/${id}` : 'graduation')}>{label}</button>)}
@@ -209,7 +217,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-section-heading"><span className="school-section-icon"><BookOpen size={20} aria-hidden="true" /></span><div><h3 id="school-requirements-title">학교 포털 졸업요건</h3><p>학교 수집 원문</p></div><span className="badge">학교 원문</span></div>
         <SchoolRequirementTables tables={data.info.requirements} />
       </section>}
-      <Graduation {...props} detail={undefined} admission={admission} onAdmissionChange={setAdmission} only="criteria" />
+      <Graduation {...gradProps} detail={undefined} admission={admission} onAdmissionChange={setAdmission} only="criteria" />
     </> : <>
       {view !== 'completed' && <div className="graduation-context">
         <span className="badge">{year ? `${year}학번 기준 확인` : '입학연도 확인 필요'}</span>
@@ -264,7 +272,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>학점 미합산</p></div></div>
         <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
       </section>}
-      {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} />}
+      {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} onPlan={onPlan} notify={notify} />}
       {(view === '' || view === 'requirements') && <>
         <fieldset className="graduation-mode-tabs" aria-label="졸업 전공 유형">
           {MODES.map(m => <button key={m.id} aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{m.label}</button>)}

@@ -1,9 +1,11 @@
 'use client';
 import { ArrowRight, BookOpen, Check, CircleAlert, ClipboardList } from 'lucide-react';
-import { useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
+import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { buildRequiredTrack, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
+import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel } from '@/lib/data/graduation';
+import { slotsLabel } from '@/lib/data/catalog';
 import { SkeletonRows, RetryButton } from './skeleton';
 import type { Catalog, CourseSection } from '@/lib/data/catalog';
 import type { Data } from './data';
@@ -14,6 +16,8 @@ type Props = {
   catalog: Catalog | null;
   planned: CourseSection[];
   go: (route: string) => void;
+  onPlan?: (id: string) => Promise<boolean>;
+  notify?: (msg: string) => void;
 };
 
 const STATUS_LABEL: Record<TrackCourse['status'], { text: string; cls: string }> = {
@@ -22,7 +26,19 @@ const STATUS_LABEL: Record<TrackCourse['status'], { text: string; cls: string }>
   missing: { text: '미이수', cls: 'orange' },
 };
 
-function CourseRow({ c }: { c: TrackCourse }) {
+/** 미이수 과목의 개설 리스크 — 정규학기 양쪽 다 열리면(null) 조용히 둔다 */
+function offeringWarn(c: TrackCourse, currentSemester: string | undefined): string | null {
+  const h = c.hist;
+  if (!h || c.status === 'done') return null;
+  const restricted = !(h.terms.includes('1') && h.terms.includes('2'));
+  const parts = [
+    restricted ? offeringLabelFromTerms(h.terms) : null,
+    lastOfferedLabel(h, currentSemester),
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function CourseRow({ c, warn }: { c: TrackCourse; warn?: string | null }) {
   const st = STATUS_LABEL[c.status];
   return (
     <li className={`track-course ${c.status}`}>
@@ -32,6 +48,7 @@ function CourseRow({ c }: { c: TrackCourse }) {
         <small>
           {c.credits}학점{c.matchedName && <> · ‘{c.matchedName}’(으)로 인정</>}
           {c.status === 'missing' && c.offered && <> · <em className="track-offered">이번 학기 개설</em></>}
+          {warn && <> · <em className="track-warn">{warn}</em></>}
         </small>
       </div>
       <span className={`badge ${st.cls}`}>{st.text}</span>
@@ -39,7 +56,61 @@ function CourseRow({ c }: { c: TrackCourse }) {
   );
 }
 
-function Group({ g }: { g: TrackGroup }) {
+/** 미이수+이번 학기 개설 과목 — 분반 칩으로 바로 계획에 담는다 */
+function NowRow({
+  c,
+  sections,
+  planned,
+  data,
+  onPlan,
+  notify,
+}: {
+  c: TrackCourse;
+  sections: CourseSection[];
+  planned: CourseSection[];
+  data: Data;
+  onPlan?: Props['onPlan'];
+  notify?: Props['notify'];
+}) {
+  const st = STATUS_LABEL[c.status];
+  return (
+    <li className={`track-course ${c.status} track-now-row`}>
+      <div className="track-course-body">
+        <b>{c.name}</b>
+        <small>
+          {c.credits}학점
+          {c.offeredCode && <> · 동일과목 {c.offeredCode}(으)로 개설</>}
+        </small>
+      </div>
+      <span className={`badge ${st.cls}`}>{st.text}</span>
+      {!!sections.length && (
+        <div className="track-now-secs">
+          {sections.map((s) => {
+            const inPlan = planned.some((p) => p.id === s.id);
+            return (
+              <button
+                key={s.id}
+                className={`track-chip${inPlan ? ' on' : ''}`}
+                aria-pressed={inPlan}
+                onClick={() => {
+                  if (!onPlan) return;
+                  if (inPlan) { void onPlan(s.id); return; }
+                  const blocked = planBlockReason(s, data, planned);
+                  if (blocked) { notify?.(blocked); return; }
+                  void onPlan(s.id);
+                }}
+              >
+                {s.section}분반 {slotsLabel(s)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function Group({ g, currentSemester }: { g: TrackGroup; currentSemester?: string }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -48,7 +119,9 @@ function Group({ g }: { g: TrackGroup }) {
         <div className="track-year" key={y ?? 'all'}>
           <span className="track-year-label">{y ? `${y}학년` : '전학년'}</span>
           <ul className="track-courses">
-            {g.courses.filter((c) => c.year === y).map((c) => <CourseRow key={c.code} c={c} />)}
+            {g.courses.filter((c) => c.year === y).map((c) => (
+              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester)} />
+            ))}
           </ul>
         </div>
       ))}
@@ -76,11 +149,12 @@ function Group({ g }: { g: TrackGroup }) {
   );
 }
 
-export function GraduationTrack({ data, year, catalog, planned, go }: Props) {
+export function GraduationTrack({ data, year, catalog, planned, go, onPlan, notify }: Props) {
   const { snap: index, failed: indexFailed, retry: retryIndex } = useCurriculumIndex();
   const semester = pickCurriculumSemester(year, index);
   const { snap: curriculum, failed, retry } = useCurriculum(semester);
   const equiv = useEquivalents();
+  const history = useCourseHistory();
   const dept = data.info?.dept || data.dept;
 
   if (!year)
@@ -112,12 +186,15 @@ export function GraduationTrack({ data, year, catalog, planned, go }: Props) {
     plannedCodes: new Set(planned.map((s) => s.code)),
     offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
     equiv,
+    history,
   });
 
   const missing = track.groups
     .filter((g) => g.role !== 'gen-selective')
     .flatMap((g) => g.courses)
     .filter((c) => c.status !== 'done');
+  const sectionsOf = (code: string) =>
+    catalog?.sections.filter((s) => s.code === code) ?? [];
 
   return (
     <>
@@ -148,13 +225,22 @@ export function GraduationTrack({ data, year, catalog, planned, go }: Props) {
         <section className="card track-now">
           <div className="track-group-head"><h3>이번 학기에 들을 수 있는 미이수 필수</h3><span className="badge">{catalog?.semester}</span></div>
           <ul className="track-courses">
-            {missing.filter((c) => c.offered).map((c) => <CourseRow key={c.code} c={c} />)}
+            {missing.filter((c) => c.offered).map((c) => (
+              <NowRow
+                key={c.code}
+                c={c}
+                sections={sectionsOf(c.offeredCode ?? c.code)}
+                planned={planned}
+                data={data}
+                onPlan={onPlan}
+                notify={notify}
+              />
+            ))}
           </ul>
-          <button className="secondary" onClick={() => go('courses')}>과목 찾아 담기 <ArrowRight size={15} /></button>
         </section>
       )}
 
-      {track.groups.map((g) => <Group key={g.key} g={g} />)}
+      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} />)}
 
       {!track.groups.length && (
         <section className="card track-empty">

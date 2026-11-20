@@ -49,6 +49,20 @@ const historyCatalogs = historyFiles
 const curriculumFiles = historyFiles
   .filter((name) => /^curriculum-20\d{2}-[1-4]\.json$/.test(name))
   .sort();
+// 개설 이력 인덱스 — 이력 카탈로그가 있을 때만 재생성해 함께 게시한다
+// (CI 체크아웃에는 history/가 없으므로 생성·게시 모두 건너뜀)
+const courseHistoryFile = join(historyDir, 'course-history.json');
+const hasCourseHistory = historyCatalogs.length > 0 && (() => {
+  const r = spawnSync(process.execPath, [join(repo, 'scripts', 'build-course-history.mjs')], {
+    cwd: repo, encoding: 'utf-8',
+  });
+  process.stdout.write(r.stdout ?? '');
+  if (r.status !== 0) {
+    process.stderr.write(r.stderr ?? '');
+    throw new Error('course-history 인덱스 생성에 실패했습니다');
+  }
+  return existsSync(courseHistoryFile);
+})();
 const KINDS = {
   courses: courseFiles.at(-1),
   ...Object.fromEntries(courseFiles.map((file) => [`courses:${file.slice(8, -5)}`, file])),
@@ -60,6 +74,7 @@ const KINDS = {
   'dept-rules': 'dept-rules.json',
   'dept-pages': 'dept-pages.json',
   equivalents: 'equivalents.json',
+  ...(hasCourseHistory ? { 'course-history': 'history/course-history.json' } : {}),
 };
 const onlyArg = process.argv.find((arg) => arg.startsWith('--only='));
 const excludeArg = process.argv.find((arg) => arg.startsWith('--exclude='));
@@ -79,6 +94,7 @@ const SHAPE = {
   'dept-rules': (j) => Array.isArray(j.items),
   'dept-pages': (j) => Array.isArray(j.pages),
   equivalents: (j) => j.groups && typeof j.groups === 'object' && !Array.isArray(j.groups) && typeof j.rowCount === 'number',
+  'course-history': (j) => j.courses && typeof j.courses === 'object' && !Array.isArray(j.courses) && typeof j.semesterCount === 'number',
 };
 
 const esc = (s) => s.replace(/'/g, "''");

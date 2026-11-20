@@ -9,6 +9,7 @@
 import { resolveDept } from './dept.ts';
 import { RULESET_DEPT_FAMILY } from './dept-rules.ts';
 import type { EquivalentsSnapshot } from './equivalents.ts';
+import type { CourseHistory, CourseHistoryEntry } from './course-history.ts';
 
 export type CurriculumCourse = {
   code: string;
@@ -80,6 +81,10 @@ export type TrackCourse = {
   matchedName?: string;
   /** 현재 학기 카탈로그에 개설됨 */
   offered: boolean;
+  /** 개설된 실제 과목 코드 — 동일과목 매칭으로만 개설될 때 curriculum code와 다르다 */
+  offeredCode?: string;
+  /** 과거 개설 이력 — 개설 학기 패턴 경고용 */
+  hist?: CourseHistoryEntry;
 };
 
 export type TrackGroup = {
@@ -138,16 +143,37 @@ function buildDoneIndex(
   return map;
 }
 
+/** code → 동일과목 그룹 형제 코드 인덱스 (개설·이력 조회용) */
+function equivCodeIndex(equiv: EquivalentsSnapshot | null | undefined) {
+  const byCode = new Map<string, string[]>();
+  for (const [id, g] of Object.entries(equiv?.groups ?? {})) {
+    for (const m of g.courses) {
+      byCode.set(m.code, [...(byCode.get(m.code) ?? []), id]);
+    }
+  }
+  const siblingCodes = (code: string) =>
+    [
+      ...new Set(
+        (byCode.get(code) ?? []).flatMap(
+          (id) => equiv?.groups[id]?.courses.map((m) => m.code) ?? [],
+        ),
+      ),
+    ];
+  return { siblingCodes };
+}
+
 function toTrack(
   course: CurriculumCourse,
   ctx: {
     done: Map<string, { name: string; equiv: boolean }>;
-    plannedCodes: Set<string>;
-    offeredCodes: Set<string>;
+    plannedFor: (code: string) => boolean;
+    offeredFor: (code: string) => string | undefined;
+    histFor: (code: string) => CourseHistoryEntry | undefined;
   },
 ): TrackCourse {
   const hit = ctx.done.get(course.code) ?? ctx.done.get(norm(course.name));
-  const status: TrackCourse['status'] = hit ? 'done' : ctx.plannedCodes.has(course.code) ? 'planned' : 'missing';
+  const status: TrackCourse['status'] = hit ? 'done' : ctx.plannedFor(course.code) ? 'planned' : 'missing';
+  const offeredCode = ctx.offeredFor(course.code);
   return {
     code: course.code,
     name: course.name,
@@ -155,7 +181,9 @@ function toTrack(
     year: course.year && /^[1-4]$/.test(course.year) ? course.year : null,
     status,
     matchedName: hit?.equiv ? hit.name : undefined,
-    offered: ctx.offeredCodes.has(course.code),
+    offered: !!offeredCode,
+    offeredCode: offeredCode !== course.code ? offeredCode : undefined,
+    hist: ctx.histFor(course.code),
   };
 }
 
@@ -177,12 +205,36 @@ export function buildRequiredTrack(args: {
   /** 현재 학기 카탈로그에 개설된 과목 코드 */
   offeredCodes?: Set<string>;
   equiv?: EquivalentsSnapshot | null;
+  /** 과목별 개설 이력 — 학기 패턴 경고에 사용 */
+  history?: CourseHistory | null;
 }): TrackResult {
-  const { curriculum, deptInput, completed, equiv } = args;
+  const { curriculum, deptInput, completed, equiv, history } = args;
+  const offered = args.offeredCodes ?? new Set<string>();
+  const planned = args.plannedCodes ?? new Set<string>();
+  const { siblingCodes } = equivCodeIndex(equiv);
+  const offeredFor = (code: string) => {
+    if (offered.has(code)) return code;
+    return siblingCodes(code).find((s) => offered.has(s));
+  };
+  // 동일과목 코드로 담은 계획도 '계획 중'으로 인정 (폐지 과목 대체 수강)
+  const plannedFor = (code: string) =>
+    planned.has(code) || siblingCodes(code).some((s) => planned.has(s));
+  const histFor = (code: string) => {
+    if (!history) return undefined;
+    const direct = history.courses[code];
+    if (direct) return direct;
+    let best: CourseHistoryEntry | undefined;
+    for (const s of siblingCodes(code)) {
+      const e = history.courses[s];
+      if (e && (!best || e.last > best.last)) best = e;
+    }
+    return best;
+  };
   const ctx = {
     done: buildDoneIndex(completed, equiv),
-    plannedCodes: args.plannedCodes ?? new Set<string>(),
-    offeredCodes: args.offeredCodes ?? new Set<string>(),
+    plannedFor,
+    offeredFor,
+    histFor,
   };
 
   const groups: TrackGroup[] = [];
