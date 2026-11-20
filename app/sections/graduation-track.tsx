@@ -469,7 +469,36 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
                 <b>{s.label}</b>
                 <span>{s.courses.length}과목 · {s.credits}학점{s.heavy && <em className="track-warn"> 필수 부하</em>}</span>
               </div>
-              <small>{s.courses.map((c) => c.name).join(' · ')}</small>
+              {persist ? (
+                <div className="roadmap-wishes">
+                  {s.courses.map((c) => {
+                    const wished = (data.semesterWishes?.[s.semester] ?? []).some((w) => w.code === c.code);
+                    return (
+                      <button
+                        key={c.code}
+                        className={`track-chip${wished ? ' on' : ''}`}
+                        aria-pressed={wished}
+                        title={wished ? '학기별 계획에서 빼기' : '학기별 계획에 담아두기'}
+                        onClick={() => {
+                          const list = { ...data.semesterWishes };
+                          const cur = data.semesterWishes?.[s.semester] ?? [];
+                          const next = wished ? cur.filter((w) => w.code !== c.code) : [...cur, { code: c.code, name: c.name, credits: c.credits }];
+                          if (next.length) list[s.semester] = next;
+                          else delete list[s.semester];
+                          void persist(
+                            { ...data, semesterWishes: list },
+                            wished ? `${c.name}을(를) 담아둔 과목에서 뺐어요` : `${c.name}을(를) ${s.label}에 담아뒀어요`,
+                          );
+                        }}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <small>{s.courses.map((c) => c.name).join(' · ')}</small>
+              )}
             </div>
           ))}
           {roadmap.unplaced.map(({ course, reason }) => (

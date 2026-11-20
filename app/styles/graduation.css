@@ -467,6 +467,8 @@ details.track-group[open] summary { padding-bottom: 8px; }
 
 /* 남은 학기 로드맵 — 미이수 필수의 학기별 배치 */
 .track-roadmap { display: grid; gap: 8px; }
+.roadmap-wishes { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 3px; }
+.plan-wish-secs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
 .roadmap-slot { display: grid; gap: 2px; padding: 9px 0 9px 14px; border-left: 2px solid var(--nt-primary); }
 .roadmap-sem { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .roadmap-sem b { font-size: 13px; font-weight: 700; color: var(--nt-ink); }

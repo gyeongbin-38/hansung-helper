@@ -322,6 +322,23 @@ export async function PUT(request: Request) {
       }
       profile.semesterPlans = input.semesterPlans;
     }
+    if (input.semesterWishes !== undefined) {
+      if (!input.semesterWishes || typeof input.semesterWishes !== 'object' || Array.isArray(input.semesterWishes) || Object.keys(input.semesterWishes).length > 40)
+        return json({ error: '학기별 담아둔 과목 형식을 확인해 주세요.' }, 400);
+      for (const [semester, value] of Object.entries(input.semesterWishes)) {
+        if (
+          !/^20\d{2}-[1-4]$/.test(semester) ||
+          !Array.isArray(value) ||
+          value.length > 100 ||
+          value.some((w: unknown) => {
+            const e = w as { code?: unknown; name?: unknown; credits?: unknown } | null;
+            return !e || typeof e !== 'object' || Array.isArray(e) || typeof e.code !== 'string' || e.code.length > 40 || typeof e.name !== 'string' || e.name.length > 120 || typeof e.credits !== 'number' || e.credits < 0 || e.credits > 30;
+          })
+        )
+          return json({ error: '학기별 담아둔 과목 형식을 확인해 주세요.' }, 400);
+      }
+      profile.semesterWishes = input.semesterWishes;
+    }
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);
       if (!lms) return json({ error: '수업 데이터 형식을 확인해 주세요.' }, 400);

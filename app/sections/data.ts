@@ -48,6 +48,8 @@ export type Data = {
   plans?: Record<string, string[]>;
   planSemester?: string;
   semesterPlans?: Record<string, { sourceSemester: string; planned: string[]; plans: Record<string, string[]> }>;
+  /** 학기별 담아둔 과목 — 분반 ID는 개설 자료가 나와야 생기므로 코드 단위로 저장한다 */
+  semesterWishes?: Record<string, { code: string; name: string; credits: number }[]>;
   setupHistory?: 'none' | 'later';
   recommendationsSeen?: boolean;
   completed: Completed[];
