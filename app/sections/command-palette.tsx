@@ -6,7 +6,7 @@ import {
   Search,
 } from 'lucide-react';
 import { menus, type Data } from './data';
-import { useActivities, useNow, useSchedule } from './catalog';
+import { useActivities, useNow, useRequiredMissing, useSchedule } from './catalog';
 import { koreanMatch } from '@/lib/data/hangul';
 import { activityMatch, liveStatus } from '@/lib/data/activities';
 import {
@@ -50,6 +50,7 @@ export function CommandPalette({
 }) {
   const { snap: acts } = useActivities();
   const { snap: sched } = useSchedule();
+  const required = useRequiredMissing(data, catalog);
   const now = useNow(30000);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -76,7 +77,7 @@ export function CommandPalette({
         group: '과목',
         icon: menus.find((m) => m[0] === 'courses')![2],
         label: s.name,
-        sub: `${s.dept} · ${s.section}분반 · ${s.credits}학점 · ${slotsLabel(s)}`,
+        sub: `${s.dept} · ${s.section}분반 · ${s.credits}학점 · ${slotsLabel(s)}${required?.missing.has(s.code) ? ' · 졸업 필수' : ''}`,
         route: 'courses/' + s.id,
       }));
     const activities: Item[] = (acts?.items ?? [])
@@ -124,7 +125,7 @@ export function CommandPalette({
         route: h.route,
       }));
     return [...nav, ...courses, ...activities, ...events, ...lms];
-  }, [q, catalog, acts, sched, data.lms, now]);
+  }, [q, catalog, acts, sched, data.lms, now, required]);
 
   const [prevItems, setPrevItems] = useState(items);
   if (prevItems !== items) {

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { BookOpen, CalendarDays, Compass, MonitorPlay, Plus, SearchX, Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Catalog } from '@/lib/data/catalog';
-import { useActivities, useNow, useSchedule } from './catalog';
+import { useActivities, useNow, useRequiredMissing, useSchedule } from './catalog';
 import { activityMatch, liveStatus } from '@/lib/data/activities';
 import { koreanMatch } from '@/lib/data/hangul';
 import {
@@ -37,6 +37,7 @@ export function SearchResults({
 }) {
   const { snap: acts } = useActivities();
   const { snap: sched } = useSchedule();
+  const required = useRequiredMissing(data, catalog);
   const now = useNow(30000);
   const [scope, setScope] = useState('전체');
   const [pendingOnly, setPendingOnly] = useState(false);
@@ -165,6 +166,16 @@ export function SearchResults({
                   {s.dept} · {s.section}분반 · {s.credits}학점 ·{' '}
                   {slotsLabel(s)}
                 </small>
+                {required?.missing.has(s.code) && (
+                  <small>
+                    <span
+                      className="badge orange"
+                      title={required.siblings.get(s.code) ? `미이수 필수 '${required.siblings.get(s.code)}'의 동일과목` : undefined}
+                    >
+                      졸업 필수
+                    </span>
+                  </small>
+                )}
               </div>
               <button
                 className="secondary"

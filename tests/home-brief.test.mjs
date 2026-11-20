@@ -97,6 +97,20 @@ test('학교 기간 일정·개인 일정·직접 등록 활동을 중복 없이
   assert.equal(new Set(brief.deadlines.map((item) => item.id)).size, 4);
 });
 
+test('졸업 행정 일정은 45일 전부터 보여주고 일반 일정은 7일만 유지한다', () => {
+  const schedule = { items: [
+    // 유예신청 창구 — 시작 22일·마감 31일 후. 7일 창이면 둘 다 놓침
+    { id: 'grad-window', title: '졸업예정자 학사학위취득 유예신청', start: '2026-11-30', end: '2026-12-09' },
+    // 조기졸업 단일 일정 — 50일 후. 45일 밖이라 아직 안 보임
+    { id: 'grad-far', title: '조기졸업 신청', start: '2026-12-28', end: null },
+    // 일반 일정 — 같은 거리라도 7일 창 유지
+    { id: 'normal-far', title: '중간고사', start: '2026-11-30', end: '2026-12-09' },
+  ] };
+  const brief = buildHomeBrief(input({ schedule }));
+  assert.deepEqual(brief.deadlines.map((item) => item.title), ['졸업예정자 학사학위취득 유예신청']);
+  assert.equal(brief.deadlines[0].timing, 'D-31 종료');
+});
+
 test('수집 결과가 없다고 할 일을 만들어내지 않는다', () => {
   assert.deepEqual(buildHomeBrief(input()), { deadlines: [], checks: [] });
 });
