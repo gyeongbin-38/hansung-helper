@@ -42,6 +42,7 @@ import {
   deptMatches,
   deptPoolOf,
   planBlockReason,
+  useRequiredMissing,
 } from './catalog';
 import { recommend } from '@/lib/data/timetable-recommendations';
 import { matchEnrollment } from '@/lib/data/lms';
@@ -103,11 +104,17 @@ function CatRow({
   s,
   added,
   busy,
+  req,
+  reqName,
   onAdd,
 }: {
   s: CourseSection;
   added: boolean;
   busy: boolean;
+  /** 미이수 필수 과목 — 주황 배지 표시 */
+  req?: boolean;
+  /** 동일과목 매칭일 때 원래 필수 과목명 */
+  reqName?: string;
   onAdd: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -144,6 +151,14 @@ function CatRow({
       </div>
       <div className="cat-side">
         <span className="badge">{s.dept}</span>
+        {req && (
+          <span
+            className="badge orange"
+            title={reqName ? `미이수 필수 '${reqName}'의 동일과목` : undefined}
+          >
+            졸업 필수
+          </span>
+        )}
         {s.cross && <span className="badge blue">교차가능</span>}
         {s.timeFixed && <span className="badge pink">시간 확인 필요</span>}
         <button
@@ -344,6 +359,8 @@ export function Timetable({
   );
   const myDept = data.dept && data.dept !== '소속 미입력' ? data.dept : '';
   const deptPool = myDept ? deptPoolOf(myDept, depts) : null;
+  // 미이수 필수 과목 — 목록·추천에서 '졸업 필수' 배지로 구분한다
+  const required = useRequiredMissing(data, catalog);
   const filtered = useMemo(() => {
     if (!catalog) return [];
     return catalog.sections.filter((s) => {
@@ -847,6 +864,8 @@ export function Timetable({
                     s={s}
                     busy={busy}
                     added={planned.some((p) => p.id === s.id)}
+                    req={!!required?.missing.has(s.code)}
+                    reqName={required?.siblings.get(s.code)}
                     onAdd={() =>
                       planned.some((p) => p.id === s.id)
                         ? removeCourse(s)
@@ -1154,6 +1173,14 @@ export function Timetable({
                         {r.section.section}분반 · {slotsLabel(r.section)}
                       </small>
                       <div className="rec-reasons">
+                        {required?.missing.has(r.section.code) && (
+                          <span
+                            className="badge orange"
+                            title={required.siblings.get(r.section.code) ? `미이수 필수 '${required.siblings.get(r.section.code)}'의 동일과목` : undefined}
+                          >
+                            졸업 필수
+                          </span>
+                        )}
                         {r.reasons.map((x) => (
                           <span className="badge purple" key={x}>
                             {x}

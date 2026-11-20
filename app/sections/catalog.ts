@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { resolveDept } from '@/lib/data/dept';
+import { buildRequiredTrack, missingRequiredCodeSet, missingRequiredSiblings, pickCurriculumSemester } from '@/lib/data/curriculum';
+import { mergeCompleted } from '@/lib/data/info';
 import { apiData, apiFetch } from '@/lib/data/api';
 import {
   conflicts,
@@ -299,6 +301,37 @@ export function useDeptPages() {
     setTick((t) => t + 1);
   };
   return { snap, failed, retry };
+}
+
+/**
+ * 미이수 필수 과목 집합 — 입학연도 교육과정 + 이수·계획·낙제 내역으로
+ * '졸업 필수' 표시가 필요한 분반 코드를 계산한다 (필수 지도와 같은 판정).
+ * 과목 추천·시간표가 공유한다. curriculum 미로딩 시 null.
+ */
+export function useRequiredMissing(data: Data, catalog: Catalog | null) {
+  const { snap: currIndex } = useCurriculumIndex();
+  const admitYear =
+    data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
+  const currSemester = pickCurriculumSemester(admitYear, currIndex);
+  const { snap: curriculum } = useCurriculum(currSemester);
+  const equiv = useEquivalents();
+  return useMemo(() => {
+    if (!curriculum || !catalog) return null;
+    const track = buildRequiredTrack({
+      curriculum,
+      deptInput: data.info?.dept || data.dept,
+      completed: mergeCompleted(data.completed, data.info?.completed),
+      offeredCodes: new Set(catalog.sections.map((s) => s.code)),
+      equiv,
+      failed: data.info?.failedCourses,
+    });
+    const trackName = data.info?.track ?? data.info?.tracks?.[0];
+    return {
+      missing: missingRequiredCodeSet({ track, trackName, equiv }),
+      // 동일과목(폐지 과목 후속 코드) 매칭 시 왜 필수인지 설명
+      siblings: missingRequiredSiblings({ track, trackName, equiv }),
+    };
+  }, [curriculum, catalog, equiv, data.info, data.completed, data.dept]);
 }
 
 /** 넓은 카테고리 그룹 (표시는 원본 이수구분 유지). */
