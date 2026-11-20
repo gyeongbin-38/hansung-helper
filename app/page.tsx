@@ -1290,10 +1290,14 @@ export default function App() {
             />
           ) : section === 'semester-plan' ? (
             <SemesterPlan
+              data={data}
               planned={planned}
               plan={plan}
               go={go}
               semester={selectedSemester === 'legacy' ? undefined : selectedSemester}
+              catalog={catalog}
+              persist={persist}
+              notify={setToast}
             />
           ) : section === 'timetable' ? (
             <Timetable
