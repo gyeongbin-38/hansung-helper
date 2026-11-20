@@ -346,9 +346,11 @@ export const semesterIndex = (label: string | null | undefined) => {
   return p ? p[0] * 2 + p[1] - 1 : null;
 };
 
-/** 'YYYY-S' → 'YYYY학년도 S학기' 표시용 라벨 */
+/** 'YYYY-S' → 'YYYY학년도 S학기' 표시용 라벨 (3·4는 여름·겨울 계절학기) */
+const TERM_NAMES: Record<string, string> = { '1': '1', '2': '2', '3': '여름', '4': '겨울' };
 export const formatSemesterLabel = (label: string) =>
-  label.replace(/^(\d{4})-([12])$/, '$1학년도 $2학기');
+  label.replace(/^(\d{4})-([1-4])$/, (_m, y: string, t: string) =>
+    `${y}학년도 ${TERM_NAMES[t]}학기`);
 
 /** 자유 텍스트 목표 학기 → 'YYYY-S'. 온보딩 입력 '2029학년도 2학기'도 받는다. */
 export function normalizeSemesterLabel(s: string | null | undefined): string | null {
