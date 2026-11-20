@@ -22,6 +22,19 @@ import type { Data } from './data';
 
 const LIMIT = 60;
 
+/** 개설 이력 — 상세 화면에서만 course-history 스냅샷을 불러온다 */
+function OfferingHistory({ code }: { code: string }) {
+  const history = useCourseHistory();
+  const e = history?.courses[code];
+  if (!e) return null;
+  return (
+    <div>
+      <small>개설 이력</small>
+      <b>{offeringLabelFromTerms(e.terms)} · 최근 {e.last}</b>
+    </div>
+  );
+}
+
 export function Courses({
   data,
   plan,
@@ -67,7 +80,6 @@ export function Courses({
   const required = useRequiredMissing(data, catalog);
   const requiredMissing = required?.missing ?? null;
   const requiredSiblings = required?.siblings ?? null;
-  const history = useCourseHistory();
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept
@@ -173,7 +185,6 @@ export function Courses({
     const added = data.planned.includes(s.id);
     const clashes = conflicts(s, plannedSecs);
     const completedHere = data.completed.some((c) => c.code === s.code);
-    const hist = history?.courses[s.code];
     return (
       <>
         <button
@@ -226,13 +237,13 @@ export function Courses({
                 slotsLabel(s),
               ],
               ...(sourceDurationLabel(s) ? [['원자료 시간 표기', sourceDurationLabel(s)]] : []),
-              ...(hist ? [['개설 이력', `${offeringLabelFromTerms(hist.terms)} · 최근 ${hist.last}`]] : []),
             ].map(([l, v]) => (
               <div key={l}>
                 <small>{l}</small>
                 <b>{v}</b>
               </div>
             ))}
+            <OfferingHistory code={s.code} />
           </div>
           {s.online && roomLabel(s) && <p className="meta">온라인·강의실 병기 — 실제 운영은 COSMOS에서 확인해 주세요.</p>}
           {clashes.length > 0 && !added && (
