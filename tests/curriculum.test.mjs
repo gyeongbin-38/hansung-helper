@@ -4,6 +4,7 @@ import {
   buildRequiredTrack,
   findRetakeCandidates,
   majorLabel,
+  missingRequiredCodeSet,
   pickCurriculumSemester,
 } from '../lib/data/curriculum.ts';
 
@@ -215,4 +216,28 @@ test('이미 계획에 담은 과목과 미개설 과목은 재수강 후보에�
     plannedCodes: new Set(['K0010']),
   });
   assert.deepEqual(out.map((r) => r.code), ['K0001']);
+});
+
+test('missingRequiredCodeSet — 미이수 필수 + 동일과목 확장, 이수·계획·선필교 제외', () => {
+  const t = buildRequiredTrack({
+    curriculum: CURRICULUM,
+    deptInput: '컴퓨터공학부',
+    completed: [{ code: 'K0001', name: '공학기초' }],
+    plannedCodes: new Set(['L0001']),
+    equiv: EQUIV,
+  });
+  const set = missingRequiredCodeSet({ track: t, trackName: '모바일소프트웨어트랙', equiv: EQUIV });
+  // 공학기초(이수)·글쓰기(계획)는 빠지고, 캡스톤·영어·모바일프로그래밍(+형제 K0099)이 든다
+  assert.ok(set.has('K0011') && set.has('L0002') && set.has('K0010') && set.has('K0099'));
+  assert.ok(!set.has('K0001') && !set.has('L0001'));
+  // 선택필수교양은 개별 과목이 필수가 아니므로 제외
+  assert.ok(!set.has('L0010') && !set.has('L0011'));
+});
+
+test('missingRequiredCodeSet — 트랙 미지정·다른 트랙이면 트랙 과목을 제외한다', () => {
+  const t = buildRequiredTrack({ curriculum: CURRICULUM, deptInput: '컴퓨터공학부', completed: [] });
+  const none = missingRequiredCodeSet({ track: t, trackName: null });
+  assert.ok(!none.has('K0010') && none.has('K0011') && none.has('L0001'));
+  const other = missingRequiredCodeSet({ track: t, trackName: '빅데이터트랙' });
+  assert.ok(!other.has('K0010'));
 });
