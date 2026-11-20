@@ -141,3 +141,41 @@ test('학과 미입력·미해석이어도 교양 그룹은 보여준다', () =>
   const t = buildRequiredTrack({ curriculum: CURRICULUM, deptInput: '', completed: [] });
   assert.ok(t.groups.every((g) => g.role.startsWith('gen')));
 });
+
+test('F 받은 필수 과목을 재수강 대상으로 표시한다', () => {
+  const t = buildRequiredTrack({
+    curriculum: CURRICULUM,
+    deptInput: '모바일소프트웨어트랙',
+    completed: [],
+    failed: [{ code: 'K0010', name: '모바일프로그래밍', grade: 'F' }],
+  });
+  const mobile = t.groups.find((g) => g.title === '모바일소프트웨어트랙');
+  const course = mobile.courses.find((x) => x.code === 'K0010');
+  assert.equal(course.status, 'missing');
+  assert.equal(course.failed, 'F');
+});
+
+test('동일과목 폐지 과목의 F도 후속 과목의 재수강으로 인정한다', () => {
+  const t = buildRequiredTrack({
+    curriculum: CURRICULUM,
+    deptInput: '모바일소프트웨어트랙',
+    completed: [],
+    failed: [{ code: 'K0099', name: '스마트폰프로그래밍', grade: 'F' }],
+    equiv: EQUIV,
+  });
+  const mobile = t.groups.find((g) => g.title === '모바일소프트웨어트랙');
+  assert.equal(mobile.courses.find((x) => x.code === 'K0010').failed, 'F');
+});
+
+test('이후 이수에 성공한 과목은 재수강 표시를 하지 않는다', () => {
+  const t = buildRequiredTrack({
+    curriculum: CURRICULUM,
+    deptInput: '모바일소프트웨어트랙',
+    completed: [{ code: 'K0010', name: '모바일프로그래밍' }],
+    failed: [{ code: 'K0010', name: '모바일프로그래밍', grade: 'F' }],
+  });
+  const mobile = t.groups.find((g) => g.title === '모바일소프트웨어트랙');
+  const course = mobile.courses.find((x) => x.code === 'K0010');
+  assert.equal(course.status, 'done');
+  assert.equal(course.failed, undefined);
+});

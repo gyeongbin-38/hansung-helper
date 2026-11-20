@@ -85,6 +85,8 @@ export type TrackCourse = {
   offeredCode?: string;
   /** 과거 개설 이력 — 개설 학기 패턴 경고용 */
   hist?: CourseHistoryEntry;
+  /** F 등 미이수 성적 — 이수(done)가 아닐 때만 재수강 대상 표시 */
+  failed?: string;
 };
 
 export type TrackGroup = {
@@ -162,6 +164,33 @@ function equivCodeIndex(equiv: EquivalentsSnapshot | null | undefined) {
   return { siblingCodes };
 }
 
+/**
+ * F·미이수 과목 → 조회 인덱스. code와 과목명 양쪽 + 동일과목 그룹 멤버도
+ * 같은 실패로 본다 (폐지 과목에서 F 받았으면 후속 과목이 재수강 대상).
+ * 값은 성적 등급 라벨 ('F', 'U' 등).
+ */
+function buildFailedIndex(
+  failed: { code: string; name: string; grade?: string }[] | undefined,
+  siblingCodes: (code: string) => string[],
+  equiv: EquivalentsSnapshot | null | undefined,
+) {
+  const map = new Map<string, string>();
+  if (!failed?.length) return map;
+  const nameOf = new Map<string, string>();
+  for (const g of Object.values(equiv?.groups ?? {}))
+    for (const m of g.courses) nameOf.set(m.code, m.name);
+  for (const c of failed) {
+    const grade = c.grade?.trim() || 'F';
+    for (const key of [c.code.trim(), norm(c.name)]) map.set(key, grade);
+    for (const s of siblingCodes(c.code)) {
+      map.set(s, grade);
+      const n = nameOf.get(s);
+      if (n) map.set(norm(n), grade);
+    }
+  }
+  return map;
+}
+
 function toTrack(
   course: CurriculumCourse,
   ctx: {
@@ -169,6 +198,7 @@ function toTrack(
     plannedFor: (code: string) => boolean;
     offeredFor: (code: string) => string | undefined;
     histFor: (code: string) => CourseHistoryEntry | undefined;
+    failedFor: (course: { code: string; name: string }) => string | undefined;
   },
 ): TrackCourse {
   const hit = ctx.done.get(course.code) ?? ctx.done.get(norm(course.name));
@@ -184,6 +214,7 @@ function toTrack(
     offered: !!offeredCode,
     offeredCode: offeredCode !== course.code ? offeredCode : undefined,
     hist: ctx.histFor(course.code),
+    failed: status === 'done' ? undefined : ctx.failedFor(course),
   };
 }
 
@@ -207,6 +238,8 @@ export function buildRequiredTrack(args: {
   equiv?: EquivalentsSnapshot | null;
   /** 과목별 개설 이력 — 학기 패턴 경고에 사용 */
   history?: CourseHistory | null;
+  /** F·미이수 성적 목록 — 재수강 대상 표시에 사용 */
+  failed?: { code: string; name: string; grade?: string }[];
 }): TrackResult {
   const { curriculum, deptInput, completed, equiv, history } = args;
   const offered = args.offeredCodes ?? new Set<string>();
@@ -230,11 +263,15 @@ export function buildRequiredTrack(args: {
     }
     return best;
   };
+  const failedIdx = buildFailedIndex(args.failed, siblingCodes, equiv);
+  const failedFor = (c: { code: string; name: string }) =>
+    failedIdx.get(c.code) ?? failedIdx.get(norm(c.name));
   const ctx = {
     done: buildDoneIndex(completed, equiv),
     plannedFor,
     offeredFor,
     histFor,
+    failedFor,
   };
 
   const groups: TrackGroup[] = [];
