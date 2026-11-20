@@ -413,13 +413,13 @@ export function Timetable({
       data,
       planned,
       catalog.sections.length,
-      { selectedDay: day, sourceSemester: catalog.semester, requiredCodes: required?.missing },
+      { selectedDay: day, sourceSemester: catalog.semester, requiredCodes: required?.missing, wishedCodes: wishCodes },
     );
     return filterRecommendationCandidates(ranked, planned, {
       avoidedDays,
       maxCredits,
     }).slice(0, 6);
-  }, [catalog, data, planned, day, avoidedDays, maxCredits, required]);
+  }, [catalog, data, planned, day, avoidedDays, maxCredits, required, wishCodes]);
   const untimedPlanned = planned.filter((s) => s.untimed);
   const credits = planned.reduce((n, s) => n + s.credits, 0);
   const curConflicts = planned.filter(

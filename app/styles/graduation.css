@@ -436,6 +436,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .track-course-body small { font-size: 11px; color: var(--nt-slate); }
 .track-course .badge { flex-shrink: 0; font-size: 10px; }
 .track-offered { font-style: normal; font-weight: 650; color: var(--nt-primary); }
+.track-wished { font-style: normal; font-weight: 600; color: var(--nt-purple-800); }
 .track-warn { font-style: normal; font-weight: 600; color: var(--nt-orange-deep); }
 .track-now { display: grid; gap: 6px; border-color: var(--nt-primary); }
 .track-now > .secondary { justify-self: start; margin-top: 4px; }

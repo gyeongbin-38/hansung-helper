@@ -1,7 +1,7 @@
 'use client';
 import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
-import { buildRequiredTrack, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
+import { buildRequiredTrack, equivCodeIndex, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
@@ -42,7 +42,7 @@ function offeringWarn(c: TrackCourse, currentSemester: string | undefined): stri
   return parts.length ? parts.join(' · ') : null;
 }
 
-function CourseRow({ c, warn }: { c: TrackCourse; warn?: string | null }) {
+function CourseRow({ c, warn, wishLabel }: { c: TrackCourse; warn?: string | null; wishLabel?: string }) {
   const st = STATUS_LABEL[c.status];
   return (
     <li className={`track-course ${c.status}`}>
@@ -53,6 +53,7 @@ function CourseRow({ c, warn }: { c: TrackCourse; warn?: string | null }) {
           {c.credits}학점{c.matchedName && <> · ‘{c.matchedName}’(으)로 인정</>}
           {c.failed && <> · <em className="track-warn">{c.failed} — 재수강 필요</em></>}
           {c.status === 'missing' && c.offered && <> · <em className="track-offered">이번 학기 개설</em></>}
+          {c.status === 'missing' && wishLabel && <> · <em className="track-wished">{wishLabel} 담아둠</em></>}
           {warn && <> · <em className="track-warn">{warn}</em></>}
         </small>
       </div>
@@ -123,7 +124,7 @@ function NowRow({
   );
 }
 
-function Group({ g, currentSemester, selProgress }: { g: TrackGroup; currentSemester?: string; selProgress?: string }) {
+function Group({ g, currentSemester, selProgress, wishByCode }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, string> }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -133,7 +134,7 @@ function Group({ g, currentSemester, selProgress }: { g: TrackGroup; currentSeme
           <span className="track-year-label">{y ? `${y}학년` : '전학년'}</span>
           <ul className="track-courses">
             {g.courses.filter((c) => c.year === y).map((c) => (
-              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester)} />
+              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester)} wishLabel={wishByCode?.get(c.code)} />
             ))}
           </ul>
         </div>
@@ -204,6 +205,18 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     history,
     failed: data.info?.failedCourses,
   });
+
+  // 미이수 필수 → 어느 학기에 담아뒀는지 지도 행에 표시 (동일과목 형제 코드도 인식)
+  const wishByCode = new Map<string, string>();
+  if (data.semesterWishes) {
+    const { siblingCodes } = equivCodeIndex(equiv);
+    for (const [sem, ws] of Object.entries(data.semesterWishes)) {
+      const label = formatSemesterLabel(sem);
+      for (const w of ws)
+        for (const code of [w.code, ...siblingCodes(w.code)])
+          wishByCode.set(code, label);
+    }
+  }
 
   // 선택필수교양 진행도 — 학번별 교양 기준 표의 선필교 학점을 파싱한다
   const selEarned = completed
@@ -507,7 +520,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         </section>
       )}
 
-      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} />)}
+      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} wishByCode={wishByCode} />)}
 
       {!track.groups.length && (
         <section className="card track-empty">
