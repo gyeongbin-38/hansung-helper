@@ -12,8 +12,9 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, deptMatches, planBlockReason, useRequiredMissing } from './catalog';
+import { catGroup, deptMatches, planBlockReason, useCourseHistory, useRequiredMissing } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
+import { offeringLabelFromTerms } from '@/lib/data/course-history';
 import { resolveDept } from '@/lib/data/dept';
 import { enrolledSectionIds } from '@/lib/data/lms';
 import { courseSuggestion } from '@/lib/data/course-suggestions';
@@ -66,6 +67,7 @@ export function Courses({
   const required = useRequiredMissing(data, catalog);
   const requiredMissing = required?.missing ?? null;
   const requiredSiblings = required?.siblings ?? null;
+  const history = useCourseHistory();
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept
@@ -171,6 +173,7 @@ export function Courses({
     const added = data.planned.includes(s.id);
     const clashes = conflicts(s, plannedSecs);
     const completedHere = data.completed.some((c) => c.code === s.code);
+    const hist = history?.courses[s.code];
     return (
       <>
         <button
@@ -223,6 +226,7 @@ export function Courses({
                 slotsLabel(s),
               ],
               ...(sourceDurationLabel(s) ? [['원자료 시간 표기', sourceDurationLabel(s)]] : []),
+              ...(hist ? [['개설 이력', `${offeringLabelFromTerms(hist.terms)} · 최근 ${hist.last}`]] : []),
             ].map(([l, v]) => (
               <div key={l}>
                 <small>{l}</small>
