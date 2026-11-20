@@ -161,7 +161,13 @@ function equivCodeIndex(equiv: EquivalentsSnapshot | null | undefined) {
         ),
       ),
     ];
-  return { siblingCodes };
+  // 코드가 속한 동일과목 그룹 집합의 안정 키 — 교육과정이 동일과목을
+  // 두 번 열거하는 경우(REQ0020/REQ0021) 한 과목으로 합치는 데 쓴다.
+  const groupKeyOf = (code: string) => {
+    const ids = byCode.get(code);
+    return ids?.length ? [...ids].sort().join('+') : undefined;
+  };
+  return { siblingCodes, groupKeyOf };
 }
 
 /**
@@ -244,7 +250,7 @@ export function buildRequiredTrack(args: {
   const { curriculum, deptInput, completed, equiv, history } = args;
   const offered = args.offeredCodes ?? new Set<string>();
   const planned = args.plannedCodes ?? new Set<string>();
-  const { siblingCodes } = equivCodeIndex(equiv);
+  const { siblingCodes, groupKeyOf } = equivCodeIndex(equiv);
   const offeredFor = (code: string) => {
     if (offered.has(code)) return code;
     return siblingCodes(code).find((s) => offered.has(s));
@@ -272,6 +278,20 @@ export function buildRequiredTrack(args: {
     offeredFor,
     histFor,
     failedFor,
+  };
+
+  // 교육과정이 같은 동일과목을 두 번 열거하면(REQ0020/REQ0021) 한 과목으로
+  // 합친다 — 필수 총량 부풀림과 이중 표시를 막는다. 정렬 후 적용해 유지할
+  // 과목이 결정적이게 한다.
+  const dedupeEquiv = (courses: TrackCourse[]) => {
+    const seen = new Set<string>();
+    return courses.filter((c) => {
+      const key = groupKeyOf(c.code);
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   };
 
   const groups: TrackGroup[] = [];
@@ -305,7 +325,7 @@ export function buildRequiredTrack(args: {
       key: `major:${code}`,
       title: label,
       role: familyNames.has(label) ? 'major-track' : 'major-common',
-      courses: required.map((c) => toTrack(c, ctx)).sort(byYearThenName),
+      courses: dedupeEquiv(required.map((c) => toTrack(c, ctx)).sort(byYearThenName)),
     });
   }
   const ambiguous = !groups.some((g) => g.role.startsWith('major')) && resolved.candidates?.length
@@ -321,7 +341,7 @@ export function buildRequiredTrack(args: {
         key: `gen:req:${code}`,
         title: /교양필수|교필/.test(label) ? '교양필수' : label,
         role: 'gen-required',
-        courses: req.map((c) => toTrack(c, ctx)).sort(byYearThenName),
+        courses: dedupeEquiv(req.map((c) => toTrack(c, ctx)).sort(byYearThenName)),
       });
     const sel = major.courses.filter((c) => c.kind === '선필교');
     if (sel.length)
@@ -329,7 +349,7 @@ export function buildRequiredTrack(args: {
         key: `gen:sel:${code}`,
         title: /선택필수/.test(label) ? '선택필수교양' : label,
         role: 'gen-selective',
-        courses: sel.map((c) => toTrack(c, ctx)).sort(byYearThenName),
+        courses: dedupeEquiv(sel.map((c) => toTrack(c, ctx)).sort(byYearThenName)),
       });
   }
 

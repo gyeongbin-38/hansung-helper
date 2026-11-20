@@ -20,7 +20,7 @@ export function recommend(
   data: Data,
   planned: CourseSection[],
   limit = 6,
-  options: { selectedDay?: string; sourceSemester?: string } = {},
+  options: { selectedDay?: string; sourceSemester?: string; requiredCodes?: Set<string> } = {},
 ): Rec[] {
   const plannedIds = new Set(planned.map((p) => p.id));
   const plannedCodes = new Set(planned.map((p) => p.code));
@@ -71,6 +71,10 @@ export function recommend(
       // 겹쳐도 본인 학과 과목이 추천 상단을 차지하도록 한다.
       score -= 4;
       reasons.push('타학과 수강 가능 과목');
+    }
+    if (options.requiredCodes?.has(s.code)) {
+      score += 4;
+      reasons.push('미이수 졸업 필수');
     }
     if (s.year === '전학년') {
       score += 1;

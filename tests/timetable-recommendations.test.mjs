@@ -47,6 +47,18 @@ test('타학과 수강 가능 과목은 본인 학과 과목보다 후순위로 
   assert.ok(result[1].reasons.includes('타학과 수강 가능 과목'));
 });
 
+test('미이수 졸업 필수 과목은 점수 우대와 근거를 받는다', () => {
+  const required = section('REQ', { dept: '교양학부', category: '교필' });
+  const elective = section('GEN', { dept: '교양학부', category: '교양' });
+  const requiredCodes = new Set(['REQ']);
+  const result = recommend([elective, required], { ...data, prefs: [] }, [], 6, { requiredCodes });
+  assert.equal(result[0].section.id, 'REQ');
+  assert.ok(result[0].reasons.includes('미이수 졸업 필수'));
+  // requiredCodes 미전달 시 점수 변동 없음
+  const plain = recommend([elective, required], { ...data, prefs: [] }, [], 6);
+  assert.equal(plain[0].section.id, 'GEN');
+});
+
 test('같은 과목의 여러 분반은 점수가 높은 하나만 추천한다', () => {
   const a = section('A', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
   const b = section('B', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
