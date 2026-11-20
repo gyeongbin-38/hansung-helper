@@ -107,6 +107,7 @@ function CatRow({
   req,
   reqName,
   onAdd,
+  wished,
 }: {
   s: CourseSection;
   added: boolean;
@@ -115,6 +116,8 @@ function CatRow({
   req?: boolean;
   /** 동일과목 매칭일 때 원래 필수 과목명 */
   reqName?: string;
+  /** 학기별 계획에 담아둔 과목 — 보라 배지 표시 */
+  wished?: boolean;
   onAdd: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -157,6 +160,11 @@ function CatRow({
             title={reqName ? `미이수 필수 '${reqName}'의 동일과목` : undefined}
           >
             졸업 필수
+          </span>
+        )}
+        {wished && (
+          <span className="badge purple" title="학기별 계획에 담아둔 과목">
+            담아둠
           </span>
         )}
         {s.cross && <span className="badge blue">교차가능</span>}
@@ -361,6 +369,11 @@ export function Timetable({
   const deptPool = myDept ? deptPoolOf(myDept, depts) : null;
   // 미이수 필수 과목 — 목록·추천에서 '졸업 필수' 배지로 구분한다
   const required = useRequiredMissing(data, catalog);
+  // 이 학기에 담아둔 과목 — 분반 목록에서 '담아둠' 배지로 구분한다
+  const wishCodes = useMemo(
+    () => new Set((catalog ? data.semesterWishes?.[catalog.semester] : undefined)?.map((w) => w.code) ?? []),
+    [data.semesterWishes, catalog],
+  );
   const filtered = useMemo(() => {
     if (!catalog) return [];
     return catalog.sections.filter((s) => {
@@ -866,6 +879,7 @@ export function Timetable({
                     added={planned.some((p) => p.id === s.id)}
                     req={!!required?.missing.has(s.code)}
                     reqName={required?.siblings.get(s.code)}
+                    wished={wishCodes.has(s.code)}
                     onAdd={() =>
                       planned.some((p) => p.id === s.id)
                         ? removeCourse(s)
