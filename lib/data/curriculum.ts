@@ -345,3 +345,55 @@ export function buildRequiredTrack(args: {
   }
   return { groups, requiredDone: doneCodes.size, requiredTotal: requiredCodes.size, ambiguous };
 }
+
+/** 성적 갱신으로 의미가 있는 구간 — B0 이상은 재수강 실익이 적다 */
+const RETAKE_GRADES = ['D0', 'D+', 'C0', 'C+'] as const;
+
+export type RetakeCandidate = {
+  code: string;
+  name: string;
+  credits: number;
+  /** 이수 당시 성적 라벨 ('C+' 등) */
+  grade: string;
+  /** 이번 학기 개설된 과목 코드 — 동일과목 매칭 시 원 코드와 다르다 */
+  offeredCode: string;
+};
+
+/**
+ * 이수 과목 중 C+ 이하 + 이번 학기 개설 → 평점 개선 재수강 후보.
+ * 동일과목(폐지 과목) 매칭으로 개설됐어도 인정하고, 낮은 성적순으로
+ * 최대 limit개까지. 이미 계획에 담은 과목은 뺀다.
+ */
+export function findRetakeCandidates(args: {
+  completed: { code: string; name: string; credits?: number; grade?: string }[];
+  offeredCodes?: Set<string>;
+  plannedCodes?: Set<string>;
+  equiv?: EquivalentsSnapshot | null;
+  limit?: number;
+}): RetakeCandidate[] {
+  const offered = args.offeredCodes ?? new Set<string>();
+  const planned = args.plannedCodes ?? new Set<string>();
+  const { siblingCodes } = equivCodeIndex(args.equiv);
+  const rank = (g?: string) => {
+    const n = (g ?? '').trim().toUpperCase().replace('＋', '+');
+    return (RETAKE_GRADES as readonly string[]).indexOf(n);
+  };
+  const seen = new Set<string>();
+  const out: RetakeCandidate[] = [];
+  const sorted = [...args.completed].sort(
+    (a, b) => (rank(a.grade) === -1 ? 99 : rank(a.grade)) - (rank(b.grade) === -1 ? 99 : rank(b.grade)),
+  );
+  for (const c of sorted) {
+    const grade = (c.grade ?? '').trim().toUpperCase().replace('＋', '+');
+    if (rank(grade) === -1) continue;
+    const offeredCode = offered.has(c.code)
+      ? c.code
+      : siblingCodes(c.code).find((s) => offered.has(s));
+    if (!offeredCode || seen.has(offeredCode)) continue;
+    if (planned.has(c.code) || planned.has(offeredCode)) continue;
+    seen.add(offeredCode);
+    out.push({ code: c.code, name: c.name, credits: c.credits ?? 0, grade, offeredCode });
+    if (out.length >= (args.limit ?? 5)) break;
+  }
+  return out;
+}

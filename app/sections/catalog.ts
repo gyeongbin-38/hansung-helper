@@ -335,15 +335,17 @@ export function deptPoolOf(
  * 계획 담기 공통 검증 — 이미 담긴 분반·이수 완료·같은 과목 다른 분반·
  * 시간 충돌을 검사하고 막히는 이유 메시지를 돌려준다.
  * 통과 가능하면 null. 과목 탐색·시간표·검색의 담기 경로가 공유한다.
+ * opts.retake가 참이면 이수 완료 과목도 담을 수 있다(성적 갱신 재수강).
  */
 export function planBlockReason(
   s: CourseSection,
   data: Data,
   planned: CourseSection[],
+  opts?: { retake?: boolean },
 ): string | null {
   if (planned.some((p) => p.id === s.id))
     return '이미 계획에 담긴 분반입니다.';
-  if ((data.completed ?? []).some((c) => c.code === s.code))
+  if (!opts?.retake && (data.completed ?? []).some((c) => c.code === s.code))
     return '이미 이수한 과목입니다. 이수 내역은 졸업요건에서 관리하세요.';
   const dup = planned.find((p) => p.code === s.code);
   if (dup)
