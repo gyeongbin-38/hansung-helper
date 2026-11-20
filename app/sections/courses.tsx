@@ -12,14 +12,28 @@ import {
   type Catalog,
   type CourseSection,
 } from '@/lib/data/catalog';
-import { catGroup, deptMatches, planBlockReason, useRequiredMissing } from './catalog';
+import { catGroup, deptMatches, planBlockReason, useCourseHistory, useRequiredMissing } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
+import { offeringLabelFromTerms } from '@/lib/data/course-history';
 import { resolveDept } from '@/lib/data/dept';
 import { enrolledSectionIds } from '@/lib/data/lms';
 import { courseSuggestion } from '@/lib/data/course-suggestions';
 import type { Data } from './data';
 
 const LIMIT = 60;
+
+/** 개설 이력 — 상세 화면에서만 course-history 스냅샷을 불러온다 */
+function OfferingHistory({ code }: { code: string }) {
+  const history = useCourseHistory();
+  const e = history?.courses[code];
+  if (!e) return null;
+  return (
+    <div>
+      <small>개설 이력</small>
+      <b>{offeringLabelFromTerms(e.terms)} · 최근 {e.last}</b>
+    </div>
+  );
+}
 
 export function Courses({
   data,
@@ -229,6 +243,7 @@ export function Courses({
                 <b>{v}</b>
               </div>
             ))}
+            <OfferingHistory code={s.code} />
           </div>
           {s.online && roomLabel(s) && <p className="meta">온라인·강의실 병기 — 실제 운영은 COSMOS에서 확인해 주세요.</p>}
           {clashes.length > 0 && !added && (

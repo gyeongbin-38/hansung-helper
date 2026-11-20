@@ -53,7 +53,7 @@ import {
 } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
-import { dateDeadlineDays, deadlineDays, needsApplication } from '@/lib/data/home-deadlines';
+import { dateDeadlineDays, deadlineDays, needsApplication, scheduleDeadlineKind } from '@/lib/data/home-deadlines';
 
 type Planned = CourseSection[];
 
@@ -227,16 +227,16 @@ export function Home({
   }
   for (const e of sched?.items ?? []) {
     const dd = dateDeadlineDays(e.end ?? e.start, now);
-    // 졸업 행정 일정(유예·조기졸업·학위수여)은 신청 창구가 길어
-    // 7일만 보고는 놓친다 — 45일 전부터 보여준다.
-    const grad = /졸업|학위|수료/.test(e.title);
-    if (dd !== null && dd >= 0 && dd <= (grad ? 45 : 7))
+    // 신청 창구가 긴 행정 일정(졸업·수강신청·휴복학·등록)은
+    // 7일만 보고는 놓친다 — 분류는 lib에서 검증한다.
+    const k = scheduleDeadlineKind(e.title);
+    if (dd !== null && dd >= 0 && dd <= k.windowDays)
       week.push({
         dday: dd,
-        kind: grad ? '졸업' : '학사일정',
+        kind: k.kind,
         title: e.title,
         sub: '',
-        route: 'calendar',
+        route: k.route,
       });
   }
   for (const e of data.events) {
@@ -251,10 +251,10 @@ export function Home({
       });
   }
   week.sort((a, b) => a.dday - b.dday);
-  // 임박 2건 + 졸업 일정은 날짜가 멀어도 최대 2건 함께 보여준다
+  // 임박 2건 + 졸업·신청 일정은 날짜가 멀어도 최대 2건 함께 보여준다
   const weekShown = [
     ...week.slice(0, 2),
-    ...week.slice(2).filter((t) => t.kind === '졸업').slice(0, 2),
+    ...week.slice(2).filter((t) => t.kind === '졸업' || t.kind === '신청').slice(0, 2),
   ];
   // 마감임박 → 접수중 → 접수예정 순, 마감 빠른 순 — 지금 행동 가능한 것부터
   // 상태는 수집 시점 문자열이 아니라 신청 기간+현재 시각으로 재계산한다
