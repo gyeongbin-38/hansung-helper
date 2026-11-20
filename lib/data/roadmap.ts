@@ -70,6 +70,45 @@ const compatible = (c: RoadmapCourse, sem: string) => {
 /** 한 학기 필수 과목 권장 상한 — 이 이상이면 부하 경고 */
 const REQUIRED_CAP = 9;
 
+/**
+ * 필수 과목 배치 제약만으로 도달 가능한 가장 빠른 졸업 학기.
+ * 목표 없이 n개 학기 슬롯을 늘려가며 planRoadmap이 전부 배치하는
+ * 최초 학기를 찾는다 — '학점 페이스'(graduationOutlook)와는 별개의
+ * 과목 배치 제약 쪽 하한이다.
+ * 정규학기 개설 이력이 전혀 없는 과목은 어느 목표에도 못 들어가므로
+ * 계산에서 빼고 blocked로 돌려준다.
+ */
+export function earliestRoadmapSemester(input: {
+  missing: RoadmapCourse[];
+  currentSemester?: string | null;
+  /** 탐색할 최대 학기 수 — 기본 8(4년) */
+  horizon?: number;
+}): { semester: string | null; label?: string; blocked: RoadmapCourse[] } | null {
+  const idx = semIndex(input.currentSemester ?? '');
+  if (idx === null || !input.missing.length) return null;
+  const placeable = input.missing.filter(
+    (c) => !c.terms || c.terms.includes('1') || c.terms.includes('2'),
+  );
+  const blocked = input.missing.filter(
+    (c) => c.terms && !c.terms.includes('1') && !c.terms.includes('2'),
+  );
+  if (!placeable.length) return { semester: null, blocked };
+  const horizon = input.horizon ?? 8;
+  for (let n = 1; n <= horizon; n++) {
+    const i = idx + n;
+    const target = `${Math.floor(i / 2)}-${(i % 2) + 1}`;
+    const r = planRoadmap({
+      missing: placeable,
+      currentSemester: input.currentSemester,
+      target,
+      strictCap: true,
+    });
+    if (!r.unplaced.length)
+      return { semester: target, label: formatSemesterLabel(target), blocked };
+  }
+  return { semester: null, blocked };
+}
+
 export function planRoadmap(input: {
   missing: RoadmapCourse[];
   currentSemester?: string | null;
@@ -77,6 +116,8 @@ export function planRoadmap(input: {
   target?: string | null;
   /** 목표가 없을 때 앞으로 보여줄 정규 학기 수 */
   futureCount?: number;
+  /** 참이면 학기당 필수 상한을 강제 — 초과 시 배치하지 않는다 (졸업 가능 시점 산정용) */
+  strictCap?: boolean;
 }): RoadmapResult {
   const target = input.target ?? null;
   const semesters = nextRegularSemesters(
@@ -124,7 +165,15 @@ export function planRoadmap(input: {
     }
     // 상한 미만 슬롯을 우선 — 없으면 가장 이른 호환 슬롯
     const slot =
-      ok.find((s) => s.credits + course.credits <= REQUIRED_CAP) ?? ok[0];
+      ok.find((s) => s.credits + course.credits <= REQUIRED_CAP) ??
+      (input.strictCap ? undefined : ok[0]);
+    if (!slot) {
+      unplaced.push({
+        course,
+        reason: `학기당 필수 ${REQUIRED_CAP}학점 권장 상한을 넘어 배치하지 못했어요`,
+      });
+      continue;
+    }
     slot.courses.push(course);
     slot.credits += course.credits;
   }

@@ -1,11 +1,11 @@
 'use client';
 import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
-import { buildRequiredTrack, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
+import { buildRequiredTrack, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
 import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
-import { planRoadmap } from '@/lib/data/roadmap';
+import { earliestRoadmapSemester, planRoadmap } from '@/lib/data/roadmap';
 import { scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { slotsLabel } from '@/lib/data/catalog';
 import { SkeletonRows, RetryButton } from './skeleton';
@@ -67,6 +67,7 @@ function NowRow({
   data,
   onPlan,
   notify,
+  retake,
 }: {
   c: TrackCourse;
   sections: CourseSection[];
@@ -74,10 +75,12 @@ function NowRow({
   data: Data;
   onPlan?: Props['onPlan'];
   notify?: Props['notify'];
+  /** 성적 갱신 재수강 — 이수 완료 과목도 담기 허용 */
+  retake?: boolean;
 }) {
-  const st = STATUS_LABEL[c.status];
+  const st = retake ? { text: '성적 개선', cls: '' } : STATUS_LABEL[c.status];
   return (
-    <li className={`track-course ${c.status} track-now-row`}>
+    <li className={`track-course ${retake ? 'done' : c.status} track-now-row`}>
       <div className="track-course-body">
         <b>{c.name}</b>
         <small>
@@ -99,7 +102,7 @@ function NowRow({
                 onClick={() => {
                   if (!onPlan) return;
                   if (inPlan) { void onPlan(s.id); return; }
-                  const blocked = planBlockReason(s, data, planned);
+                  const blocked = planBlockReason(s, data, planned, { retake });
                   if (blocked) { notify?.(blocked); return; }
                   void onPlan(s.id);
                 }}
@@ -252,6 +255,27 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     target: normalizeSemesterLabel(data.graduationTarget),
   });
 
+  // 필수 배치 기준 가장 빠른 졸업 학기 — 목표보다 앞당길 수 있으면 알려준다
+  const earliest = earliestRoadmapSemester({
+    missing: roadmapMissing,
+    currentSemester: catalog?.semester,
+  });
+  const semIdxOf = (s?: string | null) => {
+    const m = s?.match(/^(20\d{2})-([12])$/);
+    return m ? Number(m[1]) * 2 + Number(m[2]) : null;
+  };
+  const earlyGap = earliest?.semester && roadmap.target
+    ? (semIdxOf(roadmap.target)! - semIdxOf(earliest.semester)!)
+    : 0;
+
+  // 성적 갱신 재수강 — 이수했지만 C+ 이하이고 이번 학기 개설된 과목
+  const retakes = findRetakeCandidates({
+    completed,
+    offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
+    plannedCodes: new Set(planned.map((s) => s.code)),
+    equiv,
+  });
+
   // 수강신청·정정 기간 — 분반 담기 행동과 직접 관련된 창구만 표시
   const todayKst = scheduleToday(now);
   const regEvent = upcomingSchedule(
@@ -298,7 +322,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         <p className="meta conn-warn">이 교육과정에서 ‘{dept}’ 전공을 찾지 못했어요. 표기가 다르면 교양 과목만 표시됩니다.</p>
       )}
 
-      {(!!missing.length && missing.some((c) => c.offered)) || !!selOffered.length ? (
+      {(!!missing.length && missing.some((c) => c.offered)) || !!selOffered.length || !!retakes.length ? (
         <section className="card track-now">
           <div className="track-group-head"><h3>이번 학기에 들을 수 있는 미이수 필수</h3><span className="badge">{catalog?.semester}</span></div>
           {regEvent && regDday !== null && regDday <= 45 && (
@@ -338,6 +362,25 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
               </ul>
             </>
           )}
+          {!!retakes.length && (
+            <>
+              <div className="track-group-head track-sel-head"><h3>평점 개선 재수강</h3><span className="badge">C+ 이하</span></div>
+              <ul className="track-courses">
+                {retakes.map((r) => (
+                  <NowRow
+                    key={r.offeredCode}
+                    c={{ code: r.code, name: r.name, credits: r.credits, year: null, status: 'missing', offered: true, offeredCode: r.offeredCode !== r.code ? r.offeredCode : undefined, failed: r.grade }}
+                    sections={sectionsOf(r.offeredCode)}
+                    planned={planned}
+                    data={data}
+                    onPlan={onPlan}
+                    notify={notify}
+                    retake
+                  />
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       ) : null}
 
@@ -349,6 +392,12 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
               ? <span className="badge">{formatSemesterLabel(roadmap.target)} 목표</span>
               : <button className="link" onClick={() => go('profile')}>졸업 목표 설정 <ArrowRight size={13} /></button>}
           </div>
+          {earliest?.semester && (earlyGap > 0 || !roadmap.target) && (
+            <p className="meta roadmap-earliest">
+              필수 과목 배치 기준 빠른 졸업 <b>{earliest.label}</b>
+              {earlyGap > 0 && <> — 목표보다 {earlyGap}학기 앞당길 수 있어요</>}
+            </p>
+          )}
           {roadmap.slots.map((s) => (
             <div className="roadmap-slot" key={s.semester}>
               <div className="roadmap-sem">

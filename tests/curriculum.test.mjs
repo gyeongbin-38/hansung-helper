@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildRequiredTrack,
+  findRetakeCandidates,
   majorLabel,
   pickCurriculumSemester,
 } from '../lib/data/curriculum.ts';
@@ -178,4 +179,40 @@ test('이후 이수에 성공한 과목은 재수강 표시를 하지 않는다'
   const course = mobile.courses.find((x) => x.code === 'K0010');
   assert.equal(course.status, 'done');
   assert.equal(course.failed, undefined);
+});
+
+test('C+ 이하 개설 과목만 평점 개선 재수강 후보가 된다', () => {
+  const out = findRetakeCandidates({
+    completed: [
+      { code: 'K0010', name: '모바일프로그래밍', credits: 3, grade: 'C+' },
+      { code: 'K0001', name: '공학기초', credits: 3, grade: 'A0' },
+      { code: 'K0011', name: '캡스톤디자인', credits: 3, grade: 'D0' },
+      { code: 'L0001', name: '글쓰기', credits: 2, grade: 'C0' },
+    ],
+    offeredCodes: new Set(['K0010', 'K0011']),
+  });
+  assert.deepEqual(out.map((r) => r.code), ['K0011', 'K0010']); // 낮은 성적순
+  assert.equal(out[0].grade, 'D0');
+});
+
+test('폐지 과목도 동일과목 개설로 재수강 인정된다', () => {
+  const out = findRetakeCandidates({
+    completed: [{ code: 'K0099', name: '스마트폰프로그래밍', credits: 3, grade: 'D+' }],
+    offeredCodes: new Set(['K0010']),
+    equiv: EQUIV,
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].offeredCode, 'K0010');
+});
+
+test('이미 계획에 담은 과목과 미개설 과목은 재수강 후보에서 제외한다', () => {
+  const out = findRetakeCandidates({
+    completed: [
+      { code: 'K0010', name: '모바일프로그래밍', credits: 3, grade: 'C+' },
+      { code: 'K0001', name: '공학기초', credits: 3, grade: 'C0' },
+    ],
+    offeredCodes: new Set(['K0010', 'K0001']),
+    plannedCodes: new Set(['K0010']),
+  });
+  assert.deepEqual(out.map((r) => r.code), ['K0001']);
 });
