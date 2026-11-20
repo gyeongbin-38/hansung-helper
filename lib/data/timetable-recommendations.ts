@@ -20,7 +20,7 @@ export function recommend(
   data: Data,
   planned: CourseSection[],
   limit = 6,
-  options: { selectedDay?: string; sourceSemester?: string; requiredCodes?: Set<string> } = {},
+  options: { selectedDay?: string; sourceSemester?: string; requiredCodes?: Set<string>; wishedCodes?: Set<string> } = {},
 ): Rec[] {
   const plannedIds = new Set(planned.map((p) => p.id));
   const plannedCodes = new Set(planned.map((p) => p.code));
@@ -75,6 +75,10 @@ export function recommend(
     if (options.requiredCodes?.has(s.code)) {
       score += 4;
       reasons.push('미이수 졸업 필수');
+    }
+    if (options.wishedCodes?.has(s.code)) {
+      score += 2;
+      reasons.push('담아둔 과목');
     }
     if (s.year === '전학년') {
       score += 1;

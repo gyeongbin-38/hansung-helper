@@ -59,6 +59,21 @@ test('미이수 졸업 필수 과목은 점수 우대와 근거를 받는다', (
   assert.equal(plain[0].section.id, 'GEN');
 });
 
+test('담아둔 과목은 점수 우대와 근거를 받지만 졸업 필수보다는 약하다', () => {
+  const wished = section('WISH', { dept: '교양학부', category: '교양' });
+  const elective = section('GEN', { dept: '교양학부', category: '교양' });
+  const required = section('REQ', { dept: '교양학부', category: '교필' });
+  const opts = { wishedCodes: new Set(['WISH']), requiredCodes: new Set(['REQ']) };
+  const result = recommend([elective, wished, required], { ...data, prefs: [] }, [], 6, opts);
+  assert.ok(result[0].reasons.includes('미이수 졸업 필수'));
+  assert.equal(result[0].section.id, 'REQ');
+  assert.equal(result[1].section.id, 'WISH');
+  assert.ok(result[1].reasons.includes('담아둔 과목'));
+  // wishedCodes 미전달 시 점수 변동 없음
+  const plain = recommend([elective, wished], { ...data, prefs: [] }, [], 6);
+  assert.equal(plain[0].section.id, 'GEN');
+});
+
 test('같은 과목의 여러 분반은 점수가 높은 하나만 추천한다', () => {
   const a = section('A', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });
   const b = section('B', { code: 'SAME', name: '같은과목', slots: [{ d: 1, s: 600, e: 675 }] });

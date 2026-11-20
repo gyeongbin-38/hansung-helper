@@ -146,7 +146,7 @@ function buildDoneIndex(
 }
 
 /** code → 동일과목 그룹 형제 코드 인덱스 (개설·이력 조회용) */
-function equivCodeIndex(equiv: EquivalentsSnapshot | null | undefined) {
+export function equivCodeIndex(equiv: EquivalentsSnapshot | null | undefined) {
   const byCode = new Map<string, string[]>();
   for (const [id, g] of Object.entries(equiv?.groups ?? {})) {
     for (const m of g.courses) {
