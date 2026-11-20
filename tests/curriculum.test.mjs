@@ -132,6 +132,46 @@ test('동일과목 스냅샷이 없으면 코드·과목명으로만 판정한�
   assert.equal(mobile.courses.find((x) => x.code === 'K0010').status, 'missing');
 });
 
+const DUP_CURRICULUM = {
+  semester: '2023-1',
+  majors: {
+    L11E: {
+      name: '[L11E] 교양필수',
+      courses: [
+        c('REQ0020', '사고와 표현(읽기와 쓰기)', '교필', '1'),
+        c('REQ0021', '사고와 표현(읽기와 쓰기)', '교필', '1'),
+        c('REQ0022', '사고와 표현(발표와 토론)', '교필', '1'),
+        c('REQ0023', '사고와 표현(발표와 토론)', '교필', '1'),
+        c('L0001', '글쓰기', '교필', '1'),
+      ],
+    },
+  },
+};
+
+const DUP_EQUIV = {
+  groups: {
+    g1: { name: '사고와 표현(읽기와 쓰기)', courses: [{ code: 'REQ0020', name: '사고와 표현(읽기와 쓰기)' }, { code: 'REQ0021', name: '사고와 표현(읽기와 쓰기)' }] },
+    g2: { name: '사고와 표현(발표와 토론)', courses: [{ code: 'REQ0022', name: '사고와 표현(발표와 토론)' }, { code: 'REQ0023', name: '사고와 표현(발표와 토론)' }] },
+  },
+};
+
+test('교육과정이 같은 동일과목을 두 번 열거하면 한 과목으로 합친다', () => {
+  const t = buildRequiredTrack({ curriculum: DUP_CURRICULUM, deptInput: '컴퓨터공학부', completed: [], equiv: DUP_EQUIV });
+  const gen = t.groups.find((g) => g.role === 'gen-required');
+  assert.equal(gen.courses.length, 3);
+  assert.deepEqual(gen.courses.map((x) => x.code), ['L0001', 'REQ0022', 'REQ0020']);
+  assert.equal(t.requiredTotal, 3);
+  // 다른 동일과목 그룹의 동명 과목은 서로 다른 요건이므로 유지
+  assert.ok(gen.courses.some((x) => x.name.includes('읽기와 쓰기')));
+  assert.ok(gen.courses.some((x) => x.name.includes('발표와 토론')));
+});
+
+test('동일과목 스냅샷이 없으면 중복 열거도 코드가 다르면 별도 과목으로 둔다', () => {
+  const t = buildRequiredTrack({ curriculum: DUP_CURRICULUM, deptInput: '컴퓨터공학부', completed: [] });
+  const gen = t.groups.find((g) => g.role === 'gen-required');
+  assert.equal(gen.courses.length, 5);
+});
+
 test('선택필수교양은 필수 총계에서 제외한다', () => {
   const t = buildRequiredTrack({ curriculum: CURRICULUM, deptInput: '영어영문학부', completed: [] });
   const sel = t.groups.find((g) => g.role === 'gen-selective');
