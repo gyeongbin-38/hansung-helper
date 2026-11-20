@@ -196,7 +196,7 @@ export function GraduationWorkspace(props: Props) {
     </fieldset>
     {view === 'department' ? <>
       {!!data.info?.requirements?.length && <section className="card school-requirements" aria-labelledby="school-requirements-title">
-        <div className="school-section-heading"><span className="school-section-icon"><BookOpen size={20} aria-hidden="true" /></span><div><h3 id="school-requirements-title">학교 포털 졸업요건</h3><p>학교에서 수집한 원문입니다. 적용 트랙과 최신 기준을 확인하세요.</p></div><span className="badge">학교 원문</span></div>
+        <div className="school-section-heading"><span className="school-section-icon"><BookOpen size={20} aria-hidden="true" /></span><div><h3 id="school-requirements-title">학교 포털 졸업요건</h3><p>학교 수집 원문 — 적용 트랙·최신 기준을 확인하세요.</p></div><span className="badge">학교 원문</span></div>
         <SchoolRequirementTables tables={data.info.requirements} />
       </section>}
       <Graduation {...props} detail={undefined} admission={admission} onAdmissionChange={setAdmission} only="criteria" />
@@ -239,7 +239,7 @@ export function GraduationWorkspace(props: Props) {
         <div className="school-criteria-actions"><a className="secondary" href="https://rule.hansung.ac.kr/lmxsrv/law/lawFullContent.do?SEQ=104&amp;SEQ_HISTORY=1640" target="_blank" rel="noreferrer">졸업사정 기준 <ArrowUpRight size={15} aria-hidden="true" /></a><a className="link" href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noreferrer">비교과 포인트 확인 <ArrowUpRight size={14} aria-hidden="true" /></a><button className="link school-points-action" onClick={() => go('profile/points')}>확인한 포인트 입력 <ArrowRight size={14} aria-hidden="true" /></button></div>
       </section>}
       {view === 'completed' && !!data.info?.failedCourses?.length && <section className="card school-failed" aria-labelledby="school-failed-title">
-        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>재수강 여부와 졸업 적용을 학교 성적표에서 확인해 주세요. 학점에는 합산하지 않습니다.</p></div></div>
+        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>재수강·졸업 적용은 학교 성적표에서 확인해 주세요. 학점 미합산.</p></div></div>
         <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
       </section>}
       {(view === '' || view === 'requirements') && <>

@@ -6,7 +6,7 @@
 /* ---------- 졸업요건 ---------- */
 /* 졸업 인트로 — 노트 첫 페이지처럼 따뜻한 크림, 파스텔 라벤더 금지 */
 .card.pad.grad-intro {
-  background: var(--nt-tint-cream);
+  background: var(--nt-paper);
   border-color: transparent;
 }
 .pad.grad-intro > p {

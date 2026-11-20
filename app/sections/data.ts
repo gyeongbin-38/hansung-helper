@@ -4,7 +4,7 @@ import {
   LayoutGrid,
   Compass,
   CalendarDays,
-  Sparkles,
+  Bot,
   Layers,
   BookOpen,
   MonitorPlay,
@@ -25,7 +25,7 @@ export const menus = [
   ['activities', '비교과·대외활동', Compass],
   ['community', '커뮤니티', MessagesSquare],
   ['calendar', '학사일정', CalendarDays],
-  ['advisor', 'AI 학사 도우미', Sparkles],
+  ['advisor', 'AI 학사 도우미', Bot],
   ['survey', '설문조사', ClipboardList],
 ] as const;
 export type Completed = {

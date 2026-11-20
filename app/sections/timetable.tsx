@@ -18,7 +18,7 @@ import {
   GripVertical,
   Plus,
   Search,
-  Sparkles,
+
   Trash2,
   X,
 } from 'lucide-react';
@@ -1043,11 +1043,9 @@ export function Timetable({
               </div>
             ) : (
               <>
-                <h3>
-                  <Sparkles size={17} aria-hidden="true" /> 맞춤 추천
-                </h3>
+                <h3>맞춤 추천</h3>
                 <p className="meta">
-                  입력한 이수 내역·학과·선택한 요일·설문 선호와 확인된 시간의 충돌을 반영합니다. 전필의 개인 적용 여부와 미확인 시간은 학교에서 확인해 주세요.
+                  이수 내역·학과·설문 선호와 시간 충돌을 반영해 추천합니다. 전필 적용 여부·미확인 시간은 학교에서 확인해 주세요.
                   {data.prefs.some((p) =>
                     [
                       '이론',

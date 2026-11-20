@@ -550,8 +550,8 @@ select {
   width: 39px;
   height: 39px;
   border-radius: 50%;
-  background: var(--nt-tint-sky);
-  color: var(--nt-primary-deep);
+  background: var(--nt-tint-gray);
+  color: var(--nt-slate);
   font-weight: 600;
   flex-shrink: 0;
 }
