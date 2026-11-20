@@ -68,6 +68,7 @@ function NowRow({
   onPlan,
   notify,
   retake,
+  gain,
 }: {
   c: TrackCourse;
   sections: CourseSection[];
@@ -77,6 +78,8 @@ function NowRow({
   notify?: Props['notify'];
   /** 성적 갱신 재수강 — 이수 완료 과목도 담기 허용 */
   retake?: boolean;
+  /** A0 재수강 시 예상 평균평점 상승폭 추정 */
+  gain?: number;
 }) {
   const st = retake ? { text: '성적 개선', cls: '' } : STATUS_LABEL[c.status];
   return (
@@ -86,6 +89,7 @@ function NowRow({
         <small>
           {c.credits}학점
           {c.failed && <> · <em className="track-warn">{c.failed} 재수강</em></>}
+          {gain !== undefined && gain > 0 && <> · A0 시 평점 +{gain.toFixed(2)}</>}
           {c.offeredCode && <> · 동일과목 {c.offeredCode}(으)로 개설</>}
         </small>
       </div>
@@ -287,11 +291,14 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     : 0;
 
   // 성적 갱신 재수강 — 이수했지만 C+ 이하이고 이번 학기 개설된 과목
+  const enteredCredits = data.credits.trim() ? Number(data.credits) : undefined;
+  const totalCredits = data.info?.credits ?? (Number.isFinite(enteredCredits) ? enteredCredits : undefined);
   const retakes = findRetakeCandidates({
     completed,
     offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
     plannedCodes: new Set(planned.map((s) => s.code)),
     equiv,
+    totalCredits,
   });
 
   // 수강신청·정정 기간 — 분반 담기 행동과 직접 관련된 창구만 표시
@@ -394,6 +401,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
                     onPlan={onPlan}
                     notify={notify}
                     retake
+                    gain={r.gain}
                   />
                 ))}
               </ul>

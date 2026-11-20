@@ -358,8 +358,16 @@ export function GraduationWorkspace(props: Props) {
         {!!gradEvents.length && <section className="card graduation-deadlines" aria-labelledby="graduation-deadlines-title">
           <div className="graduation-section-heading"><h3 id="graduation-deadlines-title"><Clock3 size={19} />졸업 관련 학사일정</h3></div>
           <ul>{gradEvents.map((e) => {
-            const days = Math.ceil((Date.parse(`${e.start}T00:00:00+09:00`) - Date.parse(`${todayKst}T00:00:00+09:00`)) / 86400000);
-            return <li key={e.id}><div><b>{e.title}</b><small>{scheduleDateLabel(e)}</small></div><span className={`badge ${days <= 14 ? 'orange' : ''}`}>{days === 0 ? 'D-Day' : `D-${days}`}</span></li>;
+            const t0 = Date.parse(`${todayKst}T00:00:00+09:00`);
+            const start = Date.parse(`${e.start}T00:00:00+09:00`);
+            const end = Date.parse(`${e.end ?? e.start}T00:00:00+09:00`);
+            const days = Math.ceil((start - t0) / 86400000);
+            const left = Math.ceil((end - t0) / 86400000);
+            const label = days > 0
+              ? `D-${days}`
+              : left === 0 ? (e.end ? '오늘 마감' : 'D-Day')
+              : `진행 중 · 마감 D-${left}`;
+            return <li key={e.id}><div><b>{e.title}</b><small>{scheduleDateLabel(e)}</small></div><span className={`badge ${days <= 14 || left <= 3 ? 'orange' : ''}`}>{label}</span></li>;
           })}</ul>
         </section>}
       </>}

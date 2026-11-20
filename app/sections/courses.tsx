@@ -15,7 +15,7 @@ import {
 import { catGroup, deptMatches, planBlockReason, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { RetryButton, SkeletonCards, SkeletonDetail } from './skeleton';
 import { resolveDept } from '@/lib/data/dept';
-import { buildRequiredTrack, missingRequiredCodeSet, pickCurriculumSemester } from '@/lib/data/curriculum';
+import { buildRequiredTrack, missingRequiredCodeSet, missingRequiredSiblings, pickCurriculumSemester } from '@/lib/data/curriculum';
 import { mergeCompleted } from '@/lib/data/info';
 import { enrolledSectionIds } from '@/lib/data/lms';
 import { courseSuggestion } from '@/lib/data/course-suggestions';
@@ -71,9 +71,9 @@ export function Courses({
   const currSemester = pickCurriculumSemester(admitYear, currIndex);
   const { snap: curriculum } = useCurriculum(currSemester);
   const equiv = useEquivalents();
-  const requiredMissing = useMemo(() => {
+  const requiredTrack = useMemo(() => {
     if (!curriculum || !catalog) return null;
-    const track = buildRequiredTrack({
+    return buildRequiredTrack({
       curriculum,
       deptInput: data.info?.dept || data.dept,
       completed: mergeCompleted(data.completed, data.info?.completed),
@@ -81,12 +81,30 @@ export function Courses({
       equiv,
       failed: data.info?.failedCourses,
     });
-    return missingRequiredCodeSet({
-      track,
-      trackName: data.info?.track ?? data.info?.tracks?.[0],
-      equiv,
-    });
   }, [curriculum, catalog, equiv, data.info, data.completed, data.dept]);
+  const requiredMissing = useMemo(
+    () =>
+      requiredTrack
+        ? missingRequiredCodeSet({
+            track: requiredTrack,
+            trackName: data.info?.track ?? data.info?.tracks?.[0],
+            equiv,
+          })
+        : null,
+    [requiredTrack, equiv, data.info],
+  );
+  // 동일과목(폐지 과목 후속 코드) 매칭 시 왜 필수인지 설명
+  const requiredSiblings = useMemo(
+    () =>
+      requiredTrack
+        ? missingRequiredSiblings({
+            track: requiredTrack,
+            trackName: data.info?.track ?? data.info?.tracks?.[0],
+            equiv,
+          })
+        : null,
+    [requiredTrack, equiv, data.info],
+  );
   const filtered = useMemo(() => {
     if (!catalog) return [];
     const pool = myDeptRes.dept
@@ -213,7 +231,12 @@ export function Courses({
               </span>
             )}
             {requiredMissing?.has(s.code) && (
-              <span className="badge orange">졸업 필수</span>
+              <span
+                className="badge orange"
+                title={requiredSiblings?.get(s.code) ? `미이수 필수 '${requiredSiblings.get(s.code)}'의 동일과목` : undefined}
+              >
+                졸업 필수
+              </span>
             )}
             <span className="badge">{s.category}</span>
             {s.online && <span className="badge blue">온라인</span>}
@@ -427,7 +450,12 @@ export function Courses({
                     </span>
                   )}
                   {requiredMissing?.has(s.code) && (
-                    <span className="badge orange">졸업 필수</span>
+                    <span
+                      className="badge orange"
+                      title={requiredSiblings?.get(s.code) ? `미이수 필수 '${requiredSiblings.get(s.code)}'의 동일과목` : undefined}
+                    >
+                      졸업 필수
+                    </span>
                   )}
                   <span className="badge">{s.category}</span>
                   {s.online && <span className="badge blue">온라인</span>}

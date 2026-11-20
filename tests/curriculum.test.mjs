@@ -5,6 +5,7 @@ import {
   findRetakeCandidates,
   majorLabel,
   missingRequiredCodeSet,
+  missingRequiredSiblings,
   pickCurriculumSemester,
 } from '../lib/data/curriculum.ts';
 
@@ -240,4 +241,42 @@ test('missingRequiredCodeSet — 트랙 미지정·다른 트랙이면 트랙 �
   assert.ok(!none.has('K0010') && none.has('K0011') && none.has('L0001'));
   const other = missingRequiredCodeSet({ track: t, trackName: '빅데이터트랙' });
   assert.ok(!other.has('K0010'));
+});
+
+test('missingRequiredSiblings — 형제 코드만 원래 필수 과목명으로 매핑한다', () => {
+  const t = buildRequiredTrack({
+    curriculum: CURRICULUM,
+    deptInput: '컴퓨터공학부',
+    completed: [],
+    equiv: EQUIV,
+  });
+  const map = missingRequiredSiblings({ track: t, trackName: '모바일소프트웨어트랙', equiv: EQUIV });
+  assert.equal(map.get('K0099'), '모바일프로그래밍');
+  assert.ok(!map.has('K0010')); // 직접 코드는 넣지 않는다
+  assert.ok(!map.has('K0011')); // 동일과목 그룹 없는 코드도 없다
+});
+
+test('재수강 후보는 A0 갱신 시 평점 상승폭이 큰 순으로 정렬한다', () => {
+  const out = findRetakeCandidates({
+    completed: [
+      { code: 'L0001', name: '글쓰기', credits: 1, grade: 'D0' },   // (4.0-1.0)*1 = 3.0
+      { code: 'K0010', name: '모바일프로그래밍', credits: 3, grade: 'C+' }, // (4.0-2.5)*3 = 4.5
+    ],
+    offeredCodes: new Set(['L0001', 'K0010']),
+  });
+  assert.deepEqual(out.map((r) => r.code), ['K0010', 'L0001']); // 학점 가중 — D0라도 1학점이면 후순위
+});
+
+test('총 이수학점을 주면 후보별 예상 평점 상승폭을 계산한다', () => {
+  const out = findRetakeCandidates({
+    completed: [{ code: 'K0010', name: '모바일프로그래밍', credits: 3, grade: 'C+' }],
+    offeredCodes: new Set(['K0010']),
+    totalCredits: 100,
+  });
+  assert.ok(Math.abs(out[0].gain - 0.045) < 0.001); // 4.5 / 100
+  const noTotal = findRetakeCandidates({
+    completed: [{ code: 'K0010', name: '모바일프로그래밍', credits: 3, grade: 'C+' }],
+    offeredCodes: new Set(['K0010']),
+  });
+  assert.equal(noTotal[0].gain, undefined); // 총학점을 모르면 추정하지 않는다
 });
