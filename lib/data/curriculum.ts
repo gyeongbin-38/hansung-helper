@@ -429,7 +429,7 @@ function missingRequiredCourses(args: {
 const RETAKE_GRADES = ['D0', 'D+', 'C0', 'C+'] as const;
 
 /** 학교 4.5 만점 환산표 — 졸업 평점 기준(evaluateGpa)과 같은 체계 */
-const GRADE_POINTS: Record<string, number> = {
+export const GRADE_POINTS: Record<string, number> = {
   'A+': 4.5, 'A0': 4.0, 'B+': 3.5, 'B0': 3.0,
   'C+': 2.5, 'C0': 2.0, 'D+': 1.5, 'D0': 1.0, 'F': 0,
 };

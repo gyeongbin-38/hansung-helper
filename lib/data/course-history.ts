@@ -60,3 +60,39 @@ export function lastOfferedLabel(
   const gap = (cy - ly) * 2 + (Math.min(ct, 2) - Math.min(lt, 2));
   return gap >= 4 ? `${entry.last} 이후 미개설` : null;
 }
+
+const semSlot = (s: string) => {
+  const m = s.match(/^(20\d{2})-([1-4])$/);
+  return m ? Number(m[1]) * 4 + Number(m[2]) : null;
+};
+
+/**
+ * 개설 패턴과 어긋나게 담아둔 학기를 바로잡을 후보 학기.
+ * 현재 학기 이상이면서 패턴 학기와 일치하는 학기 중 담아둔 학기에
+ * 가장 가까운 학기(동일 거리면 이른 학기) — 같은 학년도를 우선 유지한다.
+ * 후보가 없으면 null.
+ */
+export function suggestOfferingSemester(
+  entry: CourseHistoryEntry | null | undefined,
+  wishedSemester: string | null | undefined,
+  currentSemester: string | null | undefined,
+): string | null {
+  if (!entry || !wishedSemester) return null;
+  const wIdx = semSlot(wishedSemester);
+  const cIdx = currentSemester ? semSlot(currentSemester) : null;
+  if (wIdx === null) return null;
+  const wYear = Number(wishedSemester.slice(0, 4));
+  const terms = entry.terms.split('').filter((t) => /[1-4]/.test(t));
+  let best: { sem: string; idx: number; d: number } | null = null;
+  for (let y = wYear - 1; y <= wYear + 2; y++) {
+    for (const t of terms) {
+      const sem = `${y}-${t}`;
+      const idx = semSlot(sem)!;
+      if (cIdx !== null && idx < cIdx) continue; // 과거 학기는 제안하지 않는다
+      if (idx === wIdx) continue;
+      const d = Math.abs(idx - wIdx);
+      if (!best || d < best.d || (d === best.d && idx < best.idx)) best = { sem, idx, d };
+    }
+  }
+  return best?.sem ?? null;
+}
