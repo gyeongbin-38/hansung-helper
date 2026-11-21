@@ -124,7 +124,7 @@ function NowRow({
   );
 }
 
-function Group({ g, currentSemester, selProgress, wishByCode }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, string> }) {
+function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, string>; mine?: boolean }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -155,7 +155,7 @@ function Group({ g, currentSemester, selProgress, wishByCode }: { g: TrackGroup;
     <section className="card track-group">
       <div className="track-group-head">
         <h3>{g.title}</h3>
-        {g.role === 'major-track' && <span className="badge">트랙</span>}
+        {g.role === 'major-track' && <span className={`badge${mine ? ' purple' : ''}`}>{mine ? '내 트랙' : '트랙'}</span>}
         <span className="track-group-count">{done}/{g.courses.length}</span>
       </div>
       {body}
@@ -203,7 +203,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
     offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
     equiv,
     history,
-    failed: data.info?.failedCourses,
+    failed: [...(data.failedCourses ?? []), ...(data.info?.failedCourses ?? [])],
   });
 
   // 미이수 필수 → 어느 학기에 담아뒀는지 지도 행에 표시 (동일과목 형제 코드도 인식)
@@ -254,13 +254,26 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
 
   // 남은 학기 로드맵 — 진짜 미이수만 미래 학기에 배치한다 (계획 중은 이번 학기 처리 중)
   // 트랙이 여럿인 학부는 학생의 트랙 과목만 배치한다 — 모든 트랙을 이수할 필요는 없기 때문
-  const myTrack = data.info?.track ?? data.info?.tracks?.[0];
+  // 소속 트랙 — 학교 수집(track/tracks 복수 가능) 우선, 없으면 수기 선택값
+  const myTracks = [...new Set(
+    data.info?.tracks?.length
+      ? data.info.tracks
+      : [data.info?.track ?? data.track].filter((v): v is string => !!v),
+  )];
+  const trackGroups = track.groups.filter((g) => g.role === 'major-track');
+  const trackNorm = (s: string) => s.replace(/[\s·-]/g, '');
+  const isMyTrack = (title: string) => {
+    const g = trackNorm(title);
+    // 트랙이 하나뿐인 학과는 선택 불필요 — 그 트랙으로 간주한다
+    if (!myTracks.length) return trackGroups.length === 1;
+    return myTracks.some((t) => {
+      const n = trackNorm(t);
+      return g.includes(n) || n.includes(g);
+    });
+  };
   const roadmapGroups = track.groups.filter((g) => {
     if (g.role !== 'major-track') return g.role !== 'gen-selective';
-    if (!myTrack) return false;
-    const t = myTrack.replace(/[\s·-]/g, '');
-    const title = g.title.replace(/[\s·-]/g, '');
-    return title.includes(t) || t.includes(title);
+    return isMyTrack(g.title);
   });
   const roadmapMissing = [...new Map(
     roadmapGroups
@@ -520,7 +533,30 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         </section>
       )}
 
-      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} wishByCode={wishByCode} />)}
+      {trackGroups.length > 1 && !myTracks.length && persist && (
+        <section className="card track-roadmap">
+          <div className="track-group-head">
+            <h3>트랙 선택</h3>
+            <span className="badge">수기 설정</span>
+          </div>
+          <p className="meta">트랙을 고르면 남은 학기 로드맵과 필수 진행도가 내 트랙 기준으로 정리돼요.</p>
+          <div className="roadmap-wishes">
+            {trackGroups.map((g) => (
+              <button
+                key={g.key}
+                className="track-chip"
+                onClick={() =>
+                  void persist({ ...data, track: g.title }, `${g.title} 트랙으로 저장했어요`)
+                }
+              >
+                {g.title}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} wishByCode={wishByCode} mine={isMyTrack(g.title)} />)}
 
       {!track.groups.length && (
         <section className="card track-empty">

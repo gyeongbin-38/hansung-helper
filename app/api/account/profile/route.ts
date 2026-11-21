@@ -27,6 +27,7 @@ export async function PUT(request: Request) {
       'points',
       'semester',
       'graduationTarget',
+      'track',
     ]) {
       if (
         input[key] !== undefined &&
@@ -338,6 +339,27 @@ export async function PUT(request: Request) {
           return json({ error: '학기별 담아둔 과목 형식을 확인해 주세요.' }, 400);
       }
       profile.semesterWishes = input.semesterWishes;
+    }
+    if (input.failedCourses !== undefined) {
+      if (
+        !Array.isArray(input.failedCourses) ||
+        input.failedCourses.length > 100 ||
+        input.failedCourses.some(
+          (v: { code?: unknown; name?: unknown; grade?: unknown }) =>
+            !v ||
+            typeof v !== 'object' ||
+            Array.isArray(v) ||
+            typeof v.code !== 'string' ||
+            !v.code.trim() ||
+            v.code.length > 30 ||
+            typeof v.name !== 'string' ||
+            !v.name.trim() ||
+            v.name.length > 100 ||
+            (v.grade !== undefined && (typeof v.grade !== 'string' || v.grade.length > 8)),
+        )
+      )
+        return json({ error: '낙제 과목 형식을 확인해 주세요.' }, 400);
+      profile.failedCourses = input.failedCourses;
     }
     if (input.lms !== undefined) {
       const lms = validateLms(input.lms);

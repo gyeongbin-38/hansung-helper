@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Check, Plus, Search, X } from 'lucide-react';
+import { ArrowUpRight, Check, CircleAlert, Plus, Search, X } from 'lucide-react';
 import { gradGroup, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import {
   evaluate,
@@ -120,7 +120,7 @@ export function Graduation({
   const admissionType = admission ?? data.admissionType ?? localAdmission;
   const setAdmissionType = onAdmissionChange ?? setLocalAdmission;
   const guide = verifiedDeptGuide(data.dept, Number(data.year));
-  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
+  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', failed: false });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
   const { snap: deptPages } = useDeptPages();
@@ -256,6 +256,19 @@ export function Graduation({
       )
       .slice(0, 8);
   }, [catalog, q, data.completed]);
+  // 낙제 과목 — 학교 수집 + 수기 병합(같은 과목은 수집 우선), 지도 '재수강 필요' 표시용
+  const failedRows: { code: string; name: string; grade?: string; semester?: string; src: 'info' | 'manual' }[] = useMemo(() => {
+    const seen = new Set<string>();
+    return [
+      ...(info?.failedCourses ?? []).map((c) => ({ ...c, src: 'info' as const })),
+      ...(data.failedCourses ?? []).map((c) => ({ ...c, src: 'manual' as const })),
+    ].filter((c) => {
+      const k = c.code + '|' + c.name;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [info?.failedCourses, data.failedCourses]);
 
   function addFromCatalog(s: CourseSection) {
     const entry: Completed = {
@@ -277,19 +290,38 @@ export function Graduation({
       return;
     // 같은 이름의 카탈로그 과목이 있으면 실제 코드로 연결해 추천/중복 가드와 연동
     const hit = catalog?.sections.find((s) => s.name === name);
-    const entry: Completed = hit
-      ? {
-          code: hit.code,
-          name: hit.name,
-          category: hit.category,
-          credits: hit.credits,
-        }
-      : { code: '수기-' + name, name, category: manual.category, credits };
+    if (manual.failed) {
+      void persist(
+        {
+          ...data,
+          failedCourses: [
+            ...(data.failedCourses ?? []),
+            { code: hit?.code ?? '수기-' + name, name: hit?.name ?? name, grade: 'F' },
+          ],
+        },
+        '낙제 과목을 저장했습니다.',
+      );
+    } else {
+      const entry: Completed = hit
+        ? {
+            code: hit.code,
+            name: hit.name,
+            category: hit.category,
+            credits: hit.credits,
+          }
+        : { code: '수기-' + name, name, category: manual.category, credits };
+      void persist(
+        { ...data, completed: [...data.completed, entry] },
+        '이수 과목을 저장했습니다.',
+      );
+    }
+    setManual({ name: '', category: '전선', credits: '3', failed: false });
+  }
+  function removeFailed(idx: number) {
     void persist(
-      { ...data, completed: [...data.completed, entry] },
-      '이수 과목을 저장했습니다.',
+      { ...data, failedCourses: (data.failedCourses ?? []).filter((_, i) => i !== idx) },
+      '낙제 과목에서 제외했습니다.',
     );
-    setManual({ name: '', category: '전선', credits: '3' });
   }
   function removeCompleted(idx: number) {
     void persist(
@@ -1266,6 +1298,14 @@ export function Graduation({
           >
             <Plus size={15} /> 추가
           </button>
+          <label className="meta manual-failed-check">
+            <input
+              type="checkbox"
+              checked={manual.failed}
+              onChange={(e) => setManual({ ...manual, failed: e.target.checked })}
+            />
+            낙제(F/U)로 추가
+          </label>
         </div>
         {merged.map((c, i) => (
           <div className="event-line" key={c.code + i}>
@@ -1296,6 +1336,40 @@ export function Graduation({
             )}
           </div>
         ))}
+        {failedRows.length > 0 && (
+          <>
+            <p className="meta grad-failed-note">낙제 과목 — 지도의 ‘재수강 필요’ 표시에 반영돼요.</p>
+            {failedRows.map((c) => (
+              <div className="event-line" key={'F' + c.code + c.name}>
+                <CircleAlert />
+                <div>
+                  <b>{c.name}</b>
+                  <small>
+                    {c.grade || 'F'}
+                    {c.semester ? ` · ${c.semester}` : ''}
+                    {c.src === 'info' ? ' · 학교 수집' : ''}
+                  </small>
+                </div>
+                {c.src === 'info' ? (
+                  <span className="badge">수집</span>
+                ) : (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      const idx = (data.failedCourses ?? []).findIndex(
+                        (x) => x.code === c.code && x.name === c.name,
+                      );
+                      if (idx >= 0) removeFailed(idx);
+                    }}
+                    aria-label={c.name + ' 낙제 목록에서 제거'}
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </>
+        )}
         {!merged.length && (
           <p className="empty-small">
             {infoPending
