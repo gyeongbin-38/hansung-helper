@@ -35,7 +35,7 @@ export function SemesterPlan({
   const isCurrent = !!catalog && !!semester && catalog.semester === semester;
   const wishCredits = wishes.reduce((n, w) => n + w.credits, 0);
   // 개설 이력 — 미래 학기에 담아둔 과목이 실제 그 학기에 열리는지 패턴으로 힌트
-  const history = useCourseHistory();
+  const history = useCourseHistory(wishes.length > 0);
   const equiv = useEquivalents();
   const { siblingCodes } = equivCodeIndex(equiv);
   const wishHint = (code: string) => {
