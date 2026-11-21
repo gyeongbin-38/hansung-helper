@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, type ComponentProps } from 'react';
+import { Fragment, useMemo, useState, type ComponentProps } from 'react';
 import {
   ArrowRight, ArrowUpRight, BookOpen, Check, CircleAlert, ClipboardCheck, Clock3,
   Database, Flag, GraduationCap, Info, Layers, Plus, Search, X,
@@ -177,6 +177,18 @@ export function GraduationWorkspace(props: Props) {
   const visible = completed.filter(c => (source === 'all' || c.src === source) &&
     (category === 'all' || (category === 'gen' ? gradGroup(c.category) === '교양' : gradGroup(c.category).startsWith('전공'))))
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name, 'ko') : (b.semester ?? '').localeCompare(a.semester ?? ''));
+  // 학기별 그룹 헤더 — '최근 학기' 정렬에서 학기 흐름과 학기당 학점을 보여준다
+  const semTotals = useMemo(() => {
+    if (sort !== 'recent') return null;
+    const m = new Map<string, { n: number; credits: number }>();
+    for (const c of visible) {
+      if (!c.semester) continue;
+      const t = m.get(c.semester) ?? { n: 0, credits: 0 };
+      t.n += 1; t.credits += c.credits;
+      m.set(c.semester, t);
+    }
+    return m.size ? m : null;
+  }, [visible, sort]);
 
   async function saveCourse(course: { code: string; name: string; category: string; credits: number; grade?: string; semester?: string }) {
     if (busy) return;
@@ -199,7 +211,7 @@ export function GraduationWorkspace(props: Props) {
     if (FAILED_GRADES.includes(manual.grade)) {
       setBusy(true); setError('');
       const saved = await persist(
-        { ...data, failedCourses: [...(data.failedCourses ?? []), { code: hit?.code ?? `수기-${name}`, name: hit?.name ?? name, grade: manual.grade }] },
+        { ...data, failedCourses: [...(data.failedCourses ?? []), { code: hit?.code ?? `수기-${name}`, name: hit?.name ?? name, grade: manual.grade, ...(manual.semester ? { semester: manual.semester } : {}) }] },
         '낙제 과목을 저장했습니다.',
       );
       setBusy(false);
@@ -434,7 +446,16 @@ export function GraduationWorkspace(props: Props) {
         </section>
         <div className="graduation-course-filters"><fieldset aria-label="이수 과목 출처">{[['all', '전체'], ['info', '학교 수집'], ['manual', '직접 입력']].map(([id, label]) => <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}</button>)}</fieldset><fieldset aria-label="이수 과목 영역">{[['all', '모든 영역'], ['gen', '교양'], ['major', '전공']].map(([id, label]) => <button key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>{label}</button>)}</fieldset><select aria-label="이수 과목 정렬" value={sort} onChange={e => setSort(e.target.value)}><option value="recent">최근 학기</option><option value="name">과목명순</option></select></div>
         <section className="card graduation-course-summary"><h3><GraduationCap size={23} />총 {earned === null ? '이수학점 미입력' : `${earned}학점 반영`}</h3><span>교양 <b>{general.earned}학점</b></span><span>전공 <b>{major.earned}학점</b></span>{sourceDate && <span><Clock3 size={15} />최근 동기화 <b>{sourceDate}</b></span>}</section>
-        <section className="card graduation-course-list" aria-label="이수 과목 목록">{visible.map((c, i) => <div className="graduation-course-row" key={`${c.src}-${c.code}-${i}`}><span className="graduation-round-icon"><Check size={18} /></span><div><b>{c.name}</b><small>이수 구분 · {c.src === 'info' ? '학교 수집' : '직접 입력'} · {c.credits}학점 · {c.category}{c.grade ? ` · ${c.grade}` : ''}{c.area ? ` · ${c.area}` : ''}{c.semester ? ` · ${c.semester}` : ''}</small></div><span className={`badge ${gradGroup(c.category) === '교양' ? 'blue' : 'green'}`}>{c.category}</span><span className="graduation-source"><Database size={13} />{c.src === 'info' ? '학교 수집' : '직접 입력'}</span>{c.src === 'manual' && <button className="icon" aria-label={`${c.name} 이수 목록에서 제거`} disabled={busy} onClick={() => void removeCourse(c.code, c.name)}><X size={15} /></button>}</div>)}{!visible.length && <div className="empty-small">{infoPending ? '학교에서 이수 내역을 불러오는 중입니다…' : completed.length ? '선택한 조건에 맞는 이수 과목이 없습니다.' : '아직 입력한 이수 과목이 없어요.'}</div>}</section>
+        <section className="card graduation-course-list" aria-label="이수 과목 목록">{(() => {
+          let lastSem: string | undefined;
+          return visible.map((c, i) => {
+            const semHead = semTotals && c.semester && c.semester !== lastSem
+              ? <div className="graduation-sem-head"><b>{formatSemesterLabel(c.semester)}</b><small>{semTotals.get(c.semester)!.n}과목 · {semTotals.get(c.semester)!.credits}학점</small></div>
+              : null;
+            lastSem = c.semester ?? lastSem;
+            return <Fragment key={`${c.src}-${c.code}-${i}`}>{semHead}<div className="graduation-course-row"><span className="graduation-round-icon"><Check size={18} /></span><div><b>{c.name}</b><small>이수 구분 · {c.src === 'info' ? '학교 수집' : '직접 입력'} · {c.credits}학점 · {c.category}{c.grade ? ` · ${c.grade}` : ''}{c.area ? ` · ${c.area}` : ''}{c.semester ? ` · ${c.semester}` : ''}</small></div><span className={`badge ${gradGroup(c.category) === '교양' ? 'blue' : 'green'}`}>{c.category}</span><span className="graduation-source"><Database size={13} />{c.src === 'info' ? '학교 수집' : '직접 입력'}</span>{c.src === 'manual' && <button className="icon" aria-label={`${c.name} 이수 목록에서 제거`} disabled={busy} onClick={() => void removeCourse(c.code, c.name)}><X size={15} /></button>}</div></Fragment>;
+          });
+        })()}{!visible.length && <div className="empty-small">{infoPending ? '학교에서 이수 내역을 불러오는 중입니다…' : completed.length ? '선택한 조건에 맞는 이수 과목이 없습니다.' : '아직 입력한 이수 과목이 없어요.'}</div>}</section>
         {infoFailed && <p className="meta conn-warn">최근 학교 수집에 실패했습니다. 보관된 내역을 확인하거나 직접 입력할 수 있습니다.</p>}
       </>}
       {error && <p className="form-error" role="alert">{error}</p>}

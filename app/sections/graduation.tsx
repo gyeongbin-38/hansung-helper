@@ -297,7 +297,7 @@ export function Graduation({
           ...data,
           failedCourses: [
             ...(data.failedCourses ?? []),
-            { code: hit?.code ?? '수기-' + name, name: hit?.name ?? name, grade: manual.grade },
+            { code: hit?.code ?? '수기-' + name, name: hit?.name ?? name, grade: manual.grade, ...(manual.semester ? { semester: manual.semester } : {}) },
           ],
         },
         '낙제 과목을 저장했습니다.',
