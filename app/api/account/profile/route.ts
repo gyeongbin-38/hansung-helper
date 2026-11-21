@@ -68,6 +68,7 @@ export async function PUT(request: Request) {
           name?: unknown;
           category?: unknown;
           credits?: unknown;
+          grade?: unknown;
         }) =>
           !v ||
           typeof v.code !== 'string' ||
@@ -79,7 +80,8 @@ export async function PUT(request: Request) {
           typeof v.credits !== 'number' ||
           !Number.isInteger(v.credits) ||
           v.credits < 0 ||
-          v.credits > 20,
+          v.credits > 20 ||
+          (v.grade !== undefined && (typeof v.grade !== 'string' || v.grade.length > 8)),
       )
     )
       return json({ error: '이수 과목 형식을 확인해 주세요.' }, 400);
@@ -89,11 +91,13 @@ export async function PUT(request: Request) {
         name: string;
         category: string;
         credits: number;
+        grade?: string;
       }) => ({
         code: v.code,
         name: v.name,
         category: v.category,
         credits: v.credits,
+        grade: v.grade,
       }),
     );
     // 잘못된 선택 필드를 기본값으로 바꾸면 기존 설정이 조용히 지워질 수 있다.

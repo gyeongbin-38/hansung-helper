@@ -325,7 +325,17 @@ export function useRequiredMissing(data: Data, catalog: Catalog | null) {
       equiv,
       failed: [...(data.failedCourses ?? []), ...(data.info?.failedCourses ?? [])],
     });
-    const trackName = data.info?.track ?? data.info?.tracks?.[0] ?? data.track;
+    // 소속 학과 입력이 곧 트랙명인 경우도 인정 — 지도와 같은 추론 규칙
+    const deptInput = data.info?.dept || data.dept;
+    const norm = (s: string) => s.replace(/[\s·-]/g, '');
+    const deptAsTrack = track.groups.find((g) => {
+      if (g.role !== 'major-track') return false;
+      const t = norm(g.title);
+      const d = norm(deptInput);
+      return !!d && (t.includes(d) || d.includes(t));
+    })?.title;
+    const trackName =
+      data.info?.track ?? data.info?.tracks?.[0] ?? data.track ?? deptAsTrack;
     return {
       missing: missingRequiredCodeSet({ track, trackName, equiv }),
       // 동일과목(폐지 과목 후속 코드) 매칭 시 왜 필수인지 설명

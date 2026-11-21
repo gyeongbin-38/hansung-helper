@@ -24,6 +24,7 @@ import { targetProgress } from '@/lib/data/visual-progress';
 import { deptPoolOf, useDeptPages, useDeptRules, useNow } from './catalog';
 import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
+import { FAILED_GRADES, MANUAL_GRADES } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
 
@@ -120,7 +121,7 @@ export function Graduation({
   const admissionType = admission ?? data.admissionType ?? localAdmission;
   const setAdmissionType = onAdmissionChange ?? setLocalAdmission;
   const guide = verifiedDeptGuide(data.dept, Number(data.year));
-  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', failed: false });
+  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', grade: '' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
   const { snap: deptPages } = useDeptPages();
@@ -290,13 +291,13 @@ export function Graduation({
       return;
     // 같은 이름의 카탈로그 과목이 있으면 실제 코드로 연결해 추천/중복 가드와 연동
     const hit = catalog?.sections.find((s) => s.name === name);
-    if (manual.failed) {
+    if (FAILED_GRADES.includes(manual.grade)) {
       void persist(
         {
           ...data,
           failedCourses: [
             ...(data.failedCourses ?? []),
-            { code: hit?.code ?? '수기-' + name, name: hit?.name ?? name, grade: 'F' },
+            { code: hit?.code ?? '수기-' + name, name: hit?.name ?? name, grade: manual.grade },
           ],
         },
         '낙제 과목을 저장했습니다.',
@@ -310,12 +311,13 @@ export function Graduation({
             credits: hit.credits,
           }
         : { code: '수기-' + name, name, category: manual.category, credits };
+      if (manual.grade) entry.grade = manual.grade;
       void persist(
         { ...data, completed: [...data.completed, entry] },
         '이수 과목을 저장했습니다.',
       );
     }
-    setManual({ name: '', category: '전선', credits: '3', failed: false });
+    setManual({ name: '', category: '전선', credits: '3', grade: '' });
   }
   function removeFailed(idx: number) {
     void persist(
@@ -1291,6 +1293,18 @@ export function Graduation({
             value={manual.credits}
             onChange={(e) => setManual({ ...manual, credits: e.target.value })}
           />
+          <select
+            aria-label="성적 (선택)"
+            value={manual.grade}
+            onChange={(e) => setManual({ ...manual, grade: e.target.value })}
+          >
+            <option value="">성적 미입력</option>
+            {MANUAL_GRADES.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
           <button
             className="secondary"
             onClick={addManual}
@@ -1298,14 +1312,6 @@ export function Graduation({
           >
             <Plus size={15} /> 추가
           </button>
-          <label className="meta manual-failed-check">
-            <input
-              type="checkbox"
-              checked={manual.failed}
-              onChange={(e) => setManual({ ...manual, failed: e.target.checked })}
-            />
-            낙제(F/U)로 추가
-          </label>
         </div>
         {merged.map((c, i) => (
           <div className="event-line" key={c.code + i}>
@@ -1314,6 +1320,7 @@ export function Graduation({
               <b>{c.name}</b>
               <small>
                 {c.category} · {c.credits}학점 · {gradGroup(c.category)}
+                {c.grade ? ` · ${c.grade}` : ''}
                 {c.semester ? ` · ${c.semester}` : ''}
                 {c.src === 'info' ? ' · 학교 수집' : ''}
               </small>
