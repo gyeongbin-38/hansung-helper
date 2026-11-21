@@ -1,12 +1,15 @@
 'use client';
 import { useState, useSyncExternalStore } from 'react';
 import { Share, X } from 'lucide-react';
+import { isNativeApp } from '@/lib/native';
 
 const DISMISS_KEY = 'hs-install-dismissed';
 const noop = () => () => {};
 
 function eligible(): boolean {
   try {
+    // 네이티브 래퍼 안에서는 설치 안내가 무의미하다
+    if (isNativeApp()) return false;
     const ua = navigator.userAgent;
     const ios =
       /iP(hone|ad|od)/.test(ua) ||

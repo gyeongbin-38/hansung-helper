@@ -64,19 +64,38 @@
 **Bubblewrap은 Capacitor 도입 전 Android만 먼저 낼 때의 선택지** — iOS
 계획이 없다면 가장 저렴한 스토어 경로.
 
-## Capacitor 도입 시 순서 (준비 단계)
+## Capacitor 구현 현황 (착수 완료)
 
-1. `npx @capacitor/cli init` — `dist` 빌드 산출물을 `webDir`로 지정,
-   `capacitor.config.ts`에 프로덕션 URL 또는 번들 정적 서빙 결정
-   (원격 URL 로딩이면 Workers 배포로 웹 갱신이 즉시 반영되지만,
-   오프라인 초기 화면과 심사의 '웹사이트 래핑' 인상 완화엔 번들 서빙이 유리)
-2. `@capacitor/push-notifications` — APNs 등록 → 기존
-   `push_subscriptions` 스키마에 네이티브 토큰 타입 추가 → `push-worker`
-   발송 경로 분기 (웹 푸시 endpoint vs FCM/APNs 토큰)
-3. 심사 자료: `/privacy`(이미), 계정 삭제 경로(이미), UGC 모더레이션
-   절차(`docs/moderation.md`), 데모 계정 또는 체험 모드 진입 경로 제공
-   — 심사자가 계정 없이 진입 가능해야 함
-4. 실기기 확인 필요: iOS 푸시 수신, 딥링크/뒤로가기, 오프라인 첫 화면,
+방향은 분석대로 **Capacitor + 원격 URL 로딩**으로 확정했다. 앱 전체가
+Worker에 의존하므로 정적 번들 서빙은 불가 — `capacitor.config.ts`의
+`server.url`이 프로덕션을 가리키고, `webDir`(`native-web/`)은 연결 실패
+시 보이는 최소 셸만 담는다.
+
+구현된 것:
+- `ios/`, `android/` 네이티브 프로젝트 (appId `dev.gyeongbin38.hansunghelper`,
+  표시명 학사부기) — iOS `App.entitlements`(aps-environment=development)
+  와 Android `POST_NOTIFICATIONS` 권한까지 세팅됨
+- 네이티브 푸시 파이프라인: `POST /api/push/native`(토큰 등록, DELETE 해제)
+  → `native_push_tokens` 테이블(0009) → `dispatchLmsReminders`가 웹·네이티브
+  양 채널로 발송. 클라이언트는 토글 ON 시 APNs/FCM 토큰을 등록하고 알림 탭
+  시 `data.link` 해시 라우트로 이동
+- 발송 모듈 `lib/server/native-push.ts` — APNs ES256 JWT + FCM v1
+  (서비스 계정 OAuth). 비밀값 미설정 채널만 조용히 꺼진다
+- 웹 UX 분기: 네이티브 안에서 설치 힌트 억제, 알림 토글은 플러그인 권한 경로
+
+실기기/계정이 필요한 남은 단계:
+1. **Apple 개발자 계정**($99/년) → Xcode에서 Signing 팀 지정 + mac에서
+   `npx cap open ios`로 빌드. APNs 키(.p8) 발급 후 Worker 비밀값 설정:
+   `APNS_KEY_ID`·`APNS_TEAM_ID`·`APNS_KEY`(.p8 내용)·`APNS_TOPIC`(기본
+   번들 ID)·`APNS_SANDBOX=1`(개발 빌드 시) — 메인 워커와 `push-worker`
+   양쪽에 같은 값
+2. **Firebase 프로젝트** → `google-services.json`을 `android/app/`에 배치
+   (gitignore 처리됨 — 커밋 금지) + 서비스 계정 JSON을 `FCM_SERVICE_ACCOUNT`
+   비밀값으로 설정(양 워커)
+3. Android Studio에서 빌드 또는 `npx cap open android`
+4. 심사 자료: `/privacy`(이미), 계정 삭제 경로(이미), UGC 모더레이션
+   절차(`docs/moderation.md`), 체험 모드 진입 경로(아래)
+5. 실기기 확인 필요: iOS 푸시 수신, 딥링크/뒤로가기, 오프라인 첫 화면,
    결제 없음 명시(앱 내 구매 미사용 — 심사 간소화)
 
 ## 심사자 진입 경로 (App Review 준비)

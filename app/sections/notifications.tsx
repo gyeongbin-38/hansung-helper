@@ -20,7 +20,9 @@ import {
   dropPushSubscription,
   ensurePushSubscription,
   pushSupported,
+  requestNotifPermission,
 } from '@/lib/push-client';
+import { isNativeApp } from '@/lib/native';
 
 export function Notifications({
   account,
@@ -112,8 +114,7 @@ export function Notifications({
             );
             return;
           }
-          const perm = await Notification.requestPermission();
-          if (perm !== 'granted') return;
+          if (!(await requestNotifPermission())) return;
           // 로그인 상태면 이 기기의 푸시 구독도 함께 등록한다 — 실패해도
           // 앱 내 알림은 그대로 동작한다.
           const pushed = account ? await ensurePushSubscription() : null;
@@ -138,8 +139,12 @@ function DeadlineNotifSetting({
   enabled: boolean;
   onChange: (on: boolean) => Promise<void>;
 }) {
-  const supported = typeof Notification !== 'undefined';
-  const denied = supported && Notification.permission === 'denied';
+  const native = isNativeApp();
+  const supported = native || typeof Notification !== 'undefined';
+  const denied =
+    !native &&
+    typeof Notification !== 'undefined' &&
+    Notification.permission === 'denied';
   const [pushed, setPushed] = useState<string | null>(null);
   useEffect(() => {
     if (!enabled || !pushSupported()) return;
@@ -149,7 +154,7 @@ function DeadlineNotifSetting({
     <div className="notif-native">
       <div className="between">
         <div>
-          <b>마감 브라우저 알림</b>
+          <b>{native ? '마감 푸시 알림' : '마감 브라우저 알림'}</b>
           <p className="notif-sub">
             수업·저장한 비교과 마감 24시간 전과 활동 수료·포인트 확인 알림을 표시합니다.
           </p>
@@ -168,7 +173,7 @@ function DeadlineNotifSetting({
         {!supported
           ? '이 브라우저는 알림을 지원하지 않습니다.'
           : denied
-            ? '브라우저에서 알림이 차단되어 있습니다. 주소창 왼쪽 아이콘에서 허용으로 바꿀 수 있습니다.'
+            ? '알림이 차단되어 있습니다. 주소창 왼쪽 아이콘(브라우저) 또는 기기 설정에서 허용으로 바꿀 수 있습니다.'
             : pushed
               ? '이 기기는 푸시가 연결되어 앱이 닫혀 있어도 수업 마감 알림이 옵니다.'
               : pushSupported()

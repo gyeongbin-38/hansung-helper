@@ -1,22 +1,44 @@
 import { apiFetch, apiData, ApiRequestError } from './data/api.ts';
+import {
+  currentNativeToken,
+  dropNativePush,
+  ensureNativePush,
+  initNativePush,
+  isNativeApp,
+  requestNativePermission,
+} from './native.ts';
 
-/** 백그라운드 푸시 지원 여부 — 서비스워커·PushManager·알림 권한 흐름이 모두 있어야 한다. */
+/** 백그라운드 푸시 지원 여부 — 네이티브 앱이면 APNs/FCM 경로가 있고,
+ *  웹은 서비스워커·PushManager·알림 권한 흐름이 모두 있어야 한다. */
 export function pushSupported(): boolean {
   return (
-    typeof navigator !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    typeof window !== 'undefined' &&
-    'PushManager' in window
+    isNativeApp() ||
+    (typeof navigator !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      typeof window !== 'undefined' &&
+      'PushManager' in window)
   );
 }
 
 export type PushStatus = 'unsupported' | 'off' | 'active' | 'no-server';
 
+/** 알림 권한 요청 — 웹은 Notification API, 네이티브는 플러그인 경로. */
+export async function requestNotifPermission(): Promise<boolean> {
+  if (isNativeApp()) return requestNativePermission();
+  if (typeof Notification === 'undefined') return false;
+  return (await Notification.requestPermission()) === 'granted';
+}
+
 let swRegistration: ServiceWorkerRegistration | undefined;
 
 /** 앱 시작 시 무조건 호출 — 푸시 구독과 무관하게 SW를 등록해
- *  오프라인 캐시(fetch 핸들러)를 모든 사용자에게 활성화한다. */
+ *  오프라인 캐시(fetch 핸들러)를 모든 사용자에게 활성화한다.
+ *  네이티브 앱은 SW 대신 푸시 리스너를 설치한다. */
 export function ensureSwRegistered() {
+  if (isNativeApp()) {
+    initNativePush();
+    return;
+  }
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   void registration().catch(() => {});
 }
@@ -46,8 +68,10 @@ function b64ToU8(value: string): Uint8Array {
   return out;
 }
 
-/** 이 기기의 구독 상태 — 브라우저에 유효한 구독이 있으면 endpoint를 돌려준다. */
+/** 이 기기의 구독 상태 — 브라우저에 유효한 구독이 있으면 endpoint,
+ *  네이티브 앱이면 등록된 토큰을 돌려준다. */
 export async function currentPushEndpoint(): Promise<string | null> {
+  if (isNativeApp()) return currentNativeToken();
   if (!pushSupported()) return null;
   try {
     const reg = await registration();
@@ -59,8 +83,10 @@ export async function currentPushEndpoint(): Promise<string | null> {
 }
 
 /** 구독 생성 + 서버 등록. 알림 권한이 없으면 null — 호출 전에
- *  Notification.requestPermission()으로 권한을 얻어 둘 것. */
+ *  권한(Notification.requestPermission / 네이티브 requestPermissions)을
+ *  얻어 둘 것. 네이티브 앱이면 APNs/FCM 경로로 위임한다. */
 export async function ensurePushSubscription(): Promise<string | null> {
+  if (isNativeApp()) return ensureNativePush();
   if (!pushSupported()) return null;
   const key = await vapidKey();
   if (!key) return null;
@@ -85,8 +111,12 @@ export async function ensurePushSubscription(): Promise<string | null> {
   }
 }
 
-/** 이 기기의 구독을 브라우저와 서버 양쪽에서 해제한다. */
+/** 이 기기의 구독을 브라우저/네이티브와 서버 양쪽에서 해제한다. */
 export async function dropPushSubscription(): Promise<void> {
+  if (isNativeApp()) {
+    await dropNativePush();
+    return;
+  }
   if (!pushSupported()) return;
   try {
     const reg = await registration();

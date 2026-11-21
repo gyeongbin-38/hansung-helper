@@ -59,3 +59,22 @@ lms-data.json
 
 # agent-local skill links (junctions to external drive, not portable)
 /.devin/skills/
+
+# Capacitor 네이티브 빌드 산출물 — cap copy/sync와 IDE 빌드가 재생성한다
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/local.properties
+/android/app/release/
+/android/app/src/main/assets/public/
+/android/capacitor-cordova-android-plugins/build/
+/android/app/src/main/assets/capacitor.config.json
+/ios/App/App/public/
+/ios/App/CapApp-SPM/.build/
+/ios/App/Pods/
+/ios/DerivedData/
+# Firebase/APNs 자격 파일 — 계정 발급물이며 저장소에 두지 않는다
+/android/app/google-services.json
+*.keystore
+*.jks
+key.properties
