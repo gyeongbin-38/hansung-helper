@@ -62,7 +62,7 @@
 - **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
   (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)
-- **커뮤니티 모더레이션**: `GET /api/community/moderation`(신고 집계)·`POST`(hide/restore)는 `MODERATION_KEY` Worker 비밀값이 있을 때만 열리고 `x-moderation-key` 헤더로 인증한다(쿠키 미사용, 16자 이상). 미설정 시 503으로 꺼져 있다.
+- **커뮤니티 모더레이션**: `GET /api/community/moderation`(신고 집계)·`POST`(hide/restore)는 `MODERATION_KEY` Worker 비밀값이 있을 때만 열리고 `x-moderation-key` 헤더로 인증한다(쿠키 미사용, 16자 이상). 미설정 시 503으로 꺼져 있다. 운영 절차: `docs/moderation.md`
 - **방문자 분석**: `POST /api/analytics`에 섹션 전환마다 1핑(`lib/analytics.ts`). 방문자는 IP+UA+날짜의 HMAC이라 원본 IP를 저장하지 않고 매일 순환된다. `GET /api/analytics`가 최근 30일 일별 방문자·조회·섹션별 조회수 집계를 돌려준다.
 - `/api/health`는 계정 HMAC 키와 계정 DB 테이블 준비 상태도 확인한다. 키 누락·DB 접근 실패 시 503이며, 공개 데이터 API의 200 또는 비로그인 `/api/account`의 401만으로 로그인 정상 여부를 판단하지 않는다.
 - `_deploy.py`는 기존 Worker의 `ACCOUNT_INDEX_HMAC_KEY` 이름을 확인한 뒤 배포한다. 기존 키를 교체하지 않는다. `_sync.py`는 Git에서 추적하는 `_` 접두사 운영 스크립트도 명시적으로 동기화한다.

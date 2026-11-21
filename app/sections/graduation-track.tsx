@@ -2,7 +2,7 @@
 import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
 import { buildRequiredTrack, equivCodeIndex, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
-import { lastOfferedLabel, offeringLabelFromTerms, suggestOfferingSemester } from '@/lib/data/course-history';
+import { findHistoryEntry, lastOfferedLabel, offeringLabelFromTerms, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
 import { earliestRoadmapSemester, nextRegularSemesters, planRoadmap, semesterCalendarIndex } from '@/lib/data/roadmap';
@@ -220,9 +220,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
       const label = formatSemesterLabel(sem);
       const term = sem.slice(-1);
       for (const w of ws) {
-        const entry = [w.code, ...siblingCodes(w.code)]
-          .map((c) => history?.courses[c])
-          .find(Boolean);
+        const entry = findHistoryEntry(history, w, siblingCodes);
         // 담아둔 학기가 현재 학기면 실제 개설 분반이 이력보다 우선 — 경고 억제
         const warn = entry && sem !== catalog?.semester && !entry.terms.includes(term)
           ? `보통 ${offeringLabelFromTerms(entry.terms)}`

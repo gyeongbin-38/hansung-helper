@@ -4,7 +4,7 @@ import { BookOpen, Bookmark, Plus } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { equivCodeIndex, pickCourseCandidate, pickCurriculumSemester } from '@/lib/data/curriculum';
-import { lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
+import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
 import { formatSemesterLabel } from '@/lib/data/graduation';
 import type { Data } from './data';
 
@@ -56,10 +56,8 @@ export function SemesterPlan({
   }, [catalog, curriculum]);
   const equiv = useEquivalents();
   const { siblingCodes } = equivCodeIndex(equiv);
-  const wishHint = (code: string) => {
-    const entry = [code, ...siblingCodes(code)]
-      .map((c) => history?.courses[c])
-      .find(Boolean);
+  const wishHint = (w: { code: string; name: string }) => {
+    const entry = findHistoryEntry(history, w, siblingCodes);
     // 담아둔 학기가 개설 패턴과 어긋나면 경고 — '1학기 개설' 과목을 2학기에 두면 못 듣는다
     const term = semester?.slice(-1);
     const mismatch = !!entry && !!term && !entry.terms.includes(term);
@@ -173,7 +171,7 @@ export function SemesterPlan({
           </div>
           {wishes.map((w) => {
             const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
-            const hint = wishHint(w.code);
+            const hint = wishHint(w);
             const moveTarget = hint.mismatch && !secs.length
               ? suggestOfferingSemester(hint.entry, semester, catalog?.semester)
               : null;
