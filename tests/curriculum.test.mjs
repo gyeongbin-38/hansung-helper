@@ -8,6 +8,7 @@ import {
   missingRequiredSiblings,
   pickCourseCandidate,
   pickCurriculumSemester,
+  resolveWantedMajorNames,
 } from '../lib/data/curriculum.ts';
 
 const INDEX = {
@@ -341,4 +342,22 @@ test('자유 담기 후보 선택 — 정확 일치 우선, 부분 일치는 1�
   // 없음·빈 입력 → undefined
   assert.equal(pickCourseCandidate(CANDS, '없는과목'), undefined);
   assert.equal(pickCourseCandidate(CANDS, '  '), undefined);
+});
+
+test('resolveWantedMajorNames — 학부 패밀리와 모호 입력을 buildRequiredTrack과 같은 규칙으로 해석한다', () => {
+  const NAMES = ['컴퓨터공학부', 'IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙', '영어영문학부'];
+  // 패밀리 키 직접 입력 → 키 + 형제 전공 전부 wanted, 형제만 family
+  const fam = resolveWantedMajorNames('컴퓨터공학부', NAMES);
+  assert.deepEqual([...fam.wanted].sort(), ['IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙', '컴퓨터공학부']);
+  assert.deepEqual([...fam.family].sort(), ['IT응용시스템공학과', '모바일소프트웨어트랙', '빅데이터트랙']);
+  // 트랙 직접 입력 → 트랙 + 소속 패밀리 전체
+  const track = resolveWantedMajorNames('모바일소프트웨어트랙', NAMES);
+  assert.ok(track.wanted.has('모바일소프트웨어트랙'));
+  assert.ok(track.wanted.has('컴퓨터공학부'));
+  // 무관 학과 → 본인만
+  const other = resolveWantedMajorNames('영어영문학부', NAMES);
+  assert.deepEqual([...other.wanted], ['영어영문학부']);
+  assert.equal(other.family.size, 0);
+  // 빈 입력 → 빈 집합
+  assert.equal(resolveWantedMajorNames('', NAMES).wanted.size, 0);
 });

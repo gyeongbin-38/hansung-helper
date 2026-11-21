@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { BookOpen, Bookmark, Plus } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
-import { equivCodeIndex, pickCourseCandidate, pickCurriculumSemester } from '@/lib/data/curriculum';
+import { equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
 import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
 import { formatSemesterLabel } from '@/lib/data/graduation';
 import type { Data } from './data';
@@ -45,15 +45,26 @@ export function SemesterPlan({
   const { snap: currIndex } = useCurriculumIndex();
   const admitYear = data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
   const { snap: curriculum } = useCurriculum(addOpen ? pickCurriculumSemester(admitYear, currIndex) : null);
+  const deptInput = data.info?.dept ?? data.dept;
   const wishCandidates = useMemo(() => {
     const map = new Map<string, { code: string; name: string; credits: number }>();
-    for (const major of Object.values(curriculum?.majors ?? {}))
-      for (const c of major.courses)
+    // 내 학과(패밀리 포함) 전공 과목을 상단에 — 1,400여 건 목록에서 발견성 확보
+    const majorNames = Object.values(curriculum?.majors ?? {}).map((m) => majorLabel(m.name));
+    const wanted = deptInput?.trim() ? resolveWantedMajorNames(deptInput, majorNames).wanted : null;
+    const mine = new Set<string>();
+    for (const major of Object.values(curriculum?.majors ?? {})) {
+      const own = !!wanted?.has(majorLabel(major.name));
+      for (const c of major.courses) {
         map.set(c.code, { code: c.code, name: c.name, credits: c.credits });
+        if (own) mine.add(c.code);
+      }
+    }
     for (const s of catalog?.sections ?? [])
       map.set(s.code, { code: s.code, name: s.name, credits: s.credits });
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [catalog, curriculum]);
+    return [...map.values()].sort(
+      (a, b) => Number(mine.has(b.code)) - Number(mine.has(a.code)) || a.name.localeCompare(b.name, 'ko'),
+    );
+  }, [catalog, curriculum, deptInput]);
   const equiv = useEquivalents();
   const { siblingCodes } = equivCodeIndex(equiv);
   const wishHint = (w: { code: string; name: string }) => {
