@@ -32,7 +32,7 @@
 - 브라우저 E2E: `npm run test:e2e` (Playwright, `tests/e2e/`). 선행 조건: `npm run build && node scripts/setup-local.mjs && npm run d1:migrate:local` — 재빌드하면 `dist/server/.dev.vars`와 로컬 D1이 지워지므로 순서를 지킨다. CI는 `e2e.yml`이 같은 단계를 자동 수행
 
 ## 사용자 DB (D1: site-creator-d1, binding `DB`)
-- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002`+`0003`) + `collect_queue` (`0004`) + `community_posts`·`community_comments`·`community_votes` (`0005`) + `push_subscriptions`·`push_notified` (`0006`) + `site_visitors`·`site_views` (`0007`). 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
+- 테이블: `academic_accounts` / `academic_sessions` / `academic_login_limits` (`drizzle/0000_academic_accounts.sql`) + `public_snapshots` (`drizzle/0001_public_snapshots.sql`) + `school_session_vault` (`drizzle/0002`+`0003`) + `collect_queue` (`0004`) + `community_posts`·`community_comments`·`community_votes` (`0005`) + `push_subscriptions`·`push_notified` (`0006`) + `site_visitors`·`site_views` (`0007`) + `native_push_tokens` (`0009`). 마이그레이션은 journal에 등록되어 있으며 게시 스크립트는 테이블을 DROP하지 않는다.
 - 로컬 조회: `npx wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --command "SELECT ..."`
 - 리모트 조회: 동일 명령 + `--remote` (published-personal에서 실행; wrangler OAuth 로그인됨)
 - 백업: `npm run d1:backup:local` 또는 소유자 승인 후 `HANSUNG_D1_DATABASE_ID` 설정 + `npm run d1:backup:remote`; 백업은 gitignore된 `.d1-backups/`에 저장
@@ -59,6 +59,7 @@
 - 원격 D1 `site-creator-d1` (APAC), 마이그레이션 적용됨
 - **학교 세션 볼트**: 로그인 성공 시 학교 세션 쿠키만 `SCHOOL_SESSION_KEY`(32바이트 이상, `ACCOUNT_INDEX_HMAC_KEY`와 별도)로 AES-GCM 암호화해 `school_session_vault`에 보관(기본 2시간, '자동 연결 유지' 선택 시 최대 3일, 서버 상한 `VAULT_MAX_TTL_MS`). 비밀번호는 저장하지 않는다. `POST /api/account/lms-refresh-session`이 비밀번호 없이 재수집하고, 로그아웃·계정 삭제·만료 시 삭제. 상세: `docs/session-vault.md`
 - **마감 푸시 알림**: 알림 토글 ON + 로그인 시 `public/sw.js` 서비스워커 + Push 구독이 `push_subscriptions`에 저장된다. 발송은 LMS 수집 완료 시점(로그인·재수집·프로필 lms 저장)과 `push-worker/` 크론 워커(3시간마다, 별도 배포 — vinext가 scheduled 미지원)에서 `dispatchLmsReminders`로 수행. VAPID 자격은 `VAPID_JWK`(ES JWK JSON) 비밀값 — 메인 워커와 푸시 워커 양쪽에 같은 값 설정. `push_notified`로 알림함과 같은 id 기준 계정당 1회 발송, 404/410 endpoint는 자동 삭제.
+- **네이티브 앱(Capacitor)**: `ios/`·`android/` 프로젝트가 커밋돼 있고 `capacitor.config.ts`의 `server.url`이 프로덕션을 원격 로딩한다. `native-web/`은 연결 실패 시 최소 셸. 네이티브 푸시는 `native_push_tokens`(토큰 등록 `/api/push/native`)로 발송 — APNs는 `APNS_KEY_ID`·`APNS_TEAM_ID`·`APNS_KEY`(.p8)·`APNS_TOPIC`·`APNS_SANDBOX`, Android는 `FCM_SERVICE_ACCOUNT`(서비스 계정 JSON) 비밀값이 필요하며 미설정 채널은 꺼진다. `android/app/google-services.json`은 커밋 금지(gitignore). 빌드: iOS는 맥+Xcode, Android는 Android Studio — 상세 `docs/app-store.md`
 - **재배포**: Worker secret `ACCOUNT_INDEX_HMAC_KEY`·`SCHOOL_SESSION_KEY`와 배포 환경의 `HANSUNG_D1_DATABASE_ID`를 먼저 설정한 뒤 `published-personal`에서 `npm run build` → `python scripts/_deploy.py`
   (생성된 wrangler.json의 placeholder DB ID·워커명을 배포 설정으로 패치 후 `wrangler deploy` 실행 — 매 빌드 후 재패치 필수)
 - **프로덕션 검증**: `python scripts/_verify_prod.py` (HTTP·콘텐츠 형식·필수 데이터·응답 envelope 확인)

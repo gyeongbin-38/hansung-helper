@@ -2,29 +2,47 @@
  *  저장된 LMS 스냅샷의 임박 마감을 푸시한다. vinext가 scheduled 핸들러를
  *  지원하지 않아 별도 워커로 분리했다. 발송·중복 방지 로직은
  *  `lib/server/push-dispatch.ts`를 공유한다. */
-import { dispatchLmsReminders } from '../../lib/server/push-dispatch';
+import {
+  dispatchLmsReminders,
+  type PushChannels,
+} from '../../lib/server/push-dispatch';
+import { nativePushCredentials } from '../../lib/server/native-push';
 import type { LmsSnapshot } from '../../lib/data/lms';
 
 type Env = {
   DB: D1Database;
   VAPID_JWK?: string;
   VAPID_SUBJECT?: string;
+  APNS_KEY_ID?: string;
+  APNS_TEAM_ID?: string;
+  APNS_KEY?: string;
+  APNS_TOPIC?: string;
+  APNS_SANDBOX?: string;
+  FCM_SERVICE_ACCOUNT?: string;
 };
 
-function creds(env: Env): { jwk: JsonWebKey; subject: string } | null {
-  if (!env.VAPID_JWK) return null;
-  try {
-    const jwk = JSON.parse(env.VAPID_JWK) as JsonWebKey;
-    if (jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d) return null;
-    return {
-      jwk,
-      subject:
-        env.VAPID_SUBJECT ??
-        'https://hansung-helper.gyeongbin-38.workers.dev',
-    };
-  } catch {
-    return null;
+function creds(env: Env): PushChannels | null {
+  let web: PushChannels['web'] = null;
+  if (env.VAPID_JWK) {
+    try {
+      const jwk = JSON.parse(env.VAPID_JWK) as JsonWebKey;
+      if (jwk.kty === 'EC' && jwk.crv === 'P-256' && jwk.d) {
+        web = {
+          jwk,
+          subject:
+            env.VAPID_SUBJECT ??
+            'https://hansung-helper.gyeongbin-38.workers.dev',
+        };
+      }
+    } catch {
+      /* 손상된 JWK는 웹 채널만 끈다 */
+    }
   }
+  const channels = {
+    web,
+    native: nativePushCredentials(env as unknown as Record<string, string | undefined>),
+  };
+  return channels.web || channels.native ? channels : null;
 }
 
 /** 스냅샷/프로필 양쪽의 LMS 수집본 중 최신 것을 고른다 — 서버 수집본과
@@ -56,11 +74,11 @@ export default {
   async scheduled(_ctrl: ScheduledController, env: Env): Promise<void> {
     const auth = creds(env);
     if (!auth) {
-      console.log('[push-cron] VAPID_JWK missing — skipped');
+      console.log('[push-cron] push credentials missing — skipped');
       return;
     }
     const accounts = await env.DB.prepare(
-      'SELECT DISTINCT account_id FROM push_subscriptions',
+      'SELECT account_id FROM push_subscriptions UNION SELECT account_id FROM native_push_tokens',
     ).all<{ account_id: string }>();
     let sent = 0;
     for (const { account_id } of accounts.results ?? []) {

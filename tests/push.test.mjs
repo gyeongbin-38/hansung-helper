@@ -73,6 +73,7 @@ const sql = new DatabaseSync(':memory:');
 sql.exec('PRAGMA foreign_keys=ON');
 sql.exec('CREATE TABLE academic_accounts (id TEXT PRIMARY KEY NOT NULL, student_mask TEXT NOT NULL, profile TEXT NOT NULL, snapshot TEXT NOT NULL, onboarded INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, consent_at INTEGER NOT NULL)');
 sql.exec(await readFile('drizzle/0006_push.sql', 'utf8'));
+sql.exec(await readFile('drizzle/0009_native_push.sql', 'utf8'));
 sql.prepare("INSERT INTO academic_accounts (id, student_mask, profile, snapshot, created_at, consent_at) VALUES ('acc','m','{}','{}',1,1)").run();
 sql.prepare("INSERT INTO academic_accounts (id, student_mask, profile, snapshot, created_at, consent_at) VALUES ('other','m','{}','{}',1,1)").run();
 const d1 = {
@@ -100,6 +101,12 @@ async function load(file, imports) {
       return imports[name];
     },
     console, JSON, Date, Math,
+    crypto: globalThis.crypto,
+    atob: globalThis.atob,
+    btoa: globalThis.btoa,
+    // 호출 시점의 mock이 보이도록 위임한다
+    fetch: (...a) => globalThis.fetch(...a),
+    TextEncoder, TextDecoder, URL, Response, encodeURIComponent, setTimeout, Promise,
   }, { filename: file });
   return exports;
 }
@@ -122,6 +129,10 @@ const dispatch = await load('lib/server/push-dispatch.ts', {
         : new Response(null, { status: 201 });
     },
   },
+  './native-push.ts': {
+    nativePushCredentials: () => null,
+    sendNativePush: async () => 'fail',
+  },
 });
 const lms = { source: 'cosmos-lms', fetchedAt: 'x', courses: [] };
 const creds = { jwk: {}, subject: 'https://app.example' };
@@ -129,7 +140,7 @@ d1.prepare("INSERT INTO push_subscriptions (endpoint, account_id, p256dh, auth, 
 d1.prepare("INSERT INTO push_subscriptions (endpoint, account_id, p256dh, auth, user_agent, created_at, last_seen_at) VALUES ('https://ep/dead','acc','k','a','ua',1,1)").run();
 d1.prepare("INSERT INTO push_subscriptions (endpoint, account_id, p256dh, auth, user_agent, created_at, last_seen_at) VALUES ('https://ep/other','other','k','a','ua',1,1)").run();
 
-let r = await dispatch.dispatchLmsReminders(d1, 'acc', lms, creds, 1000);
+let r = await dispatch.dispatchLmsReminders(d1, 'acc', lms, { web: creds, native: null }, 1000);
 assert.equal(r.sent, 2, 'due reminders sent');
 assert.deepEqual(sent.filter((e) => e === 'https://ep/ok').length, 2, 'live endpoint gets both reminders');
 assert.equal(sent.filter((e) => e === 'https://ep/dead').length, 1, 'dead endpoint tried once then skipped');
@@ -139,7 +150,7 @@ assert.equal(sql.prepare('SELECT COUNT(*) c FROM push_notified WHERE account_id 
 assert.equal(sql.prepare('SELECT COUNT(*) c FROM push_subscriptions WHERE endpoint = ?').get('https://ep/dead').c, 0, 'dead endpoint row deleted');
 
 sent.length = 0;
-r = await dispatch.dispatchLmsReminders(d1, 'acc', lms, creds, 1000);
+r = await dispatch.dispatchLmsReminders(d1, 'acc', lms, { web: creds, native: null }, 1000);
 assert.equal(r.sent, 0, 'notified ids dedup — no resend');
 assert.equal(sent.length, 0, 'no pushes on second dispatch');
 
@@ -154,8 +165,131 @@ const dispatch2 = await load('lib/server/push-dispatch.ts', {
   './webpush.ts': {
     sendPush: async () => { sent2.push(1); return new Response(null, { status: 500 }); },
   },
+  './native-push.ts': {
+    nativePushCredentials: () => null,
+    sendNativePush: async () => 'fail',
+  },
 });
-r = await dispatch2.dispatchLmsReminders(d1, 'acc', lms, creds, 1000);
+r = await dispatch2.dispatchLmsReminders(d1, 'acc', lms, { web: creds, native: null }, 1000);
 assert.equal(r.sent, 0);
 assert.equal(sql.prepare("SELECT COUNT(*) c FROM push_notified WHERE account_id = 'acc' AND notif_id = 'lms-x'").get().c, 0, 'transient failure must not mark notified');
 console.log('push dispatch: dedup, dead-endpoint cleanup, transient retry preserved');
+
+// --- 네이티브 채널: 토큰 발송·dead 정리·웹 채널 없이도 동작 ---
+const nativeSent = [];
+const dispatch3 = await load('lib/server/push-dispatch.ts', {
+  'cloudflare:workers': { env: {} },
+  '../data/lms.ts': { currentSemesterStart: () => 0 },
+  '../data/notifs.ts': {
+    reminderTargets: () => [{ id: 'lms-n', fireAt: 1, title: 't', body: 'b' }],
+  },
+  './webpush.ts': { sendPush: async () => new Response(null, { status: 201 }) },
+  './native-push.ts': {
+    nativePushCredentials: () => ({ apns: {}, fcm: {} }),
+    sendNativePush: async (_c, platform, token) => {
+      nativeSent.push(`${platform}:${token}`);
+      return token === 'dead-tok' ? 'dead' : 'ok';
+    },
+  },
+});
+d1.prepare("INSERT INTO native_push_tokens (token, account_id, platform, created_at, last_seen_at) VALUES ('ios-tok','acc','ios',1,1)").run();
+d1.prepare("INSERT INTO native_push_tokens (token, account_id, platform, created_at, last_seen_at) VALUES ('dead-tok','acc','ios',1,1)").run();
+d1.prepare("INSERT INTO native_push_tokens (token, account_id, platform, created_at, last_seen_at) VALUES ('and-tok','acc','android',1,1)").run();
+d1.prepare("INSERT INTO native_push_tokens (token, account_id, platform, created_at, last_seen_at) VALUES ('other-tok','other','ios',1,1)").run();
+r = await dispatch3.dispatchLmsReminders(d1, 'acc', lms, { web: null, native: { apns: {}, fcm: {} } }, 1000);
+assert.equal(r.sent, 1, 'native-only account still receives the reminder');
+assert.ok(nativeSent.includes('ios:ios-tok') && nativeSent.includes('android:and-tok'), 'ios+android tokens both tried');
+assert.ok(!nativeSent.some((t) => t === 'ios:other-tok'), 'other account untouched');
+assert.equal(r.removed, 1, 'dead native token reported');
+assert.equal(sql.prepare('SELECT COUNT(*) c FROM native_push_tokens WHERE token = ?').get('dead-tok').c, 0, 'dead native token deleted');
+console.log('push dispatch: native tokens sent, dead-token cleanup');
+
+// --- native-push: 자격 파싱 + APNs/FCM 요청 형태 + dead 판정 ---
+const np = await load('lib/server/native-push.ts', {
+  'cloudflare:workers': { env: {} },
+});
+assert.equal(np.nativePushCredentials({}), null, 'no env → credentials null');
+const apnsOnly = np.nativePushCredentials({ APNS_KEY_ID: 'k', APNS_TEAM_ID: 't', APNS_KEY: 'x' });
+assert.equal(apnsOnly.apns.topic, 'dev.gyeongbin38.hansunghelper', 'topic defaults to bundle id');
+assert.equal(apnsOnly.apns.sandbox, false);
+assert.equal(apnsOnly.fcm, null);
+const brokenFcm = np.nativePushCredentials({ FCM_SERVICE_ACCOUNT: '{broken' });
+assert.equal(brokenFcm, null, 'broken service-account JSON → null');
+const fcmOnly = np.nativePushCredentials({
+  FCM_SERVICE_ACCOUNT: JSON.stringify({ client_email: 'a@x.iam', private_key: 'k', project_id: 'p' }),
+});
+assert.equal(fcmOnly.fcm.tokenUri, 'https://oauth2.googleapis.com/token', 'token_uri defaults');
+assert.equal(fcmOnly.apns, null);
+
+// APNs — ES256 JWT(kid/iss) + 게이트웨이 주소 + 본문 형태 + 410 → dead
+const ecPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+const ecPkcs8 = Buffer.from(await crypto.subtle.exportKey('pkcs8', ecPair.privateKey)).toString('base64');
+const apns = { keyId: 'KID1234567', teamId: 'TEAM99999', key: ecPkcs8, topic: 'dev.app', sandbox: false };
+let apnsReq = null;
+globalThis.fetch = async (url, init) => {
+  apnsReq = { url, init };
+  return new Response(JSON.stringify({ reason: 'Unregistered' }), { status: 410 });
+};
+let res = await np.sendNativePush({ apns, fcm: null }, 'ios', 'apns-token-1', { title: 't', body: 'b', url: '/#lms' });
+assert.equal(res, 'dead', 'APNs Unregistered → dead token');
+assert.equal(apnsReq.url, 'https://api.push.apple.com/3/device/apns-token-1');
+const [ah, ap] = apnsReq.init.headers.authorization.replace('bearer ', '').split('.').slice(0, 2).map((s) => JSON.parse(Buffer.from(s, 'base64url').toString()));
+assert.equal(ah.kid, 'KID1234567');
+assert.equal(ap.iss, 'TEAM99999');
+assert.equal(apnsReq.init.headers['apns-topic'], 'dev.app');
+const apnsBody = JSON.parse(apnsReq.init.body);
+assert.equal(apnsBody.aps.alert.title, 't');
+assert.equal(apnsBody.link, '/#lms');
+// 서명도 실제로 검증 — APNs가 거부하는 서명 오류를 여기서 잡는다
+const [, , apnsSigB64] = apnsReq.init.headers.authorization.split('.');
+const verifyEc = await crypto.subtle.importKey('jwk', await crypto.subtle.exportKey('jwk', ecPair.publicKey), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+assert.ok(await crypto.subtle.verify(
+  { name: 'ECDSA', hash: 'SHA-256' },
+  verifyEc,
+  u8(apnsSigB64),
+  te.encode(`${apnsReq.init.headers.authorization.split(' ')[1].split('.').slice(0, 2).join('.')}`),
+), 'APNs JWT must verify');
+// 샌드박스 게이트웨이 분기
+const apnsSand = { ...apns, sandbox: true };
+globalThis.fetch = async (url) => { apnsReq = { url }; return new Response('{}', { status: 200 }); };
+assert.equal(await np.sendNativePush({ apns: apnsSand, fcm: null }, 'ios', 'tok', { title: 't', body: 'b' }), 'ok');
+assert.equal(apnsReq.url, 'https://api.sandbox.push.apple.com/3/device/tok');
+// 미설정 채널·알 수 없는 플랫폼 → fail
+assert.equal(await np.sendNativePush({ apns: null, fcm: null }, 'ios', 'tok', {}), 'fail');
+assert.equal(await np.sendNativePush({ apns, fcm: null }, 'android', 'tok', {}), 'fail');
+console.log('native push: APNs JWT + gateway + dead-token verdict verified');
+
+// FCM — RS256 → OAuth → v1 messages:send, UNREGISTERED → dead
+const rsaPair = await crypto.subtle.generateKey(
+  { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+  true, ['sign'],
+);
+const rsaPkcs8 = `-----BEGIN PRIVATE KEY-----\n${Buffer.from(await crypto.subtle.exportKey('pkcs8', rsaPair.privateKey)).toString('base64')}\n-----END PRIVATE KEY-----`;
+const fcm = { clientEmail: 'push@proj.iam.gserviceaccount.com', privateKey: rsaPkcs8, projectId: 'proj-1', tokenUri: 'https://oauth.example/token' };
+const calls = [];
+globalThis.fetch = async (url, init) => {
+  calls.push({ url, init });
+  if (String(url).includes('oauth'))
+    return new Response(JSON.stringify({ access_token: 'tok-abc', expires_in: 3600 }), { status: 200 });
+  return new Response('{}', { status: 200 });
+};
+res = await np.sendNativePush({ apns: null, fcm }, 'android', 'fcm-tok-1', { title: 't', body: 'b', url: '/#lms' });
+assert.equal(res, 'ok');
+assert.equal(calls[1].url, 'https://fcm.googleapis.com/v1/projects/proj-1/messages:send');
+assert.equal(calls[1].init.headers.authorization, 'Bearer tok-abc');
+const fcmBody = JSON.parse(calls[1].init.body);
+assert.equal(fcmBody.message.token, 'fcm-tok-1');
+assert.equal(fcmBody.message.data.link, '/#lms');
+const grantBody = calls[0].init.body;
+assert.ok(grantBody.includes('grant_type=') && grantBody.includes('jwt-bearer'), 'token request uses jwt-bearer grant');
+// dead 판정 — UNREGISTERED 에러 코드
+globalThis.fetch = async (url, init) => {
+  calls.push({ url, init });
+  if (String(url).includes('oauth'))
+    return new Response(JSON.stringify({ access_token: 'tok-abc', expires_in: 3600 }), { status: 200 });
+  return new Response(JSON.stringify({ error: { status: 'NOT_FOUND', details: [{ errorCode: 'UNREGISTERED' }] } }), { status: 404 });
+};
+res = await np.sendNativePush({ apns: null, fcm }, 'android', 'fcm-tok-dead', { title: 't', body: 'b' });
+assert.equal(res, 'dead', 'FCM UNREGISTERED → dead token');
+console.log('native push: FCM oauth + send + dead-token verdict verified');
+globalThis.fetch = realFetch;
