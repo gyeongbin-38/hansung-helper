@@ -91,7 +91,7 @@ def sync_tracked_helpers():
     # Private one-off helpers can contain credentials. Keep the broad _* filter
     # for directory mirroring, but explicitly copy versioned operational tools.
     tracked = subprocess.run(
-        ['git', 'ls-files', '-z', '--', 'scripts'], cwd=SRC,
+        ['git', 'ls-files', '-z', '--', 'scripts', 'drizzle'], cwd=SRC,
         capture_output=True, text=True, encoding='utf-8', check=True,
     )
     drifted = False
