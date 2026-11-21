@@ -5,6 +5,7 @@ import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, u
 import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
 import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
+import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel } from '@/lib/data/graduation';
 import type { Data } from './data';
 
@@ -46,6 +47,10 @@ export function SemesterPlan({
   const admitYear = data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
   const { snap: curriculum } = useCurriculum(addOpen ? pickCurriculumSemester(admitYear, currIndex) : null);
   const deptInput = data.info?.dept ?? data.dept;
+  const doneCodes = useMemo(
+    () => new Set(mergeCompleted(data.completed, data.info?.completed).map((c) => c.code)),
+    [data.completed, data.info?.completed],
+  );
   const wishCandidates = useMemo(() => {
     const map = new Map<string, { code: string; name: string; credits: number }>();
     // 내 학과(패밀리 포함) 전공 과목을 상단에 — 1,400여 건 목록에서 발견성 확보
@@ -61,10 +66,14 @@ export function SemesterPlan({
     }
     for (const s of catalog?.sections ?? [])
       map.set(s.code, { code: s.code, name: s.name, credits: s.credits });
+    // 미이수 내 학과 → 미이수 나머지 → 이수 완료(재수강 대상이라 남기되 하단)
     return [...map.values()].sort(
-      (a, b) => Number(mine.has(b.code)) - Number(mine.has(a.code)) || a.name.localeCompare(b.name, 'ko'),
+      (a, b) =>
+        Number(doneCodes.has(a.code)) - Number(doneCodes.has(b.code)) ||
+        Number(mine.has(b.code)) - Number(mine.has(a.code)) ||
+        a.name.localeCompare(b.name, 'ko'),
     );
-  }, [catalog, curriculum, deptInput]);
+  }, [catalog, curriculum, deptInput, doneCodes]);
   const equiv = useEquivalents();
   const { siblingCodes } = equivCodeIndex(equiv);
   const wishHint = (w: { code: string; name: string }) => {
@@ -111,12 +120,47 @@ export function SemesterPlan({
       notify?.('이미 이 학기에 담아둔 과목이에요');
       return;
     }
+    // 한 과목은 한 학기에만 — 다른 학기에 있으면 중복 대신 위치를 알린다
+    const elsewhere = Object.entries(list).find(
+      ([s, ws]) => s !== semester && ws.some((w) => w.code === pick!.code),
+    );
+    if (elsewhere) {
+      notify?.(`이미 ${formatSemesterLabel(elsewhere[0])}에 담아둔 과목이에요`);
+      return;
+    }
     list[semester] = [...cur, { code: pick.code, name: pick.name, credits: pick.credits }];
     void persist(
       { ...data, semesterWishes: list },
       `${pick.name}을(를) ${formatSemesterLabel(semester)}에 담아뒀어요`,
     );
     setAddQuery('');
+  };
+  // 위시별 힌트·옮기기 대상을 한 번만 계산 — 개별·일괄 옮기기가 공유
+  const wishRows = wishes.map((w) => {
+    const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
+    const hint = wishHint(w);
+    const moveTarget = hint.mismatch && !secs.length
+      ? suggestOfferingSemester(hint.entry, semester, catalog?.semester)
+      : null;
+    return { w, secs, hint, moveTarget };
+  });
+  const moveableCount = wishRows.filter((r) => r.moveTarget).length;
+  // 개설 패턴과 어긋난 위시 전부를 맞는 학기로 한 번에 옮긴다
+  const moveAllWishes = () => {
+    if (!persist || !semester) return;
+    const list = { ...data.semesterWishes };
+    let rest = [...(list[semester] ?? [])];
+    for (const { w, moveTarget } of wishRows) {
+      if (!moveTarget) continue;
+      rest = rest.filter((x) => x.code !== w.code);
+      list[moveTarget] = [...(list[moveTarget] ?? []).filter((x) => x.code !== w.code), w];
+    }
+    if (rest.length) list[semester] = rest;
+    else delete list[semester];
+    void persist(
+      { ...data, semesterWishes: list },
+      `개설 학기에 맞게 ${moveableCount}과목을 옮겼어요`,
+    );
   };
   return (
     <>
@@ -180,12 +224,7 @@ export function SemesterPlan({
             <span className="badge">담아둔 과목</span>
             {!!wishes.length && <span className="badge">{wishes.length}과목 · {wishCredits}학점</span>}
           </div>
-          {wishes.map((w) => {
-            const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
-            const hint = wishHint(w);
-            const moveTarget = hint.mismatch && !secs.length
-              ? suggestOfferingSemester(hint.entry, semester, catalog?.semester)
-              : null;
+          {wishRows.map(({ w, secs, hint, moveTarget }) => {
             return (
               <div className="event-line plan-wish" key={w.code}>
                 <Bookmark />
@@ -237,6 +276,11 @@ export function SemesterPlan({
               </div>
             );
           })}
+          {moveableCount > 1 && (
+            <button className="secondary plan-wish-moveall" onClick={moveAllWishes}>
+              개설 학기에 맞게 {moveableCount}과목 모두 옮기기
+            </button>
+          )}
           {!wishes.length && (
             <p className="meta">지도의 로드맵 칩이나 아래에서 이 학기에 들을 과목을 담아두세요.</p>
           )}
