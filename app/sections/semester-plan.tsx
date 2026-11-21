@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { BookOpen, Bookmark, Plus } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
 import { conflicts, slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
-import { equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
+import { buildRequiredTrack, equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
 import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel } from '@/lib/data/graduation';
@@ -117,10 +117,10 @@ export function SemesterPlan({
     list[target] = [...(list[target] ?? []).filter((x) => x.code !== w.code), w];
     void persist({ ...data, semesterWishes: list }, `${w.name}을(를) ${formatSemesterLabel(target)}로 옮겼어요`);
   };
-  // 자유 담기 — 과목명·코드·'이름 (코드)' 형태로 고르고, 포함 검색이 1건면 그걸로 담는다
-  const addWish = () => {
+  // 자유 담기 — 과목명·코드·'이름 (코드)' 형태로 고르거나 필수 칩으로 바로 담는다
+  const addWish = (direct?: { code: string; name: string; credits: number }) => {
     if (!persist || !semester) return;
-    const pick = pickCourseCandidate(wishCandidates, addQuery);
+    const pick = direct ?? pickCourseCandidate(wishCandidates, addQuery);
     if (!pick) {
       notify?.('일치하는 과목을 찾지 못했어요. 목록에서 골라 주세요.');
       return;
@@ -157,6 +157,28 @@ export function SemesterPlan({
       : null;
     return { w, done, secs, hint, moveTarget };
   });
+  // 담기 폼이 열렸을 때 미이수 필수를 바로 담기 칩으로 — 졸업 지도와 같은 트랙 규칙
+  const missingRequired = useMemo(() => {
+    if (!addOpen || !curriculum || !deptInput?.trim()) return [];
+    const track = buildRequiredTrack({
+      curriculum,
+      deptInput,
+      completed: mergeCompleted(data.completed, data.info?.completed),
+      plannedCodes: new Set(planned.map((s) => s.code)),
+      offeredCodes: new Set(catalog?.sections.map((s) => s.code) ?? []),
+      equiv,
+      history,
+      failed: [...(data.failedCourses ?? []), ...(data.info?.failedCourses ?? [])],
+    });
+    const wishedAnywhere = new Set(
+      Object.values(data.semesterWishes ?? {}).flat().map((w) => w.code),
+    );
+    const out: { code: string; name: string; credits: number }[] = [];
+    for (const g of track.groups)
+      for (const c of g.courses)
+        if (c.status === 'missing' && !wishedAnywhere.has(c.code)) out.push(c);
+    return out.slice(0, 4);
+  }, [addOpen, curriculum, deptInput, data, planned, catalog, equiv, history]);
   // 현재 학기 담아둔 과목의 실제 개설 요약 — 수강신청 전 확인 배너
   const openedCount = isCurrent ? wishRows.filter((r) => r.secs.length > 0).length : 0;
   const unopenedCount = isCurrent ? wishRows.filter((r) => !r.done && !r.secs.length).length : 0;
@@ -339,13 +361,23 @@ export function SemesterPlan({
                   <option key={c.code} value={`${c.name} (${c.code})`}>{c.name}</option>
                 ))}
               </datalist>
-              <button className="secondary" onClick={addWish}>담기</button>
+              <button className="secondary" onClick={() => addWish()}>담기</button>
               <button className="link" onClick={() => { setAddOpen(false); setAddQuery(''); }}>닫기</button>
             </div>
           ) : (
             <button className="link plan-wish-add-open" onClick={() => setAddOpen(true)}>
               <Plus size={14} /> 과목 담기
             </button>
+          )}
+          {addOpen && !!missingRequired.length && (
+            <div className="plan-wish-req">
+              <span className="meta">아직 안 들은 필수</span>
+              <span className="plan-wish-secs">
+                {missingRequired.map((c) => (
+                  <button key={c.code} type="button" className="track-chip" onClick={() => addWish(c)}>{c.name}</button>
+                ))}
+              </span>
+            </div>
           )}
           {!isCurrent && (
             <p className="meta">{semLabel} 개설 자료가 나오면 분반을 고를 수 있어요.</p>
