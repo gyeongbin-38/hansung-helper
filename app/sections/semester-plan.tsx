@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { BookOpen, Bookmark, Plus } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents } from './catalog';
-import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
+import { conflicts, slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
 import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
@@ -29,6 +29,8 @@ export function SemesterPlan({
   notify?: (msg: string) => void;
 }) {
   const credits = planned.reduce((n, s) => n + s.credits, 0);
+  // 계획 내 시간 겹침 쌍 — 추가 시점엔 막지만 과거 저장분·분반 변경으로 남을 수 있다
+  const clashCount = planned.reduce((n, s, i) => n + conflicts(s, planned.slice(0, i)).length, 0);
   const semNames: Record<string, string> = { 3: '여름', 4: '겨울' };
   const semLabel = semester
     ? semester.replace(/(\d{4})-(\d)/, (_, y, n) => `${y}학년도 ${semNames[n] ?? n}학기`)
@@ -206,6 +208,12 @@ export function SemesterPlan({
         {credits > 21 && (
           <p className="meta">
             계획 {credits}학점 — 학기 수강 상한을 넘었을 수 있어요.
+          </p>
+        )}
+        {clashCount > 0 && (
+          <p className="meta">
+            <em className="track-warn">시간이 겹치는 분반 {clashCount}쌍</em>
+            {' '}· <button type="button" className="track-wish-move" onClick={() => go('timetable')}>시간표에서 확인</button>
           </p>
         )}
         {planned.map((s) => (
