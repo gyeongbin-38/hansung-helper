@@ -9,10 +9,11 @@ import {
  *  SHA-256 해시가 같을 때만 열린다. 쿠키 인증을 쓰지 않아 CSRF 검사가 불필요하다. */
 async function moderationAuthorized(request: Request) {
   const secret = (env as unknown as { MODERATION_KEY?: string }).MODERATION_KEY;
-  if (typeof secret !== 'string' || secret.length < 16) return 'disabled';
-  const provided = request.headers.get('x-moderation-key') ?? '';
+  const expected = typeof secret === 'string' ? secret.trim() : '';
+  if (expected.length < 16) return 'disabled';
+  const provided = (request.headers.get('x-moderation-key') ?? '').trim();
   if (!provided) return false;
-  return (await hash(provided)) === (await hash(secret));
+  return (await hash(provided)) === (await hash(expected));
 }
 
 export async function GET(request: Request) {
