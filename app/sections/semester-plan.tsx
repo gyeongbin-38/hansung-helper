@@ -3,7 +3,8 @@ import { BookOpen, Bookmark, Plus } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useEquivalents } from './catalog';
 import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
 import { equivCodeIndex } from '@/lib/data/curriculum';
-import { lastOfferedLabel, offeringLabel } from '@/lib/data/course-history';
+import { lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
+import { formatSemesterLabel } from '@/lib/data/graduation';
 import type { Data } from './data';
 
 export function SemesterPlan({
@@ -49,6 +50,7 @@ export function SemesterPlan({
       pattern: offeringLabel(entry),
       stale: lastOfferedLabel(entry, catalog?.semester),
       mismatch,
+      entry,
     };
   };
   const removeWish = (w: (typeof wishes)[number]) => {
@@ -58,6 +60,16 @@ export function SemesterPlan({
     if (next.length) list[semester] = next;
     else delete list[semester];
     void persist({ ...data, semesterWishes: list }, `${w.name}을(를) 담아둔 과목에서 뺐어요`);
+  };
+  // 담아둔 학기가 개설 패턴과 어긋날 때 — 맞는 학기로 한 번에 옮긴다
+  const moveWish = (w: (typeof wishes)[number], target: string) => {
+    if (!persist || !semester) return;
+    const list = { ...data.semesterWishes };
+    const next = wishes.filter((x) => x.code !== w.code);
+    if (next.length) list[semester] = next;
+    else delete list[semester];
+    list[target] = [...(list[target] ?? []).filter((x) => x.code !== w.code), w];
+    void persist({ ...data, semesterWishes: list }, `${w.name}을(를) ${formatSemesterLabel(target)}로 옮겼어요`);
   };
   return (
     <>
@@ -124,6 +136,9 @@ export function SemesterPlan({
           {wishes.map((w) => {
             const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
             const hint = wishHint(w.code);
+            const moveTarget = hint.mismatch && !secs.length
+              ? suggestOfferingSemester(hint.entry, semester, catalog?.semester)
+              : null;
             return (
               <div className="event-line plan-wish" key={w.code}>
                 <Bookmark />
@@ -162,6 +177,11 @@ export function SemesterPlan({
                     </span>
                   )}
                 </div>
+                {!!persist && !!moveTarget && (
+                  <button className="secondary plan-wish-move" onClick={() => moveWish(w, moveTarget)}>
+                    {formatSemesterLabel(moveTarget)}로 옮기기
+                  </button>
+                )}
                 {!!persist && (
                   <button className="secondary" onClick={() => removeWish(w)}>
                     빼기

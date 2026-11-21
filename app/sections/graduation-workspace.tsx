@@ -10,6 +10,7 @@ import { deptPoolOf, useDeptRules, useNow, useSchedule } from './catalog';
 import { AdmissionQuickPick, GraduationMetricDetails, ResultBadge } from './graduation-detail';
 import { SchoolRequirementTables } from './graduation-school-requirements';
 import { gradGroup, type CourseSection } from '@/lib/data/catalog';
+import { GRADE_POINTS } from '@/lib/data/curriculum';
 import { applyAudit, evaluate, evaluateGpa, formatSemesterLabel, generalEducationReference, graduationOutlook, normalizeSemesterLabel, requirementQuantityName, semesterIndex, type AdmissionType, type RuleResult } from '@/lib/data/graduation';
 import { mergeCompleted, resolveEarnedCredits } from '@/lib/data/info';
 import { deptRuleTargets, rulesetMatchesDept } from '@/lib/data/dept-rules';
@@ -74,8 +75,15 @@ export function GraduationWorkspace(props: Props) {
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
-    }) as { code: string; name: string; grade?: string; semester?: string; src: 'info' | 'manual' }[];
+    })
+      // 오래된 낙제가 재수강 우선순위 — 학기 오름차순, 학기 미기재는 뒤로
+      .sort((a, b) => (semesterIndex(a.semester) ?? 1e9) - (semesterIndex(b.semester) ?? 1e9)) as { code: string; name: string; grade?: string; semester?: string; src: 'info' | 'manual' }[];
   }, [data.info?.failedCourses, data.failedCourses]);
+  const failedAgo = (semester?: string) => {
+    const cur = semesterIndex(catalog?.semester);
+    const ago = cur !== null && semesterIndex(semester) !== null ? cur - semesterIndex(semester)! : 0;
+    return ago > 0 ? ago : 0;
+  };
   const { snap: schedule } = useSchedule();
   const now = useNow();
   const todayKst = scheduleToday(now);
@@ -177,14 +185,16 @@ export function GraduationWorkspace(props: Props) {
   const visible = completed.filter(c => (source === 'all' || c.src === source) &&
     (category === 'all' || (category === 'gen' ? gradGroup(c.category) === '교양' : gradGroup(c.category).startsWith('전공'))))
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name, 'ko') : (b.semester ?? '').localeCompare(a.semester ?? ''));
-  // 학기별 그룹 헤더 — '최근 학기' 정렬에서 학기 흐름과 학기당 학점을 보여준다
+  // 학기별 그룹 헤더 — '최근 학기' 정렬에서 학기 흐름과 학기당 학점·평점 추정을 보여준다
   const semTotals = useMemo(() => {
     if (sort !== 'recent') return null;
-    const m = new Map<string, { n: number; credits: number }>();
+    const m = new Map<string, { n: number; credits: number; pts: number; graded: number }>();
     for (const c of visible) {
       if (!c.semester) continue;
-      const t = m.get(c.semester) ?? { n: 0, credits: 0 };
+      const t = m.get(c.semester) ?? { n: 0, credits: 0, pts: 0, graded: 0 };
       t.n += 1; t.credits += c.credits;
+      const pt = c.grade ? GRADE_POINTS[c.grade] : undefined;
+      if (pt !== undefined && c.credits > 0) { t.pts += pt * c.credits; t.graded += c.credits; }
       m.set(c.semester, t);
     }
     return m.size ? m : null;
@@ -317,7 +327,7 @@ export function GraduationWorkspace(props: Props) {
       </section>}
       {view === 'completed' && !!failedAll.length && <section className="card school-failed" aria-labelledby="school-failed-title">
         <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{failedAll.length}과목</span></h3><p>학점 미합산</p></div></div>
-        <ul className="school-failed-courses">{failedAll.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span>{course.src === 'manual' && <button className="icon" aria-label={`${course.name} 낙제 목록에서 제거`} disabled={busy} onClick={() => void removeFailed(course.code, course.name)}><X size={15} /></button>}</li>)}</ul>
+        <ul className="school-failed-courses">{failedAll.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{formatSemesterLabel(course.semester)}{failedAgo(course.semester) > 0 ? ` · ${failedAgo(course.semester)}학기 전` : ''}</span>}</div><span className="badge orange">{course.grade || 'F'}</span>{course.src === 'manual' && <button className="icon" aria-label={`${course.name} 낙제 목록에서 제거`} disabled={busy} onClick={() => void removeFailed(course.code, course.name)}><X size={15} /></button>}</li>)}</ul>
       </section>}
       {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} onPlan={onPlan} notify={notify} persist={persist} />}
       {(view === '' || view === 'requirements') && <>
@@ -450,7 +460,7 @@ export function GraduationWorkspace(props: Props) {
           let lastSem: string | undefined;
           return visible.map((c, i) => {
             const semHead = semTotals && c.semester && c.semester !== lastSem
-              ? <div className="graduation-sem-head"><b>{formatSemesterLabel(c.semester)}</b><small>{semTotals.get(c.semester)!.n}과목 · {semTotals.get(c.semester)!.credits}학점</small></div>
+              ? <div className="graduation-sem-head"><b>{formatSemesterLabel(c.semester)}</b><small>{(() => { const t = semTotals.get(c.semester)!; return `${t.n}과목 · ${t.credits}학점${t.graded > 0 ? ` · 평점 ${(t.pts / t.graded).toFixed(2)}` : ''}`; })()}</small></div>
               : null;
             lastSem = c.semester ?? lastSem;
             return <Fragment key={`${c.src}-${c.code}-${i}`}>{semHead}<div className="graduation-course-row"><span className="graduation-round-icon"><Check size={18} /></span><div><b>{c.name}</b><small>이수 구분 · {c.src === 'info' ? '학교 수집' : '직접 입력'} · {c.credits}학점 · {c.category}{c.grade ? ` · ${c.grade}` : ''}{c.area ? ` · ${c.area}` : ''}{c.semester ? ` · ${c.semester}` : ''}</small></div><span className={`badge ${gradGroup(c.category) === '교양' ? 'blue' : 'green'}`}>{c.category}</span><span className="graduation-source"><Database size={13} />{c.src === 'info' ? '학교 수집' : '직접 입력'}</span>{c.src === 'manual' && <button className="icon" aria-label={`${c.name} 이수 목록에서 제거`} disabled={busy} onClick={() => void removeCourse(c.code, c.name)}><X size={15} /></button>}</div></Fragment>;

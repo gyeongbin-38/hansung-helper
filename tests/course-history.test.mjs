@@ -4,6 +4,7 @@ import {
   lastOfferedLabel,
   offeringLabel,
   offeringLabelFromTerms,
+  suggestOfferingSemester,
 } from '../lib/data/course-history.ts';
 import { buildRequiredTrack } from '../lib/data/curriculum.ts';
 
@@ -25,6 +26,22 @@ test('마지막 개설이 2년 이상 지났을 때만 경고한다', () => {
   assert.equal(lastOfferedLabel(recent, '2026-1'), null);
   assert.equal(lastOfferedLabel(stale, null), null);
   assert.equal(lastOfferedLabel(null, '2026-1'), null);
+});
+
+test('잘못 담아둔 학기의 교정 후보 — 같은 학년도의 맞는 학기를 우선 제안한다', () => {
+  const firstOnly = { name: 'x', terms: '1', last: '2026-1' };
+  assert.equal(suggestOfferingSemester(firstOnly, '2027-2', '2026-1'), '2027-1');
+  const secondOnly = { name: 'x', terms: '2', last: '2026-2' };
+  assert.equal(suggestOfferingSemester(secondOnly, '2027-1', '2026-1'), '2027-2');
+  // 맞는 학기가 지났으면 다음 해로 건너간다
+  assert.equal(suggestOfferingSemester(firstOnly, '2026-2', '2026-2'), '2027-1');
+  // 패턴에 '34'만 있으면 계절학기를 제안한다
+  const seasonal = { name: 'x', terms: '3', last: '2025-3' };
+  assert.equal(suggestOfferingSemester(seasonal, '2027-2', '2026-1'), '2027-3');
+  // 담아둔 학기 자체는 제외하고 가장 가까운 맞는 학기를 고른다(동일 거리면 이른 학기)
+  assert.equal(suggestOfferingSemester(firstOnly, '2027-1', '2026-1'), '2026-1');
+  assert.equal(suggestOfferingSemester(null, '2027-2', '2026-1'), null);
+  assert.equal(suggestOfferingSemester(firstOnly, 'bad', '2026-1'), null);
 });
 
 const c = (code, name, kind, year = '2') => ({ code, name, kind, credits: 3, year });
