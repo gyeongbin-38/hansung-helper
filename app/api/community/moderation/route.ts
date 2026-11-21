@@ -1,19 +1,18 @@
 import { env } from 'cloudflare:workers';
-import { hash, json, readTextLimited } from '@/lib/server/account';
+import { json, readTextLimited } from '@/lib/server/account';
 import {
   communityModerationReports,
   communityModerationSetDeleted,
 } from '@/lib/server/community';
 
 /** 운영자 전용 모더레이션 — MODERATION_KEY 비밀값과 x-moderation-key 헤더의
- *  SHA-256 해시가 같을 때만 열린다. 쿠키 인증을 쓰지 않아 CSRF 검사가 불필요하다. */
+ *  문자열이 같을 때만 열린다. 쿠키 인증을 쓰지 않아 CSRF 검사가 불필요하다. */
 async function moderationAuthorized(request: Request) {
   const secret = (env as unknown as { MODERATION_KEY?: string }).MODERATION_KEY;
   const expected = typeof secret === 'string' ? secret.trim() : '';
   if (expected.length < 16) return 'disabled';
   const provided = (request.headers.get('x-moderation-key') ?? '').trim();
-  if (!provided) return false;
-  return (await hash(provided)) === (await hash(expected));
+  return provided.length > 0 && provided === expected;
 }
 
 export async function GET(request: Request) {
