@@ -217,7 +217,8 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   if (data.semesterWishes) {
     const { siblingCodes } = equivCodeIndex(equiv);
     for (const [sem, ws] of Object.entries(data.semesterWishes)) {
-      const label = formatSemesterLabel(sem);
+      // 지난 학기에 남은 위시는 '지난 학기 담아둠'으로 간결 표기 — 계획 뷰와 같은 규칙
+      const label = catalog && sem < catalog.semester ? '지난 학기' : formatSemesterLabel(sem);
       const term = sem.slice(-1);
       for (const w of ws) {
         const entry = findHistoryEntry(history, w, siblingCodes);
