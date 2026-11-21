@@ -1,7 +1,9 @@
 'use client';
 import { BookOpen, Bookmark, Plus } from 'lucide-react';
-import { planBlockReason } from './catalog';
+import { planBlockReason, useCourseHistory, useEquivalents } from './catalog';
 import { slotsLabel, type Catalog, type CourseSection } from '@/lib/data/catalog';
+import { equivCodeIndex } from '@/lib/data/curriculum';
+import { lastOfferedLabel, offeringLabel } from '@/lib/data/course-history';
 import type { Data } from './data';
 
 export function SemesterPlan({
@@ -32,6 +34,16 @@ export function SemesterPlan({
   const wishes = semester ? (data.semesterWishes?.[semester] ?? []) : [];
   const isCurrent = !!catalog && !!semester && catalog.semester === semester;
   const wishCredits = wishes.reduce((n, w) => n + w.credits, 0);
+  // 개설 이력 — 미래 학기에 담아둔 과목이 실제 그 학기에 열리는지 패턴으로 힌트
+  const history = useCourseHistory();
+  const equiv = useEquivalents();
+  const { siblingCodes } = equivCodeIndex(equiv);
+  const wishHint = (code: string) => {
+    const entry = [code, ...siblingCodes(code)]
+      .map((c) => history?.courses[c])
+      .find(Boolean);
+    return { pattern: offeringLabel(entry), stale: lastOfferedLabel(entry, catalog?.semester) };
+  };
   const removeWish = (w: (typeof wishes)[number]) => {
     if (!persist || !semester) return;
     const list = { ...data.semesterWishes };
@@ -104,6 +116,7 @@ export function SemesterPlan({
           </div>
           {wishes.map((w) => {
             const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
+            const hint = wishHint(w.code);
             return (
               <div className="event-line plan-wish" key={w.code}>
                 <Bookmark />
@@ -112,6 +125,8 @@ export function SemesterPlan({
                   <small>
                     {w.credits}학점
                     {isCurrent && <> · {secs.length ? `${secs.length}개 분반 개설` : '이번 학기 미개설'}</>}
+                    {hint.pattern && <> · {hint.pattern}</>}
+                    {hint.stale && <> · <em className="track-warn">{hint.stale}</em></>}
                   </small>
                   {!!secs.length && (
                     <span className="plan-wish-secs">

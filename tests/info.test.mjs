@@ -529,6 +529,15 @@ t('merge: 수집본 우선 dedup(공백 무시)', merged.filter((c) => c.src ===
 t('merge: 수동 고유 항목 유지', merged.some((c) => c.name === '오프라인 특강' && c.src === 'manual'));
 t('merge: 수동 목록 불변', manual.length === 2 && manual[0].name === '프로그래밍기초');
 t('merge: info 없으면 수동만', mergeCompleted(manual, undefined).every((c) => c.src === 'manual'));
+const manualGrade = [{ code: 'CS101', name: '프로그래밍기초', category: '전필', credits: 3, grade: 'C+' }];
+const gradeFill = mergeCompleted(manualGrade, infoList);
+t('merge: 수집본 성적 공백이면 수동 성적 보존', gradeFill.find((c) => c.code === 'CS101')?.grade === 'C+');
+t('merge: 수동 목록 불변(성적 보존 후)', manualGrade.length === 1 && manualGrade[0].grade === 'C+');
+const gradeKeep = mergeCompleted(
+  [{ code: 'CS101', name: '프로그래밍기초', category: '전필', credits: 3, grade: 'D0' }],
+  [{ code: 'CS101', name: '프로그래밍 기초', category: '전필', credits: 3, grade: 'B0' }],
+);
+t('merge: 수집본 성적 있으면 학교 우선', gradeKeep.find((c) => c.code === 'CS101')?.grade === 'B0');
 
 t('credits: school total includes supplemental manual courses', resolveEarnedCredits(merged, 45, '') === 46);
 t('credits: manual total is used when school total is missing', resolveEarnedCredits(merged, undefined, '70') === 70);
