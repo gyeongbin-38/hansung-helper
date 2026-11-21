@@ -482,6 +482,8 @@ details.track-group[open] summary { padding-bottom: 8px; }
 .plan-wish-add .secondary { flex-shrink: 0; }
 .plan-wish-add-open { display: inline-flex; align-items: center; gap: 4px; padding-top: 8px; }
 .plan-wish-moveall { margin-top: 6px; width: 100%; }
+.plan-wish-req { margin-top: 8px; }
+.plan-wish-req > .meta { display: block; margin-bottom: 4px; }
 .roadmap-slot { display: grid; gap: 2px; padding: 9px 0 9px 14px; border-left: 2px solid var(--nt-primary); }
 .roadmap-sem { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .roadmap-sem b { font-size: 13px; font-weight: 700; color: var(--nt-ink); }
