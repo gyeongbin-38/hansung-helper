@@ -354,7 +354,7 @@ export async function PUT(request: Request) {
         !Array.isArray(input.failedCourses) ||
         input.failedCourses.length > 100 ||
         input.failedCourses.some(
-          (v: { code?: unknown; name?: unknown; grade?: unknown }) =>
+          (v: { code?: unknown; name?: unknown; grade?: unknown; semester?: unknown }) =>
             !v ||
             typeof v !== 'object' ||
             Array.isArray(v) ||
@@ -364,7 +364,9 @@ export async function PUT(request: Request) {
             typeof v.name !== 'string' ||
             !v.name.trim() ||
             v.name.length > 100 ||
-            (v.grade !== undefined && (typeof v.grade !== 'string' || v.grade.length > 8)),
+            (v.grade !== undefined && (typeof v.grade !== 'string' || v.grade.length > 8)) ||
+            (v.semester !== undefined &&
+              (typeof v.semester !== 'string' || !/^\d{4}-[1-4]$/.test(v.semester))),
         )
       )
         return json({ error: '낙제 과목 형식을 확인해 주세요.' }, 400);

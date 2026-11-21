@@ -30,19 +30,20 @@ const STATUS_LABEL: Record<TrackCourse['status'], { text: string; cls: string }>
   missing: { text: '미이수', cls: 'orange' },
 };
 
-/** 미이수 과목의 개설 리스크 — 정규학기 양쪽 다 열리면(null) 조용히 둔다 */
-function offeringWarn(c: TrackCourse, currentSemester: string | undefined): string | null {
+/** 미이수 과목의 개설 리스크 — 정규학기 양쪽 다 열리면(null) 조용히 둔다.
+ *  위시 경고가 이미 개설 패턴을 보여줄 때는 중복을 피해 패턴 부분을 생략한다. */
+function offeringWarn(c: TrackCourse, currentSemester: string | undefined, skipPattern?: boolean): string | null {
   const h = c.hist;
   if (!h || c.status === 'done') return null;
   const restricted = !(h.terms.includes('1') && h.terms.includes('2'));
   const parts = [
-    restricted ? offeringLabelFromTerms(h.terms) : null,
+    restricted && !skipPattern ? offeringLabelFromTerms(h.terms) : null,
     lastOfferedLabel(h, currentSemester),
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }
 
-function CourseRow({ c, warn, wishLabel }: { c: TrackCourse; warn?: string | null; wishLabel?: string }) {
+function CourseRow({ c, warn, wish }: { c: TrackCourse; warn?: string | null; wish?: { label: string; warn?: string } }) {
   const st = STATUS_LABEL[c.status];
   return (
     <li className={`track-course ${c.status}`}>
@@ -53,7 +54,8 @@ function CourseRow({ c, warn, wishLabel }: { c: TrackCourse; warn?: string | nul
           {c.credits}학점{c.matchedName && <> · ‘{c.matchedName}’(으)로 인정</>}
           {c.failed && <> · <em className="track-warn">{c.failed} — 재수강 필요</em></>}
           {c.status === 'missing' && c.offered && <> · <em className="track-offered">이번 학기 개설</em></>}
-          {c.status === 'missing' && wishLabel && <> · <em className="track-wished">{wishLabel} 담아둠</em></>}
+          {c.status === 'missing' && wish && <> · <em className="track-wished">{wish.label} 담아둠</em></>}
+          {c.status === 'missing' && wish?.warn && <> · <em className="track-warn">{wish.warn}</em></>}
           {warn && <> · <em className="track-warn">{warn}</em></>}
         </small>
       </div>
@@ -124,7 +126,7 @@ function NowRow({
   );
 }
 
-function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, string>; mine?: boolean }) {
+function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, { label: string; warn?: string }>; mine?: boolean }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -134,7 +136,7 @@ function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: Track
           <span className="track-year-label">{y ? `${y}학년` : '전학년'}</span>
           <ul className="track-courses">
             {g.courses.filter((c) => c.year === y).map((c) => (
-              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester)} wishLabel={wishByCode?.get(c.code)} />
+              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester, !!wishByCode?.get(c.code)?.warn)} wish={wishByCode?.get(c.code)} />
             ))}
           </ul>
         </div>
@@ -207,14 +209,24 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   });
 
   // 미이수 필수 → 어느 학기에 담아뒀는지 지도 행에 표시 (동일과목 형제 코드도 인식)
-  const wishByCode = new Map<string, string>();
+  // 담아둔 학기가 개설 패턴과 어긋나면 경고를 함께 붙인다
+  const wishByCode = new Map<string, { label: string; warn?: string }>();
   if (data.semesterWishes) {
     const { siblingCodes } = equivCodeIndex(equiv);
     for (const [sem, ws] of Object.entries(data.semesterWishes)) {
       const label = formatSemesterLabel(sem);
-      for (const w of ws)
+      const term = sem.slice(-1);
+      for (const w of ws) {
+        const entry = [w.code, ...siblingCodes(w.code)]
+          .map((c) => history?.courses[c])
+          .find(Boolean);
+        // 담아둔 학기가 현재 학기면 실제 개설 분반이 이력보다 우선 — 경고 억제
+        const warn = entry && sem !== catalog?.semester && !entry.terms.includes(term)
+          ? `보통 ${offeringLabelFromTerms(entry.terms)}`
+          : undefined;
         for (const code of [w.code, ...siblingCodes(w.code)])
-          wishByCode.set(code, label);
+          wishByCode.set(code, { label, warn });
+      }
     }
   }
 
