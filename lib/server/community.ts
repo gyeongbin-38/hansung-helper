@@ -617,9 +617,10 @@ export async function communityMe(accountId: string): Promise<CommunityMe> {
           'JOIN community_posts p ON p.id = c.post_id AND p.deleted = 0 ' +
           'LEFT JOIN community_aliases ca ON ca.account_id = c.author_id ' +
           'WHERE c.deleted = 0 AND c.author_id <> ? AND (p.author_id = ? OR (c.parent_id IS NOT NULL AND c.parent_id IN (SELECT id FROM community_comments WHERE author_id = ? AND deleted = 0))) ' +
+          'AND c.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?) ' +
           'ORDER BY c.created_at DESC LIMIT 10',
       )
-      .bind(accountId, accountId, accountId)
+      .bind(accountId, accountId, accountId, accountId)
       .all<{
         post_id: string;
         body: string;
@@ -660,4 +661,135 @@ export async function communityMe(accountId: string): Promise<CommunityMe> {
     })),
     blocked: blocked.results.map((row) => row.alias),
   };
+}
+
+/** 운영자용 신고 집계 — 신고가 많은 대상부터 돌려준다. */
+export async function communityModerationReports() {
+  const db = database();
+  const targets = await db
+    .prepare(
+      'SELECT r.target_type, r.target_id, r.post_id, COUNT(*) AS report_count, MAX(r.created_at) AS last_report_at, ' +
+        "(SELECT d.detail FROM community_reports d WHERE d.target_type = r.target_type AND d.target_id = r.target_id ORDER BY d.created_at DESC LIMIT 1) AS last_detail " +
+        'FROM community_reports r GROUP BY r.target_type, r.target_id ' +
+        'ORDER BY report_count DESC, last_report_at DESC LIMIT 100',
+    )
+    .all<{
+      target_type: string;
+      target_id: string;
+      post_id: string;
+      report_count: number;
+      last_report_at: number;
+      last_detail: string | null;
+    }>();
+  const items: Array<{
+    targetType: string;
+    targetId: string;
+    postId: string;
+    reportCount: number;
+    lastReportAt: number;
+    reasons: string[];
+    lastDetail: string;
+    content: {
+      kind: 'post' | 'comment';
+      deleted: boolean;
+      authorAlias: string | null;
+      title?: string;
+      body?: string;
+      postTitle?: string;
+      missing?: boolean;
+    } | null;
+  }> = [];
+  for (const target of targets.results) {
+    const reasons = await db
+      .prepare(
+        'SELECT DISTINCT reason FROM community_reports WHERE target_type = ? AND target_id = ?',
+      )
+      .bind(target.target_type, target.target_id)
+      .all<{ reason: string }>();
+    let content: {
+      kind: 'post' | 'comment';
+      deleted: boolean;
+      authorAlias: string | null;
+      title?: string;
+      body?: string;
+      postTitle?: string;
+      missing?: boolean;
+    } | null = null;
+    if (target.target_type === 'post') {
+      const post = await db
+        .prepare(
+          'SELECT p.title, p.body, p.deleted, ca.alias FROM community_posts p ' +
+            'LEFT JOIN community_aliases ca ON ca.account_id = p.author_id WHERE p.id = ?',
+        )
+        .bind(target.target_id)
+        .first<{ title: string; body: string; deleted: number; alias: string | null }>();
+      content = post
+        ? {
+            kind: 'post',
+            deleted: post.deleted === 1,
+            authorAlias: post.alias,
+            title: post.title,
+            body: communityPreview(post.body),
+          }
+        : { kind: 'post', deleted: true, authorAlias: null, missing: true };
+    } else if (target.target_type === 'comment') {
+      const comment = await db
+        .prepare(
+          'SELECT c.body, c.deleted, ca.alias, p.title AS post_title FROM community_comments c ' +
+            'LEFT JOIN community_aliases ca ON ca.account_id = c.author_id ' +
+            'LEFT JOIN community_posts p ON p.id = c.post_id WHERE c.id = ?',
+        )
+        .bind(target.target_id)
+        .first<{
+          body: string;
+          deleted: number;
+          alias: string | null;
+          post_title: string | null;
+        }>();
+      content = comment
+        ? {
+            kind: 'comment',
+            deleted: comment.deleted === 1,
+            authorAlias: comment.alias,
+            body: communityPreview(comment.body),
+            postTitle: comment.post_title ?? undefined,
+          }
+        : { kind: 'comment', deleted: true, authorAlias: null, missing: true };
+    }
+    items.push({
+      targetType: target.target_type,
+      targetId: target.target_id,
+      postId: target.post_id,
+      reportCount: Number(target.report_count),
+      lastReportAt: Number(target.last_report_at),
+      reasons: reasons.results.map((row) => row.reason),
+      lastDetail: target.last_detail ?? '',
+      content,
+    });
+  }
+  return { generatedAt: Date.now(), items };
+}
+
+/** 운영자용 콘텐츠 숨김/복원 — 작성자 권한과 무관하게 deleted 플래그를 바꾼다. */
+export async function communityModerationSetDeleted(
+  targetType: unknown,
+  targetId: unknown,
+  deleted: boolean,
+): Promise<CommunityResult<{ deleted: boolean }>> {
+  const id = typeof targetId === 'string' ? targetId.trim() : '';
+  if (!id) return { ok: false, error: '대상을 확인해 주세요.', status: 400 };
+  const table =
+    targetType === 'post'
+      ? 'community_posts'
+      : targetType === 'comment'
+        ? 'community_comments'
+        : null;
+  if (!table) return { ok: false, error: '대상 종류가 올바르지 않습니다.', status: 400 };
+  const result = await database()
+    .prepare(`UPDATE ${table} SET deleted = ? WHERE id = ?`)
+    .bind(deleted ? 1 : 0, id)
+    .run();
+  if (result.meta.changes === 0)
+    return { ok: false, error: '대상을 찾을 수 없습니다.', status: 404 };
+  return { ok: true, data: { deleted } };
 }
