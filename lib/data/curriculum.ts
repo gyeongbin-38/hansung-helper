@@ -69,6 +69,28 @@ export function pickCurriculumSemester(
     .sort((a, b) => Math.abs(a.d) - Math.abs(b.d) || b.d - a.d)[0].s;
 }
 
+/**
+ * 자유 담기 후보 선택 — '이름 (코드)' 정확 일치 → 코드 정확 일치 →
+ * 이름 정확 일치 → 이름·코드 부분 일치가 1건이면 그 항목.
+ * 없거나 부분 일치가 여러 건이면 undefined (모호함은 잘못 담는 것보다 낫다).
+ */
+export function pickCourseCandidate<T extends { code: string; name: string }>(
+  candidates: T[],
+  query: string,
+): T | undefined {
+  const q = query.trim();
+  if (!q) return undefined;
+  const exact =
+    candidates.find((c) => `${c.name} (${c.code})` === q) ??
+    candidates.find((c) => c.code.toLowerCase() === q.toLowerCase()) ??
+    candidates.find((c) => c.name === q);
+  if (exact) return exact;
+  const hits = candidates.filter(
+    (c) => c.name.includes(q) || c.code.toLowerCase().includes(q.toLowerCase()),
+  );
+  return hits.length === 1 ? hits[0] : undefined;
+}
+
 /** 필수 과목 한 행의 표시 단위 */
 export type TrackCourse = {
   code: string;

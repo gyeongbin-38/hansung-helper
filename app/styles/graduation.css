@@ -476,6 +476,11 @@ details.track-group[open] summary { padding-bottom: 8px; }
 .track-roadmap { display: grid; gap: 8px; }
 .roadmap-wishes { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 3px; }
 .plan-wish-secs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+.plan-wish-add { display: flex; align-items: center; gap: 6px; padding-top: 8px; }
+.plan-wish-add input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--nt-hairline-strong); border-radius: 8px; font-size: 14px; background: var(--nt-paper); color: var(--nt-ink); }
+.plan-wish-add input:focus { outline: 2px solid var(--nt-primary); outline-offset: 1px; }
+.plan-wish-add .secondary { flex-shrink: 0; }
+.plan-wish-add-open { display: inline-flex; align-items: center; gap: 4px; padding-top: 8px; }
 .roadmap-slot { display: grid; gap: 2px; padding: 9px 0 9px 14px; border-left: 2px solid var(--nt-primary); }
 .roadmap-sem { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .roadmap-sem b { font-size: 13px; font-weight: 700; color: var(--nt-ink); }
