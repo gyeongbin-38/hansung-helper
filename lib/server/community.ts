@@ -172,6 +172,12 @@ const SELECT_POSTS =
   'FROM community_posts p LEFT JOIN community_aliases ca ON ca.account_id = p.author_id ' +
   'WHERE p.deleted = 0';
 
+// 양방향 차단 — 내가 차단한 사람과 나를 차단한 사람의 콘텐츠가 서로 보이지 않는다.
+// 동일 계정에 대해 바인드 2개가 필요하다.
+const blockSql = (col: string) =>
+  ` AND ${col} NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?` +
+  ' UNION SELECT account_id FROM community_blocks WHERE blocked_id = ?)';
+
 export async function listCommunityPosts(options: {
   q?: string;
   sort?: CommunitySort;
@@ -187,12 +193,10 @@ export async function listCommunityPosts(options: {
   const searchSql = query
     ? " AND (p.title LIKE ? ESCAPE '\\' OR p.body LIKE ? ESCAPE '\\')"
     : '';
-  // 차단한 이용자의 글은 피드에서 보이지 않는다
-  const blockSql = accountId
-    ? ' AND p.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
-    : '';
+  // 차단 관계의 글은 피드에서 서로 보이지 않는다 (양방향)
+  const blockSqlText = accountId ? blockSql('p.author_id') : '';
   const searchArgs: unknown[] = query ? [like, like] : [];
-  const baseArgs: unknown[] = accountId ? [...searchArgs, accountId] : searchArgs;
+  const baseArgs: unknown[] = accountId ? [...searchArgs, accountId, accountId] : searchArgs;
 
   if (sort === 'latest') {
     let args: unknown[] = [...baseArgs];
@@ -208,7 +212,7 @@ export async function listCommunityPosts(options: {
     }
     const rows = await db
       .prepare(
-        `${SELECT_POSTS}${searchSql}${blockSql}${keyset} ORDER BY p.created_at DESC, p.id DESC LIMIT ${COMMUNITY_PAGE_SIZE + 1}`,
+        `${SELECT_POSTS}${searchSql}${blockSqlText}${keyset} ORDER BY p.created_at DESC, p.id DESC LIMIT ${COMMUNITY_PAGE_SIZE + 1}`,
       )
       .bind(...args)
       .all<PostRow>();
@@ -224,7 +228,7 @@ export async function listCommunityPosts(options: {
   // 인기·트렌딩은 점수가 변동값이라 id 커서 대신 최근 200개 안에서 위치를 찾아 자른다.
   const rows = await db
     .prepare(
-      `${SELECT_POSTS}${searchSql}${blockSql} ORDER BY ${
+      `${SELECT_POSTS}${searchSql}${blockSqlText} ORDER BY ${
         sort === 'popular' ? 'like_count DESC, p.created_at DESC' : 'p.created_at DESC'
       } LIMIT 200`,
     )
@@ -250,12 +254,9 @@ export async function getCommunityPost(
   const db = database();
   const post = await db
     .prepare(
-      `${SELECT_POSTS} AND p.id = ?` +
-        (viewer
-          ? ' AND p.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
-          : ''),
+      `${SELECT_POSTS} AND p.id = ?` + (viewer ? blockSql('p.author_id') : ''),
     )
-    .bind(...(viewer ? [id.slice(0, 64), viewer.id] : [id.slice(0, 64)]))
+    .bind(...(viewer ? [id.slice(0, 64), viewer.id, viewer.id] : [id.slice(0, 64)]))
     .first<PostRow>();
   if (!post) return null;
   const [commentRows, liked] = await Promise.all([
@@ -264,12 +265,10 @@ export async function getCommunityPost(
         'SELECT c.id, c.body, c.author_id, c.parent_id, ca.alias, c.created_at, c.updated_at ' +
           'FROM community_comments c LEFT JOIN community_aliases ca ON ca.account_id = c.author_id ' +
           'WHERE c.post_id = ? AND c.deleted = 0' +
-          (viewer
-            ? ' AND c.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
-            : '') +
+          (viewer ? blockSql('c.author_id') : '') +
           ' ORDER BY c.created_at ASC, c.id ASC LIMIT 300',
       )
-      .bind(...(viewer ? [post.id, viewer.id] : [post.id]))
+      .bind(...(viewer ? [post.id, viewer.id, viewer.id] : [post.id]))
       .all<CommentRow>(),
     viewer
       ? db
@@ -617,10 +616,10 @@ export async function communityMe(accountId: string): Promise<CommunityMe> {
           'JOIN community_posts p ON p.id = c.post_id AND p.deleted = 0 ' +
           'LEFT JOIN community_aliases ca ON ca.account_id = c.author_id ' +
           'WHERE c.deleted = 0 AND c.author_id <> ? AND (p.author_id = ? OR (c.parent_id IS NOT NULL AND c.parent_id IN (SELECT id FROM community_comments WHERE author_id = ? AND deleted = 0))) ' +
-          'AND c.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?) ' +
+          `AND c.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ? UNION SELECT account_id FROM community_blocks WHERE blocked_id = ?) ` +
           'ORDER BY c.created_at DESC LIMIT 10',
       )
-      .bind(accountId, accountId, accountId, accountId)
+      .bind(accountId, accountId, accountId, accountId, accountId)
       .all<{
         post_id: string;
         body: string;

@@ -2,6 +2,7 @@
 import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
 import { buildRequiredTrack, equivCodeIndex, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
+import { pingAnalytics } from '@/lib/analytics';
 import { findHistoryEntry, lastOfferedLabel, offeringLabelFromTerms, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
@@ -555,6 +556,8 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
                             { ...data, semesterWishes: list },
                             wished ? `${c.name}을(를) 담아둔 과목에서 뺐어요` : `${c.name}을(를) ${s.label}에 담아뒀어요`,
                           );
+                          // 계절학기 수요 — 담기만 기록(wish/3·4), 과목 정보는 남기지 않는다
+                          if (!wished) pingAnalytics(`wish/${s.semester.slice(-1)}`);
                         }}
                       >
                         {c.name}
