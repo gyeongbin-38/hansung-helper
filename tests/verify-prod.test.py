@@ -47,6 +47,8 @@ class Handler(BaseHTTPRequestHandler):
             ).encode()
         elif self.path == "/privacy":
             content_type, body = "text/html; charset=utf-8", b"<html>privacy</html>"
+        elif self.path == "/terms":
+            content_type, body = "text/html; charset=utf-8", b"<html>terms</html>"
         else:
             content_type, body = "image/svg+xml", b"<svg/>"
         self.send_response(200)

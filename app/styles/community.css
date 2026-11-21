@@ -504,6 +504,20 @@ button.community-back {
   color: var(--nt-primary-deep);
   font-weight: 600;
 }
+/* 차단한 이용자 행 — 별명과 해제 링크를 한 줄로 */
+.community-me-list > li:has(.community-blocked) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px;
+}
+.community-blocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 
 /* 내 글 빠른 삭제 — 목록·내 활동 행의 휴지통 버튼 */
 .community-list > li,

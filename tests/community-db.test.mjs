@@ -10,6 +10,7 @@ const db = new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 db.exec(await readFile('drizzle/0000_academic_accounts.sql', 'utf8'));
 db.exec(await readFile('drizzle/0005_community.sql', 'utf8'));
+db.exec(await readFile('drizzle/0008_community_blocks.sql', 'utf8'));
 
 const d1 = {
   prepare(query) {
@@ -82,6 +83,7 @@ vm.runInNewContext(js, {
 });
 
 const {
+  blockCommunityAuthor,
   communityMe,
   createCommunityComment,
   createCommunityPost,
@@ -91,6 +93,7 @@ const {
   listCommunityPosts,
   reportCommunityTarget,
   toggleCommunityLike,
+  unblockCommunityAuthor,
   updateCommunityComment,
   updateCommunityPost,
 } = exports;
@@ -225,6 +228,56 @@ assert.equal(wrongDelete.status, 403);
 const deletedPost = await deleteCommunityPost('a', firstId);
 assert.equal(deletedPost.ok, true);
 assert.equal(await getCommunityPost(firstId), null);
+
+/* 이용자 차단 — 차단한 작성자의 글·댓글이 차단한 사람에게만 숨겨져야 한다. */
+clearLimits();
+const cPost = await createCommunityPost('c', { title: 'c의 글', body: '차단 테스트용 본문' });
+assert.equal(cPost.ok, true);
+clearLimits();
+const bCommentOnC = await createCommunityComment('b', cPost.data.id, { body: 'b의 댓글' }, undefined);
+assert.equal(bCommentOnC.ok, true);
+
+// 차단 전: a의 피드에는 b·c 글이 모두 보인다
+const beforeBlock = await listCommunityPosts({ accountId: 'a' });
+assert.ok(beforeBlock.posts.some((post) => post.id === secondId));
+assert.ok(beforeBlock.posts.some((post) => post.id === cPost.data.id));
+
+const aliasB = second.data.author.alias;
+const blockedResult = await blockCommunityAuthor('a', aliasB);
+assert.equal(blockedResult.ok, true);
+// 본인 차단은 거부, 알 수 없는 별명도 거부
+assert.equal((await blockCommunityAuthor('a', (await communityMe('a')).alias)).ok, false);
+assert.equal((await blockCommunityAuthor('a', '없는 별명')).status, 404);
+
+// 차단 후: b의 글은 a의 피드에서 사라지지만 다른 이용자에게는 남는다
+const afterBlock = await listCommunityPosts({ accountId: 'a' });
+assert.ok(!afterBlock.posts.some((post) => post.id === secondId));
+assert.ok(afterBlock.posts.some((post) => post.id === cPost.data.id));
+const forC = await listCommunityPosts({ accountId: 'c' });
+assert.ok(forC.posts.some((post) => post.id === secondId));
+// 비로그인 조회에는 차단이 적용되지 않는다
+assert.ok((await listCommunityPosts({})).posts.some((post) => post.id === secondId));
+
+// 차단한 작성자의 글은 상세에서도 보이지 않고, b의 댓글은 c의 글에서 숨겨진다
+assert.equal(await getCommunityPost(secondId, { id: 'a' }), null);
+const cPostForA = await getCommunityPost(cPost.data.id, { id: 'a' });
+assert.ok(cPostForA);
+assert.equal(cPostForA.comments.length, 0);
+const cPostForC = await getCommunityPost(cPost.data.id, { id: 'c' });
+assert.equal(cPostForC.comments.length, 1);
+
+// 내 활동의 차단 목록에 별명이 나타나고, 해제하면 다시 보인다
+const meBlocked = await communityMe('a');
+assert.deepEqual(meBlocked.blocked, [aliasB]);
+const unblocked = await unblockCommunityAuthor('a', aliasB);
+assert.equal(unblocked.ok, true);
+const restored = await listCommunityPosts({ accountId: 'a' });
+assert.ok(restored.posts.some((post) => post.id === secondId));
+assert.equal((await getCommunityPost(cPost.data.id, { id: 'a' })).comments.length, 1);
+assert.deepEqual((await communityMe('a')).blocked, []);
+// 정리 — 차단 테스트용 댓글·글 삭제
+await deleteCommunityComment('b', cPost.data.id, bCommentOnC.data.comments[0].id);
+await deleteCommunityPost('c', cPost.data.id);
 
 /* 계정 삭제·글 삭제 연쇄 — 남은 계정과 콘텐츠만 보존되어야 한다. */
 clearLimits();
