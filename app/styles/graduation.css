@@ -443,6 +443,7 @@ details[open] > summary .gm-toggle { transform: rotate(180deg); }
 .track-offered { font-style: normal; font-weight: 650; color: var(--nt-primary); }
 .track-wished { font-style: normal; font-weight: 600; color: var(--nt-purple-800); }
 .track-warn { font-style: normal; font-weight: 600; color: var(--nt-orange-deep); }
+.track-wish-move { border: 0; background: none; padding: 0; font: inherit; font-size: 11px; font-weight: 600; color: var(--nt-link); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .track-now { display: grid; gap: 6px; border-color: var(--nt-primary); }
 .track-now > .secondary { justify-self: start; margin-top: 4px; }
 /* 이번 학기 개설 미이수 행 — 분반 칩을 행 아래에 둔다 */

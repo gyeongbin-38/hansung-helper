@@ -483,6 +483,9 @@ export function SettingsSection({
         <button className="secondary" onClick={() => go('profile')}>
           {account ? '프로필 수정하기' : '체험 프로필 입력하기'}
         </button>
+        <a className="link" href="/privacy" target="_blank" rel="noreferrer">
+          개인정보처리방침 <ArrowUpRight size={13} aria-hidden="true" />
+        </a>
         {!account && (
           <button
             className="link"
