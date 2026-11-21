@@ -36,6 +36,8 @@ export function SemesterPlan({
   // 졸업 지도 로드맵에서 담아둔 과목 — 해당 학기가 오면 분반으로 옮긴다
   const wishes = semester ? (data.semesterWishes?.[semester] ?? []) : [];
   const isCurrent = !!catalog && !!semester && catalog.semester === semester;
+  // 지나간 학기에 남은 위시는 이행이 끝난 기록 — 개설 경고 대신 정리 액션을 둔다
+  const isPast = !!catalog && !!semester && semester < catalog.semester;
   const wishCredits = wishes.reduce((n, w) => n + w.credits, 0);
   // 개설 이력 — 미래 학기에 담아둔 과목이 실제 그 학기에 열리는지 패턴으로 힌트
   const history = useCourseHistory(wishes.length > 0);
@@ -87,6 +89,13 @@ export function SemesterPlan({
       mismatch,
       entry,
     };
+  };
+  // 지난 학기에 남은 위시를 한 번에 비운다 — 옮길 수 있는 건 '옮기기'로 먼저 살린다
+  const clearPastWishes = () => {
+    if (!persist || !semester) return;
+    const list = { ...data.semesterWishes };
+    delete list[semester];
+    void persist({ ...data, semesterWishes: list }, '지난 학기에 담아둔 과목을 비웠어요');
   };
   const removeWish = (w: (typeof wishes)[number]) => {
     if (!persist || !semester) return;
@@ -235,6 +244,12 @@ export function SemesterPlan({
               {unopenedCount > 0 && <> · <em className="track-warn">미개설 {unopenedCount}과목</em></>}
             </p>
           )}
+          {isPast && !!wishes.length && (
+            <p className="meta plan-wish-status">
+              지난 학기에 담아둔 과목이에요
+              {!!persist && <> · <button type="button" className="track-wish-move" onClick={clearPastWishes}>모두 비우기</button></>}
+            </p>
+          )}
           {wishRows.map(({ w, done, secs, hint, moveTarget }) => {
             return (
               <div className="event-line plan-wish" key={w.code}>
@@ -245,7 +260,9 @@ export function SemesterPlan({
                     {w.credits}학점
                     {done
                       ? <> · 이수 완료</>
-                      : <>
+                      : isPast
+                        ? <> · 지난 학기</>
+                        : <>
                           {isCurrent && <> · {secs.length ? `${secs.length}개 분반 개설` : '이번 학기 미개설'}</>}
                           {hint.pattern && (
                             hint.mismatch && !secs.length
