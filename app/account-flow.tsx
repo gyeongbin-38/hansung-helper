@@ -293,6 +293,8 @@ export function SignIn({
           </button>
         </div>
         <p className="meta">
+          학교 계정 없이도 이수 내역을 직접 입력해 졸업 지도·학기 계획을 쓸 수 있어요.
+          <br />
           한성대학교 공식 서비스가 아닌 개인 학사 도우미입니다.
         </p>
         </section>

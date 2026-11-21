@@ -261,15 +261,16 @@ function loadCourseHistory() {
     });
   return courseHistoryCache;
 }
-export function useCourseHistory() {
+export function useCourseHistory(enabled = true) {
   const [snap, setSnap] = useState<CourseHistory | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let on = true;
     loadCourseHistory()
       .then((s) => on && setSnap(s))
       .catch(() => {});
     return () => { on = false; };
-  }, []);
+  }, [enabled]);
   return snap;
 }
 

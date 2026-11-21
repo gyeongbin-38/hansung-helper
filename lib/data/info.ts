@@ -412,23 +412,29 @@ export function semestersFromCourses(
 const normKey = (s: string) => s.replace(/\s+/g, '').toLowerCase();
 
 /** 수동 이수 목록 + 수집 목록 병합 — 같은 과목(코드 또는 정규화 이름)이
- *  양쪽에 있으면 수집본을 우선한다. 수동 목록은 절대 수정하지 않는다. */
+ *  양쪽에 있으면 수집본을 우선한다. 수동 목록은 절대 수정하지 않는다.
+ *  수집본에 성적이 비어 있고 수동 입력에 성적이 있으면 수집본 복사에 채운다. */
 export function mergeCompleted(
-  manual: { code: string; name: string; category: string; credits: number }[],
+  manual: { code: string; name: string; category: string; credits: number; grade?: string }[],
   info: InfoCourse[] | undefined,
 ): MergedCourse[] {
   const out: MergedCourse[] = [];
-  const seenCodes = new Set<string>();
-  const seenNames = new Set<string>();
+  const byCode = new Map<string, MergedCourse>();
+  const byName = new Map<string, MergedCourse>();
   for (const c of info ?? []) {
-    out.push({ ...c, src: 'info' });
-    if (c.code && c.code !== '미확인') seenCodes.add(c.code);
-    seenNames.add(normKey(c.name));
+    const entry: MergedCourse = { ...c, src: 'info' };
+    out.push(entry);
+    if (c.code && c.code !== '미확인') byCode.set(c.code, entry);
+    byName.set(normKey(c.name), entry);
   }
   for (const c of manual) {
     const codeHit =
-      c.code && !c.code.startsWith('수기-') && seenCodes.has(c.code);
-    if (codeHit || seenNames.has(normKey(c.name))) continue;
+      c.code && !c.code.startsWith('수기-') ? byCode.get(c.code) : undefined;
+    const hit = codeHit ?? byName.get(normKey(c.name));
+    if (hit) {
+      if (!hit.grade && c.grade) hit.grade = c.grade;
+      continue;
+    }
     out.push({ ...c, src: 'manual' });
   }
   return out;
