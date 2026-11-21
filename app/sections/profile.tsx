@@ -1,9 +1,13 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import type { Data } from './data';
 import type { Account } from '../account-flow';
 import { formatSemesterLabel, normalizeSemesterLabel } from '@/lib/data/graduation';
+import { useCurriculum, useCurriculumIndex } from './catalog';
+import { majorLabel, pickCurriculumSemester } from '@/lib/data/curriculum';
+import { resolveDept } from '@/lib/data/dept';
+import { RULESET_DEPT_FAMILY } from '@/lib/data/dept-rules';
 
 /** 졸업요건 계산에 필요한 프로필 필드 — 누락 안내·포커스 대상 */
 const GRAD_FIELDS: [string, string][] = [
@@ -41,6 +45,28 @@ export function ProfileSection({
       ? !data.dept || data.dept === '소속 미입력'
       : !data.year,
   ).map(([, l]) => l);
+  // 소속 학과 — 입학연도 교육과정의 개설 단위 목록으로 자동완성 + 해석 힌트.
+  // 오타·별칭 입력은 resolveDept가 잡아 '지도 기준/후보/매칭 없음'을 보여준다.
+  const { snap: currIndex } = useCurriculumIndex();
+  const admitYear = data.info?.admitYear ?? (data.year.trim() ? Number(data.year) : undefined);
+  const { snap: curriculum } = useCurriculum(pickCurriculumSemester(admitYear, currIndex));
+  const deptOptions = useMemo(
+    () =>
+      curriculum
+        ? [...new Set([
+            ...Object.keys(RULESET_DEPT_FAMILY),
+            ...Object.values(curriculum.majors).map((m) => majorLabel(m.name)),
+          ])].sort((a, b) => a.localeCompare(b, 'ko'))
+        : [],
+    [curriculum],
+  );
+  const [deptText, setDeptText] = useState<string | null>(null);
+  const deptVal = deptText ?? data.dept;
+  const deptRes = deptVal.trim() && deptOptions.length ? resolveDept(deptVal, deptOptions) : undefined;
+  const deptHint = !deptVal.trim() || !deptOptions.length ? null
+    : deptRes?.dept ? { text: `졸업 지도 기준: ${deptRes.dept}`, warn: false }
+    : deptRes?.candidates ? { text: `개설 단위 후보 ${deptRes.candidates.length}개 — 트랙은 지도에서 선택`, warn: false }
+    : { text: '매칭되는 학과가 없어요 — 목록에서 골라 주세요', warn: true };
   // 목표 졸업학기 — 온보딩 자유 입력도 'YYYY-S'로 정규화해 선택지와 맞춘다
   const curYear = new Date().getFullYear();
   const savedTarget = normalizeSemesterLabel(data.graduationTarget);
@@ -98,12 +124,41 @@ export function ProfileSection({
           {[
             ['name', '표시 이름', data.name, 'text'],
             ['year', '입학연도 (연결 시 자동 입력)', data.year, 'number'],
-            [
-              'dept',
-              '소속 학과·학부 (연결 시 자동 입력)',
-              data.dept,
-              'text',
-            ],
+          ].map(([key, l, v, t]) => (
+            <label key={key}>
+              {l}
+              <input
+                name={key}
+                defaultValue={v}
+                type={t}
+                min="0"
+                required={key === 'name'}
+                maxLength={50}
+              />
+            </label>
+          ))}
+          <label>
+            소속 학과·학부 (연결 시 자동 입력)
+            <input
+              name="dept"
+              defaultValue={data.dept}
+              type="text"
+              maxLength={50}
+              list="profile-dept-options"
+              onInput={(e) => setDeptText(e.currentTarget.value)}
+            />
+            <datalist id="profile-dept-options">
+              {deptOptions.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </datalist>
+            {deptHint && (
+              <small className={`meta profile-dept-hint${deptHint.warn ? ' warn' : ''}`}>
+                {deptHint.text}
+              </small>
+            )}
+          </label>
+          {[
             [
               'credits',
               '이수학점 (학교 수집값이 우선입니다)',

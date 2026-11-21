@@ -33,9 +33,15 @@ export type Completed = {
   name: string;
   category: string;
   credits: number;
+  /** 성적 등급 원문 ('C+','F' 등) — 재수강 후보 계산에 사용, 선택 입력 */
+  grade?: string;
 };
 /** 수기 등록 낙제 과목 — info.failedCourses(학교 수집)의 최소 형태 */
 export type FailedCourse = { code: string; name: string; grade?: string };
+/** 수기 이수 입력의 성적 선택지 — 빈 값은 성적 미기재 */
+export const MANUAL_GRADES = ['A+', 'A0', 'B+', 'B0', 'C+', 'C0', 'D+', 'D0', 'F', 'U', 'P', 'NP'] as const;
+/** 이 성적들은 이수가 아니라 낙제 목록으로 보낸다 */
+export const FAILED_GRADES: readonly string[] = ['F', 'U', 'NP'];
 export type Data = {
   name: string;
   year: string;

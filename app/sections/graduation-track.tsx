@@ -254,14 +254,22 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
 
   // 남은 학기 로드맵 — 진짜 미이수만 미래 학기에 배치한다 (계획 중은 이번 학기 처리 중)
   // 트랙이 여럿인 학부는 학생의 트랙 과목만 배치한다 — 모든 트랙을 이수할 필요는 없기 때문
+  const trackGroups = track.groups.filter((g) => g.role === 'major-track');
+  const trackNorm = (s: string) => s.replace(/[\s·-]/g, '');
+  // 소속 학과 입력이 곧 트랙명인 경우도 인정 (직접 입력 경로의 흔한 입력)
+  const deptAsTrack = trackGroups.length > 1
+    ? trackGroups.find((g) => {
+        const t = trackNorm(g.title);
+        const d = trackNorm(dept);
+        return !!d && (t.includes(d) || d.includes(t));
+      })?.title
+    : undefined;
   // 소속 트랙 — 학교 수집(track/tracks 복수 가능) 우선, 없으면 수기 선택값
   const myTracks = [...new Set(
     data.info?.tracks?.length
       ? data.info.tracks
-      : [data.info?.track ?? data.track].filter((v): v is string => !!v),
+      : [data.info?.track ?? data.track ?? deptAsTrack].filter((v): v is string => !!v),
   )];
-  const trackGroups = track.groups.filter((g) => g.role === 'major-track');
-  const trackNorm = (s: string) => s.replace(/[\s·-]/g, '');
   const isMyTrack = (title: string) => {
     const g = trackNorm(title);
     // 트랙이 하나뿐인 학과는 선택 불필요 — 그 트랙으로 간주한다
