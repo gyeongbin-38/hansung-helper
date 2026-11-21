@@ -609,18 +609,16 @@ export function Home({
               <small>남은 {outlook.remaining}학점 · 학기당 {outlook.perSemester}학점 페이스{total.planned > 0 ? ' (계획 기준)' : recentPace !== undefined ? ' (최근 평균)' : ' (기본값)'}</small>
             </p>
           )}
-          {!!openWishes.length && (
+          {!!(openWishes.length + unopenedWishes.length) && (
             <p className="home-outlook home-wish-hint">
               <Bookmark size={13} aria-hidden="true" />
-              이번 학기 담아둔 과목 <b>{openWishes.length}과목 개설</b>
-              <button className="link" onClick={() => go('semester-plan')}>분반 고르기 <ArrowRight size={13} /></button>
-            </p>
-          )}
-          {!!unopenedWishes.length && (
-            <p className="home-outlook home-wish-hint">
-              <Bookmark size={13} aria-hidden="true" />
-              이번 학기 담아둔 과목 <b>{unopenedWishes.length}과목 미개설</b>
-              <button className="link" onClick={() => go('semester-plan')}>계획 조정 <ArrowRight size={13} /></button>
+              이번 학기 담아둔 과목{' '}
+              {!!openWishes.length && <b>{openWishes.length}과목 개설</b>}
+              {!!openWishes.length && !!unopenedWishes.length && ' · '}
+              {!!unopenedWishes.length && <b>{unopenedWishes.length}과목 미개설</b>}
+              <button className="link" onClick={() => go('semester-plan')}>
+                {unopenedWishes.length ? '계획 조정' : '분반 고르기'} <ArrowRight size={13} />
+              </button>
             </p>
           )}
           <div className="home-grad-breakdown">
