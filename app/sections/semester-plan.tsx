@@ -173,12 +173,15 @@ export function SemesterPlan({
     const wishedAnywhere = new Set(
       Object.values(data.semesterWishes ?? {}).flat().map((w) => w.code),
     );
-    const out: { code: string; name: string; credits: number }[] = [];
+    const out: { code: string; name: string; credits: number; offered: boolean }[] = [];
     for (const g of track.groups)
       for (const c of g.courses)
-        if (c.status === 'missing' && !wishedAnywhere.has(c.code)) out.push(c);
+        if (c.status === 'missing' && !wishedAnywhere.has(c.code))
+          out.push({ code: c.code, name: c.name, credits: c.credits, offered: c.offered });
+    // 현재 학기를 볼 때는 지금 열린 필수를 먼저 — 바로 수강할 수 있는 과목 우선
+    if (isCurrent) out.sort((a, b) => Number(b.offered) - Number(a.offered));
     return out.slice(0, 4);
-  }, [addOpen, curriculum, deptInput, data, planned, catalog, equiv, history]);
+  }, [addOpen, curriculum, deptInput, data, planned, catalog, equiv, history, isCurrent]);
   // 현재 학기 담아둔 과목의 실제 개설 요약 — 수강신청 전 확인 배너
   const openedCount = isCurrent ? wishRows.filter((r) => r.secs.length > 0).length : 0;
   const unopenedCount = isCurrent ? wishRows.filter((r) => !r.done && !r.secs.length).length : 0;
@@ -374,7 +377,9 @@ export function SemesterPlan({
               <span className="meta">아직 안 들은 필수</span>
               <span className="plan-wish-secs">
                 {missingRequired.map((c) => (
-                  <button key={c.code} type="button" className="track-chip" onClick={() => addWish(c)}>{c.name}</button>
+                  <button key={c.code} type="button" className="track-chip" onClick={() => addWish(c)}>
+                    {c.name}{isCurrent && c.offered ? ' · 개설' : ''}
+                  </button>
                 ))}
               </span>
             </div>
