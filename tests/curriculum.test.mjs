@@ -6,6 +6,7 @@ import {
   majorLabel,
   missingRequiredCodeSet,
   missingRequiredSiblings,
+  pickCourseCandidate,
   pickCurriculumSemester,
 } from '../lib/data/curriculum.ts';
 
@@ -319,4 +320,25 @@ test('총 이수학점을 주면 후보별 예상 평점 상승폭을 계산한�
     offeredCodes: new Set(['K0010']),
   });
   assert.equal(noTotal[0].gain, undefined); // 총학점을 모르면 추정하지 않는다
+});
+
+test('자유 담기 후보 선택 — 정확 일치 우선, 부분 일치는 1건만', () => {
+  const CANDS = [
+    { code: 'V020007', name: '객체지향언어2', credits: 3 },
+    { code: 'V020008', name: '객체지향프로그래밍', credits: 3 },
+    { code: 'U121015', name: '문화기술과 사회변동', credits: 2 },
+  ];
+  // '이름 (코드)' — datalist 선택값 그대로
+  assert.equal(pickCourseCandidate(CANDS, '객체지향언어2 (V020007)')?.code, 'V020007');
+  // 코드 정확 일치 — 대소문자 무관
+  assert.equal(pickCourseCandidate(CANDS, 'u121015')?.code, 'U121015');
+  // 이름 정확 일치
+  assert.equal(pickCourseCandidate(CANDS, '문화기술과 사회변동')?.code, 'U121015');
+  // 부분 일치 1건 → 그 항목
+  assert.equal(pickCourseCandidate(CANDS, '사회변동')?.code, 'U121015');
+  // 부분 일치 여러 건 → 모호해서 undefined
+  assert.equal(pickCourseCandidate(CANDS, '객체지향'), undefined);
+  // 없음·빈 입력 → undefined
+  assert.equal(pickCourseCandidate(CANDS, '없는과목'), undefined);
+  assert.equal(pickCourseCandidate(CANDS, '  '), undefined);
 });
