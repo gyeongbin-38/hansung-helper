@@ -45,6 +45,8 @@ class Handler(BaseHTTPRequestHandler):
             content_type, body = "application/json", json.dumps(
                 {"ok": True, "data": {"itemCount": 1, "items": [{}]}}
             ).encode()
+        elif self.path == "/privacy":
+            content_type, body = "text/html; charset=utf-8", b"<html>privacy</html>"
         else:
             content_type, body = "image/svg+xml", b"<svg/>"
         self.send_response(200)

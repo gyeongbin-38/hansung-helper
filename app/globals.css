@@ -831,3 +831,40 @@ button:disabled {
     flex-wrap: wrap;
   }
 }
+
+/* /privacy — 개인정보처리방침 문서 */
+.privacy-doc {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--nt-ink);
+}
+.privacy-doc h1 {
+  font-size: 26px;
+  margin: 0 0 6px;
+}
+.privacy-doc h2 {
+  font-size: 16px;
+  margin: 36px 0 8px;
+}
+.privacy-doc ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+.privacy-doc a {
+  color: var(--nt-link);
+}
+.privacy-meta {
+  color: var(--nt-slate);
+  font-size: 12px;
+  margin: 0 0 24px;
+}
+@media (max-width: 767px) {
+  .privacy-doc {
+    padding: 36px 20px 72px;
+  }
+}

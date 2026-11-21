@@ -2,7 +2,7 @@
 import { ArrowRight, BookOpen, CalendarClock, Check, CircleAlert, ClipboardList } from 'lucide-react';
 import { planBlockReason, useCourseHistory, useCurriculum, useCurriculumIndex, useEquivalents, useNow, useSchedule } from './catalog';
 import { buildRequiredTrack, equivCodeIndex, findRetakeCandidates, pickCurriculumSemester, type TrackCourse, type TrackGroup } from '@/lib/data/curriculum';
-import { lastOfferedLabel, offeringLabelFromTerms } from '@/lib/data/course-history';
+import { lastOfferedLabel, offeringLabelFromTerms, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
 import { formatSemesterLabel, generalEducationReference, normalizeSemesterLabel } from '@/lib/data/graduation';
 import { earliestRoadmapSemester, nextRegularSemesters, planRoadmap, semesterCalendarIndex } from '@/lib/data/roadmap';
@@ -43,7 +43,9 @@ function offeringWarn(c: TrackCourse, currentSemester: string | undefined, skipP
   return parts.length ? parts.join(' · ') : null;
 }
 
-function CourseRow({ c, warn, wish }: { c: TrackCourse; warn?: string | null; wish?: { label: string; warn?: string } }) {
+type WishInfo = { label: string; warn?: string; move?: { code: string; from: string; to: string } };
+
+function CourseRow({ c, warn, wish, onMoveWish }: { c: TrackCourse; warn?: string | null; wish?: WishInfo; onMoveWish?: (move: { code: string; from: string; to: string }) => void }) {
   const st = STATUS_LABEL[c.status];
   return (
     <li className={`track-course ${c.status}`}>
@@ -56,6 +58,7 @@ function CourseRow({ c, warn, wish }: { c: TrackCourse; warn?: string | null; wi
           {c.status === 'missing' && c.offered && <> · <em className="track-offered">이번 학기 개설</em></>}
           {c.status === 'missing' && wish && <> · <em className="track-wished">{wish.label} 담아둠</em></>}
           {c.status === 'missing' && wish?.warn && <> · <em className="track-warn">{wish.warn}</em></>}
+          {c.status === 'missing' && wish?.move && onMoveWish && <> · <button type="button" className="track-wish-move" onClick={() => onMoveWish(wish.move!)}>{formatSemesterLabel(wish.move.to)}로 옮기기</button></>}
           {warn && <> · <em className="track-warn">{warn}</em></>}
         </small>
       </div>
@@ -126,7 +129,7 @@ function NowRow({
   );
 }
 
-function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, { label: string; warn?: string }>; mine?: boolean }) {
+function Group({ g, currentSemester, selProgress, wishByCode, mine, onMoveWish }: { g: TrackGroup; currentSemester?: string; selProgress?: string; wishByCode?: Map<string, WishInfo>; mine?: boolean; onMoveWish?: (move: { code: string; from: string; to: string }) => void }) {
   const done = g.courses.filter((c) => c.status === 'done').length;
   const years = [...new Set(g.courses.map((c) => c.year))].sort((a, b) => (a ?? '9').localeCompare(b ?? '9'));
   const body = (
@@ -136,7 +139,7 @@ function Group({ g, currentSemester, selProgress, wishByCode, mine }: { g: Track
           <span className="track-year-label">{y ? `${y}학년` : '전학년'}</span>
           <ul className="track-courses">
             {g.courses.filter((c) => c.year === y).map((c) => (
-              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester, !!wishByCode?.get(c.code)?.warn)} wish={wishByCode?.get(c.code)} />
+              <CourseRow key={c.code} c={c} warn={offeringWarn(c, currentSemester, !!wishByCode?.get(c.code)?.warn)} wish={wishByCode?.get(c.code)} onMoveWish={onMoveWish} />
             ))}
           </ul>
         </div>
@@ -209,8 +212,8 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
   });
 
   // 미이수 필수 → 어느 학기에 담아뒀는지 지도 행에 표시 (동일과목 형제 코드도 인식)
-  // 담아둔 학기가 개설 패턴과 어긋나면 경고를 함께 붙인다
-  const wishByCode = new Map<string, { label: string; warn?: string }>();
+  // 담아둔 학기가 개설 패턴과 어긋나면 경고와 '옮기기' 대상을 함께 붙인다
+  const wishByCode = new Map<string, WishInfo>();
   if (data.semesterWishes) {
     const { siblingCodes } = equivCodeIndex(equiv);
     for (const [sem, ws] of Object.entries(data.semesterWishes)) {
@@ -224,11 +227,27 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         const warn = entry && sem !== catalog?.semester && !entry.terms.includes(term)
           ? `보통 ${offeringLabelFromTerms(entry.terms)}`
           : undefined;
+        const move = warn
+          ? { code: w.code, from: sem, to: suggestOfferingSemester(entry, sem, catalog?.semester) }
+          : undefined;
+        const info: WishInfo = { label, warn, ...(move?.to ? { move: { code: w.code, from: sem, to: move.to } } : {}) };
         for (const code of [w.code, ...siblingCodes(w.code)])
-          wishByCode.set(code, { label, warn });
+          wishByCode.set(code, info);
       }
     }
   }
+  // 지도 행에서도 담아둔 학기 교정 — 계획 뷰와 같은 동작
+  const moveWish = (move: { code: string; from: string; to: string }) => {
+    if (!persist) return;
+    const list = { ...data.semesterWishes };
+    const src = list[move.from] ?? [];
+    const w = src.find((x) => x.code === move.code);
+    const next = src.filter((x) => x.code !== move.code);
+    if (next.length) list[move.from] = next;
+    else delete list[move.from];
+    if (w) list[move.to] = [...(list[move.to] ?? []).filter((x) => x.code !== move.code), w];
+    void persist({ ...data, semesterWishes: list }, `${w?.name ?? '과목'}을(를) ${formatSemesterLabel(move.to)}로 옮겼어요`);
+  };
 
   // 선택필수교양 진행도 — 학번별 교양 기준 표의 선필교 학점을 파싱한다
   const selEarned = completed
@@ -576,7 +595,7 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
         </section>
       )}
 
-      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} wishByCode={wishByCode} mine={isMyTrack(g.title)} />)}
+      {track.groups.map((g) => <Group key={g.key} g={g} currentSemester={catalog?.semester} selProgress={g.role === 'gen-selective' ? selProgress : undefined} wishByCode={wishByCode} mine={isMyTrack(g.title)} onMoveWish={persist ? moveWish : undefined} />)}
 
       {!track.groups.length && (
         <section className="card track-empty">
