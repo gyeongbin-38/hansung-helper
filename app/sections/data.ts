@@ -35,6 +35,8 @@ export type Completed = {
   credits: number;
   /** 성적 등급 원문 ('C+','F' 등) — 재수강 후보 계산에 사용, 선택 입력 */
   grade?: string;
+  /** 이수 학기 'YYYY-N' — 학기 타임라인·정렬에 사용, 선택 입력 */
+  semester?: string;
 };
 /** 수기 등록 낙제 과목 — info.failedCourses(학교 수집)의 최소 형태 */
 export type FailedCourse = { code: string; name: string; grade?: string };
@@ -42,6 +44,17 @@ export type FailedCourse = { code: string; name: string; grade?: string };
 export const MANUAL_GRADES = ['A+', 'A0', 'B+', 'B0', 'C+', 'C0', 'D+', 'D0', 'F', 'U', 'P', 'NP'] as const;
 /** 이 성적들은 이수가 아니라 낙제 목록으로 보낸다 */
 export const FAILED_GRADES: readonly string[] = ['F', 'U', 'NP'];
+/** 수기 이수 학기 선택지 — 기준 학기까지 거슬러 최근 10년 */
+export function manualSemesterOptions(currentSemester?: string | null): string[] {
+  const m = /^(\d{4})-([1-4])$/.exec(currentSemester ?? '');
+  const endY = m ? +m[1] : new Date().getFullYear();
+  const endT = m ? +m[2] : 4;
+  const out: string[] = [];
+  for (let y = endY; y >= endY - 10; y--)
+    for (let t = endY === y ? Math.min(endT, 4) : 4; t >= 1; t--)
+      out.push(`${y}-${t}`);
+  return out;
+}
 export type Data = {
   name: string;
   year: string;

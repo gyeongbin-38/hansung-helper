@@ -115,6 +115,19 @@ for (const invalid of [
   assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 12, ...invalid }) })).status, 400);
 }
 assert.equal(JSON.stringify(profile.completed), JSON.stringify(completedWithGrade), 'invalid grade writes must not overwrite');
-assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 12, name: 'revoked fixture' }), revoke: true })).status, 401);
+const completedWithSemester = [
+  { code: 'X001', name: '선형대수학', category: '전선', credits: 3, semester: '2025-1' },
+];
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 12, completed: completedWithSemester }) })).status, 200);
+assert.equal(JSON.stringify(profile.completed), JSON.stringify(completedWithSemester));
+for (const invalid of [
+  { completed: [{ code: 'X001', name: '선형대수학', category: '전선', credits: 3, semester: '2025' }] },
+  { completed: [{ code: 'X001', name: '선형대수학', category: '전선', credits: 3, semester: '2025-9' }] },
+  { completed: [{ code: 'X001', name: '선형대수학', category: '전선', credits: 3, semester: 20251 }] },
+]) {
+  assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 13, ...invalid }) })).status, 400);
+}
+assert.equal(JSON.stringify(profile.completed), JSON.stringify(completedWithSemester), 'invalid semester writes must not overwrite');
+assert.equal((await exports.PUT({ body: JSON.stringify({ ...input, rev: 13, name: 'revoked fixture' }), revoke: true })).status, 401);
 assert.equal(profile.name, '처음');
 console.log('profile-route.test: invalid JSON, missing revision and stale writes rejected');

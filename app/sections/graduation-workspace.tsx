@@ -17,7 +17,7 @@ import { graduationRuleLink } from '@/lib/data/graduation-links';
 import { semesterBreakdown } from '@/lib/data/visual-progress';
 import { scheduleDateLabel, scheduleToday, upcomingSchedule } from '@/lib/data/schedule';
 import { verifiedDeptGuide } from '@/lib/data/verified-dept-guide';
-import { FAILED_GRADES, MANUAL_GRADES } from './data';
+import { FAILED_GRADES, MANUAL_GRADES, manualSemesterOptions } from './data';
 import reference from '@/lib/data/graduation-reference.json';
 
 type Props = ComponentProps<typeof Graduation> & {
@@ -52,7 +52,7 @@ export function GraduationWorkspace(props: Props) {
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState('recent');
   const [simGpa, setSimGpa] = useState('');
-  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', grade: '' });
+  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', grade: '', semester: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function setAdmission(next: AdmissionType) {
@@ -178,7 +178,7 @@ export function GraduationWorkspace(props: Props) {
     (category === 'all' || (category === 'gen' ? gradGroup(c.category) === '교양' : gradGroup(c.category).startsWith('전공'))))
     .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name, 'ko') : (b.semester ?? '').localeCompare(a.semester ?? ''));
 
-  async function saveCourse(course: { code: string; name: string; category: string; credits: number; grade?: string }) {
+  async function saveCourse(course: { code: string; name: string; category: string; credits: number; grade?: string; semester?: string }) {
     if (busy) return;
     if (completed.some(c => c.code === course.code || c.name.replace(/\s/g, '') === course.name.replace(/\s/g, ''))) {
       setError('이미 이수 목록에 있는 과목입니다.'); return;
@@ -186,7 +186,7 @@ export function GraduationWorkspace(props: Props) {
     setBusy(true); setError('');
     const saved = await persist({ ...data, completed: [...data.completed, course] }, '이수 과목을 저장했습니다.');
     setBusy(false);
-    if (saved) { setQuery(''); setManual({ name: '', category: '전선', credits: '3', grade: '' }); }
+    if (saved) { setQuery(''); setManual({ name: '', category: '전선', credits: '3', grade: '', semester: '' }); }
     else setError('저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.');
   }
   async function addManual() {
@@ -203,12 +203,13 @@ export function GraduationWorkspace(props: Props) {
         '낙제 과목을 저장했습니다.',
       );
       setBusy(false);
-      if (saved) setManual({ name: '', category: '전선', credits: '3', grade: '' });
+      if (saved) setManual({ name: '', category: '전선', credits: '3', grade: '', semester: '' });
       else setError('저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.');
       return;
     }
-    await saveCourse(hit ? { code: hit.code, name: hit.name, category: hit.category, credits: hit.credits, ...(manual.grade ? { grade: manual.grade } : {}) } :
-      { code: `수기-${name}`, name, category: manual.category, credits, ...(manual.grade ? { grade: manual.grade } : {}) });
+    const extra = { ...(manual.grade ? { grade: manual.grade } : {}), ...(manual.semester ? { semester: manual.semester } : {}) };
+    await saveCourse(hit ? { code: hit.code, name: hit.name, category: hit.category, credits: hit.credits, ...extra } :
+      { code: `수기-${name}`, name, category: manual.category, credits, ...extra });
   }
   async function removeFailed(code: string, name: string) {
     if (busy) return;
@@ -429,7 +430,7 @@ export function GraduationWorkspace(props: Props) {
         <p className="graduation-view-description">수집된 학교 기록과 직접 입력한 과목을 함께 사용하여 졸업 요건 계산에 반영합니다.</p>
         <section className="card graduation-course-form"><label className="cat-search"><Search size={17} /><input value={query} aria-label="이수한 과목 검색" placeholder="과목명·코드로 검색해 이수 과목 추가" onChange={e => setQuery(e.target.value)} /></label>
           {suggestions.length > 0 && <div className="graduation-course-suggestions">{suggestions.map(s => <button key={s.id} onClick={() => addCatalog(s)} disabled={busy}><span><b>{s.name}</b><small>{s.code} · {s.category} · {s.credits}학점</small></span><Plus size={17} /></button>)}</div>}
-          <form className="manual-add" onSubmit={e => { e.preventDefault(); void addManual(); }}><input aria-label="과목명 직접 입력" placeholder="과목명 (카탈로그에 없는 과목)" value={manual.name} disabled={busy} onChange={e => setManual({ ...manual, name: e.target.value })} /><select aria-label="이수구분" value={manual.category} disabled={busy} onChange={e => setManual({ ...manual, category: e.target.value })}>{['전필', '전선', '전기', '교필', '선필교', '일교', '일선'].map(c => <option key={c}>{c}</option>)}</select><input aria-label="학점" type="number" min={0} max={20} step={1} value={manual.credits} disabled={busy} onChange={e => setManual({ ...manual, credits: e.target.value })} /><select aria-label="성적 (선택)" value={manual.grade} disabled={busy} onChange={e => setManual({ ...manual, grade: e.target.value })}><option value="">성적 미입력</option>{MANUAL_GRADES.map(g => <option key={g} value={g}>{g}</option>)}</select><button className="secondary" disabled={busy || !manual.name.trim()}><Plus size={15} />추가</button></form>
+          <form className="manual-add" onSubmit={e => { e.preventDefault(); void addManual(); }}><input aria-label="과목명 직접 입력" placeholder="과목명 (카탈로그에 없는 과목)" value={manual.name} disabled={busy} onChange={e => setManual({ ...manual, name: e.target.value })} /><select aria-label="이수구분" value={manual.category} disabled={busy} onChange={e => setManual({ ...manual, category: e.target.value })}>{['전필', '전선', '전기', '교필', '선필교', '일교', '일선'].map(c => <option key={c}>{c}</option>)}</select><input aria-label="학점" type="number" min={0} max={20} step={1} value={manual.credits} disabled={busy} onChange={e => setManual({ ...manual, credits: e.target.value })} /><select aria-label="성적 (선택)" value={manual.grade} disabled={busy} onChange={e => setManual({ ...manual, grade: e.target.value })}><option value="">성적 미입력</option>{MANUAL_GRADES.map(g => <option key={g} value={g}>{g}</option>)}</select><select aria-label="이수 학기 (선택)" value={manual.semester} disabled={busy} onChange={e => setManual({ ...manual, semester: e.target.value })}><option value="">학기 미입력</option>{manualSemesterOptions(catalog?.semester).map(s => <option key={s} value={s}>{s}</option>)}</select><button className="secondary" disabled={busy || !manual.name.trim()}><Plus size={15} />추가</button></form>
         </section>
         <div className="graduation-course-filters"><fieldset aria-label="이수 과목 출처">{[['all', '전체'], ['info', '학교 수집'], ['manual', '직접 입력']].map(([id, label]) => <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}</button>)}</fieldset><fieldset aria-label="이수 과목 영역">{[['all', '모든 영역'], ['gen', '교양'], ['major', '전공']].map(([id, label]) => <button key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>{label}</button>)}</fieldset><select aria-label="이수 과목 정렬" value={sort} onChange={e => setSort(e.target.value)}><option value="recent">최근 학기</option><option value="name">과목명순</option></select></div>
         <section className="card graduation-course-summary"><h3><GraduationCap size={23} />총 {earned === null ? '이수학점 미입력' : `${earned}학점 반영`}</h3><span>교양 <b>{general.earned}학점</b></span><span>전공 <b>{major.earned}학점</b></span>{sourceDate && <span><Clock3 size={15} />최근 동기화 <b>{sourceDate}</b></span>}</section>

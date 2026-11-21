@@ -24,7 +24,7 @@ import { targetProgress } from '@/lib/data/visual-progress';
 import { deptPoolOf, useDeptPages, useDeptRules, useNow } from './catalog';
 import { RetryButton } from './skeleton';
 import type { Completed, Data } from './data';
-import { FAILED_GRADES, MANUAL_GRADES } from './data';
+import { FAILED_GRADES, MANUAL_GRADES, manualSemesterOptions } from './data';
 
 const CATEGORIES = ['전필', '전선', '전기', '교필', '선필교', '일교', '일선'];
 
@@ -121,7 +121,7 @@ export function Graduation({
   const admissionType = admission ?? data.admissionType ?? localAdmission;
   const setAdmissionType = onAdmissionChange ?? setLocalAdmission;
   const guide = verifiedDeptGuide(data.dept, Number(data.year));
-  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', grade: '' });
+  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', grade: '', semester: '' });
   const { snap: deptRules, failed: deptRulesFailed, retry: retryDeptRules } =
     useDeptRules();
   const { snap: deptPages } = useDeptPages();
@@ -312,12 +312,13 @@ export function Graduation({
           }
         : { code: '수기-' + name, name, category: manual.category, credits };
       if (manual.grade) entry.grade = manual.grade;
+      if (manual.semester) entry.semester = manual.semester;
       void persist(
         { ...data, completed: [...data.completed, entry] },
         '이수 과목을 저장했습니다.',
       );
     }
-    setManual({ name: '', category: '전선', credits: '3', grade: '' });
+    setManual({ name: '', category: '전선', credits: '3', grade: '', semester: '' });
   }
   function removeFailed(idx: number) {
     void persist(
@@ -1302,6 +1303,18 @@ export function Graduation({
             {MANUAL_GRADES.map((g) => (
               <option key={g} value={g}>
                 {g}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="이수 학기 (선택)"
+            value={manual.semester}
+            onChange={(e) => setManual({ ...manual, semester: e.target.value })}
+          >
+            <option value="">학기 미입력</option>
+            {manualSemesterOptions(catalog?.semester).map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </select>

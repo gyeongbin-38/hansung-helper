@@ -42,7 +42,14 @@ export function SemesterPlan({
     const entry = [code, ...siblingCodes(code)]
       .map((c) => history?.courses[c])
       .find(Boolean);
-    return { pattern: offeringLabel(entry), stale: lastOfferedLabel(entry, catalog?.semester) };
+    // 담아둔 학기가 개설 패턴과 어긋나면 경고 — '1학기 개설' 과목을 2학기에 두면 못 듣는다
+    const term = semester?.slice(-1);
+    const mismatch = !!entry && !!term && !entry.terms.includes(term);
+    return {
+      pattern: offeringLabel(entry),
+      stale: lastOfferedLabel(entry, catalog?.semester),
+      mismatch,
+    };
   };
   const removeWish = (w: (typeof wishes)[number]) => {
     if (!persist || !semester) return;
@@ -125,7 +132,11 @@ export function SemesterPlan({
                   <small>
                     {w.credits}학점
                     {isCurrent && <> · {secs.length ? `${secs.length}개 분반 개설` : '이번 학기 미개설'}</>}
-                    {hint.pattern && <> · {hint.pattern}</>}
+                    {hint.pattern && (
+                      hint.mismatch && !secs.length
+                        ? <> · <em className="track-warn">보통 {hint.pattern}</em></>
+                        : <> · {hint.pattern}</>
+                    )}
                     {hint.stale && <> · <em className="track-warn">{hint.stale}</em></>}
                   </small>
                   {!!secs.length && (
