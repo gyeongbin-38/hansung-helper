@@ -415,6 +415,13 @@ export function Home({
         (w) => !plannedCodes.has(w.code) && catalog.sections.some((s) => s.code === w.code),
       )
     : [];
+  // 반대로 담아뒀는데 열리지 않은 과목 — 수강신청 전 계획 조정 신호
+  const doneWishCodes = new Set(completed.map((c) => c.code));
+  const unopenedWishes = catalog
+    ? (data.semesterWishes?.[catalog.semester] ?? []).filter(
+        (w) => !plannedCodes.has(w.code) && !doneWishCodes.has(w.code) && !catalog.sections.some((s) => s.code === w.code),
+      )
+    : [];
   const weekday = (new Date(now + 9 * 3600_000).getUTCDay() + 6) % 7;
   const monday = addDays(today, -weekday);
   const day = selectedDay ?? weekday;
@@ -607,6 +614,13 @@ export function Home({
               <Bookmark size={13} aria-hidden="true" />
               이번 학기 담아둔 과목 <b>{openWishes.length}과목 개설</b>
               <button className="link" onClick={() => go('semester-plan')}>분반 고르기 <ArrowRight size={13} /></button>
+            </p>
+          )}
+          {!!unopenedWishes.length && (
+            <p className="home-outlook home-wish-hint">
+              <Bookmark size={13} aria-hidden="true" />
+              이번 학기 담아둔 과목 <b>{unopenedWishes.length}과목 미개설</b>
+              <button className="link" onClick={() => go('semester-plan')}>계획 조정 <ArrowRight size={13} /></button>
             </p>
           )}
           <div className="home-grad-breakdown">
