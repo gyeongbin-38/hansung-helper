@@ -222,8 +222,10 @@ export function GraduationTrack({ data, year, catalog, planned, go, onPlan, noti
       for (const w of ws) {
         const entry = findHistoryEntry(history, w, siblingCodes);
         // 담아둔 학기가 현재 학기면 실제 개설 분반이 이력보다 우선 — 경고 억제
+        // 이력이 오래됐으면(2년+ 미개설) 참고도가 낮다는 표기를 붙인다
+        const stale = entry ? lastOfferedLabel(entry, catalog?.semester) : null;
         const warn = entry && sem !== catalog?.semester && !entry.terms.includes(term)
-          ? `보통 ${offeringLabelFromTerms(entry.terms)}`
+          ? `보통 ${offeringLabelFromTerms(entry.terms)}${stale ? ' · 오래된 이력' : ''}`
           : undefined;
         const move = warn
           ? { code: w.code, from: sem, to: suggestOfferingSemester(entry, sem, catalog?.semester) }

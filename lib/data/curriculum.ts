@@ -251,6 +251,39 @@ const byYearThenName = (a: TrackCourse, b: TrackCourse) =>
   (a.year ?? '9').localeCompare(b.year ?? '9') || a.name.localeCompare(b.name, 'ko');
 
 /**
+ * 학과 입력 → 표시할 전공 라벨 집합.
+ * resolveDept 결과에 학부 패밀리(컴퓨터공학부 → 형제 트랙 전공)를 더한
+ * wanted 집합과, 패밀리로 묶인 라벨 집합(family)을 돌려준다.
+ * 필수 트랙의 전공 선택과 자유 담기 후보의 '내 학과 과목' 판별이 공유한다.
+ */
+export function resolveWantedMajorNames(
+  deptInput: string,
+  majorNames: string[],
+): { wanted: Set<string>; family: Set<string> } {
+  const wanted = new Set<string>();
+  const family = new Set<string>();
+  const resolved = deptInput.trim() ? resolveDept(deptInput, majorNames) : {};
+  if (resolved.dept) wanted.add(resolved.dept);
+  for (const c of resolved.candidates ?? []) wanted.add(c);
+  // 학부 입력이 패밀리 키와 일치하거나 해석 결과가 패밀리 소속이면
+  // 형제 학부·트랙 전공도 함께 보여준다 (학생이 자기 트랙을 고른다).
+  const familyKey = Object.keys(RULESET_DEPT_FAMILY).find((k) => norm(k) === norm(deptInput));
+  const members = familyKey
+    ? [familyKey, ...RULESET_DEPT_FAMILY[familyKey]]
+    : (() => {
+        const hit = Object.entries(RULESET_DEPT_FAMILY).find(([, v]) =>
+          v.some((n) => wanted.has(n)),
+        );
+        return hit ? [hit[0], ...hit[1]] : null;
+      })();
+  if (members) {
+    for (const n of members) wanted.add(n);
+    for (const n of members.slice(1)) family.add(n);
+  }
+  return { wanted, family };
+}
+
+/**
  * 입학연도 교육과정 + 이수 내역 → 필수 과목 트랙.
  * - 전공 그룹: resolveDept로 해석한 학과(검증된 학부·트랙 패밀리 포함)의 '전필'
  * - 교양 그룹: '교필' 과목을 담은 전공(교양필수)과 '선필교'(선택필수교양)
@@ -312,24 +345,7 @@ export function buildRequiredTrack(args: {
 
   // ── 전공 필수 ──────────────────────────────────────────────
   const majorNames = Object.values(curriculum.majors).map((m) => majorLabel(m.name));
-  const resolved = deptInput.trim() ? resolveDept(deptInput, majorNames) : {};
-  const wanted = new Set<string>();
-  if (resolved.dept) wanted.add(resolved.dept);
-  for (const c of resolved.candidates ?? []) wanted.add(c);
-  // 학부 입력이 패밀리 키와 일치하거나 해석 결과가 패밀리 소속이면
-  // 형제 학부·트랙 전공도 함께 보여준다 (학생이 자기 트랙을 고른다).
-  const familyKey = Object.keys(RULESET_DEPT_FAMILY).find((k) => norm(k) === norm(deptInput));
-  const familyNames = new Set<string>();
-  if (familyKey) {
-    wanted.add(familyKey);
-    for (const n of RULESET_DEPT_FAMILY[familyKey]) { wanted.add(n); familyNames.add(n); }
-  } else {
-    const hit = Object.entries(RULESET_DEPT_FAMILY).find(([, v]) => v.some((n) => wanted.has(n)));
-    if (hit) {
-      wanted.add(hit[0]);
-      for (const n of hit[1]) { wanted.add(n); familyNames.add(n); }
-    }
-  }
+  const { wanted, family: familyNames } = resolveWantedMajorNames(deptInput, majorNames);
   for (const [code, major] of Object.entries(curriculum.majors)) {
     const label = majorLabel(major.name);
     if (!wanted.has(label)) continue;
@@ -342,6 +358,7 @@ export function buildRequiredTrack(args: {
       courses: dedupeEquiv(required.map((c) => toTrack(c, ctx)).sort(byYearThenName)),
     });
   }
+  const resolved = deptInput.trim() ? resolveDept(deptInput, majorNames) : {};
   const ambiguous = !groups.some((g) => g.role.startsWith('major')) && resolved.candidates?.length
     ? resolved.candidates
     : undefined;
