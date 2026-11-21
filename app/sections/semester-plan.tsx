@@ -137,13 +137,18 @@ export function SemesterPlan({
   };
   // 위시별 힌트·옮기기 대상을 한 번만 계산 — 개별·일괄 옮기기가 공유
   const wishRows = wishes.map((w) => {
-    const secs = isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
+    const done = doneCodes.has(w.code);
+    const secs = !done && isCurrent ? catalog!.sections.filter((s) => s.code === w.code) : [];
     const hint = wishHint(w);
-    const moveTarget = hint.mismatch && !secs.length
+    // 이수 완료 과목은 개설 패턴 경고·옮기기 제안이 무의미하다
+    const moveTarget = !done && hint.mismatch && !secs.length
       ? suggestOfferingSemester(hint.entry, semester, catalog?.semester)
       : null;
-    return { w, secs, hint, moveTarget };
+    return { w, done, secs, hint, moveTarget };
   });
+  // 현재 학기 담아둔 과목의 실제 개설 요약 — 수강신청 전 확인 배너
+  const openedCount = isCurrent ? wishRows.filter((r) => r.secs.length > 0).length : 0;
+  const unopenedCount = isCurrent ? wishRows.filter((r) => !r.done && !r.secs.length).length : 0;
   const moveableCount = wishRows.filter((r) => r.moveTarget).length;
   // 개설 패턴과 어긋난 위시 전부를 맞는 학기로 한 번에 옮긴다
   const moveAllWishes = () => {
@@ -224,7 +229,13 @@ export function SemesterPlan({
             <span className="badge">담아둔 과목</span>
             {!!wishes.length && <span className="badge">{wishes.length}과목 · {wishCredits}학점</span>}
           </div>
-          {wishRows.map(({ w, secs, hint, moveTarget }) => {
+          {isCurrent && !!wishes.length && (
+            <p className="meta plan-wish-status">
+              이번 학기 개설 {openedCount}과목
+              {unopenedCount > 0 && <> · <em className="track-warn">미개설 {unopenedCount}과목</em></>}
+            </p>
+          )}
+          {wishRows.map(({ w, done, secs, hint, moveTarget }) => {
             return (
               <div className="event-line plan-wish" key={w.code}>
                 <Bookmark />
@@ -232,13 +243,17 @@ export function SemesterPlan({
                   <b>{w.name}</b>
                   <small>
                     {w.credits}학점
-                    {isCurrent && <> · {secs.length ? `${secs.length}개 분반 개설` : '이번 학기 미개설'}</>}
-                    {hint.pattern && (
-                      hint.mismatch && !secs.length
-                        ? <> · <em className="track-warn">보통 {hint.pattern}</em></>
-                        : <> · {hint.pattern}</>
-                    )}
-                    {hint.stale && <> · <em className="track-warn">{hint.stale}</em></>}
+                    {done
+                      ? <> · 이수 완료</>
+                      : <>
+                          {isCurrent && <> · {secs.length ? `${secs.length}개 분반 개설` : '이번 학기 미개설'}</>}
+                          {hint.pattern && (
+                            hint.mismatch && !secs.length
+                              ? <> · <em className="track-warn">보통 {hint.pattern}</em></>
+                              : <> · {hint.pattern}</>
+                          )}
+                          {hint.stale && <> · <em className="track-warn">{hint.stale}</em></>}
+                        </>}
                   </small>
                   {!!secs.length && (
                     <span className="plan-wish-secs">
