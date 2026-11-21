@@ -51,7 +51,7 @@ export function GraduationWorkspace(props: Props) {
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState('recent');
   const [simGpa, setSimGpa] = useState('');
-  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3' });
+  const [manual, setManual] = useState({ name: '', category: '전선', credits: '3', failed: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function setAdmission(next: AdmissionType) {
@@ -62,6 +62,19 @@ export function GraduationWorkspace(props: Props) {
     if (!saved) setError('입학 구분을 저장하지 못했습니다. 다시 선택해 주세요.');
   }
   const { snap: rules } = useDeptRules();
+  // 낙제 과목 — 학교 수집 + 수기 병합(수집 우선 dedupe), F 성적 확인 카드용
+  const failedAll = useMemo(() => {
+    const seen = new Set<string>();
+    return [
+      ...(data.info?.failedCourses ?? []).map((c) => ({ ...c, src: 'info' as const })),
+      ...(data.failedCourses ?? []).map((c) => ({ ...c, src: 'manual' as const })),
+    ].filter((c) => {
+      const k = c.code + '|' + c.name;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }) as { code: string; name: string; grade?: string; semester?: string; src: 'info' | 'manual' }[];
+  }, [data.info?.failedCourses, data.failedCourses]);
   const { snap: schedule } = useSchedule();
   const now = useNow();
   const todayKst = scheduleToday(now);
@@ -172,7 +185,7 @@ export function GraduationWorkspace(props: Props) {
     setBusy(true); setError('');
     const saved = await persist({ ...data, completed: [...data.completed, course] }, '이수 과목을 저장했습니다.');
     setBusy(false);
-    if (saved) { setQuery(''); setManual({ name: '', category: '전선', credits: '3' }); }
+    if (saved) { setQuery(''); setManual({ name: '', category: '전선', credits: '3', failed: false }); }
     else setError('저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.');
   }
   async function addManual() {
@@ -182,8 +195,28 @@ export function GraduationWorkspace(props: Props) {
       setError('과목명과 0~20 사이의 학점을 입력해 주세요.'); return;
     }
     const hit = catalog?.sections.find(s => s.name === name);
+    if (manual.failed) {
+      setBusy(true); setError('');
+      const saved = await persist(
+        { ...data, failedCourses: [...(data.failedCourses ?? []), { code: hit?.code ?? `수기-${name}`, name: hit?.name ?? name, grade: 'F' }] },
+        '낙제 과목을 저장했습니다.',
+      );
+      setBusy(false);
+      if (saved) setManual({ name: '', category: '전선', credits: '3', failed: false });
+      else setError('저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.');
+      return;
+    }
     await saveCourse(hit ? { code: hit.code, name: hit.name, category: hit.category, credits: hit.credits } :
       { code: `수기-${name}`, name, category: manual.category, credits });
+  }
+  async function removeFailed(code: string, name: string) {
+    if (busy) return;
+    const index = (data.failedCourses ?? []).findIndex(c => c.code === code && c.name === name);
+    if (index < 0) return;
+    setBusy(true);
+    const saved = await persist({ ...data, failedCourses: (data.failedCourses ?? []).filter((_, i) => i !== index) }, '낙제 과목에서 제외했습니다.');
+    setBusy(false);
+    if (!saved) setError('낙제 과목을 제외하지 못했습니다.');
   }
   async function removeCourse(code: string, name: string) {
     if (busy) return;
@@ -268,9 +301,9 @@ export function GraduationWorkspace(props: Props) {
         </div></div>
         <div className="school-criteria-actions"><a className="secondary" href="https://rule.hansung.ac.kr/lmxsrv/law/lawFullContent.do?SEQ=104&amp;SEQ_HISTORY=1640" target="_blank" rel="noreferrer">졸업사정 기준 <ArrowUpRight size={15} aria-hidden="true" /></a><a className="link" href="https://hsportal.hansung.ac.kr/" target="_blank" rel="noreferrer">비교과 포인트 확인 <ArrowUpRight size={14} aria-hidden="true" /></a><button className="link school-points-action" onClick={() => go('profile/points')}>확인한 포인트 입력 <ArrowRight size={14} aria-hidden="true" /></button></div>
       </section>}
-      {view === 'completed' && !!data.info?.failedCourses?.length && <section className="card school-failed" aria-labelledby="school-failed-title">
-        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{data.info.failedCourses.length}과목</span></h3><p>학점 미합산</p></div></div>
-        <ul className="school-failed-courses">{data.info.failedCourses.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span></li>)}</ul>
+      {view === 'completed' && !!failedAll.length && <section className="card school-failed" aria-labelledby="school-failed-title">
+        <div className="school-section-heading"><span className="school-section-icon"><CircleAlert size={20} aria-hidden="true" /></span><div><h3 id="school-failed-title">F 성적 확인 <span className="badge orange">{failedAll.length}과목</span></h3><p>학점 미합산</p></div></div>
+        <ul className="school-failed-courses">{failedAll.map((course, i) => <li key={i}><div><b>{course.name}</b>{course.semester && <span>{course.semester}</span>}</div><span className="badge orange">{course.grade || 'F'}</span>{course.src === 'manual' && <button className="icon" aria-label={`${course.name} 낙제 목록에서 제거`} disabled={busy} onClick={() => void removeFailed(course.code, course.name)}><X size={15} /></button>}</li>)}</ul>
       </section>}
       {view === 'track' && <GraduationTrack data={data} year={year} catalog={catalog} planned={planned} go={go} onPlan={onPlan} notify={notify} persist={persist} />}
       {(view === '' || view === 'requirements') && <>
@@ -395,7 +428,7 @@ export function GraduationWorkspace(props: Props) {
         <p className="graduation-view-description">수집된 학교 기록과 직접 입력한 과목을 함께 사용하여 졸업 요건 계산에 반영합니다.</p>
         <section className="card graduation-course-form"><label className="cat-search"><Search size={17} /><input value={query} aria-label="이수한 과목 검색" placeholder="과목명·코드로 검색해 이수 과목 추가" onChange={e => setQuery(e.target.value)} /></label>
           {suggestions.length > 0 && <div className="graduation-course-suggestions">{suggestions.map(s => <button key={s.id} onClick={() => addCatalog(s)} disabled={busy}><span><b>{s.name}</b><small>{s.code} · {s.category} · {s.credits}학점</small></span><Plus size={17} /></button>)}</div>}
-          <form className="manual-add" onSubmit={e => { e.preventDefault(); void addManual(); }}><input aria-label="과목명 직접 입력" placeholder="과목명 (카탈로그에 없는 과목)" value={manual.name} disabled={busy} onChange={e => setManual({ ...manual, name: e.target.value })} /><select aria-label="이수구분" value={manual.category} disabled={busy} onChange={e => setManual({ ...manual, category: e.target.value })}>{['전필', '전선', '전기', '교필', '선필교', '일교', '일선'].map(c => <option key={c}>{c}</option>)}</select><input aria-label="학점" type="number" min={0} max={20} step={1} value={manual.credits} disabled={busy} onChange={e => setManual({ ...manual, credits: e.target.value })} /><button className="secondary" disabled={busy || !manual.name.trim()}><Plus size={15} />추가</button></form>
+          <form className="manual-add" onSubmit={e => { e.preventDefault(); void addManual(); }}><input aria-label="과목명 직접 입력" placeholder="과목명 (카탈로그에 없는 과목)" value={manual.name} disabled={busy} onChange={e => setManual({ ...manual, name: e.target.value })} /><select aria-label="이수구분" value={manual.category} disabled={busy} onChange={e => setManual({ ...manual, category: e.target.value })}>{['전필', '전선', '전기', '교필', '선필교', '일교', '일선'].map(c => <option key={c}>{c}</option>)}</select><input aria-label="학점" type="number" min={0} max={20} step={1} value={manual.credits} disabled={busy} onChange={e => setManual({ ...manual, credits: e.target.value })} /><button className="secondary" disabled={busy || !manual.name.trim()}><Plus size={15} />추가</button><label className="meta manual-failed-check"><input type="checkbox" checked={manual.failed} disabled={busy} onChange={e => setManual({ ...manual, failed: e.target.checked })} />낙제(F/U)로 추가</label></form>
         </section>
         <div className="graduation-course-filters"><fieldset aria-label="이수 과목 출처">{[['all', '전체'], ['info', '학교 수집'], ['manual', '직접 입력']].map(([id, label]) => <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}</button>)}</fieldset><fieldset aria-label="이수 과목 영역">{[['all', '모든 영역'], ['gen', '교양'], ['major', '전공']].map(([id, label]) => <button key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>{label}</button>)}</fieldset><select aria-label="이수 과목 정렬" value={sort} onChange={e => setSort(e.target.value)}><option value="recent">최근 학기</option><option value="name">과목명순</option></select></div>
         <section className="card graduation-course-summary"><h3><GraduationCap size={23} />총 {earned === null ? '이수학점 미입력' : `${earned}학점 반영`}</h3><span>교양 <b>{general.earned}학점</b></span><span>전공 <b>{major.earned}학점</b></span>{sourceDate && <span><Clock3 size={15} />최근 동기화 <b>{sourceDate}</b></span>}</section>

@@ -237,6 +237,22 @@
   align-items: center;
   gap: 5px;
 }
+.manual-add input[type='checkbox'] {
+  width: auto;
+  padding: 0;
+}
+.manual-failed-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--nt-slate);
+}
+.grad-failed-note {
+  margin: 16px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--nt-hairline);
+}
 .grad-intro .meta,
 .requirement-list .meta {
   color: var(--nt-steel);

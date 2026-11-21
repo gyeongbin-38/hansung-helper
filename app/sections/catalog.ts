@@ -323,15 +323,15 @@ export function useRequiredMissing(data: Data, catalog: Catalog | null) {
       completed: mergeCompleted(data.completed, data.info?.completed),
       offeredCodes: new Set(catalog.sections.map((s) => s.code)),
       equiv,
-      failed: data.info?.failedCourses,
+      failed: [...(data.failedCourses ?? []), ...(data.info?.failedCourses ?? [])],
     });
-    const trackName = data.info?.track ?? data.info?.tracks?.[0];
+    const trackName = data.info?.track ?? data.info?.tracks?.[0] ?? data.track;
     return {
       missing: missingRequiredCodeSet({ track, trackName, equiv }),
       // 동일과목(폐지 과목 후속 코드) 매칭 시 왜 필수인지 설명
       siblings: missingRequiredSiblings({ track, trackName, equiv }),
     };
-  }, [curriculum, catalog, equiv, data.info, data.completed, data.dept]);
+  }, [curriculum, catalog, equiv, data.info, data.completed, data.dept, data.track, data.failedCourses]);
 }
 
 /** 넓은 카테고리 그룹 (표시는 원본 이수구분 유지). */

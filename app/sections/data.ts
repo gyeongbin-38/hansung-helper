@@ -34,6 +34,8 @@ export type Completed = {
   category: string;
   credits: number;
 };
+/** 수기 등록 낙제 과목 — info.failedCourses(학교 수집)의 최소 형태 */
+export type FailedCourse = { code: string; name: string; grade?: string };
 export type Data = {
   name: string;
   year: string;
@@ -50,6 +52,10 @@ export type Data = {
   semesterPlans?: Record<string, { sourceSemester: string; planned: string[]; plans: Record<string, string[]> }>;
   /** 학기별 담아둔 과목 — 분반 ID는 개설 자료가 나와야 생기므로 코드 단위로 저장한다 */
   semesterWishes?: Record<string, { code: string; name: string; credits: number }[]>;
+  /** 수기 선택 트랙 — info.track(학교 수집)이 없을 때 로드맵·필수 판정에 사용 */
+  track?: string;
+  /** 수기 등록 낙제(F/U) 과목 — 재수강 필요 표시에 학교 수집분과 합쳐 사용 */
+  failedCourses?: FailedCourse[];
   setupHistory?: 'none' | 'later';
   recommendationsSeen?: boolean;
   completed: Completed[];
