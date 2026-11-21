@@ -22,6 +22,43 @@ export type CourseHistory = {
   courses: Record<string, CourseHistoryEntry>;
 };
 
+const normName = (s: string) => s.replace(/\s+/g, '');
+const newer = (a?: CourseHistoryEntry, b?: CourseHistoryEntry) =>
+  a && b ? (b.last > a.last ? b : a) : a ?? b;
+
+/**
+ * 개설 이력 조회 — 코드 직접 → 동일과목 형제 코드(가장 최근 개설 우선) →
+ * 과목명 폴백 순.
+ * 과목명 폴백은 개편 코드(이력에 없는 신코드)용이며, 같은 이름의 이력
+ * 항목이 전부 같은 개설 패턴을 공유할 때만 적용한다 — 다른 학과의 동명
+ * 과목 패턴을 잘못 붙여 오경고하지 않기 위해서다. 그 중 가장 최근에
+ * 개설된 항목을 쓴다.
+ */
+export function findHistoryEntry(
+  history: CourseHistory | null | undefined,
+  course: { code: string; name: string },
+  siblingCodes?: (code: string) => string[],
+): CourseHistoryEntry | undefined {
+  if (!history) return undefined;
+  const direct = history.courses[course.code];
+  if (direct) return direct;
+  let best: CourseHistoryEntry | undefined;
+  for (const s of siblingCodes?.(course.code) ?? []) {
+    best = newer(best, history.courses[s]);
+  }
+  if (best) return best;
+  // 과목명 폴백 — 동명 항목의 패턴이 일치할 때만
+  let named: CourseHistoryEntry | undefined;
+  let terms: string | undefined;
+  for (const e of Object.values(history.courses)) {
+    if (normName(e.name) !== normName(course.name)) continue;
+    if (terms === undefined) terms = e.terms;
+    else if (terms !== e.terms) return undefined; // 패턴 불일치 — 동명이과 의심
+    named = newer(named, e);
+  }
+  return named;
+}
+
 /**
  * 인덱스 생성은 scripts/build-course-history.mjs가 담당한다
  * (게시 스크립트는 플래그 없는 node로 실행되므로 순수 JS 구현을 유지).

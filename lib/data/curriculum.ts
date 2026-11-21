@@ -9,6 +9,7 @@
 import { resolveDept } from './dept.ts';
 import { RULESET_DEPT_FAMILY } from './dept-rules.ts';
 import type { EquivalentsSnapshot } from './equivalents.ts';
+import { findHistoryEntry } from './course-history.ts';
 import type { CourseHistory, CourseHistoryEntry } from './course-history.ts';
 
 export type CurriculumCourse = {
@@ -225,7 +226,7 @@ function toTrack(
     done: Map<string, { name: string; equiv: boolean }>;
     plannedFor: (code: string) => boolean;
     offeredFor: (code: string) => string | undefined;
-    histFor: (code: string) => CourseHistoryEntry | undefined;
+    histFor: (course: { code: string; name: string }) => CourseHistoryEntry | undefined;
     failedFor: (course: { code: string; name: string }) => string | undefined;
   },
 ): TrackCourse {
@@ -241,7 +242,7 @@ function toTrack(
     matchedName: hit?.equiv ? hit.name : undefined,
     offered: !!offeredCode,
     offeredCode: offeredCode !== course.code ? offeredCode : undefined,
-    hist: ctx.histFor(course.code),
+    hist: ctx.histFor(course),
     failed: status === 'done' ? undefined : ctx.failedFor(course),
   };
 }
@@ -280,17 +281,8 @@ export function buildRequiredTrack(args: {
   // 동일과목 코드로 담은 계획도 '계획 중'으로 인정 (폐지 과목 대체 수강)
   const plannedFor = (code: string) =>
     planned.has(code) || siblingCodes(code).some((s) => planned.has(s));
-  const histFor = (code: string) => {
-    if (!history) return undefined;
-    const direct = history.courses[code];
-    if (direct) return direct;
-    let best: CourseHistoryEntry | undefined;
-    for (const s of siblingCodes(code)) {
-      const e = history.courses[s];
-      if (e && (!best || e.last > best.last)) best = e;
-    }
-    return best;
-  };
+  const histFor = (c: { code: string; name: string }) =>
+    findHistoryEntry(history, c, siblingCodes);
   const failedIdx = buildFailedIndex(args.failed, siblingCodes, equiv);
   const failedFor = (c: { code: string; name: string }) =>
     failedIdx.get(c.code) ?? failedIdx.get(norm(c.name));
