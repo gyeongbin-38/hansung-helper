@@ -6,6 +6,7 @@ import { conflicts, slotsLabel, type Catalog, type CourseSection } from '@/lib/d
 import { buildRequiredTrack, equivCodeIndex, majorLabel, pickCourseCandidate, pickCurriculumSemester, resolveWantedMajorNames } from '@/lib/data/curriculum';
 import { findHistoryEntry, lastOfferedLabel, offeringLabel, suggestOfferingSemester } from '@/lib/data/course-history';
 import { mergeCompleted } from '@/lib/data/info';
+import { pingAnalytics } from '@/lib/analytics';
 import { formatSemesterLabel } from '@/lib/data/graduation';
 import type { Data } from './data';
 
@@ -144,6 +145,8 @@ export function SemesterPlan({
       { ...data, semesterWishes: list },
       `${pick.name}을(를) ${formatSemesterLabel(semester)}에 담아뒀어요`,
     );
+    // 계절학기 수요 파악 — 학기 구분(wish/3 여름·wish/4 겨울)만 기록, 과목 정보는 남기지 않는다
+    pingAnalytics(`wish/${semester.slice(-1)}`);
     setAddQuery('');
   };
   // 위시별 힌트·옮기기 대상을 한 번만 계산 — 개별·일괄 옮기기가 공유

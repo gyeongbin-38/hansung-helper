@@ -275,6 +275,11 @@ const cPostForC = await getCommunityPost(cPost.data.id, { id: 'c' });
 assert.equal(cPostForC.comments.length, 1);
 // 차단한 이용자의 답글은 내 활동의 답글 목록에서도 숨겨진다
 assert.equal((await communityMe('a')).replies.length, 0);
+// 양방향 차단: 차단당한 b에게도 a의 글이 숨겨지고, 무관한 c에게는 그대로다
+const forBlockedB = await listCommunityPosts({ accountId: 'b' });
+assert.ok(!forBlockedB.posts.some((post) => post.id === aPost2.data.id));
+assert.equal(await getCommunityPost(aPost2.data.id, { id: 'b' }), null);
+assert.ok((await listCommunityPosts({ accountId: 'c' })).posts.some((post) => post.id === aPost2.data.id));
 
 // 내 활동의 차단 목록에 별명이 나타나고, 해제하면 다시 보인다
 const meBlocked = await communityMe('a');

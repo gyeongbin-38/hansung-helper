@@ -32,7 +32,7 @@ export function InstallHint() {
     <div className="install-hint" role="note">
       <Share size={17} aria-hidden="true" />
       <span>
-        홈 화면에 추가하면 앱처럼 열 수 있어요 — 공유{' '}
+        홈 화면에 추가하면 앱처럼 열고 마감 알림도 받을 수 있어요 — 공유{' '}
         <Share size={12} aria-hidden="true" /> 후 <b>홈 화면에 추가</b>
       </span>
       <button
