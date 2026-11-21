@@ -7,6 +7,7 @@ import {
 } from 'react';
 import {
   ArrowLeft,
+  Ban,
   Flag,
   Heart,
   MessageCircle,
@@ -405,6 +406,38 @@ export function CommunitySection({
     }
   }
 
+  // 이용자 차단 — 해당 작성자의 글·댓글이 피드와 상세에서 숨겨진다
+  async function blockAuthor(alias: string, fromPost: boolean) {
+    if (!confirm(`'${alias}'님을 차단할까요? 이 이용자의 글과 댓글이 보이지 않습니다.`)) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await sendJson('/api/community/block', 'POST', { alias });
+      notify(`'${alias}'님을 차단했습니다. 내 활동에서 해제할 수 있습니다.`);
+      if (fromPost) go('community');
+      else {
+        setPosts((previous) => previous.filter((item) => item.author.alias !== alias));
+        void loadPost();
+      }
+    } catch (error) {
+      setActionError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unblockAuthor(alias: string) {
+    setActionError('');
+    try {
+      await sendJson('/api/community/block', 'DELETE', { alias });
+      if (me) setMe({ ...me, blocked: me.blocked.filter((name) => name !== alias) });
+      void loadList();
+      notify(`'${alias}'님의 차단을 해제했습니다.`);
+    } catch (error) {
+      setActionError(errorMessage(error));
+    }
+  }
+
   async function submitReport(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!post || !report) return;
@@ -493,6 +526,15 @@ export function CommunitySection({
           {signedIn && (
             <button type="button" onClick={() => openReport(comment.id)}>
               <Flag size={13} aria-hidden="true" /> 신고
+            </button>
+          )}
+          {signedIn && !comment.mine && comment.author.alias !== '익명' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void blockAuthor(comment.author.alias, false)}
+            >
+              <Ban size={13} aria-hidden="true" /> 차단
             </button>
           )}
           {signedIn && comment.mine && editCommentId !== comment.id && (
@@ -652,6 +694,15 @@ export function CommunitySection({
                 {signedIn && (
                   <button type="button" onClick={() => openReport()}>
                     <Flag size={14} aria-hidden="true" /> 신고
+                  </button>
+                )}
+                {signedIn && !post.mine && post.author.alias !== '익명' && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void blockAuthor(post.author.alias, true)}
+                  >
+                    <Ban size={14} aria-hidden="true" /> 차단
                   </button>
                 )}
                 {post.mine && !editPost && (
@@ -962,6 +1013,32 @@ export function CommunitySection({
                   </ul>
                 ) : (
                   <p className="meta">아직 쓴 댓글이 없습니다.</p>
+                )}
+              </div>
+              <div>
+                <h4>차단한 이용자</h4>
+                {me.blocked.length ? (
+                  <ul className="community-me-list">
+                    {me.blocked.map((alias) => (
+                      <li key={alias}>
+                        <span className="community-blocked">
+                          <span className="community-avatar" aria-hidden="true">
+                            {alias.slice(0, 1)}
+                          </span>
+                          <b>{alias}</b>
+                        </span>
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => void unblockAuthor(alias)}
+                        >
+                          차단 해제
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="meta">차단한 이용자가 없습니다.</p>
                 )}
               </div>
               <div>

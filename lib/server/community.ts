@@ -187,10 +187,15 @@ export async function listCommunityPosts(options: {
   const searchSql = query
     ? " AND (p.title LIKE ? ESCAPE '\\' OR p.body LIKE ? ESCAPE '\\')"
     : '';
-  const searchArgs = query ? [like, like] : [];
+  // 차단한 이용자의 글은 피드에서 보이지 않는다
+  const blockSql = accountId
+    ? ' AND p.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
+    : '';
+  const searchArgs: unknown[] = query ? [like, like] : [];
+  const baseArgs: unknown[] = accountId ? [...searchArgs, accountId] : searchArgs;
 
   if (sort === 'latest') {
-    let args: unknown[] = [...searchArgs];
+    let args: unknown[] = [...baseArgs];
     let keyset = '';
     if (before) {
       const pivot = await db
@@ -199,11 +204,11 @@ export async function listCommunityPosts(options: {
         .first<{ created_at: number; id: string }>();
       if (!pivot) return { posts: [], nextCursor: null };
       keyset = ' AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?))';
-      args = [...searchArgs, pivot.created_at, pivot.created_at, pivot.id];
+      args = [...baseArgs, pivot.created_at, pivot.created_at, pivot.id];
     }
     const rows = await db
       .prepare(
-        `${SELECT_POSTS}${searchSql}${keyset} ORDER BY p.created_at DESC, p.id DESC LIMIT ${COMMUNITY_PAGE_SIZE + 1}`,
+        `${SELECT_POSTS}${searchSql}${blockSql}${keyset} ORDER BY p.created_at DESC, p.id DESC LIMIT ${COMMUNITY_PAGE_SIZE + 1}`,
       )
       .bind(...args)
       .all<PostRow>();
@@ -219,11 +224,11 @@ export async function listCommunityPosts(options: {
   // 인기·트렌딩은 점수가 변동값이라 id 커서 대신 최근 200개 안에서 위치를 찾아 자른다.
   const rows = await db
     .prepare(
-      `${SELECT_POSTS}${searchSql} ORDER BY ${
+      `${SELECT_POSTS}${searchSql}${blockSql} ORDER BY ${
         sort === 'popular' ? 'like_count DESC, p.created_at DESC' : 'p.created_at DESC'
       } LIMIT 200`,
     )
-    .bind(...searchArgs)
+    .bind(...baseArgs)
     .all<PostRow>();
   const sorted = sortCommunityPosts(
     rows.results.map((row) => summaryOf(row, accountId)),
@@ -244,8 +249,13 @@ export async function getCommunityPost(
 ): Promise<CommunityPost | null> {
   const db = database();
   const post = await db
-    .prepare(`${SELECT_POSTS} AND p.id = ?`)
-    .bind(id.slice(0, 64))
+    .prepare(
+      `${SELECT_POSTS} AND p.id = ?` +
+        (viewer
+          ? ' AND p.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
+          : ''),
+    )
+    .bind(...(viewer ? [id.slice(0, 64), viewer.id] : [id.slice(0, 64)]))
     .first<PostRow>();
   if (!post) return null;
   const [commentRows, liked] = await Promise.all([
@@ -253,9 +263,13 @@ export async function getCommunityPost(
       .prepare(
         'SELECT c.id, c.body, c.author_id, c.parent_id, ca.alias, c.created_at, c.updated_at ' +
           'FROM community_comments c LEFT JOIN community_aliases ca ON ca.account_id = c.author_id ' +
-          'WHERE c.post_id = ? AND c.deleted = 0 ORDER BY c.created_at ASC, c.id ASC LIMIT 300',
+          'WHERE c.post_id = ? AND c.deleted = 0' +
+          (viewer
+            ? ' AND c.author_id NOT IN (SELECT blocked_id FROM community_blocks WHERE account_id = ?)'
+            : '') +
+          ' ORDER BY c.created_at ASC, c.id ASC LIMIT 300',
       )
-      .bind(post.id)
+      .bind(...(viewer ? [post.id, viewer.id] : [post.id]))
       .all<CommentRow>(),
     viewer
       ? db
@@ -527,9 +541,52 @@ export async function reportCommunityTarget(
   return { ok: true, data: { reported: true } };
 }
 
+/** 별명으로 이용자 차단 — 피드·글·댓글에서 해당 작성자가 숨겨진다. */
+export async function blockCommunityAuthor(
+  accountId: string,
+  alias: unknown,
+): Promise<CommunityResult<{ blocked: true }>> {
+  const name = typeof alias === 'string' ? alias.trim().slice(0, 64) : '';
+  if (!name) return { ok: false, error: '차단할 이용자를 확인해 주세요.', status: 400 };
+  const db = database();
+  const target = await db
+    .prepare('SELECT account_id FROM community_aliases WHERE alias = ?')
+    .bind(name)
+    .first<{ account_id: string }>();
+  if (!target) return { ok: false, error: '이용자를 찾을 수 없습니다.', status: 404 };
+  if (target.account_id === accountId)
+    return { ok: false, error: '본인은 차단할 수 없습니다.', status: 400 };
+  await db
+    .prepare(
+      'INSERT OR IGNORE INTO community_blocks (account_id, blocked_id, created_at) VALUES (?, ?, ?)',
+    )
+    .bind(accountId, target.account_id, Date.now())
+    .run();
+  return { ok: true, data: { blocked: true } };
+}
+
+export async function unblockCommunityAuthor(
+  accountId: string,
+  alias: unknown,
+): Promise<CommunityResult<{ unblocked: true }>> {
+  const name = typeof alias === 'string' ? alias.trim().slice(0, 64) : '';
+  if (!name) return { ok: false, error: '해제할 이용자를 확인해 주세요.', status: 400 };
+  const db = database();
+  const target = await db
+    .prepare('SELECT account_id FROM community_aliases WHERE alias = ?')
+    .bind(name)
+    .first<{ account_id: string }>();
+  if (!target) return { ok: false, error: '이용자를 찾을 수 없습니다.', status: 404 };
+  await db
+    .prepare('DELETE FROM community_blocks WHERE account_id = ? AND blocked_id = ?')
+    .bind(accountId, target.account_id)
+    .run();
+  return { ok: true, data: { unblocked: true } };
+}
+
 export async function communityMe(accountId: string): Promise<CommunityMe> {
   const db = database();
-  const [alias, posts, comments, replies] = await Promise.all([
+  const [alias, posts, comments, replies, blocked] = await Promise.all([
     communityAlias(accountId),
     db
       .prepare(
@@ -570,6 +627,13 @@ export async function communityMe(accountId: string): Promise<CommunityMe> {
         post_title: string;
         alias: string | null;
       }>(),
+    db
+      .prepare(
+        'SELECT ca.alias FROM community_blocks b JOIN community_aliases ca ON ca.account_id = b.blocked_id ' +
+          'WHERE b.account_id = ? ORDER BY b.created_at DESC LIMIT 100',
+      )
+      .bind(accountId)
+      .all<{ alias: string }>(),
   ]);
   return {
     alias,
@@ -594,5 +658,6 @@ export async function communityMe(accountId: string): Promise<CommunityMe> {
       createdAt: Number(reply.created_at),
       author: { alias: reply.alias ?? '익명' },
     })),
+    blocked: blocked.results.map((row) => row.alias),
   };
 }

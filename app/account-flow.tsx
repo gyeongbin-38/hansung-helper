@@ -254,6 +254,10 @@ export function SignIn({
               <a href="/privacy" target="_blank" rel="noreferrer">
                 개인정보처리방침
               </a>
+              {' · '}
+              <a href="/terms" target="_blank" rel="noreferrer">
+                이용약관
+              </a>
             </p>
           </details>
           <label>

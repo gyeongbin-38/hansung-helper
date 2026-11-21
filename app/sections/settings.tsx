@@ -486,6 +486,9 @@ export function SettingsSection({
         <a className="link" href="/privacy" target="_blank" rel="noreferrer">
           개인정보처리방침 <ArrowUpRight size={13} aria-hidden="true" />
         </a>
+        <a className="link" href="/terms" target="_blank" rel="noreferrer">
+          이용약관 <ArrowUpRight size={13} aria-hidden="true" />
+        </a>
         {!account && (
           <button
             className="link"

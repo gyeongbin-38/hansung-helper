@@ -18,6 +18,7 @@ CHECKS = [
     ("/api/dept-rules", "json", "dept-rules"),
     ("/api/activities", "json", "activities"),
     ("/privacy", "text/html", None),
+    ("/terms", "text/html", None),
     ("/favicon.svg", "image/svg+xml", None),
 ]
 

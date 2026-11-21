@@ -95,6 +95,8 @@ export type CommunityMe = {
   posts: CommunityPostActivity[];
   comments: CommunityCommentActivity[];
   replies: CommunityReplyActivity[];
+  /** 차단한 이용자의 익명 별명 목록 */
+  blocked: string[];
 };
 
 export type CommunityPostInput = {
