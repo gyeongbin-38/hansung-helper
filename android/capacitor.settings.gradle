@@ -7,3 +7,6 @@ project(':capacitor-app').projectDir = new File('../../Users/82107/Desktop/학�
 
 include ':capacitor-push-notifications'
 project(':capacitor-push-notifications').projectDir = new File('../../Users/82107/Desktop/학사 도우미/node_modules/@capacitor/push-notifications/android')
+
+include ':capacitor-status-bar'
+project(':capacitor-status-bar').projectDir = new File('../../Users/82107/Desktop/학사 도우미/node_modules/@capacitor/status-bar/android')
