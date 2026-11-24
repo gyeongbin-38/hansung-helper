@@ -3,6 +3,7 @@ import {
   currentNativeToken,
   dropNativePush,
   ensureNativePush,
+  initNativeChrome,
   initNativePush,
   isNativeApp,
   requestNativePermission,
@@ -37,6 +38,7 @@ let swRegistration: ServiceWorkerRegistration | undefined;
 export function ensureSwRegistered() {
   if (isNativeApp()) {
     initNativePush();
+    initNativeChrome();
     return;
   }
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;

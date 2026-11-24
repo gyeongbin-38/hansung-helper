@@ -2,7 +2,9 @@
  *  웹에서는 isNativeApp()이 false라 플러그인 코드가 실행되지 않는다 —
  *  @capacitor/push-notifications의 웹 구현은 no-op이므로 정적 임포트해도 안전하다. */
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { apiFetch, apiData } from './data/api.ts';
 
 export function isNativeApp(): boolean {
@@ -15,6 +17,33 @@ export function isNativeApp(): boolean {
 
 const TOKEN_KEY = 'hs-native-push-token';
 let listenersInstalled = false;
+let chromeInstalled = false;
+
+/** 앱 시작 시 1회 — 상태바 스타일을 테마와 맞추고 Android 뒤로가기를
+ *  해시 라우트 뒤로가기로 연결한다(홈에서는 앱을 백그라운드로 보낸다). */
+export function initNativeChrome(): void {
+  if (!isNativeApp() || chromeInstalled) return;
+  chromeInstalled = true;
+  const applyBarStyle = () => {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    void StatusBar.setStyle({ style: dark ? Style.Light : Style.Dark }).catch(
+      () => {},
+    );
+  };
+  applyBarStyle();
+  // data-theme 속성 변경(OS 다크 전환·사용자 선택)을 따라 상태바도 갱신
+  new MutationObserver(applyBarStyle).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+  if (Capacitor.getPlatform() === 'android')
+    void StatusBar.setBackgroundColor({ color: '#f7f9fc' }).catch(() => {});
+  void App.addListener('backButton', () => {
+    const route = window.location.hash.slice(1);
+    if (!route || route === 'home') void App.minimizeApp();
+    else window.history.back();
+  }).catch(() => {});
+}
 
 /** 알림 탭 시 payload.data.link로 해시 라우트 이동 — 앱 시작 시 1회 설치. */
 export function initNativePush(): void {

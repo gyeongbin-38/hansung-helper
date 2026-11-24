@@ -25,12 +25,15 @@
     "test:db": "node scripts/run-python.mjs tests/account-db.py",
     "test:http": "node scripts/run-python.mjs tests/http-check.py",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm run lint:app && npm test && npm run build"
+    "verify": "npm run typecheck && npm run lint:app && npm test && npm run build",
+    "cap:sync": "cap sync",
+    "cap:assets": "npx @capacitor/assets generate"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.6.2",
     "@capacitor/push-notifications": "^8.1.3",
+    "@capacitor/status-bar": "^8.0.4",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "lucide-react": "1.31.0",
@@ -42,6 +45,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.6.2",
+    "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/ios": "^8.6.2",
     "@cloudflare/vite-plugin": "1.67.0",

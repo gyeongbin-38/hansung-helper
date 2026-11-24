@@ -82,6 +82,14 @@ Worker에 의존하므로 정적 번들 서빙은 불가 — `capacitor.config.t
 - 발송 모듈 `lib/server/native-push.ts` — APNs ES256 JWT + FCM v1
   (서비스 계정 OAuth). 비밀값 미설정 채널만 조용히 꺼진다
 - 웹 UX 분기: 네이티브 안에서 설치 힌트 억제, 알림 토글은 플러그인 권한 경로
+- **앱 아이콘·스플래시**: `assets/` 원본(academic-logo.png 확장)에서
+  `npm run cap:assets`로 iOS AppIcon(1024)·Android 어댑티브 아이콘·스플래시
+  전부 생성. 같은 아트로 `public/icons/` PWA 아이콘도 교체
+- **네이티브 크롬**(`lib/native.ts` `initNativeChrome`): 상태바 아이콘 색이
+  data-theme을 따라감(MutationObserver), Android 뒤로가기는 해시 라우트
+  뒤로가기 → 홈에서는 `minimizeApp`
+- `Info.plist`의 `ITSAppUsesNonExemptEncryption=false` — 업로드마다
+  수출 규정 질문 생략
 
 실기기/계정이 필요한 남은 단계:
 1. **Apple 개발자 계정**($99/년) → Xcode에서 Signing 팀 지정 + mac에서
@@ -92,11 +100,33 @@ Worker에 의존하므로 정적 번들 서빙은 불가 — `capacitor.config.t
 2. **Firebase 프로젝트** → `google-services.json`을 `android/app/`에 배치
    (gitignore 처리됨 — 커밋 금지) + 서비스 계정 JSON을 `FCM_SERVICE_ACCOUNT`
    비밀값으로 설정(양 워커)
-3. Android Studio에서 빌드 또는 `npx cap open android`
+3. Android Studio에서 빌드 또는 `npx cap open android` — iOS는 맥에서
+   `npx cap sync ios`(pod install) 후 Xcode 빌드
 4. 심사 자료: `/privacy`(이미), 계정 삭제 경로(이미), UGC 모더레이션
-   절차(`docs/moderation.md`), 체험 모드 진입 경로(아래)
+   절차(`docs/moderation.md`), 체험 모드 진입 경로(아래), 리스팅 초안(아래)
 5. 실기기 확인 필요: iOS 푸시 수신, 딥링크/뒤로가기, 오프라인 첫 화면,
+   스크린샷 촬영(심사 필수 — 실기기에서 각 섹션 6.7"·6.5" iPhone 기준),
    결제 없음 명시(앱 내 구매 미사용 — 심사 간소화)
+
+## 스토어 리스팅 초안
+
+| 항목 | 값 |
+|---|---|
+| 앱 이름 | 학사부기 |
+| 부제 (iOS, 30자) | 졸업·수강·마감을 한곳에서 |
+| 카테고리 | Education (주), Productivity (보조) |
+| 개인정보 URL | https://hansung-helper.gyeongbin-38.workers.dev/privacy |
+| 지원 URL | 같은 도메인 (또는 GitHub 이슈) |
+| 연령 등급 | 4+ (UGC 있으나 신고·차단·모더레이션 완비 — 등급 설문에서 UGC 항목 체크) |
+
+설명 초안:
+> 한성대학교 학생을 위한 학사 도우미. 졸업 요건 확인, 학기별 수강 계획,
+> 시간표, 과제·강의 마감 알림, 비교과 활동, 학사 일정을 한곳에서 관리합니다.
+> 학교 계정을 연결하면 LMS 과제와 이수 내역이 자동으로 동기화되고,
+> 연결 없이도 수기 입력으로 졸업 지도와 학기 계획을 사용할 수 있습니다.
+> 한성대학교 공식 앱이 아닌 학생 제작 비공식 도구입니다.
+
+키워드(iOS, 100자): 한성대,학사,수강신청,졸업요건,시간표,과제,학점,LMS
 
 ## 심사자 진입 경로 (App Review 준비)
 
